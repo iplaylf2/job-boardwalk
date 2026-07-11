@@ -1,29 +1,30 @@
 # job-boardwalk
 
-Job Boardwalk explores human–AI agent collaboration in job browsing across recruiting
-platforms.
+Job Boardwalk explores how a user-directed agent can assist with recruiting-site work across
+platforms that expose similar information and actions through different interaction models.
 
-Recruiting platforms represent similar information and interactions in different ways. The
-project asks how an agent can help a person browse more effectively across those platforms,
-and how their differences can be modeled consistently without erasing what is specific to
-each one.
+## Product boundary
 
-## Scope
+The agent acts as a recruiting assistant under the user's goals and delegated authority. It may
+continue routine work without the user watching every step. This differs from concurrent bulk
+crawling: the project favors ordinary, low-concurrency browsing, respects applicable rate limits
+and terms, and does not aim to bypass access controls or platform restrictions.
 
-The intended setting is human-directed browsing: an agent assists a person who is actively
-interacting with recruiting platforms. This differs from unattended crawling or bulk data
-collection. The project does not aim to bypass access controls, evade rate limits or
-platform restrictions, or operate outside applicable terms.
-
-The concrete interaction model, shared concepts, platform integrations, and application
-shape remain open. They will emerge from implementation work and observed needs rather
-than being fixed by the initial repository structure.
+Shared concepts and platform-specific behavior are derived from working integrations. The model
+will continue to evolve as browsing and collaboration capabilities are implemented.
 
 ## Current status
 
-This repository currently establishes a pnpm-managed TypeScript monorepo and its shared
-development checks. Product workspaces and their responsibilities will be introduced as
-the project takes shape.
+The repository is a pnpm-managed TypeScript monorepo. Its browser application establishes and
+reuses login sessions for BOSS直聘 and 鱼泡直聘. Agent-assisted browsing beyond login remains
+under development.
+
+## Workspace map
+
+- [`apps/`](apps/) contains runnable applications and their operating documentation.
+- [`internal/`](internal/) contains private development support for this repository.
+- [`packages/`](packages/) is reserved for reusable product packages when concrete cross-workspace
+  consumers require them.
 
 ## Development
 
@@ -32,4 +33,5 @@ pnpm install
 pnpm check
 ```
 
-Root commands run the checks supported by the current workspaces.
+`pnpm check` runs formatting, unused-code analysis, dependency validation, linting, type checks,
+tests, and builds across the workspaces that provide them.

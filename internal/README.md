@@ -1,5 +1,8 @@
 # Internal packages
 
-This directory currently contains private development support for the monorepo, including
-shared tool presets. Further responsibilities will be added only when implementation work
-requires them.
+This directory contains private development support for the monorepo.
+
+- [`presets`](presets/) owns TypeScript and Oxlint configuration shared across workspaces.
+
+Add another internal workspace only when repository tooling has a distinct responsibility that
+does not belong to a product application or reusable product package.

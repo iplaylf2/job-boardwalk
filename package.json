@@ -1,7 +1,7 @@
 {
   "name": "job-boardwalk",
   "private": true,
-  "description": "Exploring human-directed, agent-assisted job browsing across recruiting platforms.",
+  "description": "Exploring user-directed recruiting workflows carried out with an agent.",
   "type": "module",
   "scripts": {
     "build": "pnpm -r --if-present build",
@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
-    "@types/node": "^26.1.1",
+    "@types/node": "catalog:",
     "dependency-cruiser": "^18.0.0",
     "knip": "^6.25.0",
     "oxfmt": "^0.58.0",

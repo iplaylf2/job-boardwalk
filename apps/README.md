@@ -1,4 +1,4 @@
 # Applications
 
-This directory reserves the `apps/*` workspace path. Its product responsibilities remain
-open until implementation work establishes them.
+- [`browser`](browser/) owns Chromium process management and recruiting-site login sessions.
+  Browser-assisted recruiting workflows build on this application.

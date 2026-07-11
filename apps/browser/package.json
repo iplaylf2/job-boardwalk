@@ -1,0 +1,28 @@
+{
+  "name": "@job-boardwalk/browser",
+  "private": true,
+  "description": "Establishing and reusing recruiting-site login sessions in Chromium.",
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "build": "vite build",
+    "cli": "tsx src/cli.ts",
+    "lint": "oxlint --config oxlint.config.ts .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "tsx": "^4.20.3",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

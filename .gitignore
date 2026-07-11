@@ -1,2 +1,5 @@
 **/dist
 **/node_modules
+
+# Local browser authentication state. These files contain sensitive session data.
+.auth/
