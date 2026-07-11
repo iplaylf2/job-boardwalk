@@ -1,0 +1,28 @@
+packages:
+  - apps/*
+  - packages/*
+  - internal/*
+
+nodeVersion: 26.5.0
+engineStrict: true
+
+strictPeerDependencies: true
+
+# Temporary: dependency-cruiser 18 cannot analyze the workspace's TypeScript version.
+# Remove this extension once the installed dependency-cruiser supports the catalog's
+# TypeScript version, then verify `pnpm depcruise` cruises TypeScript modules rather than 0.
+packageExtensions:
+  dependency-cruiser@18:
+    dependencies:
+      typescript: 6.0.3
+
+catalog:
+  oxlint: ^1.73.0
+  typescript: ^7.0.2
+
+catalogMode: prefer
+cleanupUnusedCatalogs: true
+
+allowBuilds:
+  oxfmt: true
+  oxlint: true

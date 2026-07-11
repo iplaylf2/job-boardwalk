@@ -1,0 +1,32 @@
+{
+  "name": "job-boardwalk",
+  "private": true,
+  "description": "Exploring human-directed, agent-assisted job browsing across recruiting platforms.",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm format:check && pnpm unused && pnpm depcruise && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "depcruise": "dependency-cruise --config .dependency-cruiser.json --output-type err-long apps internal packages",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "pnpm lint:root && pnpm -r --if-present lint",
+    "lint:root": "oxlint --config oxlint.config.ts .",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "unused": "knip"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "^26.1.1",
+    "dependency-cruiser": "^18.0.0",
+    "knip": "^6.25.0",
+    "oxfmt": "^0.58.0",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=26.5.0",
+    "pnpm": ">=11.11.0"
+  },
+  "packageManager": "pnpm@11.11.0"
+}

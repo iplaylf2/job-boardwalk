@@ -1,0 +1,17 @@
+{
+  "name": "@job-boardwalk/presets",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./oxlint.shared.ts": "./exports/oxlint.shared.ts",
+    "./tsconfig.json": "./exports/tsconfig.shared.json"
+  },
+  "scripts": {
+    "lint": "oxlint --config oxlint.config.ts .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

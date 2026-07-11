@@ -1,0 +1,15 @@
+{
+  "extends": "dependency-cruiser/configs/recommended-strict",
+  "options": {
+    "combinedDependencies": true,
+    "doNotFollow": {
+      "path": "(^|/)node_modules($|/)"
+    },
+    "enhancedResolveOptions": {
+      "conditionNames": ["import", "require", "node", "default", "types"],
+      "exportsFields": ["exports"],
+      "extensions": [".ts", ".tsx", ".astro", ".mjs", ".js", ".d.ts"],
+      "mainFields": ["module", "main", "types", "typings"]
+    }
+  }
+}
