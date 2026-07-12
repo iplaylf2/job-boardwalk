@@ -31,7 +31,7 @@ function* readDebuggingPort(profilePath: string, process: ChildProcess): RiteCor
       while (true) {
         if (hasBrowserProcessExited(process)) {
           return {
-            error: new Error("Chromium 在开放本地控制连接前退出"),
+            error: new Error("Chromium 在建立本地控制连接前退出"),
             kind: "failed",
           } as const;
         }
@@ -56,7 +56,7 @@ function* readDebuggingPort(profilePath: string, process: ChildProcess): RiteCor
     },
   ]);
   if (outcome.kind === "timeout") {
-    throw new Error("Chromium 未在预期时间内开放本地控制连接");
+    throw new Error("Chromium 未在预期时间内建立本地控制连接");
   }
   if (outcome.kind === "failed") {
     throw outcome.error;
@@ -65,7 +65,7 @@ function* readDebuggingPort(profilePath: string, process: ChildProcess): RiteCor
 }
 
 export function* stopBrowserSession(session: BrowserSession): RiteCoroutine<void> {
-  if (session.browserProcess.pid === undefined || hasBrowserProcessExited(session.browserProcess)) {
+  if (!session.browserProcess.pid || hasBrowserProcessExited(session.browserProcess)) {
     return;
   }
   const exitedProcess = once(session.browserProcess, "exit");
@@ -83,7 +83,7 @@ export function* stopBrowserSession(session: BrowserSession): RiteCoroutine<void
   if (!exited && !hasBrowserProcessExited(session.browserProcess)) {
     session.browserProcess.kill("SIGKILL");
     yield* until(() => exitedProcess);
-    throw new Error("Chromium 未能在宽限期内正常退出");
+    throw new Error("Chromium 未能在等待时间内正常退出");
   }
 }
 
@@ -112,9 +112,12 @@ export function* browserSession(
     scopeSignal.addEventListener("abort", terminateOnAbort, { once: true });
     try {
       yield* until(() => once(browserProcess, "spawn"));
-      const debuggingPort =
-        controlMode === "cdp" ? yield* readDebuggingPort(profilePath, browserProcess) : undefined;
-      yield* provide(debuggingPort === undefined ? session : { ...session, debuggingPort });
+      if (controlMode === "cdp") {
+        const debuggingPort = yield* readDebuggingPort(profilePath, browserProcess);
+        yield* provide({ ...session, debuggingPort });
+      } else {
+        yield* provide(session);
+      }
     } finally {
       scopeSignal.removeEventListener("abort", terminateOnAbort);
       yield* stopBrowserSession(session);

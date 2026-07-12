@@ -3,15 +3,9 @@ import { chmod, rename, rm, writeFile } from "node:fs/promises";
 
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
+import type { LoginReceipt, PlatformName } from "@job-boardwalk/platforms";
 
-import { getLoginReceiptPath } from "#/session-storage.js";
-import type { PlatformName } from "#/platforms.js";
-
-export interface LoginReceipt {
-  authenticatedAt: string;
-  platform: PlatformName;
-  state: "persisted";
-}
+import { getLoginReceiptPath } from "#/authentication-storage.js";
 
 const jsonIndentationSpaces = 2;
 const receiptFileMode = 0o600;

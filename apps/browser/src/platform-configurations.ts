@@ -1,13 +1,15 @@
 import type { AuthenticationEvidence } from "./login/evidence.js";
+import { platformCatalog } from "@job-boardwalk/platforms";
+import type { PlatformName } from "@job-boardwalk/platforms";
 
-interface PlatformDefinition {
+interface PlatformConfiguration {
   authenticationEvidence: AuthenticationEvidence;
   label: string;
   loginUrl: string;
   homeUrl: string;
 }
 
-export const platforms = {
+export const platformConfigurations = {
   boss: {
     authenticationEvidence: {
       cookieUrl: "https://www.zhipin.com/",
@@ -15,7 +17,7 @@ export const platforms = {
       requiredCookieNames: ["zp_at"],
     },
     homeUrl: "https://www.zhipin.com/",
-    label: "BOSS直聘",
+    label: platformCatalog.boss.label,
     loginUrl: "https://www.zhipin.com/web/user/",
   },
   yupao: {
@@ -25,13 +27,11 @@ export const platforms = {
       requiredCookieNames: ["TOKEN", "USERID", "current_identity"],
     },
     homeUrl: "https://www.yupao.com/",
-    label: "鱼泡直聘",
+    label: platformCatalog.yupao.label,
     loginUrl: "https://www.yupao.com/web/login/",
   },
-} as const satisfies Record<string, PlatformDefinition>;
-
-export type PlatformName = keyof typeof platforms;
+} as const satisfies Record<PlatformName, PlatformConfiguration>;
 
 export function isPlatformName(value: string): value is PlatformName {
-  return Object.hasOwn(platforms, value);
+  return Object.hasOwn(platformConfigurations, value);
 }

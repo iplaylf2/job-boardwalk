@@ -1,23 +1,26 @@
 {
-  "name": "@job-boardwalk/browser",
+  "name": "@job-boardwalk/state-service",
   "private": true,
-  "description": "Chromium profile management and recruiting-site authentication.",
+  "description": "Local persistence and semantic state API for Job Boardwalk.",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
   },
   "scripts": {
     "build": "vite build",
-    "cli": "tsx src/cli.ts",
+    "dev": "tsx watch src/main.ts",
     "lint": "oxlint --config oxlint.config.ts .",
+    "start": "node dist/main.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "2.0.8",
     "@job-boardwalk/platforms": "workspace:*",
+    "@job-boardwalk/state-api": "workspace:*",
     "@job-boardwalk/storage-layout": "workspace:*",
     "@shajara/host": "catalog:",
-    "playwright": "^1.61.1"
+    "hono": "4.12.29"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",

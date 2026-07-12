@@ -8,7 +8,7 @@ const successfulExitCode = 0;
 export function checkBrowserCommand(): void {
   const browserCommand = resolveChromiumCommand();
   const browser = spawnSync(browserCommand, ["--version"], { encoding: "utf8" });
-  if (browser.error !== undefined || browser.status !== successfulExitCode) {
+  if (browser.error || browser.status !== successfulExitCode) {
     throw new Error(`找不到可用的 Chromium 命令：${browserCommand}`);
   }
 

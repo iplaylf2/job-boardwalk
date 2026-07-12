@@ -1,0 +1,22 @@
+{
+  "name": "@job-boardwalk/storage-layout",
+  "private": true,
+  "description": "Filesystem layout and permissions for Job Boardwalk private data.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --config oxlint.config.ts .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@shajara/host": "catalog:"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

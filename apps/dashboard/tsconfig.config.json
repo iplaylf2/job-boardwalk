@@ -1,0 +1,9 @@
+{
+  "extends": "@job-boardwalk/presets/tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"]
+  },
+  "include": ["vite.config.ts"]
+}

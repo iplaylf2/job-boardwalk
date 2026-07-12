@@ -1,5 +1,5 @@
 **/dist
 **/node_modules
 
-# Local browser authentication state. These files contain sensitive session data.
-.auth/
+# Local application state. This includes browser credentials and personal data.
+.job-boardwalk/

@@ -10,6 +10,9 @@ export default defineConfig({
     style: "error",
     suspicious: "error",
   },
+  options: {
+    reportUnusedDisableDirectives: "deny",
+  },
   plugins: ["import"],
   rules: {
     "eslint/default-case": "off",

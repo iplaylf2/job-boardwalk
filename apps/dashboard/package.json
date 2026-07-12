@@ -1,0 +1,26 @@
+{
+  "name": "@job-boardwalk/dashboard",
+  "private": true,
+  "description": "SolidJS status dashboard for Job Boardwalk.",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "lint": "oxlint --config oxlint.config.ts .",
+    "start": "vite preview --host 127.0.0.1 --port 4311",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.config.json --noEmit"
+  },
+  "dependencies": {
+    "@job-boardwalk/state-api": "workspace:*",
+    "@solidjs/web": "2.0.0-beta.17",
+    "solid-js": "2.0.0-beta.17"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "3.0.0-next.7"
+  }
+}

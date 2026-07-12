@@ -6,7 +6,7 @@ import { checkBrowserCommand } from "./cli/browser-check.js";
 import { openPlatform } from "./cli/open.js";
 import { writeError, writeJsonLine } from "./cli/output.js";
 import { login } from "./login/workflow.js";
-import { isPlatformName } from "./platforms.js";
+import { isPlatformName } from "./platform-configurations.js";
 
 const nodeRuntimeArgumentCount = 2;
 const failedExitCode = 1;
@@ -28,7 +28,7 @@ function* main() {
     );
   }
 
-  if (platformArgument === undefined || !isPlatformName(platformArgument)) {
+  if (!platformArgument || !isPlatformName(platformArgument)) {
     throw new Error("login 和 open 需要平台参数：boss 或 yupao");
   }
 

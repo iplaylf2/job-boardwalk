@@ -75,14 +75,14 @@ function* connectCdpCookieEvidence(
   evidence: Extract<AuthenticationEvidence, { kind: "cdp-cookie-names" }>,
 ): RiteCoroutine<void> {
   assertBrowserActive(session);
-  if (session.debuggingPort === undefined) {
+  if (!session.debuggingPort) {
     throw new Error("CDP Cookie 名称观察器需要浏览器控制端口");
   }
   const browser = yield* until(() =>
     chromium.connectOverCDP(`http://127.0.0.1:${session.debuggingPort}`),
   );
   const [context] = browser.contexts();
-  if (context === undefined) {
+  if (!context) {
     throw new Error("Chromium 未提供可观察的浏览上下文");
   }
   return yield* waitForCdpCookieEvidence(session, context, evidence);

@@ -1,15 +1,20 @@
 {
   "extends": "dependency-cruiser/configs/recommended-strict",
+  "forbidden": [
+    {
+      "name": "no-orphans",
+      "severity": "ignore",
+      "from": {},
+      "to": {}
+    }
+  ],
   "options": {
-    "combinedDependencies": true,
-    "doNotFollow": {
-      "path": "(^|/)node_modules($|/)"
+    "exclude": {
+      "path": "(^|/)dist($|/)"
     },
     "enhancedResolveOptions": {
-      "conditionNames": ["import", "require", "node", "default", "types"],
-      "exportsFields": ["exports"],
-      "extensions": [".ts", ".tsx", ".astro", ".mjs", ".js", ".d.ts"],
-      "mainFields": ["module", "main", "types", "typings"]
+      "conditionNames": ["import", "require", "node", "default"],
+      "exportsFields": ["exports"]
     }
   }
 }

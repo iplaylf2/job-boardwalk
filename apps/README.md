@@ -1,4 +1,6 @@
 # Applications
 
-- [`browser`](browser/) owns Chromium process management and recruiting-site login sessions.
-  Browser-assisted recruiting workflows build on this application.
+- [`browser`](browser/) manages Chromium profiles, recruiting-site authentication, and interactive
+  browsing sessions.
+- [`dashboard`](dashboard/) presents local workspace state through SolidJS.
+- [`state-service`](state-service/) owns local persistence and exposes the semantic state API.

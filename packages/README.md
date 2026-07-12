@@ -1,5 +1,7 @@
 # Packages
 
-No reusable product packages exist yet. Add one here only when a concrete capability needs a
-stable contract shared by more than one workspace; application-owned code remains with its
-application.
+- [`platforms`](platforms/) owns stable recruiting-platform identifiers, labels, and the login
+  receipt type.
+- [`state-api`](state-api/) owns transport types shared by the state service and its clients.
+- [`storage-layout`](storage-layout/) owns the private filesystem layout and directory permissions
+  used by applications that persist local data.

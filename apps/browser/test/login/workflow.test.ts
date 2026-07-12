@@ -15,7 +15,7 @@ vi.mock("#/browser/session.js", () => ({
   browserSession: dependencies.browserSession,
 }));
 
-vi.mock("#/session-storage.js", () => ({
+vi.mock("#/authentication-storage.js", () => ({
   prepareBrowserProfileDirectory: dependencies.prepareBrowserProfileDirectory,
 }));
 

@@ -6,17 +6,17 @@ const successfulExitCode = 0;
 
 function isAvailable(command: string): boolean {
   const result = spawnSync(command, ["--version"], { stdio: "ignore" });
-  return result.error === undefined && result.status === successfulExitCode;
+  return !result.error && result.status === successfulExitCode;
 }
 
 export function resolveChromiumCommand(): string {
   const configuredCommand = process.env["JOB_BOARDWALK_BROWSER"];
-  if (configuredCommand !== undefined) {
+  if (configuredCommand) {
     return configuredCommand;
   }
 
   const detectedCommand = browserCandidates.find(isAvailable);
-  if (detectedCommand === undefined) {
+  if (!detectedCommand) {
     throw new Error(
       "找不到 Chromium 浏览器；请安装兼容浏览器，或通过 JOB_BOARDWALK_BROWSER 指定命令或绝对路径",
     );

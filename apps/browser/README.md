@@ -28,14 +28,14 @@ pnpm --filter @job-boardwalk/browser cli login yupao
 ```
 
 Complete login in the visible browser. The command writes JSON Lines progress events to stdout,
-closes the browser after observing authentication, writes a login receipt, and then reports
-`persisted`. No terminal confirmation is required.
+closes the browser after detecting authentication, writes a login receipt, and then reports
+`persisted`. The command does not require terminal confirmation.
 
 ```jsonl
 {"detail":"正在打开BOSS直聘登录页","state":"starting"}
 {"detail":"请在浏览器中完成BOSS直聘登录","state":"awaiting-user"}
 {"detail":"已确认BOSS直聘登录","state":"authenticated"}
-{"detail":"BOSS直聘登录状态已保存，可供后续复用","state":"persisted"}
+{"detail":"BOSS直聘登录记录已保存；浏览器资料可供后续复用","state":"persisted"}
 ```
 
 ## Reuse
@@ -54,8 +54,8 @@ The browser remains open until Enter is pressed in the terminal.
 Remove both the Chromium profile and its login receipt:
 
 ```sh
-rm -rf .auth/boss-profile .auth/boss-login-receipt.json
-rm -rf .auth/yupao-profile .auth/yupao-login-receipt.json
+rm -rf .job-boardwalk/auth/boss-profile .job-boardwalk/auth/boss-login-receipt.json
+rm -rf .job-boardwalk/auth/yupao-profile .job-boardwalk/auth/yupao-login-receipt.json
 ```
 
 Logging out on the platform or revoking the session in account security settings invalidates the
@@ -74,14 +74,17 @@ completed login.
 
 ## Local data
 
-Platform profiles and receipts live under `.auth/`, which is excluded from Git. The application
-requests owner-only permissions on systems that support POSIX modes. Treat the directory as
-sensitive as account credentials.
+Platform profiles and receipts live under `.job-boardwalk/auth/`, which is excluded from Git. The
+application requests owner-only permissions on systems that support POSIX modes. Treat the
+directory as sensitive as account credentials.
 
-After login, `.auth/<platform>-login-receipt.json` records when authentication was observed and
-persisted. The receipt is historical, not a live validity claim: expiration, logout, or
-server-side revocation can invalidate the profile later. Running `login` observes the platform
-again before writing a new receipt.
+After login, `.job-boardwalk/auth/<platform>-login-receipt.json` records the latest time the
+application detected and persisted authentication. The receipt is a point-in-time record, not a
+live validity claim: expiration, logout, or server-side revocation can invalidate the profile
+later. Running `login` checks authentication again before replacing the receipt.
+
+Set `JOB_BOARDWALK_HOME` to relocate all local application state. Older storage layouts are
+unsupported and are never imported automatically.
 
 ## Testing
 
@@ -95,8 +98,8 @@ It protects local invariants such as browser-process cleanup, cancellation, logi
 ownership, progress semantics, and private atomic receipt persistence. It does not open recruiting
 sites or use saved profiles.
 
-Platform details such as login URLs and authentication cookie names are observations rather than
-contracts controlled by this application. When an integration appears to have drifted, verify it
-manually with `login` and `open`, then update the platform definition and this document from the
-new observation. Live verification uses a real platform session and remains a user-directed,
-serial operating task rather than part of the automated test suite.
+Login URLs and authentication cookie names describe observed platform behavior; the application
+does not control them. When an integration appears to have drifted, verify it manually with
+`login` and `open`, then update the platform configuration and this document with the result. Live
+verification uses a real platform session and remains a user-directed, serial operation rather
+than part of the automated test suite.
