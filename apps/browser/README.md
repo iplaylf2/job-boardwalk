@@ -82,3 +82,21 @@ After login, `.auth/<platform>-login-receipt.json` records when authentication w
 persisted. The receipt is historical, not a live validity claim: expiration, logout, or
 server-side revocation can invalidate the profile later. Running `login` observes the platform
 again before writing a new receipt.
+
+## Testing
+
+The default test suite is deliberately offline:
+
+```sh
+pnpm --filter @job-boardwalk/browser test
+```
+
+It protects local invariants such as browser-process cleanup, cancellation, login workflow
+ownership, progress semantics, and private atomic receipt persistence. It does not open recruiting
+sites or use saved profiles.
+
+Platform details such as login URLs and authentication cookie names are observations rather than
+contracts controlled by this application. When an integration appears to have drifted, verify it
+manually with `login` and `open`, then update the platform definition and this document from the
+new observation. Live verification uses a real platform session and remains a user-directed,
+serial operating task rather than part of the automated test suite.
