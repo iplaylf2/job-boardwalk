@@ -1,10 +1,13 @@
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 
-export async function waitForTerminalConfirmation(message: string): Promise<void> {
+import { until } from "@shajara/host";
+import type { RiteCoroutine } from "@shajara/host";
+
+export function* waitForTerminalConfirmation(message: string): RiteCoroutine<void> {
   const prompt = createInterface({ input: stdin, output: stdout });
   try {
-    await prompt.question(message);
+    yield* until(() => prompt.question(message));
   } finally {
     prompt.close();
   }

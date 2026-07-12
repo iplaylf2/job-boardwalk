@@ -1,5 +1,7 @@
 import process from "node:process";
 
+import { run } from "@shajara/host";
+
 import { checkBrowserCommand } from "./cli/browser-check.js";
 import { openPlatform } from "./cli/open.js";
 import { writeError, writeJsonLine } from "./cli/output.js";
@@ -9,7 +11,7 @@ import { isPlatformName } from "./platforms.js";
 const nodeRuntimeArgumentCount = 2;
 const failedExitCode = 1;
 
-async function main(): Promise<void> {
+function* main() {
   const [command, platformArgument] = process.argv.slice(nodeRuntimeArgumentCount);
   if (command === "doctor") {
     checkBrowserCommand();
@@ -30,13 +32,13 @@ async function main(): Promise<void> {
     throw new Error("login 和 open 需要平台参数：boss 或 yupao");
   }
 
-  await (command === "login"
+  yield* command === "login"
     ? login(platformArgument, writeJsonLine)
-    : openPlatform(platformArgument));
+    : openPlatform(platformArgument);
 }
 
 try {
-  await main();
+  await run(main);
 } catch (error) {
   writeError(error instanceof Error ? error.message : String(error));
   process.exitCode = failedExitCode;

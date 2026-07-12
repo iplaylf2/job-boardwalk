@@ -17,6 +17,7 @@ packageExtensions:
       typescript: 6.0.3
 
 catalog:
+  "@shajara/host": ^0.11.0
   "@types/node": ^26.1.1
   oxlint: ^1.73.0
   typescript: ^7.0.2
@@ -30,3 +31,7 @@ allowBuilds:
   esbuild: true
   oxfmt: true
   oxlint: true
+
+minimumReleaseAgeExclude:
+  - "@shajara/host@0.11.0"
+  - "@shajara/kernel@0.11.0"

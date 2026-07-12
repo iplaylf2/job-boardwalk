@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 
+import { run } from "@shajara/host";
 import { writeLoginReceiptFile } from "#/login/receipt.js";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -33,7 +34,7 @@ describe("login receipt persistence", () => {
     } as const;
     await writeFile(receiptPath, "stale\n", { mode: permissionMask });
 
-    await writeLoginReceiptFile(receiptPath, receipt);
+    await run(() => writeLoginReceiptFile(receiptPath, receipt));
 
     await expect(readFile(receiptPath, "utf8")).resolves.toBe(
       `${JSON.stringify(receipt, null, jsonIndentationSpaces)}\n`,

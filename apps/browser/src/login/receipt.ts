@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { chmod, rename, rm, writeFile } from "node:fs/promises";
 
+import { until } from "@shajara/host";
+import type { RiteCoroutine } from "@shajara/host";
+
 import { getLoginReceiptPath } from "#/session-storage.js";
 import type { PlatformName } from "#/platforms.js";
 
@@ -13,31 +16,33 @@ export interface LoginReceipt {
 const jsonIndentationSpaces = 2;
 const receiptFileMode = 0o600;
 
-export async function writeLoginReceiptFile(
+export function* writeLoginReceiptFile(
   receiptPath: string,
   receipt: LoginReceipt,
-): Promise<void> {
+): RiteCoroutine<void> {
   const temporaryPath = `${receiptPath}.${randomUUID()}.tmp`;
   try {
-    await writeFile(temporaryPath, `${JSON.stringify(receipt, null, jsonIndentationSpaces)}\n`, {
-      mode: receiptFileMode,
-    });
-    await chmod(temporaryPath, receiptFileMode);
-    await rename(temporaryPath, receiptPath);
+    yield* until(() =>
+      writeFile(temporaryPath, `${JSON.stringify(receipt, null, jsonIndentationSpaces)}\n`, {
+        mode: receiptFileMode,
+      }),
+    );
+    yield* until(() => chmod(temporaryPath, receiptFileMode));
+    yield* until(() => rename(temporaryPath, receiptPath));
   } finally {
-    await rm(temporaryPath, { force: true });
+    yield* until(() => rm(temporaryPath, { force: true }));
   }
 }
 
-export async function persistLoginReceipt(
+export function* persistLoginReceipt(
   platform: PlatformName,
   authenticatedAt: string,
-): Promise<LoginReceipt> {
+): RiteCoroutine<LoginReceipt> {
   const receipt = {
     authenticatedAt,
     platform,
     state: "persisted",
   } as const;
-  await writeLoginReceiptFile(getLoginReceiptPath(platform), receipt);
+  yield* writeLoginReceiptFile(getLoginReceiptPath(platform), receipt);
   return receipt;
 }

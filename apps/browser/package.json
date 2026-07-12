@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@shajara/host": "catalog:",
     "playwright": "^1.61.1"
   },
   "devDependencies": {

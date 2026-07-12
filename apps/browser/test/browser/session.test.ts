@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import process from "node:process";
 
+import { run } from "@shajara/host";
 import { hasBrowserProcessExited, stopBrowserSession } from "#/browser/session.js";
 import { describe, expect, test } from "vitest";
 
@@ -11,9 +12,9 @@ describe("browser session lifecycle", () => {
     await once(browserProcess, "spawn");
     const session = { browserProcess, profilePath: "/unused" };
 
-    await stopBrowserSession(session);
+    await run(() => stopBrowserSession(session));
 
     expect(hasBrowserProcessExited(browserProcess)).toBe(true);
-    await expect(stopBrowserSession(session)).resolves.toBeUndefined();
+    await expect(run(() => stopBrowserSession(session))).resolves.toBeUndefined();
   });
 });

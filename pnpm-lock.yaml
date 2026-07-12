@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@shajara/host':
+      specifier: ^0.11.0
+      version: 0.11.0
     '@types/node':
       specifier: ^26.1.1
       version: 26.1.1
@@ -52,6 +55,9 @@ importers:
 
   apps/browser:
     dependencies:
+      '@shajara/host':
+        specifier: 'catalog:'
+        version: 0.11.0
       playwright:
         specifier: ^1.61.1
         version: 1.61.1
@@ -847,6 +853,12 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
+  '@shajara/host@0.11.0':
+    resolution: {integrity: sha512-FlXdAhBi8wZllBZBbhBOL4Em4Dl3rDmW4qgLN1Aq0ZszXtqYHfk9ToW12K45UJRAj1znGGoHAID1XlF+D1Nz1w==}
+
+  '@shajara/kernel@0.11.0':
+    resolution: {integrity: sha512-6fWkPLHzhjmmxkUAnFBsIeIZF//S7JNlIWfYH8K9el0R8vCQrsv20kiQRAZDZ2cht8K0HAGJQ5VcJkOt8uMZTw==}
+
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
@@ -1113,6 +1125,9 @@ packages:
     resolution: {integrity: sha512-9XNj/o4wrRFyhSMJOvsuyMwy8aUfBaZ1VrqHVfohyXf0Sw0e+yfKG+xZaY3arGCOMdwFsqObtzVOc1gU9KiT9w==}
     engines: {node: '>=18.3.0'}
     hasBin: true
+
+  fp-ts@2.16.11:
+    resolution: {integrity: sha512-LaI+KaX2NFkfn1ZGHoKCmcfv7yrZsC3b8NtWsTVQeHkq4F27vI5igUuO53sxqDEa2gNQMHFPmpojDw/1zmUK7w==}
 
   fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
@@ -1988,6 +2003,14 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
+  '@shajara/host@0.11.0':
+    dependencies:
+      '@shajara/kernel': 0.11.0
+
+  '@shajara/kernel@0.11.0':
+    dependencies:
+      fp-ts: 2.16.11
+
   '@standard-schema/spec@1.1.0': {}
 
   '@tybys/wasm-util@0.10.3':
@@ -2227,6 +2250,8 @@ snapshots:
   formatly@0.3.0:
     dependencies:
       fd-package-json: 2.0.0
+
+  fp-ts@2.16.11: {}
 
   fsevents@2.3.2:
     optional: true
