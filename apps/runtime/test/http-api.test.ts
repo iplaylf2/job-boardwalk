@@ -41,7 +41,7 @@ test("keeps request errors inside the long-lived runtime scope", async () => {
   }
 });
 
-test("hands a platform browser to the user without exposing account actions", async () => {
+test("opens a platform browser without adding account-action routes", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
   await using runtimeScope = createScope();

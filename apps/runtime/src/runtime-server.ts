@@ -33,7 +33,7 @@ async function main(): Promise<void> {
     repository.recordAuthenticationObservation(platformId, observedAt),
   );
   const httpApi = createHttpApi(repository, runtimeScope, platformBrowser);
-  const server = serve({ fetch: httpApi.fetch, hostname: "127.0.0.1", port: 4310 }, (info) => {
+  const server = serve({ fetch: httpApi.fetch, hostname: "127.0.0.1", port: 54_310 }, (info) => {
     process.stdout.write(`Job Boardwalk: http://${info.address}:${info.port}\n`);
   });
   const shutdown = Promise.withResolvers<true>();

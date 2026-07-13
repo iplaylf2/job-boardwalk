@@ -1,12 +1,13 @@
 # Local runtime
 
 The runtime coordinates Job Boardwalk's local workspace. It is the sole owner of SQLite
-persistence, managed Playwright sessions, platform authentication observations, and the loopback
-HTTP API used by the dashboard and MCP adapter. It does not serve dashboard assets.
+persistence, managed browser sessions, platform authentication observations, and the loopback HTTP
+API used by the dashboard and MCP adapter. It does not serve dashboard assets.
 
-The agent-facing surface is deliberately limited to reading workspace information and handing a
-visible platform window to the user. It exposes no operation for applications, messages, profile
-changes, or other account mutations.
+The repository's [product design](../../docs/product-design.md) defines the target delegation and
+browser-control model. The current runtime is its operational foundation: it can read workspace
+state and hand off a visible browser, but it does not yet expose job search, result collection,
+job-detail reading, or browser-control transfer to the agent.
 
 ## Run the HTTP runtime
 
@@ -16,7 +17,7 @@ For development:
 pnpm --filter @job-boardwalk/runtime dev
 ```
 
-The runtime listens on <http://127.0.0.1:4310>.
+The runtime listens on <http://127.0.0.1:54310>.
 
 For a production-style run:
 
@@ -38,7 +39,7 @@ The MCP surface provides:
 - `job-boardwalk://workspace/overview`, a resource containing the current workspace overview;
 - `read_workspace_overview`, which reads that overview for analysis;
 - `read_browser_availability`, which reports whether managed Chromium is available;
-- `handoff_platform_browser`, which opens or focuses a visible platform window for the user.
+- `handoff_platform_browser`, which opens or focuses a visible platform window.
 
 `handoff_platform_browser` accepts `purpose: "login" | "browse"`. The runtime may observe the
 presence of platform authentication cookies, but credentials and verification input remain inside

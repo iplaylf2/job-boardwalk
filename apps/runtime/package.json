@@ -1,7 +1,7 @@
 {
   "name": "@job-boardwalk/runtime",
   "private": true,
-  "description": "Local collaboration runtime for MCP, browser handoff, and workspace state.",
+  "description": "Local runtime for recruiting research, browser coordination, and workspace state.",
   "type": "module",
   "imports": {
     "#/*": "./src/*"

@@ -19,7 +19,7 @@ export async function requestBrowserHandoff(platformAccess: PlatformAccessSummar
     { method: "POST" },
   );
   if (!response.ok) {
-    throw new Error("无法请求招聘平台窗口，请确认本地服务和浏览器可用");
+    throw new Error("无法打开招聘平台窗口，请确认本地服务和浏览器可用");
   }
   (await response.json()) as BrowserHandoff;
 }

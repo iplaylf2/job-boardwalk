@@ -156,7 +156,7 @@ export function createHttpApi(
     const purpose: PlatformPagePurpose = requestedPurpose === "login" ? "login" : "browse";
     await platformBrowser.handoffToUser(platformId, purpose);
     return context.json({
-      message: "招聘平台窗口已打开；AI 助手不会代替用户投递、沟通或修改账户",
+      message: "招聘平台窗口已打开；登录、验证和账号操作由用户在窗口内完成",
       platformId,
       purpose,
       status: "handed-off",

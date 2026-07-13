@@ -17,7 +17,7 @@ const emptyCollectionLength = 0;
 
 function formatAuthenticationObservation(value?: string): string {
   if (!value) {
-    return "尚未确认登录";
+    return "登录状态待确认";
   }
   const formatted = new Intl.DateTimeFormat("zh-CN", {
     dateStyle: "medium",
@@ -28,13 +28,13 @@ function formatAuthenticationObservation(value?: string): string {
 
 function formatBrowserStatus(platformAccess: PlatformAccessSummary): string {
   if (platformAccess.browserSession === "open") {
-    return "窗口已打开";
+    return "窗口正在运行";
   }
-  return platformAccess.hasBrowserProfile ? "已保留登录浏览器数据" : "尚无登录浏览器数据";
+  return platformAccess.hasBrowserProfile ? "已保留浏览器资料" : "尚无浏览器资料";
 }
 
 function formatBrowserAction(platformAccess: PlatformAccessSummary): string {
-  return platformAccess.authentication === "unknown" ? "打开登录窗口" : "打开平台窗口";
+  return platformAccess.authentication === "unknown" ? "前往登录" : "打开平台";
 }
 
 function SectionHeading(props: { number: string; title: string }) {
@@ -52,7 +52,7 @@ function PlatformAccessPanel(props: {
 }) {
   return (
     <section class="panel platforms">
-      <SectionHeading number="01" title="招聘平台" />
+      <SectionHeading number="01" title="平台访问" />
       <For each={props.platformAccess}>
         {(platformAccess) => (
           <article class="platform-row">
@@ -155,9 +155,9 @@ export function App(): JSX.Element {
     <main>
       <header class="masthead">
         <div>
-          <p class="eyebrow">LOCAL RECRUITING WORKSPACE</p>
+          <p class="eyebrow">LOCAL AI JOB-SEARCH SECRETARY</p>
           <h1>Job Boardwalk</h1>
-          <p class="lede">平台登录状态、求职资料和目标地点都保存在你的设备上。</p>
+          <p class="lede">平台访问、求职资料和目标地点保存在本机，供你和 AI 助手持续协作。</p>
         </div>
         <button type="button" onClick={() => setRevision((value) => value + revisionIncrement)}>
           刷新状态

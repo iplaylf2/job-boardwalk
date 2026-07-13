@@ -16,7 +16,7 @@ import type {
 import { platformIds } from "@job-boardwalk/platform-catalog";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
-const runtimeOrigin = process.env["JOB_BOARDWALK_RUNTIME_ORIGIN"] ?? "http://127.0.0.1:4310";
+const runtimeOrigin = process.env["JOB_BOARDWALK_RUNTIME_ORIGIN"] ?? "http://127.0.0.1:54310";
 const toolNames = {
   handoffPlatformBrowser: "handoff_platform_browser",
   readBrowserAvailability: "read_browser_availability",
@@ -44,7 +44,7 @@ mcpServer.setRequestHandler(ListResourcesRequestSchema, () =>
   Promise.resolve({
     resources: [
       {
-        description: "本地保存的平台访问状态、求职资料和目标地点。",
+        description: "本地保存的平台访问状态、求职资料、研究意图和目标地点。",
         mimeType: "application/json",
         name: "workspace-overview",
         title: "Job Boardwalk 工作区概览",
@@ -71,7 +71,7 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, () =>
     tools: [
       {
         annotations: { readOnlyHint: true },
-        description: "读取本地招聘工作区概览，用于信息整合和分析。",
+        description: "读取本地招聘工作区概览，用于持续研究、信息整合和分析。",
         inputSchema: { additionalProperties: false, properties: {}, type: "object" },
         name: toolNames.readWorkspaceOverview,
         title: "读取招聘工作区概览",
@@ -86,10 +86,10 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, () =>
       {
         annotations: { destructiveHint: false, idempotentHint: true, readOnlyHint: false },
         description:
-          "打开或聚焦招聘平台窗口，供用户登录、完成验证或亲自操作平台。AI 助手不会投递、沟通或修改账户。",
+          "打开或聚焦可见的招聘平台窗口，供用户登录、完成验证或查看平台；此工具不执行账号操作。",
         inputSchema: browserHandoffInput.toJsonSchema(),
         name: toolNames.handoffPlatformBrowser,
-        title: "将平台浏览器交给用户",
+        title: "打开招聘平台窗口",
       },
     ],
   }),

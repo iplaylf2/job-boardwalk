@@ -1,8 +1,8 @@
 # Dashboard
 
-The dashboard presents durable workspace information and lets the user request a visible platform
-window. It does not own SQLite, Chromium profiles, Playwright sessions, authentication detection,
-or the runtime lifecycle.
+The dashboard is Job Boardwalk's local control and status surface. It presents durable workspace
+information and lets the user request a visible platform window. It does not own SQLite, Chromium
+profiles, browser sessions, authentication observation, or the runtime lifecycle.
 
 ## Development
 
@@ -12,8 +12,8 @@ Start the local runtime first, then run:
 pnpm --filter @job-boardwalk/dashboard dev
 ```
 
-Open <http://127.0.0.1:4311>. Vite proxies `/api` requests to the runtime at
-<http://127.0.0.1:4310>.
+Open <http://127.0.0.1:54311>. Vite proxies `/api` requests to the runtime at
+<http://127.0.0.1:54310>.
 
 ## Production-style preview
 

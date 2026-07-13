@@ -1,7 +1,7 @@
 {
   "name": "job-boardwalk",
   "private": true,
-  "description": "Exploring user-directed recruiting workflows carried out with an agent.",
+  "description": "A local AI job-search secretary for delegated research and analysis.",
   "type": "module",
   "scripts": {
     "build": "pnpm -r --if-present build",
