@@ -154,7 +154,7 @@ button:active {
   gap: 9px;
   flex-direction: column;
 }
-.handoff {
+.browser-open {
   padding: 7px 11px;
   font-size: 12px;
   box-shadow: 2px 2px 0 #20231f;

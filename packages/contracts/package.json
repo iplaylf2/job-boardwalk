@@ -1,7 +1,7 @@
 {
   "name": "@job-boardwalk/contracts",
   "private": true,
-  "description": "Shared product contracts for Job Boardwalk clients and adapters.",
+  "description": "Shared product contracts for Job Boardwalk applications.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

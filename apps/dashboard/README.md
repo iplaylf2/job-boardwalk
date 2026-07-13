@@ -1,8 +1,8 @@
 # Dashboard
 
 The dashboard is Job Boardwalk's local control and status surface. It presents durable workspace
-information and lets the user request a visible platform window. It does not own SQLite, Chromium
-profiles, browser sessions, authentication observation, or the runtime lifecycle.
+information and lets the user open a visible platform window. It does not own SQLite, Chromium
+profiles, browser sessions, authentication observations, or the runtime lifecycle.
 
 ## Development
 

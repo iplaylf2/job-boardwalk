@@ -1,5 +1,5 @@
 import type {
-  BrowserHandoff,
+  OpenPlatformBrowserResult,
   PlatformAccessSummary,
   WorkspaceOverview,
 } from "@job-boardwalk/contracts";
@@ -12,14 +12,14 @@ export async function readWorkspaceOverview(): Promise<WorkspaceOverview> {
   return (await response.json()) as WorkspaceOverview;
 }
 
-export async function requestBrowserHandoff(platformAccess: PlatformAccessSummary): Promise<void> {
+export async function openPlatformBrowser(platformAccess: PlatformAccessSummary): Promise<void> {
   const purpose = platformAccess.authentication === "unknown" ? "login" : "browse";
   const response = await fetch(
-    `/api/platforms/${platformAccess.platformId}/browser-handoff?purpose=${purpose}`,
+    `/api/platforms/${platformAccess.platformId}/browser/open?purpose=${purpose}`,
     { method: "POST" },
   );
   if (!response.ok) {
     throw new Error("无法打开招聘平台窗口，请确认本地服务和浏览器可用");
   }
-  (await response.json()) as BrowserHandoff;
+  (await response.json()) as OpenPlatformBrowserResult;
 }

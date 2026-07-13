@@ -1,15 +1,24 @@
 # Local runtime
 
 The runtime coordinates Job Boardwalk's local workspace. It is the sole owner of SQLite
-persistence, managed browser sessions, platform authentication observations, and the loopback HTTP
-API used by the dashboard and MCP adapter. It does not serve dashboard assets.
+persistence, managed browser sessions, and platform authentication observations. Its loopback HTTP
+server exposes `/api` to the dashboard and `/mcp` to MCP clients; it does not serve dashboard
+assets.
 
 The repository's [product design](../../docs/product-design.md) defines the target delegation and
 browser-control model. The current runtime is its operational foundation: it can read workspace
-state and hand off a visible browser, but it does not yet expose job search, result collection,
-job-detail reading, or browser-control transfer to the agent.
+state, report browser availability, and open a visible platform browser. It does not yet expose job
+search, result collection, job-detail reading, or browser-control transfer to the agent.
 
-## Run the HTTP runtime
+## Concurrency model
+
+The process owns one top-level shajara scope. Asynchronous HTTP and MCP work, browser background
+tasks, and the managed browser lifetime converge through that scope. Runtime workflows use
+`RiteCoroutine`; Promise-returning platform and transport APIs enter routines through `until(...)`.
+During shutdown, the runtime stops accepting requests, cancels the scope, waits for owned work to
+finish, and then closes SQLite.
+
+## Run the runtime
 
 For development:
 
@@ -28,35 +37,34 @@ pnpm --filter @job-boardwalk/runtime start
 
 ## Connect an MCP host
 
-Keep the HTTP runtime running and launch the stdio MCP adapter as a separate process:
-
-```sh
-pnpm --filter @job-boardwalk/runtime mcp
-```
+Configure the MCP host to use the Streamable HTTP endpoint at
+<http://127.0.0.1:54310/mcp>. MCP requests share the runtime process, workspace repository,
+managed browser, and top-level shajara scope with the HTTP API.
 
 The MCP surface provides:
 
-- `job-boardwalk://workspace/overview`, a resource containing the current workspace overview;
-- `read_workspace_overview`, which reads that overview for analysis;
+- `job-boardwalk://workspace/overview`, a resource containing platform access, profile facts, and
+  target locations;
+- `read_workspace_overview`, which reads the same workspace state;
 - `read_browser_availability`, which reports whether managed Chromium is available;
-- `handoff_platform_browser`, which opens or focuses a visible platform window.
+- `open_platform_browser`, which opens a visible platform window at its login or browsing page.
 
-`handoff_platform_browser` accepts `purpose: "login" | "browse"`. The runtime may observe the
+`open_platform_browser` accepts `purpose: "login" | "browse"`. The runtime may observe the
 presence of platform authentication cookies, but credentials and verification input remain inside
 the platform window.
 
-## Dashboard HTTP API
+## Runtime HTTP API
 
-The dashboard uses these loopback operations:
+The loopback HTTP surface currently exposes:
 
 - `GET /api/workspace/overview`
 - `GET /api/browser/availability`
 - `POST /api/profile/facts`
 - `POST /api/search-intent/locations`
-- `POST /api/platforms/:platformId/browser-handoff`
+- `POST /api/platforms/:platformId/browser/open`
 
-Shared response contracts are owned by
-[`@job-boardwalk/contracts`](../../packages/contracts/). Profile fact updates accept:
+Shared response types live in [`@job-boardwalk/contracts`](../../packages/contracts/). The profile
+fact write operation accepts:
 
 ```json
 {
@@ -68,7 +76,7 @@ Shared response contracts are owned by
 }
 ```
 
-Target location updates accept:
+The target location write operation accepts:
 
 ```json
 {
@@ -94,6 +102,7 @@ pnpm --filter @job-boardwalk/runtime db:generate
 
 ## Local security boundary
 
-The runtime binds only to `127.0.0.1`. Mutation requests carrying a non-local browser origin are
-rejected. Authentication cookies and Chromium profile contents are never returned through HTTP or
-MCP. Local state is created with owner-only permissions on systems that support POSIX modes.
+The runtime binds only to `127.0.0.1`. API mutations and MCP requests carrying a non-local browser
+origin are rejected. Authentication cookies and Chromium profile contents are never returned
+through HTTP or MCP. Local state is created with owner-only permissions on systems that support
+POSIX modes.

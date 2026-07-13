@@ -23,12 +23,13 @@ Job Boardwalk is organized around two visible surfaces alongside the AI agent's 
 - A SolidJS dashboard presents durable local information such as platform access, confirmed profile
   facts, and target locations.
 
-The local runtime owns both surfaces' shared state. It exposes an MCP server to the agent and a
-loopback HTTP API to the dashboard. The dashboard and MCP server never access SQLite or Chromium
+The local runtime owns the shared state behind both surfaces. One loopback HTTP server exposes
+`/api` to the dashboard and `/mcp` to MCP clients; those clients never access SQLite or Chromium
 profiles directly.
 
-The current runtime can read workspace state and open a visible platform browser. Agent-controlled
-research and durable job results are the next capability described by the product design.
+The current runtime can read workspace state, report browser availability, and open a visible
+platform browser. Agent-controlled research and durable job results are the next capabilities
+described by the product design.
 
 ## Repository map
 
@@ -53,11 +54,8 @@ pnpm --filter @job-boardwalk/runtime dev
 pnpm --filter @job-boardwalk/dashboard dev
 ```
 
-Open <http://127.0.0.1:54311>. To connect an MCP host, run the stdio adapter as a third process:
-
-```sh
-pnpm --filter @job-boardwalk/runtime mcp
-```
+Open <http://127.0.0.1:54311>. Connect an MCP host to the runtime's Streamable HTTP endpoint at
+<http://127.0.0.1:54310/mcp>.
 
 See [dashboard operation](apps/dashboard/) and [runtime operation](apps/runtime/) for application
 details.

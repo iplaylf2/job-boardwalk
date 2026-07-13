@@ -9,7 +9,7 @@ import type {
 
 // oxlint-disable-next-line import/no-unassigned-import -- Vite owns the CSS side-effect import.
 import "./styles.css";
-import { readWorkspaceOverview, requestBrowserHandoff } from "./runtime-api.js";
+import { openPlatformBrowser, readWorkspaceOverview } from "./runtime-api.js";
 
 const initialRevision = 0;
 const revisionIncrement = 1;
@@ -47,7 +47,7 @@ function SectionHeading(props: { number: string; title: string }) {
 }
 
 function PlatformAccessPanel(props: {
-  onBrowserHandoff: () => void;
+  onBrowserOpened: () => void;
   platformAccess: PlatformAccessSummary[];
 }) {
   return (
@@ -64,11 +64,11 @@ function PlatformAccessPanel(props: {
             <div class="platform-actions">
               <span class="tag">{formatBrowserStatus(platformAccess)}</span>
               <button
-                class="handoff"
+                class="browser-open"
                 type="button"
                 onClick={async () => {
-                  await requestBrowserHandoff(platformAccess);
-                  props.onBrowserHandoff();
+                  await openPlatformBrowser(platformAccess);
+                  props.onBrowserOpened();
                 }}
               >
                 {formatBrowserAction(platformAccess)}
@@ -129,13 +129,13 @@ function TargetLocationsPanel(props: { locations: TargetLocation[] }) {
 }
 
 function WorkspaceOverviewView(props: {
-  onBrowserHandoff: () => void;
+  onBrowserOpened: () => void;
   overview: WorkspaceOverview;
 }) {
   return (
     <div class="grid">
       <PlatformAccessPanel
-        onBrowserHandoff={props.onBrowserHandoff}
+        onBrowserOpened={props.onBrowserOpened}
         platformAccess={props.overview.platformAccess}
       />
       <ProfileFactsPanel facts={props.overview.profileFacts} />
@@ -157,7 +157,7 @@ export function App(): JSX.Element {
         <div>
           <p class="eyebrow">LOCAL AI JOB-SEARCH SECRETARY</p>
           <h1>Job Boardwalk</h1>
-          <p class="lede">平台访问、求职资料和目标地点保存在本机，供你和 AI 助手持续协作。</p>
+          <p class="lede">平台访问状态、求职资料和目标城市均保存在本机，供你与 AI 助手持续协作。</p>
         </div>
         <button type="button" onClick={() => setRevision((value) => value + revisionIncrement)}>
           刷新状态
@@ -168,7 +168,7 @@ export function App(): JSX.Element {
         <Show when={workspaceOverview()}>
           {(overview) => (
             <WorkspaceOverviewView
-              onBrowserHandoff={() => setRevision((value) => value + revisionIncrement)}
+              onBrowserOpened={() => setRevision((value) => value + revisionIncrement)}
               overview={overview()}
             />
           )}

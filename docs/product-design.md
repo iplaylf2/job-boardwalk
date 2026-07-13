@@ -66,7 +66,7 @@ research surface includes job search, result collection, job-detail reading, ref
 and local persistence. It should not expose a general account-action tool or arbitrary page script
 execution as part of read-only research.
 
-The current runtime provides workspace reads, browser availability, and visible browser handoff. It
-does not yet provide the research tools, browser-control transfer, or job-result storage described
-above. Those capabilities should be implemented together so the tool contract, browser ownership,
-and durable data model cannot drift apart.
+The current runtime can read workspace state, report browser availability, and open a visible
+platform browser. It does not yet provide the research tools, browser-control transfer, or
+job-result storage described above. Those capabilities should be implemented together so the tool
+contract, browser ownership, and durable data model cannot drift apart.

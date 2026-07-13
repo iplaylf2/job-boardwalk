@@ -23,7 +23,7 @@ function resolveMigrationsDirectory(): string {
   ];
   const migrationsDirectory = candidates.find((candidate) => existsSync(candidate));
   if (!migrationsDirectory) {
-    throw new Error("找不到 Runtime 数据库迁移目录");
+    throw new Error("找不到 runtime 数据库迁移目录");
   }
   return migrationsDirectory;
 }

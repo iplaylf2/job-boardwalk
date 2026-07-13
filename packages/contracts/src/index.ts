@@ -9,14 +9,16 @@ export interface PlatformAccessSummary {
   authentication: "observed" | "unknown";
 }
 
-export interface BrowserHandoff {
-  platformId: PlatformId;
-  purpose: "browse" | "login";
-  status: "handed-off";
+export type OpenPlatformBrowserPurpose = "browse" | "login";
+
+export interface OpenPlatformBrowserResult {
   message: string;
+  platformId: PlatformId;
+  purpose: OpenPlatformBrowserPurpose;
+  status: "opened";
 }
 
-export interface BrowserAvailability {
+export interface PlatformBrowserAvailability {
   available: boolean;
   executablePath: string;
 }

@@ -10,10 +10,8 @@
     "build": "vite build",
     "dev": "tsx watch src/runtime-server.ts",
     "db:generate": "drizzle-kit generate",
-    "mcp": "tsx src/mcp-server.ts",
     "lint": "oxlint --config oxlint.config.ts .",
     "start": "node dist/runtime-server.js",
-    "start:mcp": "node dist/mcp-server.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },

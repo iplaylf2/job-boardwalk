@@ -14,10 +14,7 @@ function isPackageImport(identifier: string): boolean {
 export default defineConfig({
   build: {
     lib: {
-      entry: {
-        "mcp-server": "src/mcp-server.ts",
-        "runtime-server": "src/runtime-server.ts",
-      },
+      entry: { "runtime-server": "src/runtime-server.ts" },
       fileName: (_format, entryName) => `${entryName}.js`,
       formats: ["es"],
     },

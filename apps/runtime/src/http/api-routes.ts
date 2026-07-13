@@ -1,19 +1,17 @@
-import { Hono } from "hono";
-import type { Context } from "hono";
+import type { Context, Hono } from "hono";
+
+import type { OpenPlatformBrowserPurpose } from "@job-boardwalk/contracts";
+import { isPlatformId } from "@job-boardwalk/platform-catalog";
 import { until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 
-import type { WorkspaceRepository } from "./persistence/workspace-repository.js";
-import type {
-  PlatformBrowser,
-  PlatformPagePurpose,
-} from "./browser/playwright-platform-browser.js";
-import { readWorkspaceOverview } from "./workspace/read-workspace-overview.js";
-import { isPlatformId } from "@job-boardwalk/platform-catalog";
+import type { PlatformBrowser } from "#/browser/playwright-platform-browser.js";
+import { openPlatformBrowser } from "#/browser/open-platform-browser.js";
+import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
+import { readWorkspaceOverview } from "#/workspace/read-workspace-overview.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
-const forbiddenStatus = 403;
 
 class InvalidRequestError extends Error {
   public constructor(message: string) {
@@ -34,7 +32,7 @@ function readRequiredString(input: Record<string, unknown>, key: string): string
   return value.trim();
 }
 
-function* readRequestRecord(context: Context): RiteCoroutine<Record<string, unknown>> {
+function* readJsonObject(context: Context): RiteCoroutine<Record<string, unknown>> {
   const parsed = yield* until(() =>
     context.req.json().then(
       (value: unknown) => ({ kind: "parsed", value }) as const,
@@ -58,30 +56,15 @@ function invalidRequestResponse(error: unknown, context: Context): Response {
   throw error;
 }
 
-function registerLocalOriginGuard(app: Hono): void {
-  app.use("/api/*", (context, next) => {
-    const origin = context.req.header("origin");
-    if (context.req.method !== "GET" && origin) {
-      const originUrl = new URL(origin);
-      if (originUrl.hostname !== "127.0.0.1" && originUrl.hostname !== "localhost") {
-        return Promise.resolve(
-          context.json({ error: "拒绝来自非本地页面的状态变更" }, forbiddenStatus),
-        );
-      }
-    }
-    return next();
-  });
-}
-
 function registerProfileRoutes(
-  api: Hono,
+  app: Hono,
   repository: WorkspaceRepository,
   runtimeScope: Scope,
 ): void {
-  api.post("/api/profile/facts", (context) =>
+  app.post("/api/profile/facts", (context) =>
     runtimeScope.run(function* setProfileFact() {
       try {
-        const input = yield* readRequestRecord(context);
+        const input = yield* readJsonObject(context);
         repository.setProfileFact({
           confirmed: input["confirmed"] === true,
           key: readRequiredString(input, "key"),
@@ -98,21 +81,21 @@ function registerProfileRoutes(
 }
 
 function registerTargetLocationRoutes(
-  api: Hono,
+  app: Hono,
   repository: WorkspaceRepository,
   runtimeScope: Scope,
 ): void {
-  api.post("/api/search-intent/locations", (context) =>
+  app.post("/api/search-intent/locations", (context) =>
     runtimeScope.run(function* setTargetLocation() {
       try {
-        const input = yield* readRequestRecord(context);
+        const input = yield* readJsonObject(context);
         const { priority, requirement } = input;
         if (
           !Number.isInteger(priority) ||
           (requirement !== "required" && requirement !== "preferred")
         ) {
           throw new InvalidRequestError(
-            "priority 必须是整数；requirement 必须是 required 或 preferred",
+            "priority 必须是整数，requirement 必须是 required 或 preferred",
           );
         }
         repository.setTargetLocation({
@@ -129,17 +112,14 @@ function registerTargetLocationRoutes(
   );
 }
 
-export function createHttpApi(
+function registerWorkspaceRoutes(
+  app: Hono,
   repository: WorkspaceRepository,
   runtimeScope: Scope,
   platformBrowser: PlatformBrowser,
-): Hono {
-  const api = new Hono();
-
-  api.onError((error, context) => context.json({ error: error.message }, badRequestStatus));
-  registerLocalOriginGuard(api);
-  api.get("/api/workspace/overview", (context) =>
-    runtimeScope.run(function* readWorkspace() {
+): void {
+  app.get("/api/workspace/overview", (context) =>
+    runtimeScope.run(function* getWorkspaceOverview() {
       return context.json(
         yield* readWorkspaceOverview(repository, (platformId) =>
           platformBrowser.hasOpenSession(platformId),
@@ -147,26 +127,45 @@ export function createHttpApi(
       );
     }),
   );
-  api.post("/api/platforms/:platformId/browser-handoff", async (context) => {
-    const platformId = context.req.param("platformId");
-    if (!isPlatformId(platformId)) {
-      return context.json({ error: "未知招聘平台" }, badRequestStatus);
-    }
-    const requestedPurpose = context.req.query("purpose");
-    const purpose: PlatformPagePurpose = requestedPurpose === "login" ? "login" : "browse";
-    await platformBrowser.handoffToUser(platformId, purpose);
-    return context.json({
-      message: "招聘平台窗口已打开；登录、验证和账号操作由用户在窗口内完成",
-      platformId,
-      purpose,
-      status: "handed-off",
-    });
-  });
-  api.get("/api/browser/availability", (context) =>
+}
+
+function registerBrowserRoutes(
+  app: Hono,
+  runtimeScope: Scope,
+  platformBrowser: PlatformBrowser,
+): void {
+  app.post("/api/platforms/:platformId/browser/open", (context) =>
+    runtimeScope.run(function* openPlatformBrowserRequest() {
+      const platformId = context.req.param("platformId");
+      if (!isPlatformId(platformId)) {
+        return context.json({ error: "未知招聘平台" }, badRequestStatus);
+      }
+      const requestedPurpose = context.req.query("purpose");
+      const purpose: OpenPlatformBrowserPurpose = requestedPurpose === "login" ? "login" : "browse";
+      try {
+        const result = yield* openPlatformBrowser(platformBrowser, platformId, purpose);
+        return context.json(result);
+      } catch (error) {
+        return context.json(
+          { error: error instanceof Error ? error.message : "无法打开招聘平台窗口" },
+          badRequestStatus,
+        );
+      }
+    }),
+  );
+  app.get("/api/browser/availability", (context) =>
     context.json(platformBrowser.getAvailability()),
   );
-  registerProfileRoutes(api, repository, runtimeScope);
-  registerTargetLocationRoutes(api, repository, runtimeScope);
+}
 
-  return api;
+export function registerApiRoutes(
+  app: Hono,
+  repository: WorkspaceRepository,
+  runtimeScope: Scope,
+  platformBrowser: PlatformBrowser,
+): void {
+  registerWorkspaceRoutes(app, repository, runtimeScope, platformBrowser);
+  registerBrowserRoutes(app, runtimeScope, platformBrowser);
+  registerProfileRoutes(app, repository, runtimeScope);
+  registerTargetLocationRoutes(app, repository, runtimeScope);
 }
