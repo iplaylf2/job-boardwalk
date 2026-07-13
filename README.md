@@ -1,49 +1,61 @@
 # job-boardwalk
 
-Job Boardwalk explores how a user-directed agent can assist with recruiting-site work across
-platforms that expose similar information and actions through different interaction models.
+Job Boardwalk explores how an AI agent can help a user research recruiting platforms while the
+user remains responsible for every action that affects an account or another person.
 
 ## Product boundary
 
-The agent acts as a recruiting assistant under the user's goals and delegated authority. It may
-continue routine work without the user watching every step. This differs from concurrent bulk
-crawling: the project favors ordinary, low-concurrency browsing, respects applicable rate limits
-and terms, and does not aim to bypass access controls or platform restrictions.
+The agent may navigate recruiting sites, collect job information, combine results across
+platforms, and analyze their fit with the user's goals. The user personally handles:
 
-Shared concepts and platform-specific behavior are derived from working integrations. The model
-will continue to evolve as browsing and collaboration capabilities are implemented.
+- login, verification, and other platform security checks;
+- applications, messages, and interview responses;
+- profile, résumé, favorites, follows, and other account changes.
 
-## Current status
+Job Boardwalk does not expose agent tools for those user-only actions. Browsing remains ordinary
+and low-concurrency, respects applicable rate limits and terms, and does not attempt to bypass
+access controls or platform restrictions.
 
-The repository is a pnpm-managed TypeScript monorepo. Its browser application establishes and
-reuses Chromium profiles for BOSS直聘 and 鱼泡直聘. A local state service maintains the latest
-platform authentication state, profile facts, and target locations. A separate SolidJS dashboard
-presents that workspace state. Agent-assisted browsing beyond login remains under development.
+## How collaboration works
 
-## Workspace map
+Job Boardwalk has two visible surfaces alongside the AI agent's own interface:
 
-- [`apps/`](apps/) contains runnable applications and their operating documentation.
-- [`internal/`](internal/) contains private development support for this repository.
-- [`packages/`](packages/) contains reusable product contracts and filesystem conventions shared by
-  multiple applications.
+- A managed Chromium window lets the agent navigate recruiting sites and lets the user take over
+  for login, verification, or any action reserved for the user.
+- A SolidJS dashboard presents durable local information such as platform access, confirmed profile
+  facts, and target locations.
+
+The local runtime owns both surfaces' shared state. It exposes an MCP server to the agent and a
+loopback HTTP API to the dashboard. The dashboard and MCP server never access SQLite or Chromium
+profiles directly.
+
+## Repository map
+
+- [`apps/`](apps/) contains the dashboard and local runtime.
+- [`packages/`](packages/) contains shared product contracts and local storage conventions.
+- [`internal/`](internal/) contains private monorepo tooling.
 
 ## Development
+
+Install dependencies and validate the workspace:
 
 ```sh
 pnpm install
 pnpm check
 ```
 
-`pnpm check` runs formatting, unused-code analysis, dependency validation, linting, type checks,
-tests, and builds across the workspaces that provide them.
-
-To use the local dashboard, start the state service and dashboard in separate terminals:
+Start the runtime and dashboard in separate terminals:
 
 ```sh
-pnpm --filter @job-boardwalk/state-service dev
+pnpm --filter @job-boardwalk/runtime dev
 pnpm --filter @job-boardwalk/dashboard dev
 ```
 
-Then open <http://127.0.0.1:4311>. See the application documentation for
-[browser login and profile reuse](apps/browser/), [dashboard operation](apps/dashboard/), and the
-[state API](apps/state-service/).
+Open <http://127.0.0.1:4311>. To connect an MCP host, run the stdio adapter as a third process:
+
+```sh
+pnpm --filter @job-boardwalk/runtime mcp
+```
+
+See [dashboard operation](apps/dashboard/) and [runtime operation](apps/runtime/) for application
+details.

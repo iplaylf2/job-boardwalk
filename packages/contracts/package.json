@@ -1,0 +1,21 @@
+{
+  "name": "@job-boardwalk/contracts",
+  "private": true,
+  "description": "Shared product contracts for Job Boardwalk clients and adapters.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --config oxlint.config.ts .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@job-boardwalk/platform-catalog": "workspace:*"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

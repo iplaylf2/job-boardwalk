@@ -1,0 +1,269 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "d59c7565-dc34-4723-a43f-857c9ab4aa82",
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
+  "ddl": [
+    {
+      "name": "platform_authentication_observations",
+      "entityType": "tables"
+    },
+    {
+      "name": "profile_facts",
+      "entityType": "tables"
+    },
+    {
+      "name": "target_locations",
+      "entityType": "tables"
+    },
+    {
+      "name": "workspace_changes",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "observed_at",
+      "entityType": "columns",
+      "table": "platform_authentication_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "platform_id",
+      "entityType": "columns",
+      "table": "platform_authentication_observations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "confirmed",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "key",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "value",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "city",
+      "entityType": "columns",
+      "table": "target_locations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "target_locations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "priority",
+      "entityType": "columns",
+      "table": "target_locations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "requirement",
+      "entityType": "columns",
+      "table": "target_locations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "target_locations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "initiated_by",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "occurred_at",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "operation",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reason",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "subject",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "columns": ["platform_id"],
+      "nameExplicit": false,
+      "name": "platform_authentication_observations_pk",
+      "table": "platform_authentication_observations",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "profile_facts_pk",
+      "table": "profile_facts",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "target_locations_pk",
+      "table": "target_locations",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "workspace_changes_pk",
+      "table": "workspace_changes",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["key"],
+      "nameExplicit": false,
+      "name": "profile_facts_key_unique",
+      "entityType": "uniques",
+      "table": "profile_facts"
+    },
+    {
+      "columns": ["city"],
+      "nameExplicit": false,
+      "name": "target_locations_city_unique",
+      "entityType": "uniques",
+      "table": "target_locations"
+    },
+    {
+      "value": "\"requirement\" in ('required', 'preferred')",
+      "name": "target_locations_requirement",
+      "entityType": "checks",
+      "table": "target_locations"
+    },
+    {
+      "value": "\"initiated_by\" in ('agent', 'user', 'system')",
+      "name": "workspace_changes_initiated_by",
+      "entityType": "checks",
+      "table": "workspace_changes"
+    }
+  ],
+  "renames": []
+}

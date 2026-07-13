@@ -1,7 +1,7 @@
 import solid from "vite-plugin-solid";
 import { defineConfig } from "vite";
 
-const stateServiceProxy = {
+const runtimeProxy = {
   "/api": "http://127.0.0.1:4310",
 };
 
@@ -11,11 +11,11 @@ export default defineConfig({
   },
   plugins: [solid()],
   preview: {
-    proxy: stateServiceProxy,
+    proxy: runtimeProxy,
   },
   server: {
     host: "127.0.0.1",
     port: 4311,
-    proxy: stateServiceProxy,
+    proxy: runtimeProxy,
   },
 });

@@ -148,6 +148,17 @@ button:active {
   color: #5d6459;
   font-size: 12px;
 }
+.platform-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  flex-direction: column;
+}
+.handoff {
+  padding: 7px 11px;
+  font-size: 12px;
+  box-shadow: 2px 2px 0 #20231f;
+}
 .empty {
   margin: 0;
   color: #747970;
@@ -223,5 +234,9 @@ dl span {
   .tag {
     grid-column: 2;
     justify-self: start;
+  }
+  .platform-actions {
+    grid-column: 2;
+    align-items: flex-start;
   }
 }

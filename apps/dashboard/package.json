@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.config.json --noEmit"
   },
   "dependencies": {
-    "@job-boardwalk/state-api": "workspace:*",
+    "@job-boardwalk/contracts": "workspace:*",
     "@solidjs/web": "2.0.0-beta.17",
     "solid-js": "2.0.0-beta.17"
   },
