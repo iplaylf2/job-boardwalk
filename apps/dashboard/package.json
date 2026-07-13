@@ -1,14 +1,14 @@
 {
   "name": "@job-boardwalk/dashboard",
   "private": true,
-  "description": "Local SolidJS control and status dashboard for Job Boardwalk.",
+  "description": "Read-only SolidJS dashboard for the local Job Boardwalk workspace.",
   "type": "module",
   "scripts": {
     "build": "vite build",
     "dev": "vite",
     "lint": "oxlint --config oxlint.config.ts .",
     "start": "vite preview --host 127.0.0.1 --port 54311",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.config.json --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "dependencies": {
     "@job-boardwalk/contracts": "workspace:*",

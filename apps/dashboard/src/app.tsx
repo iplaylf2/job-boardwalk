@@ -1,6 +1,8 @@
 import { createMemo, createSignal, For, Loading, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type {
+  PlatformAccessObservation,
+  PlatformAccessState,
   PlatformAccessSummary,
   ProfileFact,
   TargetLocation,
@@ -9,32 +11,54 @@ import type {
 
 // oxlint-disable-next-line import/no-unassigned-import -- Vite owns the CSS side-effect import.
 import "./styles.css";
-import { openPlatformBrowser, readWorkspaceOverview } from "./runtime-api.js";
+import { readWorkspaceOverview } from "./workspace-service-client.js";
 
 const initialRevision = 0;
 const revisionIncrement = 1;
 const emptyCollectionLength = 0;
 
-function formatAuthenticationObservation(value?: string): string {
-  if (!value) {
-    return "登录状态待确认";
-  }
-  const formatted = new Intl.DateTimeFormat("zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-  return `最近确认登录：${formatted}`;
+const platformAccessStateCopy = {
+  authenticated: {
+    detail: "站点页面在本次观察时显示账号已登录。",
+    label: "观察时已登录",
+    tone: "positive",
+  },
+  "authentication-unverified": {
+    detail: "浏览器中发现了登录会话线索，但站点页面尚未确认其有效性。",
+    label: "发现会话线索",
+    tone: "tentative",
+  },
+  blocked: {
+    detail: "站点在本次观察时拒绝了访问。需要由你或 AI 助手排查后重试。",
+    label: "观察时访问受阻",
+    tone: "warning",
+  },
+  "login-required": {
+    detail: "本次观察到登录页面。请在 AI 助手打开的浏览器窗口中完成登录。",
+    label: "观察时需要登录",
+    tone: "attention",
+  },
+  "verification-required": {
+    detail: "本次观察到验证码或其他人工验证。请在 AI 助手打开的浏览器窗口中完成验证。",
+    label: "观察时需要验证",
+    tone: "attention",
+  },
+} as const satisfies Record<PlatformAccessState, { detail: string; label: string; tone: string }>;
+
+function formatObservedAt(observedAt: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(new Date(observedAt));
 }
 
-function formatBrowserStatus(platformAccess: PlatformAccessSummary): string {
-  if (platformAccess.browserSession === "open") {
-    return "窗口正在运行";
-  }
-  return platformAccess.hasBrowserProfile ? "已保留浏览器资料" : "尚无浏览器资料";
-}
-
-function formatBrowserAction(platformAccess: PlatformAccessSummary): string {
-  return platformAccess.authentication === "unknown" ? "前往登录" : "打开平台";
+function formatProfileFactSource(source: string): string {
+  const sourceCopy: Record<string, string> = {
+    agent: "AI 助手",
+    system: "系统",
+    user: "用户",
+  };
+  return sourceCopy[source] ?? source;
 }
 
 function SectionHeading(props: { number: string; title: string }) {
@@ -46,37 +70,53 @@ function SectionHeading(props: { number: string; title: string }) {
   );
 }
 
-function PlatformAccessPanel(props: {
-  onBrowserOpened: () => void;
-  platformAccess: PlatformAccessSummary[];
-}) {
+function PlatformAccessObservationView(props: { observation: PlatformAccessObservation }) {
+  function stateCopy() {
+    return platformAccessStateCopy[props.observation.state];
+  }
   return (
-    <section class="panel platforms">
-      <SectionHeading number="01" title="平台访问" />
-      <For each={props.platformAccess}>
-        {(platformAccess) => (
-          <article class="platform-row">
-            <div class={`status-dot ${platformAccess.authentication}`} />
-            <div class="platform-copy">
-              <h3>{platformAccess.label}</h3>
-              <p>{formatAuthenticationObservation(platformAccess.authenticationObservedAt)}</p>
-            </div>
-            <div class="platform-actions">
-              <span class="tag">{formatBrowserStatus(platformAccess)}</span>
-              <button
-                class="browser-open"
-                type="button"
-                onClick={async () => {
-                  await openPlatformBrowser(platformAccess);
-                  props.onBrowserOpened();
-                }}
-              >
-                {formatBrowserAction(platformAccess)}
-              </button>
-            </div>
-          </article>
+    <div class="platform-observation">
+      <span class={`status status-${stateCopy().tone}`}>{stateCopy().label}</span>
+      <p>{stateCopy().detail}</p>
+      <Show when={props.observation.accountDisplayName}>
+        {(accountDisplayName) => (
+          <strong class="account">观察到的账号：{accountDisplayName()}</strong>
         )}
-      </For>
+      </Show>
+      <time datetime={props.observation.observedAt}>
+        观察时间：{formatObservedAt(props.observation.observedAt)}
+      </time>
+    </div>
+  );
+}
+
+function PlatformAccessPanel(props: { platforms: PlatformAccessSummary[] }) {
+  return (
+    <section class="panel platform-access">
+      <SectionHeading number="01" title="平台访问" />
+      <div class="platform-list">
+        <For each={props.platforms}>
+          {(platform) => (
+            <article class="platform-row">
+              <div class="platform-name">
+                <span aria-hidden="true" class="platform-dot" />
+                <h3>{platform.label}</h3>
+              </div>
+              <Show
+                when={platform.latestObservation}
+                fallback={
+                  <div class="platform-observation empty-observation">
+                    <span class="status status-unknown">暂无访问观察</span>
+                    <p>AI 助手通过浏览器访问该平台后，观察记录会显示在这里。</p>
+                  </div>
+                }
+              >
+                {(observation) => <PlatformAccessObservationView observation={observation()} />}
+              </Show>
+            </article>
+          )}
+        </For>
+      </div>
     </section>
   );
 }
@@ -95,7 +135,11 @@ function ProfileFactsPanel(props: { facts: ProfileFact[] }) {
               <div>
                 <dt>{fact.key}</dt>
                 <dd>{fact.value}</dd>
-                <span>{fact.confirmed ? "已确认" : `待确认 · ${fact.source}`}</span>
+                <span>
+                  {fact.confirmed
+                    ? "已确认"
+                    : `待确认 · 来源：${formatProfileFactSource(fact.source)}`}
+                </span>
               </div>
             )}
           </For>
@@ -128,16 +172,10 @@ function TargetLocationsPanel(props: { locations: TargetLocation[] }) {
   );
 }
 
-function WorkspaceOverviewView(props: {
-  onBrowserOpened: () => void;
-  overview: WorkspaceOverview;
-}) {
+function WorkspaceOverviewView(props: { overview: WorkspaceOverview }) {
   return (
     <div class="grid">
-      <PlatformAccessPanel
-        onBrowserOpened={props.onBrowserOpened}
-        platformAccess={props.overview.platformAccess}
-      />
+      <PlatformAccessPanel platforms={props.overview.platformAccess} />
       <ProfileFactsPanel facts={props.overview.profileFacts} />
       <TargetLocationsPanel locations={props.overview.targetLocations} />
     </div>
@@ -155,23 +193,20 @@ export function App(): JSX.Element {
     <main>
       <header class="masthead">
         <div>
-          <p class="eyebrow">LOCAL AI JOB-SEARCH SECRETARY</p>
+          <p class="eyebrow">本地 AI 求职秘书</p>
           <h1>Job Boardwalk</h1>
-          <p class="lede">平台访问状态、求职资料和目标城市均保存在本机，供你与 AI 助手持续协作。</p>
+          <p class="lede">
+            最近一次浏览器观察、求职资料和目标城市保存在本机，供你与 AI 助手持续协作。
+          </p>
         </div>
         <button type="button" onClick={() => setRevision((value) => value + revisionIncrement)}>
-          刷新状态
+          刷新记录
         </button>
       </header>
 
-      <Loading fallback={<p class="loading">正在读取本地状态…</p>}>
+      <Loading fallback={<p class="loading">正在读取本机工作区…</p>}>
         <Show when={workspaceOverview()}>
-          {(overview) => (
-            <WorkspaceOverviewView
-              onBrowserOpened={() => setRevision((value) => value + revisionIncrement)}
-              overview={overview()}
-            />
-          )}
+          {(overview) => <WorkspaceOverviewView overview={overview()} />}
         </Show>
       </Loading>
     </main>

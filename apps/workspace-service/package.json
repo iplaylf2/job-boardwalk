@@ -1,0 +1,38 @@
+{
+  "name": "@job-boardwalk/workspace-service",
+  "private": true,
+  "description": "Local persistence and recruiting-domain APIs for Job Boardwalk.",
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "tsx watch src/workspace-service-server.ts",
+    "db:generate": "drizzle-kit generate",
+    "lint": "oxlint --config oxlint.config.ts .",
+    "start": "node dist/workspace-service-server.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.0.8",
+    "@job-boardwalk/contracts": "workspace:*",
+    "@job-boardwalk/platform-catalog": "workspace:*",
+    "@job-boardwalk/storage-layout": "workspace:*",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@shajara/host": "catalog:",
+    "drizzle-orm": "catalog:",
+    "hono": "4.12.29"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
+    "oxlint": "catalog:",
+    "tsx": "^4.20.3",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,44 +1,37 @@
-# job-boardwalk
+# Job Boardwalk
 
-Job Boardwalk is a local AI job-search secretary. A user can delegate open-ended job research to
-the agent: searching recruiting platforms, collecting and revisiting listings, organizing results
-across sources, and analyzing their fit with the user's goals. Read-only research may continue
-unattended within the scope the user has set.
+Job Boardwalk is a local AI job-search secretary for delegated research. It helps an agent search
+recruiting platforms, preserve findings, revisit sources, and compare opportunities with the
+user's confirmed goals.
 
-## Collaboration model
+Read-only research may continue unattended within the scope set by the user. Login, verification,
+account changes, applications, and communication always remain under user control.
 
-The agent owns delegated research and analysis. The user retains control of login and verification,
-account changes, applications, and communication with other people. The target collaboration model
-uses a visible, persistent browser so control can move between the user and the agent without
-discarding the authenticated session.
+## System map
 
-See [product design](docs/product-design.md) for the authoritative delegation model, browser
-lifecycle, automation principles, and current capability boundary.
+Job Boardwalk separates the browser that produces live evidence from the workspace that preserves
+durable facts:
 
-## How collaboration works
+- [Browser Session](apps/browser-session/) owns the visible, persistent Playwright browser shared
+  by the user and agent.
+- [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
+  operations over HTTP and MCP.
+- [Dashboard](apps/dashboard/) reads the durable workspace; it does not control the browser or
+  claim that a previous observation is live state.
 
-Job Boardwalk is organized around two visible surfaces alongside the AI agent's own interface:
+The Browser Session may send timestamped access observations to the Workspace Service, but never
+credentials, cookies, or browser profile contents. See [Product design](docs/product-design.md) for
+the authoritative collaboration model, ownership boundaries, and current capability boundary.
 
-- A managed Chromium window is the intended shared research surface for the user and the agent.
-- A SolidJS dashboard presents durable local information such as platform access, confirmed profile
-  facts, and target locations.
+## Current scope
 
-The local runtime owns the shared state behind both surfaces. One loopback HTTP server exposes
-`/api` to the dashboard and `/mcp` to MCP clients; those clients never access SQLite or Chromium
-profiles directly.
+The Workspace Service currently stores platform-access observations, profile facts, and target
+locations. Research runs, interruptions, job results, and analysis are product direction, not yet
+current capabilities.
 
-The current runtime can read workspace state, report browser availability, and open a visible
-platform browser. Agent-controlled research and durable job results are the next capabilities
-described by the product design.
+## Run locally
 
-## Repository map
-
-- [`apps/`](apps/) contains the dashboard and local runtime.
-- [`docs/`](docs/) owns product design and cross-application guidance.
-- [`packages/`](packages/) contains shared product contracts and local storage conventions.
-- [`internal/`](internal/) contains private monorepo tooling.
-
-## Development
+Requirements are Node.js 26.5 or later and pnpm 11.11 or later.
 
 Install dependencies and validate the workspace:
 
@@ -47,15 +40,28 @@ pnpm install
 pnpm check
 ```
 
-Start the runtime and dashboard in separate terminals:
+Start the Workspace Service and Dashboard in separate terminals:
 
 ```sh
-pnpm --filter @job-boardwalk/runtime dev
+pnpm --filter @job-boardwalk/workspace-service dev
 pnpm --filter @job-boardwalk/dashboard dev
 ```
 
-Open <http://127.0.0.1:54311>. Connect an MCP host to the runtime's Streamable HTTP endpoint at
+Open <http://127.0.0.1:54311>. The Workspace Service MCP endpoint is
 <http://127.0.0.1:54310/mcp>.
 
-See [dashboard operation](apps/dashboard/) and [runtime operation](apps/runtime/) for application
-details.
+When browser research is needed, an agent host in the graphical environment starts Browser Session
+as a stdio MCP server:
+
+```sh
+pnpm --filter @job-boardwalk/browser-session dev
+```
+
+Each application's README documents its own configuration and operation.
+
+## Repository map
+
+- [`apps/`](apps/) contains the three product applications.
+- [`docs/`](docs/) owns cross-application product design.
+- [`packages/`](packages/) contains shared product contracts and storage conventions.
+- [`internal/`](internal/) contains private monorepo tooling.

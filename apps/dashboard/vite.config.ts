@@ -1,7 +1,7 @@
 import solid from "vite-plugin-solid";
 import { defineConfig } from "vite";
 
-const runtimeProxy = {
+const workspaceServiceProxy = {
   "/api": "http://127.0.0.1:54310",
 };
 
@@ -11,11 +11,11 @@ export default defineConfig({
   },
   plugins: [solid()],
   preview: {
-    proxy: runtimeProxy,
+    proxy: workspaceServiceProxy,
   },
   server: {
     host: "127.0.0.1",
     port: 54_311,
-    proxy: runtimeProxy,
+    proxy: workspaceServiceProxy,
   },
 });

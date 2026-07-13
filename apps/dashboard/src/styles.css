@@ -80,7 +80,7 @@ button:active {
 }
 .grid {
   display: grid;
-  grid-template-columns: 1.25fr 0.75fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 .panel {
@@ -91,7 +91,7 @@ button:active {
   box-shadow: 5px 5px 0 rgba(49, 54, 47, 0.16);
   backdrop-filter: blur(10px);
 }
-.platforms {
+.platform-access {
   grid-row: span 2;
 }
 .section-heading {
@@ -112,57 +112,83 @@ button:active {
   font-family: "Noto Serif SC", serif;
   font-size: 22px;
 }
-.platform-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 14px;
-  align-items: center;
-  padding: 18px 0;
-}
-.platform-row + .platform-row {
-  border-top: 1px dashed #c9c9bd;
-}
-.status-dot {
-  width: 12px;
-  height: 12px;
-  border: 2px solid #20231f;
-  border-radius: 50%;
-  background: #b9b9ae;
-}
-.status-dot.observed {
-  background: #d5ec66;
-}
-.platform-copy h3 {
-  margin: 0 0 4px;
-  font-size: 17px;
-}
-.platform-copy p {
-  margin: 0;
-  color: #70766c;
-  font-size: 13px;
-}
-.tag {
-  border-radius: 999px;
-  background: #e8e5da;
-  padding: 6px 10px;
-  color: #5d6459;
-  font-size: 12px;
-}
-.platform-actions {
-  display: flex;
-  align-items: flex-end;
-  gap: 9px;
-  flex-direction: column;
-}
-.browser-open {
-  padding: 7px 11px;
-  font-size: 12px;
-  box-shadow: 2px 2px 0 #20231f;
-}
 .empty {
   margin: 0;
   color: #747970;
   line-height: 1.7;
+}
+.platform-list {
+  display: grid;
+}
+.platform-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.75fr) minmax(220px, 1.25fr);
+  gap: 24px;
+  padding: 20px 0;
+}
+.platform-row + .platform-row {
+  border-top: 1px solid #d5d5ca;
+}
+.platform-name {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+.platform-name h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.platform-dot {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 2px solid #31362f;
+  border-radius: 50%;
+  background: #c3c9bd;
+}
+.platform-observation {
+  min-width: 0;
+}
+.platform-observation p {
+  margin: 8px 0;
+  color: #666d63;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.platform-observation time,
+.platform-observation .account {
+  display: block;
+  color: #7c8278;
+  font-size: 11px;
+  font-weight: 500;
+}
+.platform-observation .account {
+  margin-bottom: 4px;
+  color: #596057;
+}
+.status {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-positive {
+  background: #d9ed9a;
+  color: #34420b;
+}
+.status-tentative {
+  background: #e9e4be;
+  color: #5b511a;
+}
+.status-attention,
+.status-warning {
+  background: #f2cfaa;
+  color: #673910;
+}
+.status-unknown {
+  background: #ebe9df;
+  color: #747970;
 }
 dl {
   margin: 0;
@@ -225,18 +251,11 @@ dl span {
   .grid {
     grid-template-columns: 1fr;
   }
-  .platforms {
+  .platform-access {
     grid-row: auto;
   }
   .platform-row {
-    grid-template-columns: auto 1fr;
-  }
-  .tag {
-    grid-column: 2;
-    justify-self: start;
-  }
-  .platform-actions {
-    grid-column: 2;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
