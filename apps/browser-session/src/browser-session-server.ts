@@ -7,8 +7,8 @@ import type { RiteCoroutine, Scope } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
 
 import {
+  browserSessionOwnedToolNames,
   createBrowserSessionMcpServer,
-  observePlatformAccessToolName,
 } from "./browser-session-mcp-server.js";
 import { PlaywrightConnectionSupervisor } from "./playwright-connection-supervisor.js";
 import { connectPlaywrightMcpClient } from "./playwright-mcp-client.js";
@@ -61,7 +61,7 @@ function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
         () =>
           playwrightConnection.supervise({
             connect: () =>
-              connectPlaywrightMcpClient(playwrightEndpoint, [observePlatformAccessToolName]),
+              connectPlaywrightMcpClient(playwrightEndpoint, browserSessionOwnedToolNames),
             notifyToolsChanged: () => mcpServer.server.sendToolListChanged(),
             reportError: reportBrowserConnectionError,
           }),

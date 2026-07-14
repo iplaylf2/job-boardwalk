@@ -14,11 +14,11 @@ to the user or agent.
 ## Required upstream service
 
 Install the official Playwright Extension from the browser's extension store. On the graphical
-host, run a compatible Playwright MCP release with extension and HTTP transport enabled. For
-example, when the extension is installed in Edge:
+host, run Playwright MCP with extension and HTTP transport enabled. For example, when the extension
+is installed in Edge and Browser Session can reach the graphical host over loopback:
 
 ```sh
-npx @playwright/mcp@0.0.78 \
+pnpm dlx -y @playwright/mcp@latest \
   --extension \
   --browser msedge \
   --port 8931 \
@@ -30,9 +30,14 @@ VM, WSL, or container boundary, bind the upstream service to an appropriate host
 the exact `host:port` value with `--allowed-hosts`, and restrict the port to the agent environment
 with the host firewall. Playwright MCP is a browser-control surface, not a public network service.
 
-The Playwright Extension token may be configured only in the graphical host's Playwright MCP
-process. Browser Session never needs or stores it. Upstream tool results are redacted before they
-reach the downstream agent because the extension connection URL can contain that token.
+Keep the Playwright MCP process, the browser window it opens, and the extension-bound tab open for
+the entire Browser Session. Closing any of them breaks the live browser binding; reconnecting
+Browser Session cannot recreate browser state owned by the graphical host.
+
+If the Playwright Extension uses token mode, keep that token in the graphical host's Playwright MCP
+process. Browser Session connects to the MCP endpoint and never needs or stores the extension
+token. Upstream tool results are redacted before they reach the downstream agent because the
+extension connection URL can contain the token.
 
 ## Register Browser Session
 
@@ -65,8 +70,8 @@ default `http://127.0.0.1:54310` address. The root
 [`.env.example`](../../.env.example) documents the supported variables. Project scripts do not
 load `.env`; supply variables through the shell or agent host. MCP registration in the agent host
 remains separate local configuration. Workspace Service must be reachable whenever
-`browser_observe_platform_access` saves an observation; ordinary forwarded browser tools do not
-write to it.
+`browser_open_platform` or `browser_observe_platform_access` produces a definite observation;
+ordinary forwarded browser tools do not write to it.
 
 A missing or malformed `JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` is a Browser Session configuration error
 and fails process startup. Once a valid endpoint is configured, endpoint reachability and extension
@@ -76,11 +81,13 @@ binding are supervised dependencies that may recover without restarting Browser 
 
 Browser Session starts its downstream stdio transport immediately and supervises at most one
 upstream client at a time. MCP protocol initialization, tool discovery, and downstream shutdown do
-not depend on the graphical host. While the upstream connection is unavailable, discovery exposes
-only the Browser Session-owned observation tool; calls return an explicit unavailable result with
-the latest redacted connection error. Failed upstream connection attempts and lost live connections
-stay inside the supervisor, which makes paced reconnect attempts. When a connection becomes ready
-or unavailable, Browser Session notifies the agent host that its tool list changed.
+not depend on the graphical host. Stable Browser Session workflows remain discoverable while the
+upstream connection is unavailable; calls that require the upstream return an explicit unavailable
+result with the latest redacted connection error. Failed upstream connection attempts and lost live
+connections stay inside the supervisor, which makes paced reconnect attempts. When a connection
+becomes ready or unavailable, Browser Session notifies the agent host that its optional upstream
+tool list changed. Core platform-access workflows do not depend on the agent host refreshing that
+dynamic list.
 
 As soon as the upstream connection is ready, Browser Session calls `browser_tabs(list)` once to bind
 Playwright's current page to the tab selected by the extension. This ordering is required:
@@ -100,17 +107,24 @@ transport. MCP tool handlers enter the same scope. Browser Session keeps its app
 in `RiteCoroutine` routines; Promise interop is confined to MCP SDK, HTTP, and process-entry
 boundaries through `until(...)`.
 
-## Platform access observations
+## Platform access workflows
 
-The gateway adds `browser_observe_platform_access`. It evaluates the current page once and, when
-visible evidence is definite, appends an `authenticated`, `unauthenticated`, verification, or
-access-denial observation to Workspace Service. The page read does not navigate, refresh, or modify
-the browser, but the tool itself is not read-only because it writes that durable observation.
+Browser Session always exposes two platform-access workflows:
 
-Workflows may invoke the tool automatically after meaningful state changes and may use bounded,
-paced navigation, retries, or necessary refreshes around it. They must avoid tight polling loops
-and repeated visible page churn. An observation does not read cookie values or infer an
-interruption from a route name alone.
+| Tool                              | Browser effect                                                                      | Durable effect                       |
+| --------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------ |
+| `browser_open_platform`           | Navigates to the catalog-owned platform entry, then observes the visible page once. | Saves a definite access observation. |
+| `browser_observe_platform_access` | Observes the current visible page once without navigating or refreshing.            | Saves a definite access observation. |
+
+Both tools return `authenticated`, `login-required`, `verification-required`, `access-denied`, or
+`indeterminate`. An `indeterminate` result means the visible evidence is insufficient and is not
+saved. Neither tool enters credentials, completes verification, or continues to another page after
+its observation. Because a definite result may be saved, neither tool is declared read-only.
+
+Research workflows may invoke `browser_observe_platform_access` automatically after meaningful
+state changes and may use bounded, paced navigation, retries, or necessary refreshes around it.
+They must avoid tight polling loops and repeated visible page churn. An observation does not read
+cookie values or infer an interruption from a route name alone.
 
 ## User handoff
 

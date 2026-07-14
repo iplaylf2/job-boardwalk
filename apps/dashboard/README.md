@@ -7,8 +7,8 @@ times. These records do not guarantee the current authentication state. Dashboar
 SQLite, browser sessions, Playwright, or the Workspace Service lifecycle.
 
 Browser interaction and login handoff happen between the agent, the
-[`browser-session`](../browser-session/) application, and the visible platform window. The
-Dashboard does not open or control that window.
+[`browser-session`](../browser-session/) application, and the visible platform window. Dashboard
+does not open or control that window.
 
 The **重新读取本地记录** button fetches the workspace overview from Workspace Service again. It
 does not open, navigate, or refresh a browser page.

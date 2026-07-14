@@ -1,4 +1,4 @@
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolRequest, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { run } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -15,9 +15,9 @@ function createEncodedResult(snapshot: Record<string, unknown>): CallToolResult 
   };
 }
 
-test("observes visible account identity without reading authentication cookies", () =>
+test("observes visible account identity without reading browser authentication state", () =>
   run(function* observeAccountIdentity() {
-    const calls: unknown[] = [];
+    const calls: CallToolRequest["params"][] = [];
     const assessment = yield* observePlatformAccess(
       {
         callTool: function* callTool(params) {
@@ -36,10 +36,40 @@ test("observes visible account identity without reading authentication cookies",
       "boss",
     );
     expect(calls).toHaveLength(oneCall);
+    const firstCallIndex = 0;
+    const evaluation = calls.at(firstCallIndex)?.arguments?.["function"];
+    expect(evaluation).toBeTypeOf("string");
+    expect(evaluation).not.toMatch(/cookie|localStorage|sessionStorage/u);
     expect(assessment).toEqual({
       authenticationState: "authenticated",
       evidence: "account-identity",
     });
+  }));
+
+test("rejects a page outside the requested recruiting platform", () =>
+  run(function* rejectWrongPlatform() {
+    try {
+      yield* observePlatformAccess(
+        {
+          callTool: function* callTool() {
+            yield* [];
+            return createEncodedResult({
+              accountIdentityVisible: false,
+              loginControlVisible: false,
+              text: "Playwright Extension",
+              title: "Playwright Extension",
+              url: "chrome-extension://mmlmfjhmonkocbjadbfplnigmagldckm/connect.html",
+              verificationControlVisible: false,
+            });
+          },
+        },
+        "boss",
+      );
+      throw new Error("其他页面不应被当作 BOSS直聘 访问证据");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("当前标签页不属于 BOSS直聘");
+    }
   }));
 
 test("does not infer an interruption from an ordinary route", () =>

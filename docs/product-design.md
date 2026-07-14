@@ -62,8 +62,8 @@ for research:
 
 1. The agent asks Browser Session to open or navigate a visible platform page.
 2. If the platform requires login or verification, the agent stops browser actions and asks the
-   user to complete the verification in that window.
-3. The user completes the platform-controlled interaction and returns control to the agent.
+   user to take over that window.
+3. The user completes the login or verification and returns control to the agent.
 4. The agent resumes read-only research in the same browser profile and records results through the
    Workspace Service.
 5. A later verification request or user-controlled action pauses research and returns control to the
@@ -132,9 +132,13 @@ also accepts the current write operations.
 Browser Session currently acts as a long-lived stdio MCP gateway to a configurable Streamable HTTP
 Playwright MCP endpoint on the graphical host. That upstream service connects to an existing Chrome
 or Edge profile through the official Playwright Extension. Browser Session supervises one upstream
-client at a time, initializes the extension-bound current tab before forwarding any agent action,
-and reconnects without terminating its downstream MCP surface when the upstream becomes
-unavailable. Automatic writes remain limited to explicitly requested browser-derived access
+client at a time, initializes the extension-bound current tab before any browser action, and
+reconnects without terminating its downstream MCP surface when the upstream becomes unavailable.
+Its stable platform-access tools either open a catalog-owned platform entry or observe the current
+page, then report an authenticated, login-required, verification-required, access-denied, or
+indeterminate outcome and record definite evidence. Optional raw upstream tools may also be exposed
+when the agent host refreshes dynamic discovery, but opening or re-observing platform access does
+not depend on them. Automatic writes remain limited to explicitly requested browser-derived access
 observations. The agent is responsible for translating recruiting page content into the structured
 domain operations accepted by the Workspace Service.
 

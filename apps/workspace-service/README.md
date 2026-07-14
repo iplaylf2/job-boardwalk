@@ -11,7 +11,8 @@ interruptions, job observations, or analysis.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which supervises the MCP connection to Playwright and the official browser extension on the
-graphical host. The agent coordinates that service with this service's domain tools.
+graphical host. The agent coordinates live browser work with the durable workspace exposed by this
+service.
 
 ## Concurrency model
 

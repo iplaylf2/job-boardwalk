@@ -13,7 +13,8 @@ Job Boardwalk separates the browser that produces live evidence from the workspa
 durable facts:
 
 - [Browser Session](apps/browser-session/) supervises the MCP connection to the visible browser
-  supplied by the graphical host and exposes its tools to the agent over stdio.
+  supplied by the graphical host and exposes stable browser workflows and available upstream tools
+  to the agent over stdio.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP.
 - [Dashboard](apps/dashboard/) reads the durable workspace; it does not control the browser or
@@ -79,6 +80,8 @@ graphical-host configuration remains local and is not part of the product contra
 
 During research, the agent pauses browser input whenever login, verification, or another
 user-controlled action is required, then resumes only after the user explicitly returns control.
+Browser Session provides stable workflows to open a platform and to re-observe its visible access
+result after handoff; neither workflow depends on dynamically discovered Playwright tools.
 
 Each application's README documents its own configuration and operation.
 

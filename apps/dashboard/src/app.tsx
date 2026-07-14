@@ -32,12 +32,12 @@ const platformAuthenticationCopy = {
 
 const platformAccessInterruptionCopy = {
   "access-denied": {
-    detail: "观察时页面访问被拒绝。请查看项目浏览器当前的提示，再与 AI 助手确认下一步。",
+    detail: "观察时页面访问被拒绝。请查看平台窗口当前的提示，再与 AI 助手确认下一步。",
     label: "访问受阻",
     tone: "warning",
   },
   "verification-required": {
-    detail: "观察时页面要求人工验证。如果项目浏览器仍显示验证，请完成后告诉 AI 助手可以继续。",
+    detail: "观察时页面要求人工验证。如果平台窗口仍显示验证，请完成后告诉 AI 助手可以继续。",
     label: "需要人工验证",
     tone: "attention",
   },
@@ -122,7 +122,7 @@ function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
                 fallback={
                   <div class="platform-observation empty-observation">
                     <span class="status status-unknown">尚无登录状态记录</span>
-                    <p>AI 助手保存明确的登录状态观察后，结果会显示在这里。</p>
+                    <p>保存明确的登录状态观察后，结果会显示在这里。</p>
                   </div>
                 }
               >

@@ -83,11 +83,10 @@ function parsePlatformPageSnapshot(result: CallToolResult): PlatformPageSnapshot
     typeof snapshot["verificationControlVisible"] !== "boolean" ||
     typeof snapshot["loginControlVisible"] !== "boolean" ||
     typeof snapshot["text"] !== "string" ||
-    snapshot["text"].length > maximumObservedTextLength ||
     typeof snapshot["title"] !== "string" ||
     typeof snapshot["url"] !== "string"
   ) {
-    throw new Error("上游 Playwright MCP 返回的平台页面快照字段无效。");
+    throw new TypeError("上游 Playwright MCP 返回的平台页面快照字段无效。");
   }
   return {
     accountIdentityVisible: snapshot["accountIdentityVisible"],

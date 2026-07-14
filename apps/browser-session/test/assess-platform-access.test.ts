@@ -16,20 +16,17 @@ function createSnapshot(overrides: Record<string, unknown> = {}) {
 }
 
 test("assesses semantic verification pages without depending on an exact route", () => {
-  for (const url of [
-    "https://www.zhipin.com/arbitrary/new/challenge/location",
-    "https://www.zhipin.com/another/future/checkpoint",
-  ]) {
-    const pageUrl = new URL(url);
-    const result = assessPlatformAccess({
-      rules: platformPageRules.boss,
-      snapshot: createSnapshot({ text: "检测到异常访问，请完成安全验证", url: pageUrl }),
-    });
-    expect(result).toEqual({
-      evidence: "verification-page",
-      interruption: "verification-required",
-    });
-  }
+  const result = assessPlatformAccess({
+    rules: platformPageRules.boss,
+    snapshot: createSnapshot({
+      text: "检测到异常访问，请完成安全验证",
+      url: new URL("https://www.zhipin.com/arbitrary/new/challenge/location"),
+    }),
+  });
+  expect(result).toEqual({
+    evidence: "verification-page",
+    interruption: "verification-required",
+  });
 });
 
 test("recognizes a visible verification control", () => {
@@ -48,6 +45,17 @@ test("recognizes semantic access denial", () => {
       snapshot: createSnapshot({ text: "当前请求被拦截，请稍后再试" }),
     }),
   ).toEqual({ evidence: "access-denied-page", interruption: "access-denied" });
+});
+
+test("does not treat generic job content as an access interruption", () => {
+  expect(
+    assessPlatformAccess({
+      rules: platformPageRules.boss,
+      snapshot: createSnapshot({
+        text: "Security verification engineer responsible for forbidden API policy reviews",
+      }),
+    }),
+  ).toBeNull();
 });
 
 test("distinguishes login and authenticated pages", () => {

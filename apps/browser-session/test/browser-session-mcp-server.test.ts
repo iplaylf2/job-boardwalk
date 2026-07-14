@@ -6,24 +6,45 @@ import {
   ToolListChangedNotificationSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { PlatformAccessObservationInput } from "@job-boardwalk/contracts";
 import { completer, createScope, until } from "@shajara/host";
 import type { Completer, RiteCoroutine } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
 import { expect, test } from "vitest";
 
 import { createBrowserSessionMcpServer } from "#/browser-session-mcp-server.js";
+import type { PlatformAccessObservationWriter } from "#/browser-session-mcp-server.js";
 import { PlaywrightConnectionSupervisor } from "#/playwright-connection-supervisor.js";
 import type { PlaywrightMcpClient } from "#/playwright-mcp-client.js";
-import { WorkspaceServiceClient } from "#/workspace-service-client.js";
 
 const firstContentIndex = 0;
 const firstAttempt = 1;
 const initialAttempt = 0;
-const lastItemOffset = -1;
 const noRetryDelay = 0;
+const openPlatformToolName = "browser_open_platform";
+const testBrowserSessionId = "browser-session-test";
 
-function* callTool(): RiteCoroutine<CallToolResult> {
+function createEncodedResult(snapshot: Record<string, unknown>): CallToolResult {
+  const payload = Buffer.from(JSON.stringify(snapshot), "utf8").toString("base64");
+  return {
+    content: [
+      { text: `### Result\n"JOB_BOARDWALK_PLATFORM_PAGE_SNAPSHOT:${payload}"`, type: "text" },
+    ],
+  };
+}
+
+function* callTool(params: { name: string }): RiteCoroutine<CallToolResult> {
   yield* [];
+  if (params.name === "browser_evaluate") {
+    return createEncodedResult({
+      accountIdentityVisible: false,
+      loginControlVisible: true,
+      text: "手机号登录",
+      title: "BOSS直聘",
+      url: "https://www.zhipin.com/web/user/",
+      verificationControlVisible: false,
+    });
+  }
   return { content: [{ text: "ok", type: "text" }] };
 }
 
@@ -33,6 +54,24 @@ function* close(): RiteCoroutine<void> {
 
 function failOnReportedError(error: Error): never {
   throw error;
+}
+
+function expectToolNames(
+  tools: readonly { name: string }[],
+  expectedNames: readonly string[],
+): void {
+  expect(tools.map(({ name }) => name).toSorted()).toEqual(expectedNames.toSorted());
+}
+
+function createObservationWriter(
+  observations: PlatformAccessObservationInput[],
+): PlatformAccessObservationWriter {
+  return {
+    recordPlatformAccessObservation: function* recordPlatformAccessObservation(observation) {
+      observations.push(observation);
+      yield* [];
+    },
+  };
 }
 
 function readyClient(disconnected: Completer<Error>): PlaywrightMcpClient {
@@ -54,37 +93,15 @@ interface DiscoveryVerification {
   connection: Completer<PlaywrightMcpClient>;
   disconnected: Completer<Error>;
   mcpServer: McpServer;
+  observations: PlatformAccessObservationInput[];
   toolListChanged: Completer<true>;
 }
 
-function* verifyDiscovery({
-  client,
-  connection,
-  disconnected,
-  mcpServer,
-  toolListChanged,
-}: DiscoveryVerification): RiteCoroutine<void> {
-  const initialTools = yield* until(() => client.listTools());
-  expect(initialTools.tools.map(({ name }) => name)).toEqual(["browser_observe_platform_access"]);
-  connection.resolve(readyClient(disconnected));
-  yield* wait(toolListChanged.future);
-  const { tools } = yield* until(() => client.listTools());
-  expect(tools.map(({ name }) => name)).toEqual([
-    "browser_tabs",
-    "browser_observe_platform_access",
-  ]);
-  expect(tools.at(lastItemOffset)?.annotations).toEqual({
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: true,
-    readOnlyHint: false,
-  });
-  yield* until(() => client.close());
-  yield* until(() => mcpServer.close());
-}
-
-function* verifyStartupFailure(client: Client, mcpServer: McpServer): RiteCoroutine<void> {
-  const result = CallToolResultSchema.parse(
+function* verifyStableAccessOutcome(
+  client: Client,
+  observations: PlatformAccessObservationInput[],
+): RiteCoroutine<void> {
+  const observedResult = CallToolResultSchema.parse(
     yield* until(() =>
       client.callTool({
         arguments: { platformId: "boss" },
@@ -92,12 +109,72 @@ function* verifyStartupFailure(client: Client, mcpServer: McpServer): RiteCorout
       }),
     ),
   );
-  expect(result.isError).toBe(true);
-  expect(result.content[firstContentIndex]).toMatchObject({
+  expect(observedResult.content[firstContentIndex]).toMatchObject({
+    text: JSON.stringify({
+      assessment: { authenticationState: "unauthenticated", evidence: "login-page" },
+      outcome: "login-required",
+    }),
+  });
+  expect(observations).toEqual([
+    {
+      authenticationState: "unauthenticated",
+      browserSessionId: testBrowserSessionId,
+      evidence: "login-page",
+      observedAt: expect.any(String),
+      platformId: "boss",
+    },
+  ]);
+}
+
+function* verifyDiscovery({
+  client,
+  connection,
+  disconnected,
+  mcpServer,
+  observations,
+  toolListChanged,
+}: DiscoveryVerification): RiteCoroutine<void> {
+  const initialTools = yield* until(() => client.listTools());
+  expectToolNames(initialTools.tools, ["browser_observe_platform_access", openPlatformToolName]);
+  connection.resolve(readyClient(disconnected));
+  yield* wait(toolListChanged.future);
+  const { tools } = yield* until(() => client.listTools());
+  expectToolNames(tools, ["browser_tabs", "browser_observe_platform_access", openPlatformToolName]);
+  expect(tools.find(({ name }) => name === openPlatformToolName)?.annotations).toEqual({
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+    readOnlyHint: false,
+  });
+  const forwardedResult = CallToolResultSchema.parse(
+    yield* until(() =>
+      client.callTool({
+        arguments: { action: "list" },
+        name: "browser_tabs",
+      }),
+    ),
+  );
+  expect(forwardedResult.content[firstContentIndex]).toMatchObject({ text: "ok" });
+  yield* verifyStableAccessOutcome(client, observations);
+  yield* until(() => client.close());
+  yield* until(() => mcpServer.close());
+}
+
+function* verifyStartupFailure(client: Client, mcpServer: McpServer): RiteCoroutine<void> {
+  const unavailableOpenResult = CallToolResultSchema.parse(
+    yield* until(() =>
+      client.callTool({
+        arguments: { platformId: "boss" },
+        name: openPlatformToolName,
+      }),
+    ),
+  );
+  expect(unavailableOpenResult.isError).toBe(true);
+  expect(unavailableOpenResult.content[firstContentIndex]).toMatchObject({
     text: expect.stringContaining("extension tab is not bound"),
   });
   const { tools } = yield* until(() => client.listTools());
-  expect(tools.map(({ name }) => name)).toEqual(["browser_observe_platform_access"]);
+  expectToolNames(tools, ["browser_observe_platform_access", openPlatformToolName]);
   yield* until(() => client.close());
   yield* until(() => mcpServer.close());
 }
@@ -107,11 +184,12 @@ test("keeps downstream discovery alive while the browser connects", async () => 
   await serviceScope.run(function* connectDownstreamFirst() {
     const connection = yield* completer<PlaywrightMcpClient>();
     const disconnected = yield* completer<Error>();
+    const observations: PlatformAccessObservationInput[] = [];
     const playwrightConnection = new PlaywrightConnectionSupervisor();
     const mcpServer = createBrowserSessionMcpServer(
-      "browser-session-test",
+      testBrowserSessionId,
       playwrightConnection,
-      new WorkspaceServiceClient(),
+      createObservationWriter(observations),
       serviceScope,
     );
     const client = new Client({ name: "browser-session-test-client", version: "0.1.0" });
@@ -132,7 +210,15 @@ test("keeps downstream discovery alive while the browser connects", async () => 
           notifyToolsChanged: () => mcpServer.server.sendToolListChanged(),
           reportError: failOnReportedError,
         }),
-      () => verifyDiscovery({ client, connection, disconnected, mcpServer, toolListChanged }),
+      () =>
+        verifyDiscovery({
+          client,
+          connection,
+          disconnected,
+          mcpServer,
+          observations,
+          toolListChanged,
+        }),
     ]);
   });
 });
@@ -145,9 +231,9 @@ test("surfaces an upstream startup failure without closing Browser Session", asy
     const playwrightConnection = new PlaywrightConnectionSupervisor();
     let attempt = initialAttempt;
     const mcpServer = createBrowserSessionMcpServer(
-      "browser-session-test",
+      testBrowserSessionId,
       playwrightConnection,
-      new WorkspaceServiceClient(),
+      createObservationWriter([]),
       serviceScope,
     );
     const client = new Client({ name: "browser-session-test-client", version: "0.1.0" });
