@@ -34,16 +34,18 @@ reach the downstream agent because the extension connection URL can contain that
 
 ## Run Browser Session
 
-Set the upstream MCP endpoint and run the stdio service:
+Supply the upstream MCP endpoint and run the stdio service:
 
 ```sh
 JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \
   pnpm --filter @job-boardwalk/browser-session mcp
 ```
 
-Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is not available at its default
-`http://127.0.0.1:54310` address. Keep host-specific MCP configuration outside tracked project
-files.
+Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` only when Workspace Service is not available at its
+default `http://127.0.0.1:54310` address. The root
+[`.env.example`](../../.env.example) documents the supported variables. Project scripts do not
+load `.env`; supply variables through the shell or Agent Host. Agent Host MCP registration remains
+separate local configuration.
 
 Browser Session establishes exactly one upstream client for its process lifetime. Immediately
 after connecting, it calls `browser_tabs(list)` once to bind Playwright's current page to the tab

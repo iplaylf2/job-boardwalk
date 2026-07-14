@@ -40,6 +40,17 @@ pnpm install
 pnpm check
 ```
 
+### Local configuration
+
+The root `.env.example` lists the supported environment variables. Its ignored `.env` counterpart
+is an optional local source of values; project scripts do not load it automatically. Supply values
+through the shell or Agent Host according to the environment in which each process runs.
+
+Keep `PLAYWRIGHT_MCP_EXTENSION_TOKEN` in the graphical host's Playwright MCP process. It is not a
+Job Boardwalk variable and must not be stored in the project `.env`.
+
+### Workspace and Dashboard
+
 Start the Workspace Service and Dashboard in separate terminals:
 
 ```sh
@@ -50,10 +61,12 @@ pnpm --filter @job-boardwalk/dashboard dev
 Open <http://127.0.0.1:54311>. The Workspace Service MCP endpoint is
 <http://127.0.0.1:54310/mcp>.
 
+### Browser Session
+
 When browser research is needed, install the official Playwright Extension in Chrome or Edge on the
 graphical host and run Playwright MCP there with `--extension`, `--port`, and
-`--shared-browser-context`. Then point Browser Session at its `/mcp` endpoint and run the stdio
-gateway:
+`--shared-browser-context`. Set `JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` to the `/mcp` endpoint reachable
+from the agent environment, then run Browser Session:
 
 ```sh
 JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \

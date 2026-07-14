@@ -1,5 +1,7 @@
 **/dist
 **/node_modules
 
+.env
+
 # Local application state. This includes browser credentials and personal data.
 .job-boardwalk/

@@ -48,6 +48,12 @@
 
 ## Local services
 
+- Treat `.env.example` as the configuration reference and `.env` as optional local machine state.
+  Server entry points do not load `.env` automatically; the user or Agent Host decides how to
+  supply its values. Inspect the local file before asking the user to repeat host addresses, but
+  never print or commit its contents.
+- Keep `PLAYWRIGHT_MCP_EXTENSION_TOKEN` in the graphical host's Playwright MCP process. It does not
+  belong in the project `.env`, logs, or tool output.
 - Workspace Service must be running at `http://127.0.0.1:54310` for browser access observations to
   be saved.
 - Dashboard is the read-only durable view at `http://127.0.0.1:54311`; it does not establish or
