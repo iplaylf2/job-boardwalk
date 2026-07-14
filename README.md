@@ -44,7 +44,7 @@ pnpm check
 
 The root `.env.example` lists the supported environment variables. Its ignored `.env` counterpart
 is an optional local source of values; project scripts do not load it automatically. Supply values
-through the shell or Agent Host according to the environment in which each process runs.
+through the shell or agent host according to the environment in which each process runs.
 
 Keep `PLAYWRIGHT_MCP_EXTENSION_TOKEN` in the graphical host's Playwright MCP process. It is not a
 Job Boardwalk variable and must not be stored in the project `.env`.
@@ -61,25 +61,31 @@ pnpm --filter @job-boardwalk/dashboard dev
 Open <http://127.0.0.1:54311>. The Workspace Service MCP endpoint is
 <http://127.0.0.1:54310/mcp>.
 
-### Browser Session
+### Browser and Browser Session
 
 When browser research is needed, install the official Playwright Extension in Chrome or Edge on the
 graphical host and run Playwright MCP there with `--extension`, `--port`, and
-`--shared-browser-context`. Set `JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` to the `/mcp` endpoint reachable
-from the agent environment, then run Browser Session:
+`--shared-browser-context`.
+
+Browser Session is a stdio MCP server launched by the agent host, not a second service to keep
+running in another terminal. Configure the agent host to run the following command with
+`JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` set to the graphical host's reachable `/mcp` endpoint:
 
 ```sh
 JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \
   pnpm --filter @job-boardwalk/browser-session mcp
 ```
 
-Configure Browser Session as a stdio MCP server in whichever agent host you use. During normal
-research it initializes the extension-bound tab once and reuses that tab. The agent pauses browser
-input whenever login, verification, or another user-controlled action is required, and resumes only
-after the user explicitly returns control. Browser Session keeps the connection and selected tab
-available across that handoff. Agent-host and graphical-host configuration is local and is not part
-of the product contract. See the Browser Session README for host networking and access-control
-requirements.
+The agent host owns that child process and makes its browser tools available to the agent. After
+changing Browser Session configuration or code, restart its MCP registration—or the agent extension
+if the host has no per-server restart. The graphical browser, Workspace Service, and Dashboard do
+not need to restart. During research, Browser Session initializes the extension-bound tab once and
+reuses it. The agent pauses browser input whenever login, verification, or another user-controlled
+action is required, then resumes only after the user explicitly returns control. Browser Session
+keeps the connection and selected tab available across that handoff.
+
+Agent-host and graphical-host configuration is local and is not part of the product contract. See
+the Browser Session README for lifecycle, networking, and access-control details.
 
 Each application's README documents its own configuration and operation.
 

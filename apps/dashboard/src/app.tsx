@@ -19,12 +19,12 @@ const emptyCollectionLength = 0;
 
 const platformAuthenticationCopy = {
   authenticated: {
-    detail: "本次观察在页面中识别到已登录账号。",
+    detail: "观察记录显示页面中存在已登录账号。",
     label: "观察时已登录",
     tone: "positive",
   },
   unauthenticated: {
-    detail: "本次观察显示平台登录页面。",
+    detail: "观察记录显示当时为平台登录页面。",
     label: "观察时未登录",
     tone: "attention",
   },
@@ -32,12 +32,12 @@ const platformAuthenticationCopy = {
 
 const platformAccessInterruptionCopy = {
   "access-denied": {
-    detail: "平台拒绝了该次页面访问。请查看项目浏览器中的提示，再与 AI 助手决定是否重试。",
+    detail: "观察时页面访问被拒绝。请查看项目浏览器当前的提示，再与 AI 助手确认下一步。",
     label: "访问受阻",
     tone: "warning",
   },
   "verification-required": {
-    detail: "页面要求人工验证。请在项目浏览器中完成验证，然后告诉 AI 助手可以继续。",
+    detail: "观察时页面要求人工验证。如果项目浏览器仍显示验证，请完成后告诉 AI 助手可以继续。",
     label: "需要人工验证",
     tone: "attention",
   },
@@ -77,7 +77,9 @@ function PlatformAuthenticationView(props: { observation: PlatformAuthentication
       <span class={`status status-${authenticationCopy().tone}`}>{authenticationCopy().label}</span>
       <p>{authenticationCopy().detail}</p>
       <Show when={props.observation.accountDisplayName}>
-        {(accountDisplayName) => <strong class="account">页面账号：{accountDisplayName()}</strong>}
+        {(accountDisplayName) => (
+          <strong class="account">观察到的页面账号：{accountDisplayName()}</strong>
+        )}
       </Show>
       <time datetime={props.observation.observedAt}>
         观察时间：{formatObservedAt(props.observation.observedAt)}
@@ -120,7 +122,7 @@ function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
                 fallback={
                   <div class="platform-observation empty-observation">
                     <span class="status status-unknown">尚无登录状态记录</span>
-                    <p>AI 助手首次观察该平台页面后，登录状态会显示在这里。</p>
+                    <p>AI 助手保存明确的登录状态观察后，结果会显示在这里。</p>
                   </div>
                 }
               >
@@ -143,7 +145,7 @@ function ProfileFactsPanel(props: { facts: ProfileFact[] }) {
       <SectionHeading number="02" title="求职资料" />
       <Show
         when={props.facts.length !== emptyCollectionLength}
-        fallback={<p class="empty">尚无已登记的求职资料。与 AI 助手确认的信息会显示在这里。</p>}
+        fallback={<p class="empty">尚无已登记的求职资料。AI 助手登记的信息会显示在这里。</p>}
       >
         <dl>
           <For each={props.facts}>

@@ -1,10 +1,10 @@
 # Dashboard
 
-Dashboard is Job Boardwalk's local read surface. It presents durable workspace information
+Dashboard is Job Boardwalk's read-only local dashboard. It presents durable workspace information
 assembled by the user, agent, and Browser Session. For each platform, it shows the latest definite
 authentication observation and any later unresolved access interruption, together with observation
-times. This history is not a live authentication guarantee. Dashboard does not own SQLite, browser
-sessions, Playwright, or the Workspace Service lifecycle.
+times. These records do not guarantee the current authentication state. Dashboard does not own
+SQLite, browser sessions, Playwright, or the Workspace Service lifecycle.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. The

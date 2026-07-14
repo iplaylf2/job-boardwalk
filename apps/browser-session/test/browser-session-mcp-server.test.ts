@@ -1,9 +1,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolResultSchema,
+  ToolListChangedNotificationSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { completer, createScope, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
+import { spawn, wait } from "@shajara/host/primitives";
 import { expect, test } from "vitest";
 
 import { createBrowserSessionMcpServer } from "#/browser-session-mcp-server.js";
@@ -18,11 +22,11 @@ function* failBrowserTool(): RiteCoroutine<CallToolResult> {
   throw new Error("upstream transport closed");
 }
 
-test("completes downstream protocol initialization before the upstream browser is ready", async () => {
+test("discovers downstream tools before the upstream browser is ready", async () => {
   await using serviceScope = createScope();
   await serviceScope.run(function* connectDownstreamFirst() {
     const upstream = yield* completer<PlaywrightMcpClient>();
-    const server = createBrowserSessionMcpServer(
+    const { mcpServer, notifyBrowserToolsWhenReady } = createBrowserSessionMcpServer(
       "browser-session-test",
       upstream.future,
       new WorkspaceServiceClient(),
@@ -30,9 +34,17 @@ test("completes downstream protocol initialization before the upstream browser i
     );
     const client = new Client({ name: "browser-session-test-client", version: "0.1.0" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const toolListChanged = yield* completer<true>();
+    client.setNotificationHandler(ToolListChangedNotificationSchema, () => {
+      toolListChanged.resolve(true);
+    });
 
-    yield* until(() => server.connect(serverTransport));
+    yield* until(() => mcpServer.connect(serverTransport));
     yield* until(() => client.connect(clientTransport));
+    yield* spawn(notifyBrowserToolsWhenReady);
+
+    const initialTools = yield* until(() => client.listTools());
+    expect(initialTools.tools.map(({ name }) => name)).toEqual(["browser_observe_platform_access"]);
 
     upstream.resolve({
       tools: [
@@ -42,6 +54,7 @@ test("completes downstream protocol initialization before the upstream browser i
         },
       ],
     } as unknown as PlaywrightMcpClient);
+    yield* wait(toolListChanged.future);
     const { tools } = yield* until(() => client.listTools());
     expect(tools.map(({ name }) => name)).toEqual([
       "browser_tabs",
@@ -55,7 +68,7 @@ test("completes downstream protocol initialization before the upstream browser i
     });
 
     yield* until(() => client.close());
-    yield* until(() => server.close());
+    yield* until(() => mcpServer.close());
   });
 });
 
@@ -63,7 +76,7 @@ test("contains an upstream tool failure without closing the Browser Session", as
   await using serviceScope = createScope();
   await serviceScope.run(function* containToolFailure() {
     const upstream = yield* completer<PlaywrightMcpClient>();
-    const server = createBrowserSessionMcpServer(
+    const { mcpServer } = createBrowserSessionMcpServer(
       "browser-session-test",
       upstream.future,
       new WorkspaceServiceClient(),
@@ -71,7 +84,7 @@ test("contains an upstream tool failure without closing the Browser Session", as
     );
     const client = new Client({ name: "browser-session-test-client", version: "0.1.0" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    yield* until(() => server.connect(serverTransport));
+    yield* until(() => mcpServer.connect(serverTransport));
     yield* until(() => client.connect(clientTransport));
     upstream.resolve({
       callTool: failBrowserTool,
@@ -92,6 +105,6 @@ test("contains an upstream tool failure without closing the Browser Session", as
     expect(tools.map(({ name }) => name)).toContain("browser_navigate");
 
     yield* until(() => client.close());
-    yield* until(() => server.close());
+    yield* until(() => mcpServer.close());
   });
 });

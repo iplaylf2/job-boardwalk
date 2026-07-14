@@ -4,7 +4,7 @@ import process from "node:process";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { completer, createScope, resource, until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
-import { wait } from "@shajara/host/primitives";
+import { spawn, wait } from "@shajara/host/primitives";
 
 import {
   createBrowserSessionMcpServer,
@@ -18,7 +18,7 @@ function resolvePlaywrightMcpEndpoint(): URL {
   const configuredEndpoint = process.env["JOB_BOARDWALK_PLAYWRIGHT_MCP_URL"]?.trim();
   if (!configuredEndpoint) {
     throw new Error(
-      "请设置 JOB_BOARDWALK_PLAYWRIGHT_MCP_URL 指向宿主机 Playwright MCP /mcp 端点。",
+      "请将 JOB_BOARDWALK_PLAYWRIGHT_MCP_URL 设置为图形主机上 Playwright MCP 的 /mcp 端点。",
     );
   }
   const endpoint = new URL(configuredEndpoint);
@@ -55,7 +55,7 @@ function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
         }
       },
     );
-    const mcpServer = createBrowserSessionMcpServer(
+    const { mcpServer, notifyBrowserToolsWhenReady } = createBrowserSessionMcpServer(
       randomUUID(),
       playwrightClientFuture,
       new WorkspaceServiceClient(),
@@ -63,6 +63,7 @@ function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
     );
     try {
       yield* until(() => mcpServer.connect(new StdioServerTransport()));
+      yield* spawn(notifyBrowserToolsWhenReady);
       yield* wait(shutdown.future);
     } finally {
       yield* until(() => mcpServer.close());

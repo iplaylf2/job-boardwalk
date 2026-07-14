@@ -29,7 +29,7 @@ function registerResourceHandlers(
       resources: [
         {
           description:
-            "本机工作区的平台访问摘要（最近一次明确登录状态及其后的未解除中断）、求职资料和目标城市。",
+            "本机工作区概览，包含各平台最近一次明确的登录状态、其后的未解除访问中断、求职资料和目标城市。",
           mimeType: "application/json",
           name: "workspace-overview",
           title: "Job Boardwalk 工作区概览",
@@ -64,7 +64,7 @@ function createToolListResult() {
       {
         annotations: { readOnlyHint: true },
         description:
-          "读取本机工作区的平台访问摘要（最近一次明确登录状态及其后的未解除中断）、求职资料和目标城市。",
+          "读取本机工作区概览，包括各平台最近一次明确的登录状态、其后的未解除访问中断、求职资料和目标城市。",
         inputSchema: { additionalProperties: false, properties: {}, type: "object" as const },
         name: toolNames.readWorkspaceOverview,
         title: "读取 Job Boardwalk 工作区概览",

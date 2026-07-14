@@ -2,9 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { isPlatformId, platformIds } from "@job-boardwalk/platform-catalog";
-import { CanceledError, ScopeError } from "@shajara/host";
+import { CanceledError, ScopeError, until } from "@shajara/host";
 import type { RiteCoroutine, RiteFuture, Scope } from "@shajara/host";
-import { wait } from "@shajara/host/primitives";
+import { poll, wait } from "@shajara/host/primitives";
 
 import { observePlatformAccess } from "./platform-access/observe-platform-access.js";
 import type { PlaywrightMcpClient } from "./playwright-mcp-client.js";
@@ -20,7 +20,7 @@ const platformAccessObservationTool = {
     readOnlyHint: false,
   },
   description:
-    "读取一次当前招聘平台页面的可见语义，并保存明确的登录状态或访问中断；本次调用不导航或刷新。",
+    "对当前招聘平台页面执行一次语义观察，并保存有明确证据的登录状态或访问中断；本次调用不导航或刷新。",
   inputSchema: {
     additionalProperties: false,
     properties: { platformId: { enum: platformIds, type: "string" } },
@@ -36,6 +36,11 @@ interface BrowserToolHandlerContext {
   playwrightClientFuture: RiteFuture<PlaywrightMcpClient>;
   serviceScope: Scope;
   workspaceService: WorkspaceServiceClient;
+}
+
+export interface BrowserSessionMcpService {
+  mcpServer: McpServer;
+  notifyBrowserToolsWhenReady: () => RiteCoroutine<void>;
 }
 
 function toolErrorResult(error: unknown): CallToolResult {
@@ -68,7 +73,7 @@ function* handleBrowserTool(
       return {
         content: [
           {
-            text: "当前页面没有足够的可见证据判断是否登录，也未检测到验证要求或访问受阻页面。",
+            text: "当前页面没有足够的可见证据判断登录状态，也未检测到验证要求或访问受阻页面；本次未保存观察结果。",
             type: "text",
           },
         ],
@@ -97,11 +102,18 @@ function registerBrowserToolHandlers(
     serviceScope,
     workspaceService,
   }: BrowserToolHandlerContext,
-): void {
+): () => RiteCoroutine<void> {
+  let toolsWereListedBeforeBrowserReady = false;
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
     serviceScope.run(function* listBrowserTools() {
-      const playwrightClient = yield* wait(playwrightClientFuture);
-      return { tools: [...playwrightClient.tools, platformAccessObservationTool] };
+      const [browserIsReady, playwrightClient] = yield* poll(playwrightClientFuture);
+      if (!browserIsReady) {
+        toolsWereListedBeforeBrowserReady = true;
+        return { tools: [platformAccessObservationTool] };
+      }
+      return {
+        tools: [...playwrightClient.tools, platformAccessObservationTool],
+      };
     }),
   );
   mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
@@ -114,6 +126,12 @@ function registerBrowserToolHandlers(
       }),
     ),
   );
+  return function* notifyBrowserToolsWhenReady() {
+    yield* wait(playwrightClientFuture);
+    if (toolsWereListedBeforeBrowserReady) {
+      yield* until(() => mcpServer.server.sendToolListChanged());
+    }
+  };
 }
 
 export function createBrowserSessionMcpServer(
@@ -121,20 +139,20 @@ export function createBrowserSessionMcpServer(
   playwrightClientFuture: RiteFuture<PlaywrightMcpClient>,
   workspaceService: WorkspaceServiceClient,
   serviceScope: Scope,
-): McpServer {
+): BrowserSessionMcpService {
   const mcpServer = new McpServer(
     { name: "job-boardwalk-browser-session", version: "0.1.0" },
     {
-      capabilities: { tools: {} },
+      capabilities: { tools: { listChanged: true } },
       instructions:
         "在 Playwright Extension 绑定的可见标签页内操作。页面要求登录、验证或输入凭据，或者下一步将提交申请、发送消息或更改账号状态时，停止浏览器输入，让用户接管同一标签页。只有用户明确返回控制后才能继续。",
     },
   );
-  registerBrowserToolHandlers(mcpServer, {
+  const notifyBrowserToolsWhenReady = registerBrowserToolHandlers(mcpServer, {
     browserSessionId,
     playwrightClientFuture,
     serviceScope,
     workspaceService,
   });
-  return mcpServer;
+  return { mcpServer, notifyBrowserToolsWhenReady };
 }

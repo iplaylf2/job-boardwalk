@@ -34,28 +34,40 @@ The Playwright Extension token may be configured only in the graphical host's Pl
 process. Browser Session never needs or stores it. Upstream tool results are redacted before they
 reach the downstream agent because the extension connection URL can contain that token.
 
-## Run Browser Session
+## Register Browser Session
 
-Supply the upstream MCP endpoint and run the stdio service:
+Register Browser Session as a stdio MCP server in the agent host. The host must launch this command
+with the upstream MCP endpoint in its environment:
 
 ```sh
 JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \
   pnpm --filter @job-boardwalk/browser-session mcp
 ```
 
+Do not start a separate Browser Session process before connecting the agent host. The stdio process
+belongs to the host that consumes it. After changing Browser Session configuration or code, restart
+its MCP registration through the host, or restart the agent extension if the host has no per-server
+restart. Do not restart the graphical browser, Workspace Service, or Dashboard.
+
 Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` only when Workspace Service is not available at its
 default `http://127.0.0.1:54310` address. The root
 [`.env.example`](../../.env.example) documents the supported variables. Project scripts do not
-load `.env`; supply variables through the shell or Agent Host. Agent Host MCP registration remains
-separate local configuration.
+load `.env`; supply variables through the shell or agent host. MCP registration in the agent host
+remains separate local configuration. Workspace Service must be reachable whenever
+`browser_observe_platform_access` saves an observation; ordinary forwarded browser tools do not
+write to it.
 
 ## Connection lifecycle
 
 Browser Session starts its downstream stdio transport immediately, while establishing exactly one
-upstream client in the same process lifetime. MCP protocol initialization and downstream shutdown
-therefore do not wait for the graphical host; tool discovery and calls do wait for the scoped
-upstream resource. Immediately after the upstream connection is ready, Browser Session calls
-`browser_tabs(list)` once to bind Playwright's current page to the tab selected by the extension.
+upstream client in the same process lifetime. MCP protocol initialization, initial tool discovery,
+and downstream shutdown therefore do not wait for the graphical host. While the upstream connection
+is pending, tool discovery exposes the Browser Session-owned observation tool without blocking.
+After the connection is ready, Browser Session notifies the agent host that the forwarded browser
+tools are available. Browser tool calls wait for the scoped upstream resource.
+
+As soon as the upstream connection is ready, Browser Session calls `browser_tabs(list)` once to bind
+Playwright's current page to the tab selected by the extension.
 This ordering is required: navigating before tab initialization causes Playwright MCP to create a
 separate temporary tab. Later browser tools reuse the initialized tab.
 

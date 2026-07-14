@@ -39,7 +39,9 @@ Job Boardwalk separates live browser execution from durable workspace state.
 The **Browser Session** owns the visible-browser session protocol and persistent upstream
 connection. The graphical host owns the browser process, official Playwright Extension, visible
 tabs, and profile. Browser Session reaches that host through a configurable MCP endpoint rather
-than assuming a particular operating system or display topology.
+than assuming a particular operating system or display topology. The agent host owns the Browser
+Session stdio child process and discovers its tools; Browser Session owns the tool surface and
+notifies the host when upstream browser tools become available.
 
 The **Workspace Service** owns recruiting context, research progress, normalized observations, and
 analysis. It exposes domain resources and tools to the agent and a read API to the Dashboard. It is

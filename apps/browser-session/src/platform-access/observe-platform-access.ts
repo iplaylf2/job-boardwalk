@@ -1,5 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PlatformAccessAssessment } from "@job-boardwalk/contracts";
+import { platformCatalog } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -109,7 +110,9 @@ export function* observePlatformAccess(
   const snapshot = parsePlatformPageSnapshot(result);
   const rules = platformPageRules[platformId];
   if (!rules.hostnames.some((hostname) => hostname === snapshot.url.hostname)) {
-    throw new Error(`当前标签页不属于 ${platformId} 平台：${snapshot.url.hostname}`);
+    throw new Error(
+      `当前标签页不属于 ${platformCatalog[platformId].label}：${snapshot.url.hostname}`,
+    );
   }
   return assessPlatformAccess({ rules, snapshot });
 }
