@@ -15,9 +15,9 @@ const verificationSelectors = [
   "iframe[src*='captcha' i]",
   "[id*='captcha' i]",
   "[class*='captcha' i]",
-  "[id*='verify' i]",
-  "[class*='verify' i]",
-  "[aria-label*='验证']",
+  "[aria-label*='人机验证']",
+  "[aria-label*='安全验证']",
+  "[aria-label*='滑块验证']",
 ] as const;
 
 interface BrowserToolClient {
@@ -25,6 +25,14 @@ interface BrowserToolClient {
     arguments?: Record<string, unknown>;
     name: string;
   }) => RiteCoroutine<CallToolResult>;
+}
+
+function parseSnapshotUrl(value: string): URL {
+  try {
+    return new URL(value);
+  } catch {
+    throw new Error("上游 Playwright MCP 返回的平台页面 URL 无效。");
+  }
 }
 
 function createSnapshotEvaluation(platformId: PlatformId): string {
@@ -64,11 +72,30 @@ function parsePlatformPageSnapshot(result: CallToolResult): PlatformPageSnapshot
   if (!payload) {
     throw new Error("上游 Playwright MCP 未返回可解析的平台页面快照。");
   }
-  const parsed = JSON.parse(Buffer.from(payload, "base64").toString("utf8")) as Omit<
-    PlatformPageSnapshot,
-    "url"
-  > & { url: string };
-  return { ...parsed, url: new URL(parsed.url) };
+  const parsed: unknown = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error("上游 Playwright MCP 返回的平台页面快照不是对象。");
+  }
+  const snapshot = parsed as Record<string, unknown>;
+  if (
+    typeof snapshot["accountIdentityVisible"] !== "boolean" ||
+    typeof snapshot["verificationControlVisible"] !== "boolean" ||
+    typeof snapshot["loginControlVisible"] !== "boolean" ||
+    typeof snapshot["text"] !== "string" ||
+    snapshot["text"].length > maximumObservedTextLength ||
+    typeof snapshot["title"] !== "string" ||
+    typeof snapshot["url"] !== "string"
+  ) {
+    throw new Error("上游 Playwright MCP 返回的平台页面快照字段无效。");
+  }
+  return {
+    accountIdentityVisible: snapshot["accountIdentityVisible"],
+    loginControlVisible: snapshot["loginControlVisible"],
+    text: snapshot["text"],
+    title: snapshot["title"],
+    url: parseSnapshotUrl(snapshot["url"]),
+    verificationControlVisible: snapshot["verificationControlVisible"],
+  };
 }
 
 export function* observePlatformAccess(

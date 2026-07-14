@@ -68,3 +68,37 @@ test("distinguishes login and authenticated pages", () => {
     evidence: "account-identity",
   });
 });
+
+test("treats an SMS code as login evidence rather than a verification interruption", () => {
+  const loginUrl = new URL("https://www.zhipin.com/web/user/");
+  expect(
+    assessPlatformAccess({
+      rules: platformPageRules.boss,
+      snapshot: createSnapshot({
+        loginControlVisible: true,
+        text: "手机号登录 获取验证码",
+        url: loginUrl,
+      }),
+    }),
+  ).toEqual({ authenticationState: "unauthenticated", evidence: "login-page" });
+});
+
+test("requires visible login evidence and prefers a visible account identity", () => {
+  const loginUrl = new URL("https://www.zhipin.com/web/user/");
+  expect(
+    assessPlatformAccess({
+      rules: platformPageRules.boss,
+      snapshot: createSnapshot({ url: loginUrl }),
+    }),
+  ).toBeNull();
+  expect(
+    assessPlatformAccess({
+      rules: platformPageRules.boss,
+      snapshot: createSnapshot({
+        accountIdentityVisible: true,
+        loginControlVisible: true,
+        text: "登录",
+      }),
+    }),
+  ).toEqual({ authenticationState: "authenticated", evidence: "account-identity" });
+});

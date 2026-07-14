@@ -5,7 +5,7 @@ import type { PlatformPageRules } from "./platform-page-rules.js";
 const accessDenialLanguage =
   /(?:access\s+denied|forbidden|request\s+blocked|拒绝访问|访问(?:已)?受限|请求被拦截|账号(?:已)?封禁)/iu;
 const verificationLanguage =
-  /(?:captcha|verify|verification|人机验证|安全验证|异常访问|完成验证|滑块验证|验证码)/iu;
+  /(?:captcha|verification|人机验证|安全验证|异常访问|完成验证|滑块验证)/iu;
 const loginLanguage = /(?:log\s*in|sign\s*in|登录|手机号登录|扫码登录)/iu;
 export interface PlatformPageSnapshot {
   accountIdentityVisible: boolean;
@@ -38,17 +38,18 @@ export function assessPlatformAccess({
   ) {
     return { evidence: "verification-page", interruption: "verification-required" };
   }
-  if (
-    pathStartsWith(snapshot.url.pathname, rules.loginPathPrefixes) ||
-    (snapshot.loginControlVisible && loginLanguage.test(`${snapshot.title} ${snapshot.text}`))
-  ) {
-    return { authenticationState: "unauthenticated", evidence: "login-page" };
-  }
   if (snapshot.accountIdentityVisible) {
     return {
       authenticationState: "authenticated",
       evidence: "account-identity",
     };
+  }
+  if (
+    snapshot.loginControlVisible &&
+    (pathStartsWith(snapshot.url.pathname, rules.loginPathPrefixes) ||
+      loginLanguage.test(`${snapshot.title} ${snapshot.text}`))
+  ) {
+    return { authenticationState: "unauthenticated", evidence: "login-page" };
   }
   return null;
 }

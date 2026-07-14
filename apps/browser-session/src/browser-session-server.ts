@@ -6,7 +6,10 @@ import { completer, createScope, resource, until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
 
-import { createBrowserSessionMcpServer } from "./browser-session-mcp-server.js";
+import {
+  createBrowserSessionMcpServer,
+  observePlatformAccessToolName,
+} from "./browser-session-mcp-server.js";
 import { connectPlaywrightMcpClient } from "./playwright-mcp-client.js";
 import type { PlaywrightMcpClient } from "./playwright-mcp-client.js";
 import { WorkspaceServiceClient } from "./workspace-service-client.js";
@@ -37,31 +40,35 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
 }
 
 function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
-  const playwrightClientFuture = yield* resource<PlaywrightMcpClient>(
-    function* ownPlaywrightMcpClient(provide) {
-      const playwrightClient = yield* connectPlaywrightMcpClient(resolvePlaywrightMcpEndpoint());
-      try {
-        yield* provide(playwrightClient);
-      } finally {
-        yield* playwrightClient.close();
-      }
-    },
-  );
-  const playwrightClient = yield* wait(playwrightClientFuture);
-  const mcpServer = createBrowserSessionMcpServer(
-    randomUUID(),
-    playwrightClient,
-    new WorkspaceServiceClient(),
-    serviceScope,
-  );
   const shutdown = yield* completer<true>();
   const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
   try {
-    yield* until(() => mcpServer.connect(new StdioServerTransport()));
-    yield* wait(shutdown.future);
+    const playwrightClientFuture = yield* resource<PlaywrightMcpClient>(
+      function* ownPlaywrightMcpClient(provide) {
+        const playwrightClient = yield* connectPlaywrightMcpClient(resolvePlaywrightMcpEndpoint(), [
+          observePlatformAccessToolName,
+        ]);
+        try {
+          yield* provide(playwrightClient);
+        } finally {
+          yield* playwrightClient.close();
+        }
+      },
+    );
+    const mcpServer = createBrowserSessionMcpServer(
+      randomUUID(),
+      playwrightClientFuture,
+      new WorkspaceServiceClient(),
+      serviceScope,
+    );
+    try {
+      yield* until(() => mcpServer.connect(new StdioServerTransport()));
+      yield* wait(shutdown.future);
+    } finally {
+      yield* until(() => mcpServer.close());
+    }
   } finally {
     removeShutdownHandlers();
-    yield* until(() => mcpServer.close());
   }
 }
 

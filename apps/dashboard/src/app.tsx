@@ -32,12 +32,12 @@ const platformAuthenticationCopy = {
 
 const platformAccessInterruptionCopy = {
   "access-denied": {
-    detail: "该次页面访问被平台拒绝。请先检查项目浏览器，再决定是否重试。",
+    detail: "平台拒绝了该次页面访问。请查看项目浏览器中的提示，再与 AI 助手决定是否重试。",
     label: "访问受阻",
     tone: "warning",
   },
   "verification-required": {
-    detail: "该次观察显示页面要求人工验证。请在项目浏览器中确认并完成后，再交还控制。",
+    detail: "页面要求人工验证。请在项目浏览器中完成验证，然后告诉 AI 助手可以继续。",
     label: "需要人工验证",
     tone: "attention",
   },

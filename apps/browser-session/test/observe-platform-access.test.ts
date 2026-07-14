@@ -62,3 +62,29 @@ test("does not infer an interruption from an ordinary route", () =>
     );
     expect(assessment).toBeNull();
   }));
+
+test("rejects malformed snapshot fields instead of treating them as visible evidence", () =>
+  run(function* rejectMalformedSnapshot() {
+    try {
+      yield* observePlatformAccess(
+        {
+          callTool: function* callTool() {
+            yield* [];
+            return createEncodedResult({
+              accountIdentityVisible: "yes",
+              loginControlVisible: false,
+              text: "我的求职中心",
+              title: "BOSS直聘",
+              url: "https://www.zhipin.com/web/geek/jobs",
+              verificationControlVisible: false,
+            });
+          },
+        },
+        "boss",
+      );
+      throw new Error("字段无效的平台快照不应被接受");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("字段无效");
+    }
+  }));

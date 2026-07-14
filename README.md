@@ -74,10 +74,12 @@ JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \
 ```
 
 Configure Browser Session as a stdio MCP server in whichever agent host you use. During normal
-research it initializes the extension-bound tab once, reuses that tab, pauses for user login or
-verification, then resumes after user acknowledgement. Agent-host and graphical-host configuration
-is local and is not part of the product contract. See the Browser Session README for host
-networking and access-control requirements.
+research it initializes the extension-bound tab once and reuses that tab. The agent pauses browser
+input whenever login, verification, or another user-controlled action is required, and resumes only
+after the user explicitly returns control. Browser Session keeps the connection and selected tab
+available across that handoff. Agent-host and graphical-host configuration is local and is not part
+of the product contract. See the Browser Session README for host networking and access-control
+requirements.
 
 Each application's README documents its own configuration and operation.
 

@@ -6,8 +6,10 @@ Playwright MCP server running beside Chrome or Edge on the graphical host, then 
 upstream browser tools over stdio to any MCP-capable agent host.
 
 The graphical host owns the official Playwright Extension, browser process, profile, cookies, and
-visible tabs. Browser Session owns the persistent upstream connection, handoff protocol between
-the user and agent, tool-result redaction, and explicit platform-access observations.
+visible tabs. Browser Session owns the persistent upstream connection, handoff instructions,
+tool-result redaction, and collection of platform-access evidence. Workspace Service owns the
+resulting durable observations, while the agent conversation owns whether control currently belongs
+to the user or agent.
 
 ## Required upstream service
 
@@ -47,10 +49,21 @@ default `http://127.0.0.1:54310` address. The root
 load `.env`; supply variables through the shell or Agent Host. Agent Host MCP registration remains
 separate local configuration.
 
-Browser Session establishes exactly one upstream client for its process lifetime. Immediately
-after connecting, it calls `browser_tabs(list)` once to bind Playwright's current page to the tab
-selected by the extension. This ordering is required: navigating before tab initialization causes
-Playwright MCP to create a separate temporary tab. Later browser tools reuse the initialized tab.
+## Connection lifecycle
+
+Browser Session starts its downstream stdio transport immediately, while establishing exactly one
+upstream client in the same process lifetime. MCP protocol initialization and downstream shutdown
+therefore do not wait for the graphical host; tool discovery and calls do wait for the scoped
+upstream resource. Immediately after the upstream connection is ready, Browser Session calls
+`browser_tabs(list)` once to bind Playwright's current page to the tab selected by the extension.
+This ordering is required: navigating before tab initialization causes Playwright MCP to create a
+separate temporary tab. Later browser tools reuse the initialized tab.
+
+An upstream tool failure is contained to that MCP request and returned as an explicit error result;
+it does not tear down the Browser Session's downstream stdio service. Browser Session does not
+automatically replay a browser action after a connection failure because the visible action may
+already have happened even when its response was lost. The agent must re-observe the live page
+before deciding whether a retry is safe.
 
 The process owns one top-level shajara scope. The upstream Playwright client is a scoped resource,
 and MCP tool handlers enter that same scope, so cancellation and shutdown converge through one
@@ -58,19 +71,24 @@ structured-concurrency tree. Browser Session keeps its application workflow in `
 routines; Promise interop is confined to MCP SDK, HTTP, and process-entry boundaries through
 `until(...)`.
 
-## Access observations and handoff
+## Platform access observations
 
-The gateway adds `browser_observe_platform_access`. This explicit read-only tool evaluates the
-current page once, records a definite `authenticated` or `unauthenticated` observation when visible
-evidence supports it, and reports a semantic verification or access-denial interruption when one is
-actually present. A single invocation does not navigate or refresh. Workflows may invoke it
-automatically after meaningful state changes and may use bounded, paced navigation, retries, or
-necessary refreshes around it. They must avoid tight polling loops and repeated visible page churn.
-The observation does not read cookie values or infer an interruption from a route name alone.
+The gateway adds `browser_observe_platform_access`. It evaluates the current page once and, when
+visible evidence is definite, appends an `authenticated`, `unauthenticated`, verification, or
+access-denial observation to Workspace Service. The page read does not navigate, refresh, or modify
+the browser, but the tool itself is not read-only because it writes that durable observation.
 
-When login, verification, credentials, applications, messages, or account changes appear, the
-agent stops browser input and the user takes over the same visible tab. Browser Session remains
-connected during the handoff and resumes only after the user explicitly returns control.
+Workflows may invoke the tool automatically after meaningful state changes and may use bounded,
+paced navigation, retries, or necessary refreshes around it. They must avoid tight polling loops
+and repeated visible page churn. An observation does not read cookie values or infer an
+interruption from a route name alone.
+
+## User handoff
+
+When a page requires login, verification, or credentials—or when the next action would submit an
+application, send a message, or change account state—the agent stops browser input and the user
+takes over the same visible tab. Browser Session remains connected during the handoff. The agent
+resumes input only after the user explicitly returns control.
 
 ## Development
 

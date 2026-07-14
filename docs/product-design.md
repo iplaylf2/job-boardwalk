@@ -36,10 +36,10 @@ an explicit authorization model of its own. General research access does not gra
 
 Job Boardwalk separates live browser execution from durable workspace state.
 
-The **Browser Session** owns the visible-browser session protocol, persistent upstream connection,
-and human handoff state. The graphical host owns the browser process, official Playwright
-Extension, visible tabs, and profile. Browser Session reaches that host through a configurable MCP
-endpoint rather than assuming a particular operating system or display topology.
+The **Browser Session** owns the visible-browser session protocol and persistent upstream
+connection. The graphical host owns the browser process, official Playwright Extension, visible
+tabs, and profile. Browser Session reaches that host through a configurable MCP endpoint rather
+than assuming a particular operating system or display topology.
 
 The **Workspace Service** owns recruiting context, research progress, normalized observations, and
 analysis. It exposes domain resources and tools to the agent and a read API to the Dashboard. It is
@@ -48,10 +48,10 @@ headless and does not own Playwright, browser profiles, authentication cookies, 
 The **Dashboard** is an independent view of durable workspace data. It neither controls the browser
 nor replaces the agent conversation.
 
-The **agent** coordinates the two service boundaries. Browser tools produce live evidence;
-workspace tools preserve the durable facts and conclusions derived from that evidence. Browser
-Session may also submit bounded access observations, such as a visible login page, to the Workspace
-Service's write API.
+The **agent** coordinates the two service boundaries and owns the human-handoff state in its
+conversation with the user. Browser tools produce live evidence; workspace tools preserve the
+durable facts and conclusions derived from that evidence. Browser Session may also submit bounded
+access observations, such as a visible login page, to the Workspace Service's write API.
 
 ## Browser handoff
 
@@ -103,6 +103,10 @@ concurrency, and ordinary navigation flow.
 Browser recovery behavior must preserve the platform's visible access decisions. When a
 platform presents verification or denies access, the agent reports the interruption and waits for
 the user; it does not report denied content as a successful result.
+
+A browser action whose response is lost has an unknown outcome. Browser Session contains that
+failure to the request and does not automatically replay the action; after the connection is
+restored, the agent re-observes the visible page before deciding whether another action is safe.
 
 ## Dashboard read model
 

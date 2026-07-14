@@ -10,8 +10,7 @@ export interface PlatformPageRules {
 export const platformPageRules = {
   boss: {
     accountIdentitySelectors: [
-      "[class*='user-nav']",
-      "[class*='avatar']",
+      "[class*='user-nav'] [class*='avatar']",
       "a[href*='/web/geek/recommend']",
     ],
     hostnames: ["www.zhipin.com"],
