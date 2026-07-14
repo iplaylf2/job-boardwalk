@@ -1,12 +1,12 @@
 # Browser Session
 
 Browser Session is Job Boardwalk's MCP gateway to a user-visible browser. It does not launch a
-browser or own a browser profile. Instead, it keeps one Streamable HTTP client connected to a
-Playwright MCP server running beside Chrome or Edge on the graphical host, then exposes the
+browser or own a browser profile. Instead, it supervises one Streamable HTTP client at a time for a
+Playwright MCP server running beside Chrome or Edge on the graphical host, then exposes the ready
 upstream browser tools over stdio to any MCP-capable agent host.
 
 The graphical host owns the official Playwright Extension, browser process, profile, cookies, and
-visible tabs. Browser Session owns the persistent upstream connection, handoff instructions,
+visible tabs. Browser Session owns the upstream connection lifecycle, handoff instructions,
 tool-result redaction, and collection of platform-access evidence. Workspace Service owns the
 resulting durable observations, while the agent conversation owns whether control currently belongs
 to the user or agent.
@@ -36,18 +36,29 @@ reach the downstream agent because the extension connection URL can contain that
 
 ## Register Browser Session
 
-Register Browser Session as a stdio MCP server in the agent host. The host must launch this command
-with the upstream MCP endpoint in its environment:
+Build Browser Session before registering it with the agent host:
+
+```sh
+pnpm --filter @job-boardwalk/browser-session build
+```
+
+Configure the host to launch `node` with the absolute path to
+`apps/browser-session/dist/browser-session-server.js`. The host owns this stdio child process, and
+its stdout contains only MCP JSON-RPC. The equivalent command from the repository root is:
 
 ```sh
 JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \
-  pnpm --filter @job-boardwalk/browser-session mcp
+  node apps/browser-session/dist/browser-session-server.js
 ```
+
+Agent-host registrations should use absolute paths for both the Node executable and built entry point
+because their working directory and `PATH` are not part of the Browser Session contract.
 
 Do not start a separate Browser Session process before connecting the agent host. The stdio process
 belongs to the host that consumes it. After changing Browser Session configuration or code, restart
 its MCP registration through the host, or restart the agent extension if the host has no per-server
-restart. Do not restart the graphical browser, Workspace Service, or Dashboard.
+restart. Rebuild Browser Session before restarting when source code changed. Do not restart the
+graphical browser, Workspace Service, or Dashboard.
 
 Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` only when Workspace Service is not available at its
 default `http://127.0.0.1:54310` address. The root
@@ -57,31 +68,37 @@ remains separate local configuration. Workspace Service must be reachable whenev
 `browser_observe_platform_access` saves an observation; ordinary forwarded browser tools do not
 write to it.
 
+A missing or malformed `JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` is a Browser Session configuration error
+and fails process startup. Once a valid endpoint is configured, endpoint reachability and extension
+binding are supervised dependencies that may recover without restarting Browser Session.
+
 ## Connection lifecycle
 
-Browser Session starts its downstream stdio transport immediately, while establishing exactly one
-upstream client in the same process lifetime. MCP protocol initialization, initial tool discovery,
-and downstream shutdown therefore do not wait for the graphical host. While the upstream connection
-is pending, tool discovery exposes the Browser Session-owned observation tool without blocking.
-After the connection is ready, Browser Session notifies the agent host that the forwarded browser
-tools are available. Browser tool calls wait for the scoped upstream resource.
+Browser Session starts its downstream stdio transport immediately and supervises at most one
+upstream client at a time. MCP protocol initialization, tool discovery, and downstream shutdown do
+not depend on the graphical host. While the upstream connection is unavailable, discovery exposes
+only the Browser Session-owned observation tool; calls return an explicit unavailable result with
+the latest redacted connection error. Failed upstream connection attempts and lost live connections
+stay inside the supervisor, which makes paced reconnect attempts. When a connection becomes ready
+or unavailable, Browser Session notifies the agent host that its tool list changed.
 
 As soon as the upstream connection is ready, Browser Session calls `browser_tabs(list)` once to bind
-Playwright's current page to the tab selected by the extension.
-This ordering is required: navigating before tab initialization causes Playwright MCP to create a
-separate temporary tab. Later browser tools reuse the initialized tab.
+Playwright's current page to the tab selected by the extension. This ordering is required:
+navigating before tab initialization causes Playwright MCP to create a separate temporary tab.
+Later browser tools reuse the initialized tab.
 
-An upstream tool failure is contained to that MCP request and returned as an explicit error result;
-it does not tear down the Browser Session's downstream stdio service. Browser Session does not
-automatically replay a browser action after a connection failure because the visible action may
-already have happened even when its response was lost. The agent must re-observe the live page
-before deciding whether a retry is safe.
+An upstream tool result marked as an error, or a rejected tool request while the connection remains
+open, is contained to that request. An explicit connection closure withdraws the forwarded tools and
+starts a fresh connection attempt without stopping the downstream service. Browser Session never
+replays a failed browser action because the visible action may already have happened even when its
+response was lost. The agent must re-observe the live page before deciding whether a new action is
+safe.
 
-The process owns one top-level shajara scope. The upstream Playwright client is a scoped resource,
-and MCP tool handlers enter that same scope, so cancellation and shutdown converge through one
-structured-concurrency tree. Browser Session keeps its application workflow in `RiteCoroutine`
-routines; Promise interop is confined to MCP SDK, HTTP, and process-entry boundaries through
-`until(...)`.
+The process owns one top-level shajara scope. A race owned by that scope coordinates the shutdown
+signal and connection supervisor; shutdown cancels the supervisor before closing the downstream
+transport. MCP tool handlers enter the same scope. Browser Session keeps its application workflow
+in `RiteCoroutine` routines; Promise interop is confined to MCP SDK, HTTP, and process-entry
+boundaries through `until(...)`.
 
 ## Platform access observations
 
@@ -99,8 +116,9 @@ interruption from a route name alone.
 
 When a page requires login, verification, or credentials—or when the next action would submit an
 application, send a message, or change account state—the agent stops browser input and the user
-takes over the same visible tab. Browser Session remains connected during the handoff. The agent
-resumes input only after the user explicitly returns control.
+takes over the same visible tab. Browser Session does not intentionally close the tab or upstream
+connection during the handoff. The agent resumes input only after the user explicitly returns
+control and then re-observes the live page before continuing.
 
 ## Development
 

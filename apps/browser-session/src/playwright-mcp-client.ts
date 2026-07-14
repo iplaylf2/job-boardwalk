@@ -1,15 +1,15 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolResultSchema, ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import type {
   CallToolRequest,
   CallToolResult,
   ListToolsResult,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { until } from "@shajara/host";
-import type { RiteCoroutine } from "@shajara/host";
+import { completer, until } from "@shajara/host";
+import type { RiteCoroutine, RiteFuture } from "@shajara/host";
 
 const currentPageInitializationRequest = {
   arguments: { action: "list" },
@@ -27,8 +27,14 @@ function redactText(text: string): string {
   return text.replace(extensionTokenParameter, "$<prefix><redacted>");
 }
 
-function redactError(error: unknown): Error {
-  return new Error(redactText(error instanceof Error ? error.message : String(error)));
+export function redactPlaywrightError(error: unknown): Error {
+  const source = error instanceof Error ? error : new Error(String(error));
+  const redacted = new Error(redactText(source.message));
+  redacted.name = source.name;
+  if (source.stack) {
+    redacted.stack = redactText(source.stack);
+  }
+  return redacted;
 }
 
 function redactValue(value: unknown): unknown {
@@ -52,15 +58,28 @@ function redactToolResult(result: CallToolResult): CallToolResult {
 
 export class PlaywrightMcpClient {
   readonly #client: McpToolClient;
+  readonly #disconnected: RiteFuture<Error>;
+  readonly #markDisconnected: (error: Error) => void;
   readonly #tools: Tool[];
 
-  private constructor(client: McpToolClient, tools: Tool[]) {
+  private constructor(
+    client: McpToolClient,
+    tools: Tool[],
+    disconnected: RiteFuture<Error>,
+    markDisconnected: (error: Error) => void,
+  ) {
     this.#client = client;
+    this.#disconnected = disconnected;
+    this.#markDisconnected = markDisconnected;
     this.#tools = tools;
   }
 
   public static *initialize(
     client: McpToolClient,
+    lifecycle: {
+      disconnected: RiteFuture<Error>;
+      markDisconnected: (error: Error) => void;
+    },
     reservedToolNames: readonly string[] = [],
   ): RiteCoroutine<PlaywrightMcpClient> {
     try {
@@ -92,9 +111,14 @@ export class PlaywrightMcpClient {
           .join("\n");
         throw new Error(`上游 Playwright MCP 无法初始化当前标签页${detail ? `：${detail}` : "。"}`);
       }
-      return new PlaywrightMcpClient(client, tools);
+      return new PlaywrightMcpClient(
+        client,
+        tools,
+        lifecycle.disconnected,
+        lifecycle.markDisconnected,
+      );
     } catch (error) {
-      throw redactError(error);
+      throw redactPlaywrightError(error);
     }
   }
 
@@ -102,11 +126,19 @@ export class PlaywrightMcpClient {
     return this.#tools;
   }
 
+  public get disconnected(): RiteFuture<Error> {
+    return this.#disconnected;
+  }
+
   public *callTool(params: CallToolRequest["params"]): RiteCoroutine<CallToolResult> {
     try {
       return redactToolResult(yield* until(() => this.#client.callTool(params)));
     } catch (error) {
-      throw redactError(error);
+      const redacted = redactPlaywrightError(error);
+      if (error instanceof McpError && error.code === ErrorCode.ConnectionClosed) {
+        this.#markDisconnected(redacted);
+      }
+      throw redacted;
     }
   }
 
@@ -120,6 +152,11 @@ export function* connectPlaywrightMcpClient(
   reservedToolNames: readonly string[] = [],
 ): RiteCoroutine<PlaywrightMcpClient> {
   const client = new Client({ name: "job-boardwalk-browser-session", version: "0.1.0" });
+  const disconnected = yield* completer<Error>();
+  function markDisconnected(error: Error): void {
+    disconnected.resolve(redactPlaywrightError(error));
+  }
+  client.onclose = () => markDisconnected(new Error("上游 Playwright MCP 连接已关闭。"));
   try {
     const transport = new StreamableHTTPClientTransport(endpoint) as unknown as Transport;
     yield* until(() => client.connect(transport));
@@ -130,10 +167,11 @@ export function* connectPlaywrightMcpClient(
         close: () => client.close(),
         listTools: () => client.listTools(),
       },
+      { disconnected: disconnected.future, markDisconnected },
       reservedToolNames,
     );
   } catch (error) {
     yield* until(() => client.close().catch(String));
-    throw redactError(error);
+    throw redactPlaywrightError(error);
   }
 }

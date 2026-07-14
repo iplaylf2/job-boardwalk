@@ -12,8 +12,8 @@ account changes, applications, and communication always remain under user contro
 Job Boardwalk separates the browser that produces live evidence from the workspace that preserves
 durable facts:
 
-- [Browser Session](apps/browser-session/) keeps a persistent MCP connection to the visible browser
-  supplied by the graphical host and exposes it to the agent over stdio.
+- [Browser Session](apps/browser-session/) supervises the MCP connection to the visible browser
+  supplied by the graphical host and exposes its tools to the agent over stdio.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP.
 - [Dashboard](apps/dashboard/) reads the durable workspace; it does not control the browser or
@@ -68,24 +68,17 @@ graphical host and run Playwright MCP there with `--extension`, `--port`, and
 `--shared-browser-context`.
 
 Browser Session is a stdio MCP server launched by the agent host, not a second service to keep
-running in another terminal. Configure the agent host to run the following command with
-`JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` set to the graphical host's reachable `/mcp` endpoint:
+running in another terminal. The agent host owns that child process and makes its browser tools
+available to the agent. Configure `JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` with the graphical host's
+reachable `/mcp` endpoint.
 
-```sh
-JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \
-  pnpm --filter @job-boardwalk/browser-session mcp
-```
+Follow the [Browser Session setup](apps/browser-session/README.md#required-upstream-service) and
+[registration instructions](apps/browser-session/README.md#register-browser-session) for the exact
+commands, networking boundary, restart behavior, and connection lifecycle. Agent-host and
+graphical-host configuration remains local and is not part of the product contract.
 
-The agent host owns that child process and makes its browser tools available to the agent. After
-changing Browser Session configuration or code, restart its MCP registration—or the agent extension
-if the host has no per-server restart. The graphical browser, Workspace Service, and Dashboard do
-not need to restart. During research, Browser Session initializes the extension-bound tab once and
-reuses it. The agent pauses browser input whenever login, verification, or another user-controlled
-action is required, then resumes only after the user explicitly returns control. Browser Session
-keeps the connection and selected tab available across that handoff.
-
-Agent-host and graphical-host configuration is local and is not part of the product contract. See
-the Browser Session README for lifecycle, networking, and access-control details.
+During research, the agent pauses browser input whenever login, verification, or another
+user-controlled action is required, then resumes only after the user explicitly returns control.
 
 Each application's README documents its own configuration and operation.
 

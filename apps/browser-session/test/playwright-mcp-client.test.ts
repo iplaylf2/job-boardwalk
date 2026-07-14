@@ -1,9 +1,12 @@
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import type {
   CallToolRequest,
   CallToolResult,
   ListToolsResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { run } from "@shajara/host";
+import { completer, run } from "@shajara/host";
+import type { RiteCoroutine } from "@shajara/host";
+import { poll } from "@shajara/host/primitives";
 import { expect, test } from "vitest";
 
 import { PlaywrightMcpClient } from "#/playwright-mcp-client.js";
@@ -65,10 +68,22 @@ class FakeMcpToolClient implements McpToolClient {
   }
 }
 
+function* initializeClient(
+  client: McpToolClient,
+  reservedToolNames: readonly string[] = [],
+): RiteCoroutine<PlaywrightMcpClient> {
+  const disconnected = yield* completer<Error>();
+  return yield* PlaywrightMcpClient.initialize(
+    client,
+    { disconnected: disconnected.future, markDisconnected: disconnected.resolve },
+    reservedToolNames,
+  );
+}
+
 test("initializes the existing tab before forwarding browser actions", () =>
   run(function* initializeExistingTab() {
     const client = new FakeMcpToolClient();
-    const playwrightClient = yield* PlaywrightMcpClient.initialize(client);
+    const playwrightClient = yield* initializeClient(client);
     expect(client.calls).toEqual([{ arguments: { action: "list" }, name: "browser_tabs" }]);
     expect(playwrightClient.tools[firstToolIndex]?.description).toBe(
       "Open https://extension.invalid/connect?token=<redacted>",
@@ -110,7 +125,7 @@ test("rejects a failed current-tab initialization without exposing an extension 
         isError: true,
       });
     try {
-      yield* PlaywrightMcpClient.initialize(client);
+      yield* initializeClient(client);
       throw new Error("当前标签页初始化失败时不应继续启动");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
@@ -129,7 +144,7 @@ test("rejects an upstream tool name reserved by Browser Session", () =>
       },
     ];
     try {
-      yield* PlaywrightMcpClient.initialize(client, ["browser_observe_platform_access"]);
+      yield* initializeClient(client, ["browser_observe_platform_access"]);
       throw new Error("上游工具不应覆盖 Browser Session 工具");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
@@ -140,7 +155,7 @@ test("rejects an upstream tool name reserved by Browser Session", () =>
 test("redacts an extension token from a rejected upstream call", () =>
   run(function* redactRejectedCall() {
     const client = new FakeMcpToolClient();
-    const playwrightClient = yield* PlaywrightMcpClient.initialize(client);
+    const playwrightClient = yield* initializeClient(client);
     client.callTool = () =>
       Promise.reject(new Error("closed https://extension.invalid/connect?token=sensitive-value"));
     try {
@@ -150,6 +165,30 @@ test("redacts an extension token from a rejected upstream call", () =>
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toContain("token=<redacted>");
       expect((error as Error).message).not.toContain("sensitive-value");
+      expect(yield* poll(playwrightClient.disconnected)).toEqual([false]);
+    }
+  }));
+
+test("marks only an explicit connection closure as disconnected", () =>
+  run(function* markClosedConnection() {
+    const client = new FakeMcpToolClient();
+    const disconnected = yield* completer<Error>();
+    let markedDisconnected = false;
+    const playwrightClient = yield* PlaywrightMcpClient.initialize(client, {
+      disconnected: disconnected.future,
+      markDisconnected: (error) => {
+        markedDisconnected = true;
+        disconnected.resolve(error);
+      },
+    });
+    client.callTool = () => Promise.reject(new McpError(ErrorCode.ConnectionClosed, "closed"));
+    try {
+      yield* playwrightClient.callTool({ name: "browser_navigate" });
+      throw new Error("连接关闭不应被当成成功");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).name).toBe("McpError");
+      expect(markedDisconnected).toBe(true);
     }
   }));
 
@@ -158,7 +197,7 @@ test("rejects an upstream server without tab lifecycle support", () =>
     const client = new FakeMcpToolClient();
     client.tools = [];
     try {
-      yield* PlaywrightMcpClient.initialize(client);
+      yield* initializeClient(client);
       throw new Error("缺少 browser_tabs 时初始化不应成功");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);

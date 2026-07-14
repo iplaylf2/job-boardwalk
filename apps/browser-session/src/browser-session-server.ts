@@ -2,16 +2,16 @@ import { randomUUID } from "node:crypto";
 import process from "node:process";
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { completer, createScope, resource, until } from "@shajara/host";
+import { completer, createScope, until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
-import { spawn, wait } from "@shajara/host/primitives";
+import { race, wait } from "@shajara/host/primitives";
 
 import {
   createBrowserSessionMcpServer,
   observePlatformAccessToolName,
 } from "./browser-session-mcp-server.js";
+import { PlaywrightConnectionSupervisor } from "./playwright-connection-supervisor.js";
 import { connectPlaywrightMcpClient } from "./playwright-mcp-client.js";
-import type { PlaywrightMcpClient } from "./playwright-mcp-client.js";
 import { WorkspaceServiceClient } from "./workspace-service-client.js";
 
 function resolvePlaywrightMcpEndpoint(): URL {
@@ -39,32 +39,34 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
   };
 }
 
+function reportBrowserConnectionError(error: Error): void {
+  process.stderr.write(`[Browser Session] ${error.stack ?? error.message}\n`);
+}
+
 function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
+  const playwrightEndpoint = resolvePlaywrightMcpEndpoint();
   const shutdown = yield* completer<true>();
   const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
   try {
-    const playwrightClientFuture = yield* resource<PlaywrightMcpClient>(
-      function* ownPlaywrightMcpClient(provide) {
-        const playwrightClient = yield* connectPlaywrightMcpClient(resolvePlaywrightMcpEndpoint(), [
-          observePlatformAccessToolName,
-        ]);
-        try {
-          yield* provide(playwrightClient);
-        } finally {
-          yield* playwrightClient.close();
-        }
-      },
-    );
-    const { mcpServer, notifyBrowserToolsWhenReady } = createBrowserSessionMcpServer(
+    const playwrightConnection = new PlaywrightConnectionSupervisor();
+    const mcpServer = createBrowserSessionMcpServer(
       randomUUID(),
-      playwrightClientFuture,
+      playwrightConnection,
       new WorkspaceServiceClient(),
       serviceScope,
     );
     try {
       yield* until(() => mcpServer.connect(new StdioServerTransport()));
-      yield* spawn(notifyBrowserToolsWhenReady);
-      yield* wait(shutdown.future);
+      yield* race([
+        () =>
+          playwrightConnection.supervise({
+            connect: () =>
+              connectPlaywrightMcpClient(playwrightEndpoint, [observePlatformAccessToolName]),
+            notifyToolsChanged: () => mcpServer.server.sendToolListChanged(),
+            reportError: reportBrowserConnectionError,
+          }),
+        () => wait(shutdown.future),
+      ]);
     } finally {
       yield* until(() => mcpServer.close());
     }

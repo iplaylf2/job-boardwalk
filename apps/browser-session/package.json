@@ -10,7 +10,6 @@
     "build": "vite build",
     "dev": "tsx watch src/browser-session-server.ts",
     "lint": "oxlint --config oxlint.config.ts .",
-    "mcp": "tsx src/browser-session-server.ts",
     "start": "node dist/browser-session-server.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"

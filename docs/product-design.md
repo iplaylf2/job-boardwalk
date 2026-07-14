@@ -36,8 +36,8 @@ an explicit authorization model of its own. General research access does not gra
 
 Job Boardwalk separates live browser execution from durable workspace state.
 
-The **Browser Session** owns the visible-browser session protocol and persistent upstream
-connection. The graphical host owns the browser process, official Playwright Extension, visible
+The **Browser Session** owns the visible-browser session protocol and upstream connection
+lifecycle. The graphical host owns the browser process, official Playwright Extension, visible
 tabs, and profile. Browser Session reaches that host through a configurable MCP endpoint rather
 than assuming a particular operating system or display topology. The agent host owns the Browser
 Session stdio child process and discovers its tools; Browser Session owns the tool surface and
@@ -99,12 +99,12 @@ timeless live guarantee, and it does not open or verify the browser itself.
 ## Reliable browser research
 
 Browser research should behave like a continuous user-delegated session, not a stateless bulk
-fetcher. Execution therefore favors a visible browser, stable tab and connection reuse, low
-concurrency, and ordinary navigation flow.
+fetcher. Execution therefore favors a visible browser, reuse of the selected tab and connection
+while they remain healthy, low concurrency, and ordinary navigation flow.
 
-Browser recovery behavior must preserve the platform's visible access decisions. When a
-platform presents verification or denies access, the agent reports the interruption and waits for
-the user; it does not report denied content as a successful result.
+Recovery must preserve the platform's visible access decisions. If a platform presents verification
+or denies access, the agent reports the interruption and waits for the user; it does not report
+denied content as a successful result.
 
 A browser action whose response is lost has an unknown outcome. Browser Session contains that
 failure to the request and does not automatically replay the action; after the connection is
@@ -129,14 +129,14 @@ The Workspace Service currently stores platform-access observations and reads or
 facts and target locations. Its MCP surface currently reads the workspace overview; its HTTP API
 also accepts the current write operations.
 
-Browser Session currently acts as a stdio MCP gateway to a configurable Streamable HTTP Playwright
-MCP endpoint on the graphical host. That upstream service connects to an existing Chrome or Edge
-profile through the official Playwright Extension. Browser Session keeps one upstream client for
-its process lifetime and initializes the extension-bound current tab before forwarding any agent
-action; this prevents navigation from creating a separate temporary tab. Automatic writes remain
-limited to explicitly requested browser-derived access observations. The agent is responsible for
-translating recruiting page content into the structured domain operations accepted by the
-Workspace Service.
+Browser Session currently acts as a long-lived stdio MCP gateway to a configurable Streamable HTTP
+Playwright MCP endpoint on the graphical host. That upstream service connects to an existing Chrome
+or Edge profile through the official Playwright Extension. Browser Session supervises one upstream
+client at a time, initializes the extension-bound current tab before forwarding any agent action,
+and reconnects without terminating its downstream MCP surface when the upstream becomes
+unavailable. Automatic writes remain limited to explicitly requested browser-derived access
+observations. The agent is responsible for translating recruiting page content into the structured
+domain operations accepted by the Workspace Service.
 
 Research-run, run-level interruption, job-result, and analysis persistence are not implemented yet.
 They should be introduced as aligned MCP contracts, durable data models, and Dashboard read

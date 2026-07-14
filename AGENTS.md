@@ -59,5 +59,6 @@
 - Dashboard is the read-only durable view at `http://127.0.0.1:54311`; it does not establish or
   verify a live browser session.
 - Browser Session requires `JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` to point at a graphical host running
-  Playwright MCP with the official extension. It initializes the current extension-bound tab once
-  before exposing browser actions; do not bypass it with a second MCP client or ad hoc script.
+  Playwright MCP with the official extension. For each upstream connection, it initializes the
+  current extension-bound tab before exposing browser actions; do not bypass it with a second MCP
+  client or ad hoc script.

@@ -2,12 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { isPlatformId, platformIds } from "@job-boardwalk/platform-catalog";
-import { CanceledError, ScopeError, until } from "@shajara/host";
-import type { RiteCoroutine, RiteFuture, Scope } from "@shajara/host";
-import { poll, wait } from "@shajara/host/primitives";
+import { CanceledError, ScopeError } from "@shajara/host";
+import type { RiteCoroutine, Scope } from "@shajara/host";
 
 import { observePlatformAccess } from "./platform-access/observe-platform-access.js";
-import type { PlaywrightMcpClient } from "./playwright-mcp-client.js";
+import type { PlaywrightConnectionSupervisor } from "./playwright-connection-supervisor.js";
 import type { WorkspaceServiceClient } from "./workspace-service-client.js";
 
 export const observePlatformAccessToolName = "browser_observe_platform_access";
@@ -33,14 +32,9 @@ const platformAccessObservationTool = {
 
 interface BrowserToolHandlerContext {
   browserSessionId: string;
-  playwrightClientFuture: RiteFuture<PlaywrightMcpClient>;
+  playwrightConnection: PlaywrightConnectionSupervisor;
   serviceScope: Scope;
   workspaceService: WorkspaceServiceClient;
-}
-
-export interface BrowserSessionMcpService {
-  mcpServer: McpServer;
-  notifyBrowserToolsWhenReady: () => RiteCoroutine<void>;
 }
 
 function toolErrorResult(error: unknown): CallToolResult {
@@ -57,18 +51,17 @@ function toolErrorResult(error: unknown): CallToolResult {
 
 function* handleBrowserTool(
   request: CallToolRequest,
-  { browserSessionId, playwrightClientFuture, workspaceService }: BrowserToolHandlerContext,
+  { browserSessionId, playwrightConnection, workspaceService }: BrowserToolHandlerContext,
 ): RiteCoroutine<CallToolResult> {
   try {
-    const playwrightClient = yield* wait(playwrightClientFuture);
     if (request.params.name !== observePlatformAccessToolName) {
-      return yield* playwrightClient.callTool(request.params);
+      return yield* playwrightConnection.callTool(request.params);
     }
     const platformId = request.params.arguments?.["platformId"];
     if (typeof platformId !== "string" || !isPlatformId(platformId)) {
       throw new Error(`未知招聘平台：${String(platformId)}`);
     }
-    const assessment = yield* observePlatformAccess(playwrightClient, platformId);
+    const assessment = yield* observePlatformAccess(playwrightConnection, platformId);
     if (!assessment) {
       return {
         content: [
@@ -98,21 +91,16 @@ function registerBrowserToolHandlers(
   mcpServer: McpServer,
   {
     browserSessionId,
-    playwrightClientFuture,
+    playwrightConnection,
     serviceScope,
     workspaceService,
   }: BrowserToolHandlerContext,
-): () => RiteCoroutine<void> {
-  let toolsWereListedBeforeBrowserReady = false;
+): void {
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
     serviceScope.run(function* listBrowserTools() {
-      const [browserIsReady, playwrightClient] = yield* poll(playwrightClientFuture);
-      if (!browserIsReady) {
-        toolsWereListedBeforeBrowserReady = true;
-        return { tools: [platformAccessObservationTool] };
-      }
+      yield* [];
       return {
-        tools: [...playwrightClient.tools, platformAccessObservationTool],
+        tools: [...playwrightConnection.tools, platformAccessObservationTool],
       };
     }),
   );
@@ -120,26 +108,20 @@ function registerBrowserToolHandlers(
     serviceScope.run(() =>
       handleBrowserTool(request, {
         browserSessionId,
-        playwrightClientFuture,
+        playwrightConnection,
         serviceScope,
         workspaceService,
       }),
     ),
   );
-  return function* notifyBrowserToolsWhenReady() {
-    yield* wait(playwrightClientFuture);
-    if (toolsWereListedBeforeBrowserReady) {
-      yield* until(() => mcpServer.server.sendToolListChanged());
-    }
-  };
 }
 
 export function createBrowserSessionMcpServer(
   browserSessionId: string,
-  playwrightClientFuture: RiteFuture<PlaywrightMcpClient>,
+  playwrightConnection: PlaywrightConnectionSupervisor,
   workspaceService: WorkspaceServiceClient,
   serviceScope: Scope,
-): BrowserSessionMcpService {
+): McpServer {
   const mcpServer = new McpServer(
     { name: "job-boardwalk-browser-session", version: "0.1.0" },
     {
@@ -148,11 +130,11 @@ export function createBrowserSessionMcpServer(
         "在 Playwright Extension 绑定的可见标签页内操作。页面要求登录、验证或输入凭据，或者下一步将提交申请、发送消息或更改账号状态时，停止浏览器输入，让用户接管同一标签页。只有用户明确返回控制后才能继续。",
     },
   );
-  const notifyBrowserToolsWhenReady = registerBrowserToolHandlers(mcpServer, {
+  registerBrowserToolHandlers(mcpServer, {
     browserSessionId,
-    playwrightClientFuture,
+    playwrightConnection,
     serviceScope,
     workspaceService,
   });
-  return { mcpServer, notifyBrowserToolsWhenReady };
+  return mcpServer;
 }
