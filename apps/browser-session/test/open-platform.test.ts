@@ -16,7 +16,7 @@ function createEncodedResult(snapshot: Record<string, unknown>): CallToolResult 
   };
 }
 
-test("opens the platform entry before assessing login state", () =>
+test("opens the platform entry in a new tab before assessing login state", () =>
   run(function* openLoginPage() {
     const calls: CallToolRequest["params"][] = [];
     const result = yield* openPlatform(
@@ -24,7 +24,7 @@ test("opens the platform entry before assessing login state", () =>
         callTool: function* callTool(params) {
           calls.push(params);
           yield* [];
-          if (params.name === "browser_navigate") {
+          if (params.name === "browser_tabs") {
             return { content: [{ text: "navigated", type: "text" }] };
           }
           return createEncodedResult({
@@ -40,10 +40,10 @@ test("opens the platform entry before assessing login state", () =>
       "boss",
     );
     expect(calls[firstCallIndex]).toEqual({
-      arguments: { url: "https://www.zhipin.com/" },
-      name: "browser_navigate",
+      arguments: { action: "new", url: "https://www.zhipin.com/" },
+      name: "browser_tabs",
     });
-    expect(calls.map(({ name }) => name)).toEqual(["browser_navigate", "browser_evaluate"]);
+    expect(calls.map(({ name }) => name)).toEqual(["browser_tabs", "browser_evaluate"]);
     expect(result).toEqual({
       assessment: { authenticationState: "unauthenticated", evidence: "login-page" },
       outcome: "login-required",

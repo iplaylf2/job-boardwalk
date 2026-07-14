@@ -29,8 +29,8 @@ export function* openPlatform(
   platformId: PlatformId,
 ): RiteCoroutine<PlatformAccessOutcome> {
   const navigationResult = yield* browser.callTool({
-    arguments: { url: platformCatalog[platformId].entryUrl },
-    name: "browser_navigate",
+    arguments: { action: "new", url: platformCatalog[platformId].entryUrl },
+    name: "browser_tabs",
   });
   if (navigationResult.isError) {
     const detail = readErrorText(navigationResult);
