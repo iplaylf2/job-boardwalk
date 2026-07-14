@@ -5,42 +5,34 @@ export const platformAccessObservations = sqliteTable(
   "platform_access_observations",
   {
     accountDisplayName: text("account_display_name"),
+    authenticationState: text("authentication_state", {
+      enum: ["authenticated", "unauthenticated"],
+    }),
     browserSessionId: text("browser_session_id").notNull(),
     evidence: text({
-      enum: [
-        "authentication-cookie",
-        "authenticated-page",
-        "account-identity",
-        "login-page",
-        "verification-page",
-        "access-denied-page",
-      ],
+      enum: ["account-identity", "login-page", "verification-page", "access-denied-page"],
     }).notNull(),
     id: integer().primaryKey({ autoIncrement: true }),
+    interruption: text({ enum: ["verification-required", "access-denied"] }),
     observedAt: text("observed_at").notNull(),
     platformId: text("platform_id").notNull(),
-    state: text({
-      enum: [
-        "authentication-unverified",
-        "authenticated",
-        "login-required",
-        "verification-required",
-        "blocked",
-      ],
-    }).notNull(),
   },
   (table) => [
     check(
-      "platform_access_observations_state",
-      sql`${table.state} in ('authentication-unverified', 'authenticated', 'login-required', 'verification-required', 'blocked')`,
+      "platform_access_observations_authentication_state",
+      sql`${table.authenticationState} is null or ${table.authenticationState} in ('authenticated', 'unauthenticated')`,
+    ),
+    check(
+      "platform_access_observations_interruption",
+      sql`${table.interruption} is null or ${table.interruption} in ('verification-required', 'access-denied')`,
     ),
     check(
       "platform_access_observations_evidence",
-      sql`${table.evidence} in ('authentication-cookie', 'authenticated-page', 'account-identity', 'login-page', 'verification-page', 'access-denied-page')`,
+      sql`${table.evidence} in ('account-identity', 'login-page', 'verification-page', 'access-denied-page')`,
     ),
     check(
       "platform_access_observations_assessment",
-      sql`(${table.state} = 'authentication-unverified' and ${table.evidence} = 'authentication-cookie') or (${table.state} = 'authenticated' and ${table.evidence} in ('authenticated-page', 'account-identity')) or (${table.state} = 'login-required' and ${table.evidence} = 'login-page') or (${table.state} = 'verification-required' and ${table.evidence} = 'verification-page') or (${table.state} = 'blocked' and ${table.evidence} = 'access-denied-page')`,
+      sql`(${table.authenticationState} = 'authenticated' and ${table.interruption} is null and ${table.evidence} = 'account-identity') or (${table.authenticationState} = 'unauthenticated' and ${table.interruption} is null and ${table.evidence} = 'login-page') or (${table.authenticationState} is null and ${table.interruption} = 'verification-required' and ${table.evidence} = 'verification-page') or (${table.authenticationState} is null and ${table.interruption} = 'access-denied' and ${table.evidence} = 'access-denied-page')`,
     ),
   ],
 );

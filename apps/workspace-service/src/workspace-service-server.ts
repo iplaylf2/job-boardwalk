@@ -1,14 +1,13 @@
-import path from "node:path";
 import process from "node:process";
 
 import { serve } from "@hono/node-server";
 import type { ServerType } from "@hono/node-server";
-import { getWorkspaceDirectory, prepareWorkspaceStorage } from "@job-boardwalk/storage-layout";
 import { completer, createScope, until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
 
 import { createWorkspaceServiceHttpApp } from "./http/app.js";
+import { prepareWorkspaceDatabasePath } from "./persistence/workspace-storage.js";
 import { WorkspaceRepository } from "./persistence/workspace-repository.js";
 
 const privateFileCreationMask = 0o077;
@@ -36,10 +35,8 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
 }
 
 function* runWorkspaceService(serviceScope: Scope): RiteCoroutine<void> {
-  yield* prepareWorkspaceStorage();
-  const repository = new WorkspaceRepository(
-    path.join(getWorkspaceDirectory(), "workspace.sqlite"),
-  );
+  const databasePath = yield* prepareWorkspaceDatabasePath();
+  const repository = new WorkspaceRepository(databasePath);
   const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
   const httpServer = serve(
     { fetch: httpApp.fetch, hostname: "127.0.0.1", port: 54_310 },

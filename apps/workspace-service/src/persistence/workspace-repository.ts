@@ -8,8 +8,8 @@ import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
 import type {
   PlatformAccessObservation,
+  PlatformAccessObservationInput,
   ProfileFact,
-  RecordPlatformAccessObservationInput,
   TargetLocation,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
@@ -23,36 +23,60 @@ import {
 
 type PlatformAccessObservationRow = typeof platformAccessObservations.$inferSelect;
 
-function toPlatformAccessObservation(row: PlatformAccessObservationRow): PlatformAccessObservation {
+function toPlatformAccessObservationMetadata(row: PlatformAccessObservationRow) {
   if (!isPlatformId(row.platformId)) {
     throw new Error(`数据库中存在未知招聘平台：${row.platformId}`);
   }
-  const common = {
+  return {
     browserSessionId: row.browserSessionId,
     id: row.id,
     observedAt: row.observedAt,
     platformId: row.platformId,
     ...(row.accountDisplayName === null ? {} : { accountDisplayName: row.accountDisplayName }),
   };
-  if (row.state === "authentication-unverified" && row.evidence === "authentication-cookie") {
-    return { ...common, evidence: row.evidence, state: row.state };
+}
+
+function toPlatformAccessObservation(row: PlatformAccessObservationRow): PlatformAccessObservation {
+  const observationMetadata = toPlatformAccessObservationMetadata(row);
+  if (
+    row.authenticationState === "authenticated" &&
+    row.interruption === null &&
+    row.evidence === "account-identity"
+  ) {
+    return {
+      ...observationMetadata,
+      authenticationState: row.authenticationState,
+      evidence: row.evidence,
+    };
   }
   if (
-    row.state === "authenticated" &&
-    (row.evidence === "authenticated-page" || row.evidence === "account-identity")
+    row.authenticationState === "unauthenticated" &&
+    row.interruption === null &&
+    row.evidence === "login-page"
   ) {
-    return { ...common, evidence: row.evidence, state: row.state };
+    return {
+      ...observationMetadata,
+      authenticationState: row.authenticationState,
+      evidence: row.evidence,
+    };
   }
-  if (row.state === "login-required" && row.evidence === "login-page") {
-    return { ...common, evidence: row.evidence, state: row.state };
+  if (
+    row.authenticationState === null &&
+    row.interruption === "verification-required" &&
+    row.evidence === "verification-page"
+  ) {
+    return { ...observationMetadata, evidence: row.evidence, interruption: row.interruption };
   }
-  if (row.state === "verification-required" && row.evidence === "verification-page") {
-    return { ...common, evidence: row.evidence, state: row.state };
+  if (
+    row.authenticationState === null &&
+    row.interruption === "access-denied" &&
+    row.evidence === "access-denied-page"
+  ) {
+    return { ...observationMetadata, evidence: row.evidence, interruption: row.interruption };
   }
-  if (row.state === "blocked" && row.evidence === "access-denied-page") {
-    return { ...common, evidence: row.evidence, state: row.state };
-  }
-  throw new Error(`数据库中的平台访问状态与证据不匹配：${row.state}/${row.evidence}`);
+  throw new Error(
+    `数据库中的平台访问观察不匹配：${row.authenticationState}/${row.interruption}/${row.evidence}`,
+  );
 }
 
 function resolveMigrationsDirectory(): string {
@@ -91,14 +115,14 @@ export class WorkspaceRepository {
   }
 
   public recordPlatformAccessObservation(
-    input: RecordPlatformAccessObservationInput,
+    input: PlatformAccessObservationInput,
   ): PlatformAccessObservation {
     const row = this.#database.insert(platformAccessObservations).values(input).returning().get();
     return toPlatformAccessObservation(row);
   }
 
-  public listLatestPlatformAccessObservations(): PlatformAccessObservation[] {
-    const observations = this.#database
+  public listPlatformAccessObservations(): PlatformAccessObservation[] {
+    return this.#database
       .select()
       .from(platformAccessObservations)
       .orderBy(
@@ -106,16 +130,7 @@ export class WorkspaceRepository {
         desc(platformAccessObservations.observedAt),
         desc(platformAccessObservations.id),
       )
-      .all();
-    const seenPlatforms = new Set<string>();
-    return observations
-      .filter((observation) => {
-        if (seenPlatforms.has(observation.platformId)) {
-          return false;
-        }
-        seenPlatforms.add(observation.platformId);
-        return true;
-      })
+      .all()
       .map(toPlatformAccessObservation);
   }
 

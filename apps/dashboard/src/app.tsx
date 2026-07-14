@@ -1,9 +1,9 @@
 import { createMemo, createSignal, For, Loading, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type {
-  PlatformAccessObservation,
-  PlatformAccessState,
   PlatformAccessSummary,
+  PlatformAuthenticationObservation,
+  PlatformAccessInterruptionObservation,
   ProfileFact,
   TargetLocation,
   WorkspaceOverview,
@@ -13,37 +13,35 @@ import type {
 import "./styles.css";
 import { readWorkspaceOverview } from "./workspace-service-client.js";
 
-const initialRevision = 0;
-const revisionIncrement = 1;
+const initialRefreshCount = 0;
+const refreshIncrement = 1;
 const emptyCollectionLength = 0;
 
-const platformAccessStateCopy = {
+const platformAuthenticationCopy = {
   authenticated: {
-    detail: "站点页面在本次观察时显示账号已登录。",
+    detail: "本次观察在页面中识别到已登录账号。",
     label: "观察时已登录",
     tone: "positive",
   },
-  "authentication-unverified": {
-    detail: "浏览器中发现了登录会话线索，但站点页面尚未确认其有效性。",
-    label: "发现会话线索",
-    tone: "tentative",
+  unauthenticated: {
+    detail: "本次观察显示平台登录页面。",
+    label: "观察时未登录",
+    tone: "attention",
   },
-  blocked: {
-    detail: "站点在本次观察时拒绝了访问。需要由你或 AI 助手排查后重试。",
-    label: "观察时访问受阻",
+} as const;
+
+const platformAccessInterruptionCopy = {
+  "access-denied": {
+    detail: "该次页面访问被平台拒绝。请先检查项目浏览器，再决定是否重试。",
+    label: "访问受阻",
     tone: "warning",
   },
-  "login-required": {
-    detail: "本次观察到登录页面。请在 AI 助手打开的浏览器窗口中完成登录。",
-    label: "观察时需要登录",
-    tone: "attention",
-  },
   "verification-required": {
-    detail: "本次观察到验证码或其他人工验证。请在 AI 助手打开的浏览器窗口中完成验证。",
-    label: "观察时需要验证",
+    detail: "该次观察显示页面要求人工验证。请在项目浏览器中确认并完成后，再交还控制。",
+    label: "需要人工验证",
     tone: "attention",
   },
-} as const satisfies Record<PlatformAccessState, { detail: string; label: string; tone: string }>;
+} as const;
 
 function formatObservedAt(observedAt: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -70,18 +68,16 @@ function SectionHeading(props: { number: string; title: string }) {
   );
 }
 
-function PlatformAccessObservationView(props: { observation: PlatformAccessObservation }) {
-  function stateCopy() {
-    return platformAccessStateCopy[props.observation.state];
+function PlatformAuthenticationView(props: { observation: PlatformAuthenticationObservation }) {
+  function authenticationCopy() {
+    return platformAuthenticationCopy[props.observation.authenticationState];
   }
   return (
     <div class="platform-observation">
-      <span class={`status status-${stateCopy().tone}`}>{stateCopy().label}</span>
-      <p>{stateCopy().detail}</p>
+      <span class={`status status-${authenticationCopy().tone}`}>{authenticationCopy().label}</span>
+      <p>{authenticationCopy().detail}</p>
       <Show when={props.observation.accountDisplayName}>
-        {(accountDisplayName) => (
-          <strong class="account">观察到的账号：{accountDisplayName()}</strong>
-        )}
+        {(accountDisplayName) => <strong class="account">页面账号：{accountDisplayName()}</strong>}
       </Show>
       <time datetime={props.observation.observedAt}>
         观察时间：{formatObservedAt(props.observation.observedAt)}
@@ -90,12 +86,29 @@ function PlatformAccessObservationView(props: { observation: PlatformAccessObser
   );
 }
 
-function PlatformAccessPanel(props: { platforms: PlatformAccessSummary[] }) {
+function PlatformAccessInterruptionView(props: {
+  observation: PlatformAccessInterruptionObservation;
+}) {
+  function interruptionCopy() {
+    return platformAccessInterruptionCopy[props.observation.interruption];
+  }
+  return (
+    <div class="platform-observation">
+      <span class={`status status-${interruptionCopy().tone}`}>{interruptionCopy().label}</span>
+      <p>{interruptionCopy().detail}</p>
+      <time datetime={props.observation.observedAt}>
+        观察时间：{formatObservedAt(props.observation.observedAt)}
+      </time>
+    </div>
+  );
+}
+
+function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
   return (
     <section class="panel platform-access">
       <SectionHeading number="01" title="平台访问" />
       <div class="platform-list">
-        <For each={props.platforms}>
+        <For each={props.summaries}>
           {(platform) => (
             <article class="platform-row">
               <div class="platform-name">
@@ -103,15 +116,18 @@ function PlatformAccessPanel(props: { platforms: PlatformAccessSummary[] }) {
                 <h3>{platform.label}</h3>
               </div>
               <Show
-                when={platform.latestObservation}
+                when={platform.latestAuthentication}
                 fallback={
                   <div class="platform-observation empty-observation">
-                    <span class="status status-unknown">暂无访问观察</span>
-                    <p>AI 助手通过浏览器访问该平台后，观察记录会显示在这里。</p>
+                    <span class="status status-unknown">尚无登录状态记录</span>
+                    <p>AI 助手首次观察该平台页面后，登录状态会显示在这里。</p>
                   </div>
                 }
               >
-                {(observation) => <PlatformAccessObservationView observation={observation()} />}
+                {(observation) => <PlatformAuthenticationView observation={observation()} />}
+              </Show>
+              <Show when={platform.activeInterruption}>
+                {(observation) => <PlatformAccessInterruptionView observation={observation()} />}
               </Show>
             </article>
           )}
@@ -175,7 +191,7 @@ function TargetLocationsPanel(props: { locations: TargetLocation[] }) {
 function WorkspaceOverviewView(props: { overview: WorkspaceOverview }) {
   return (
     <div class="grid">
-      <PlatformAccessPanel platforms={props.overview.platformAccess} />
+      <PlatformAccessPanel summaries={props.overview.platformAccessSummaries} />
       <ProfileFactsPanel facts={props.overview.profileFacts} />
       <TargetLocationsPanel locations={props.overview.targetLocations} />
     </div>
@@ -183,9 +199,9 @@ function WorkspaceOverviewView(props: { overview: WorkspaceOverview }) {
 }
 
 export function App(): JSX.Element {
-  const [revision, setRevision] = createSignal(initialRevision);
+  const [refreshCount, setRefreshCount] = createSignal(initialRefreshCount);
   const workspaceOverview = createMemo(() => {
-    revision();
+    refreshCount();
     return readWorkspaceOverview();
   });
 
@@ -195,12 +211,10 @@ export function App(): JSX.Element {
         <div>
           <p class="eyebrow">本地 AI 求职秘书</p>
           <h1>Job Boardwalk</h1>
-          <p class="lede">
-            最近一次浏览器观察、求职资料和目标城市保存在本机，供你与 AI 助手持续协作。
-          </p>
+          <p class="lede">平台访问观察、求职资料和目标城市保存在本机，供你与 AI 助手持续协作。</p>
         </div>
-        <button type="button" onClick={() => setRevision((value) => value + revisionIncrement)}>
-          刷新记录
+        <button type="button" onClick={() => setRefreshCount((value) => value + refreshIncrement)}>
+          重新读取本地记录
         </button>
       </header>
 

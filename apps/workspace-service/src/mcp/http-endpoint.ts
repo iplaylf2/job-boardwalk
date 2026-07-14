@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import {
   CallToolRequestSchema,
@@ -12,7 +12,7 @@ import { until } from "@shajara/host";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { readWorkspaceOverview } from "#/workspace/read-workspace-overview.js";
+import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
 const toolNames = {
@@ -20,15 +20,16 @@ const toolNames = {
 } as const;
 
 function registerResourceHandlers(
-  mcpServer: Server,
+  mcpServer: McpServer,
   repository: WorkspaceRepository,
   serviceScope: Scope,
 ): void {
-  mcpServer.setRequestHandler(ListResourcesRequestSchema, () =>
+  mcpServer.server.setRequestHandler(ListResourcesRequestSchema, () =>
     Promise.resolve({
       resources: [
         {
-          description: "本机工作区中每个平台的最近一次访问观察、求职资料和目标城市。",
+          description:
+            "本机工作区的平台访问摘要（最近一次明确登录状态及其后的未解除中断）、求职资料和目标城市。",
           mimeType: "application/json",
           name: "workspace-overview",
           title: "Job Boardwalk 工作区概览",
@@ -37,7 +38,7 @@ function registerResourceHandlers(
       ],
     }),
   );
-  mcpServer.setRequestHandler(ReadResourceRequestSchema, (request) => {
+  mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request) => {
     if (request.params.uri !== workspaceOverviewUri) {
       return Promise.reject(new Error(`未知的 Job Boardwalk 资源：${request.params.uri}`));
     }
@@ -62,7 +63,8 @@ function createToolListResult() {
     tools: [
       {
         annotations: { readOnlyHint: true },
-        description: "读取本机工作区中每个平台的最近一次访问观察、求职资料和目标城市。",
+        description:
+          "读取本机工作区的平台访问摘要（最近一次明确登录状态及其后的未解除中断）、求职资料和目标城市。",
         inputSchema: { additionalProperties: false, properties: {}, type: "object" as const },
         name: toolNames.readWorkspaceOverview,
         title: "读取 Job Boardwalk 工作区概览",
@@ -72,14 +74,14 @@ function createToolListResult() {
 }
 
 function registerToolHandlers(
-  mcpServer: Server,
+  mcpServer: McpServer,
   repository: WorkspaceRepository,
   serviceScope: Scope,
 ): void {
-  mcpServer.setRequestHandler(ListToolsRequestSchema, () =>
+  mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
     Promise.resolve(createToolListResult()),
   );
-  mcpServer.setRequestHandler(CallToolRequestSchema, (request) => {
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => {
     if (request.params.name === toolNames.readWorkspaceOverview) {
       return serviceScope.run(function* readWorkspaceTool() {
         yield* [];
@@ -94,8 +96,8 @@ function registerToolHandlers(
   });
 }
 
-function createMcpServer(repository: WorkspaceRepository, serviceScope: Scope): Server {
-  const mcpServer = new Server(
+function createMcpServer(repository: WorkspaceRepository, serviceScope: Scope): McpServer {
+  const mcpServer = new McpServer(
     { name: "job-boardwalk", version: "0.1.0" },
     { capabilities: { resources: {}, tools: {} } },
   );

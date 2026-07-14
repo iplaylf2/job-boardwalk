@@ -1,23 +1,25 @@
 {
   "name": "@job-boardwalk/browser-session",
   "private": true,
-  "description": "Visible persistent Playwright browser shared by the user and agent through MCP.",
+  "description": "Persistent MCP gateway to a user-visible Playwright browser on a graphical host.",
   "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
   "scripts": {
     "build": "vite build",
     "dev": "tsx watch src/browser-session-server.ts",
     "lint": "oxlint --config oxlint.config.ts .",
+    "mcp": "tsx src/browser-session-server.ts",
     "start": "node dist/browser-session-server.js",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
-    "@job-boardwalk/storage-layout": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
-    "@playwright/mcp": "catalog:",
-    "@shajara/host": "catalog:",
-    "playwright": "catalog:"
+    "@shajara/host": "catalog:"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
@@ -25,6 +27,7 @@
     "oxlint": "catalog:",
     "tsx": "^4.20.3",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

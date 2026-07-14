@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "77e1003d-2a88-49ae-bcd7-5e05285b8945",
+  "id": "74a3eb57-e7e0-419d-8208-77b71ec599e3",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -27,6 +27,16 @@
       "default": null,
       "generated": null,
       "name": "account_display_name",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "authentication_state",
       "entityType": "columns",
       "table": "platform_access_observations"
     },
@@ -62,6 +72,16 @@
     },
     {
       "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "interruption",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -77,16 +97,6 @@
       "default": null,
       "generated": null,
       "name": "platform_id",
-      "entityType": "columns",
-      "table": "platform_access_observations"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "state",
       "entityType": "columns",
       "table": "platform_access_observations"
     },
@@ -303,19 +313,25 @@
       "table": "target_locations"
     },
     {
-      "value": "\"state\" in ('authentication-unverified', 'authenticated', 'login-required', 'verification-required', 'blocked')",
-      "name": "platform_access_observations_state",
+      "value": "\"authentication_state\" is null or \"authentication_state\" in ('authenticated', 'unauthenticated')",
+      "name": "platform_access_observations_authentication_state",
       "entityType": "checks",
       "table": "platform_access_observations"
     },
     {
-      "value": "\"evidence\" in ('authentication-cookie', 'authenticated-page', 'account-identity', 'login-page', 'verification-page', 'access-denied-page')",
+      "value": "\"interruption\" is null or \"interruption\" in ('verification-required', 'access-denied')",
+      "name": "platform_access_observations_interruption",
+      "entityType": "checks",
+      "table": "platform_access_observations"
+    },
+    {
+      "value": "\"evidence\" in ('account-identity', 'login-page', 'verification-page', 'access-denied-page')",
       "name": "platform_access_observations_evidence",
       "entityType": "checks",
       "table": "platform_access_observations"
     },
     {
-      "value": "(\"state\" = 'authentication-unverified' and \"evidence\" = 'authentication-cookie') or (\"state\" = 'authenticated' and \"evidence\" in ('authenticated-page', 'account-identity')) or (\"state\" = 'login-required' and \"evidence\" = 'login-page') or (\"state\" = 'verification-required' and \"evidence\" = 'verification-page') or (\"state\" = 'blocked' and \"evidence\" = 'access-denied-page')",
+      "value": "(\"authentication_state\" = 'authenticated' and \"interruption\" is null and \"evidence\" = 'account-identity') or (\"authentication_state\" = 'unauthenticated' and \"interruption\" is null and \"evidence\" = 'login-page') or (\"authentication_state\" is null and \"interruption\" = 'verification-required' and \"evidence\" = 'verification-page') or (\"authentication_state\" is null and \"interruption\" = 'access-denied' and \"evidence\" = 'access-denied-page')",
       "name": "platform_access_observations_assessment",
       "entityType": "checks",
       "table": "platform_access_observations"

@@ -1,10 +1,14 @@
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
-import type { PlatformAccessObservation } from "./platform-access.ts";
+import type {
+  PlatformAuthenticationObservation,
+  PlatformAccessInterruptionObservation,
+} from "./platform-access.ts";
 
 export interface PlatformAccessSummary {
+  activeInterruption?: PlatformAccessInterruptionObservation;
   label: string;
-  latestObservation?: PlatformAccessObservation;
+  latestAuthentication?: PlatformAuthenticationObservation;
   platformId: PlatformId;
 }
 
@@ -26,7 +30,7 @@ export interface TargetLocation {
 }
 
 export interface WorkspaceOverview {
-  platformAccess: PlatformAccessSummary[];
+  platformAccessSummaries: PlatformAccessSummary[];
   profileFacts: ProfileFact[];
   targetLocations: TargetLocation[];
 }

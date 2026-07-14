@@ -6,12 +6,12 @@ it does not serve Dashboard assets or own a browser process.
 
 The repository's [product design](../../docs/product-design.md) defines the target delegation and
 browser-collaboration model. The current service can preserve platform-access observations and read
-or update profile facts and target locations. It does not yet expose research runs, interruptions,
-job observations, or analysis.
+or update profile facts and target locations. It does not yet expose research runs, run-level
+interruptions, job observations, or analysis.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
-which runs with Playwright in the user's graphical environment. The agent coordinates that service
-with this service's domain tools.
+which keeps a persistent MCP connection to Playwright and the official browser extension on the
+graphical host. The agent coordinates that service with this service's domain tools.
 
 ## Concurrency model
 
@@ -46,8 +46,8 @@ top-level shajara scope with the HTTP API.
 
 The MCP surface provides:
 
-- `job-boardwalk://workspace/overview`, a resource containing the latest platform-access
-  observations, profile facts, and target locations;
+- `job-boardwalk://workspace/overview`, a resource containing the platform-access summary for each
+  supported platform, profile facts, and target locations;
 - `read_workspace_overview`, which reads the same workspace state.
 
 ## HTTP API
@@ -59,22 +59,24 @@ The loopback HTTP surface currently exposes:
 - `POST /api/profile/facts`
 - `POST /api/search-intent/locations`
 
-Shared response types live in [`@job-boardwalk/contracts`](../../packages/contracts/). Browser
-Session reports evidence without credentials or cookie values:
+Shared request and response types live in
+[`@job-boardwalk/contracts`](../../packages/contracts/). Browser Session records visible page
+evidence without credentials or cookie values:
 
 ```json
 {
   "platformId": "boss",
-  "state": "authentication-unverified",
-  "evidence": "authentication-cookie",
+  "authenticationState": "authenticated",
+  "evidence": "account-identity",
   "browserSessionId": "a-session-id",
   "observedAt": "2026-07-13T01:00:00.000Z"
 }
 ```
 
-Observations are append-only. The workspace overview projects the most recent observation per
-platform, so a historical observation is never silently rewritten as timeless authentication
-state. The profile fact write operation accepts:
+Observations are append-only. Authentication is recorded as `authenticated` or `unauthenticated`;
+verification and access denial use the separate `interruption` field. The workspace overview
+projects the latest definite authentication result and only an interruption newer than that result.
+The profile fact write operation accepts:
 
 ```json
 {
@@ -101,11 +103,11 @@ The target location write operation accepts:
 
 The SQLite database lives at `.job-boardwalk/workspace/workspace.sqlite` by default. Set
 `JOB_BOARDWALK_HOME` to relocate the entire `.job-boardwalk` directory. Relative values resolve
-from the current working directory. Older storage layouts are unsupported and are not imported.
+from the current working directory.
 
-The Drizzle schema lives in `src/persistence/schema.ts`. `migrations/0000_workspace/` is the complete
-baseline for the current model, not an upgrade chain. Existing databases from earlier exploratory
-models are unsupported and must be deleted before starting this version.
+The Drizzle schema lives in `src/persistence/schema.ts`. The `migrations/` directory contains
+exactly one complete baseline for the current model, not an upgrade chain. Existing databases from
+earlier exploratory models are unsupported and must be deleted before starting this version.
 
 During exploration, a schema change replaces both the database and the baseline. Remove the local
 database and current migration directory, then generate one new baseline from the complete schema.

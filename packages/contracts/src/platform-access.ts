@@ -1,18 +1,14 @@
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
-export const platformAccessStates = [
-  "authentication-unverified",
-  "authenticated",
-  "login-required",
-  "verification-required",
-  "blocked",
-] as const;
+export const platformAuthenticationStates = ["authenticated", "unauthenticated"] as const;
 
-export type PlatformAccessState = (typeof platformAccessStates)[number];
+export type PlatformAuthenticationState = (typeof platformAuthenticationStates)[number];
+
+export const platformAccessInterruptions = ["verification-required", "access-denied"] as const;
+
+export type PlatformAccessInterruption = (typeof platformAccessInterruptions)[number];
 
 export const platformAccessEvidenceKinds = [
-  "authentication-cookie",
-  "authenticated-page",
   "account-identity",
   "login-page",
   "verification-page",
@@ -22,19 +18,34 @@ export const platformAccessEvidenceKinds = [
 export type PlatformAccessEvidenceKind = (typeof platformAccessEvidenceKinds)[number];
 
 export type PlatformAccessAssessment =
-  | { evidence: "authentication-cookie"; state: "authentication-unverified" }
-  | { evidence: "authenticated-page" | "account-identity"; state: "authenticated" }
-  | { evidence: "login-page"; state: "login-required" }
-  | { evidence: "verification-page"; state: "verification-required" }
-  | { evidence: "access-denied-page"; state: "blocked" };
+  | {
+      authenticationState: "authenticated";
+      evidence: "account-identity";
+    }
+  | { authenticationState: "unauthenticated"; evidence: "login-page" }
+  | { evidence: "verification-page"; interruption: "verification-required" }
+  | { evidence: "access-denied-page"; interruption: "access-denied" };
 
-export type RecordPlatformAccessObservationInput = PlatformAccessAssessment & {
+interface PlatformAccessObservationCommon {
   accountDisplayName?: string;
   browserSessionId: string;
   observedAt: string;
   platformId: PlatformId;
-};
+}
 
-export type PlatformAccessObservation = RecordPlatformAccessObservationInput & {
+export type PlatformAccessObservationInput = PlatformAccessAssessment &
+  PlatformAccessObservationCommon;
+
+export type PlatformAccessObservation = PlatformAccessObservationInput & {
   id: number;
 };
+
+export type PlatformAuthenticationObservation = Extract<
+  PlatformAccessObservation,
+  { authenticationState: PlatformAuthenticationState }
+>;
+
+export type PlatformAccessInterruptionObservation = Extract<
+  PlatformAccessObservation,
+  { interruption: PlatformAccessInterruption }
+>;

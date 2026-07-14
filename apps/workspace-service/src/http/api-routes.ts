@@ -1,17 +1,22 @@
 import type { Context, Hono } from "hono";
 
-import { platformAccessEvidenceKinds, platformAccessStates } from "@job-boardwalk/contracts";
+import {
+  platformAccessEvidenceKinds,
+  platformAccessInterruptions,
+  platformAuthenticationStates,
+} from "@job-boardwalk/contracts";
 import type {
   PlatformAccessAssessment,
   PlatformAccessEvidenceKind,
-  PlatformAccessState,
+  PlatformAccessInterruption,
+  PlatformAuthenticationState,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 import { until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { readWorkspaceOverview } from "#/workspace/read-workspace-overview.js";
+import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
@@ -63,28 +68,39 @@ function isListedValue<const Value extends string>(
 }
 
 function readPlatformAccessAssessment(
-  state: PlatformAccessState,
+  authenticationState: PlatformAuthenticationState | null,
+  interruption: PlatformAccessInterruption | null,
   evidence: PlatformAccessEvidenceKind,
 ): PlatformAccessAssessment {
-  if (state === "authentication-unverified" && evidence === "authentication-cookie") {
-    return { evidence, state };
+  if (
+    authenticationState === "authenticated" &&
+    interruption === null &&
+    evidence === "account-identity"
+  ) {
+    return { authenticationState, evidence };
   }
   if (
-    state === "authenticated" &&
-    (evidence === "authenticated-page" || evidence === "account-identity")
+    authenticationState === "unauthenticated" &&
+    interruption === null &&
+    evidence === "login-page"
   ) {
-    return { evidence, state };
+    return { authenticationState, evidence };
   }
-  if (state === "login-required" && evidence === "login-page") {
-    return { evidence, state };
+  if (
+    authenticationState === null &&
+    interruption === "verification-required" &&
+    evidence === "verification-page"
+  ) {
+    return { evidence, interruption };
   }
-  if (state === "verification-required" && evidence === "verification-page") {
-    return { evidence, state };
+  if (
+    authenticationState === null &&
+    interruption === "access-denied" &&
+    evidence === "access-denied-page"
+  ) {
+    return { evidence, interruption };
   }
-  if (state === "blocked" && evidence === "access-denied-page") {
-    return { evidence, state };
-  }
-  throw new InvalidRequestError("evidence 与 state 不匹配");
+  throw new InvalidRequestError("观察结果与 evidence 不匹配");
 }
 
 function* readJsonObject(context: Context): RiteCoroutine<Record<string, unknown>> {
@@ -111,7 +127,7 @@ function invalidRequestResponse(error: unknown, context: Context): Response {
   throw error;
 }
 
-function registerProfileRoutes(
+function registerProfileFactRoutes(
   app: Hono,
   repository: WorkspaceRepository,
   serviceScope: Scope,
@@ -135,7 +151,7 @@ function registerProfileRoutes(
   );
 }
 
-function registerPlatformAccessRoutes(
+function registerPlatformAccessObservationRoutes(
   app: Hono,
   repository: WorkspaceRepository,
   serviceScope: Scope,
@@ -145,18 +161,29 @@ function registerPlatformAccessRoutes(
       try {
         const input = yield* readJsonObject(context);
         const platformId = readRequiredString(input, "platformId");
-        const state = readRequiredString(input, "state");
         const evidence = readRequiredString(input, "evidence");
+        const authenticationState = readOptionalString(input, "authenticationState") ?? null;
+        const interruption = readOptionalString(input, "interruption") ?? null;
         if (!isPlatformId(platformId)) {
           throw new InvalidRequestError("platformId 不是受支持的招聘平台");
         }
-        if (!isListedValue(state, platformAccessStates)) {
-          throw new InvalidRequestError("state 不是受支持的平台访问状态");
+        if (
+          authenticationState !== null &&
+          !isListedValue(authenticationState, platformAuthenticationStates)
+        ) {
+          throw new InvalidRequestError("authenticationState 不是受支持的登录状态");
+        }
+        if (interruption !== null && !isListedValue(interruption, platformAccessInterruptions)) {
+          throw new InvalidRequestError("interruption 不是受支持的访问中断");
         }
         if (!isListedValue(evidence, platformAccessEvidenceKinds)) {
           throw new InvalidRequestError("evidence 不是受支持的观察证据");
         }
-        const assessment = readPlatformAccessAssessment(state, evidence);
+        const assessment = readPlatformAccessAssessment(
+          authenticationState,
+          interruption,
+          evidence,
+        );
         const accountDisplayName = readOptionalString(input, "accountDisplayName");
         const observation = repository.recordPlatformAccessObservation({
           browserSessionId: readRequiredString(input, "browserSessionId"),
@@ -205,7 +232,7 @@ function registerTargetLocationRoutes(
   );
 }
 
-function registerWorkspaceRoutes(
+function registerWorkspaceOverviewRoutes(
   app: Hono,
   repository: WorkspaceRepository,
   serviceScope: Scope,
@@ -223,8 +250,8 @@ export function registerApiRoutes(
   repository: WorkspaceRepository,
   serviceScope: Scope,
 ): void {
-  registerWorkspaceRoutes(app, repository, serviceScope);
-  registerPlatformAccessRoutes(app, repository, serviceScope);
-  registerProfileRoutes(app, repository, serviceScope);
+  registerWorkspaceOverviewRoutes(app, repository, serviceScope);
+  registerPlatformAccessObservationRoutes(app, repository, serviceScope);
+  registerProfileFactRoutes(app, repository, serviceScope);
   registerTargetLocationRoutes(app, repository, serviceScope);
 }

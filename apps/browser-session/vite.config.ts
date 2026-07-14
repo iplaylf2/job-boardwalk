@@ -11,7 +11,9 @@ function isPackageImport(identifier: string): boolean {
 export default defineConfig({
   build: {
     lib: {
-      entry: { "browser-session-server": "src/browser-session-server.ts" },
+      entry: {
+        "browser-session-server": "src/browser-session-server.ts",
+      },
       fileName: (_format, entryName) => `${entryName}.js`,
       formats: ["es"],
     },

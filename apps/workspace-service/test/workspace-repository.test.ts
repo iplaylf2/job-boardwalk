@@ -9,7 +9,7 @@ import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 const firstArrayIndex = 0;
 const temporaryDirectories: string[] = [];
 
-async function repositoryFixture(): Promise<WorkspaceRepository> {
+async function createRepositoryFixture(): Promise<WorkspaceRepository> {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   temporaryDirectories.push(directory);
   return new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
@@ -25,7 +25,7 @@ afterEach(async () => {
 
 describe("workspace repository", () => {
   test("persists agent-authored profile facts", async () => {
-    const repository = await repositoryFixture();
+    const repository = await createRepositoryFixture();
     repository.setProfileFact({
       confirmed: true,
       key: "target-role",
@@ -47,42 +47,47 @@ describe("workspace repository", () => {
 });
 
 describe("platform access observations", () => {
-  test("keeps history and projects the latest access observation per platform", async () => {
-    const repository = await repositoryFixture();
-    repository.recordPlatformAccessObservation({
-      browserSessionId: "browser-session-a",
-      evidence: "authentication-cookie",
-      observedAt: "2026-07-13T01:00:00.000Z",
-      platformId: "boss",
-      state: "authentication-unverified",
-    });
+  test("keeps authentication and interruption observations as separate history", async () => {
+    const repository = await createRepositoryFixture();
     repository.recordPlatformAccessObservation({
       accountDisplayName: "求职者 A",
+      authenticationState: "authenticated",
       browserSessionId: "browser-session-a",
       evidence: "account-identity",
       observedAt: "2026-07-13T01:01:00.000Z",
       platformId: "boss",
-      state: "authenticated",
     });
     repository.recordPlatformAccessObservation({
+      authenticationState: "unauthenticated",
       browserSessionId: "browser-session-b",
       evidence: "login-page",
       observedAt: "2026-07-13T01:02:00.000Z",
       platformId: "yupao",
-      state: "login-required",
+    });
+    repository.recordPlatformAccessObservation({
+      browserSessionId: "browser-session-b",
+      evidence: "verification-page",
+      interruption: "verification-required",
+      observedAt: "2026-07-13T01:03:00.000Z",
+      platformId: "yupao",
     });
 
-    expect(repository.listLatestPlatformAccessObservations()).toEqual([
+    expect(repository.listPlatformAccessObservations()).toEqual([
       expect.objectContaining({
         accountDisplayName: "求职者 A",
+        authenticationState: "authenticated",
         browserSessionId: "browser-session-a",
         platformId: "boss",
-        state: "authenticated",
       }),
       expect.objectContaining({
         browserSessionId: "browser-session-b",
+        interruption: "verification-required",
         platformId: "yupao",
-        state: "login-required",
+      }),
+      expect.objectContaining({
+        authenticationState: "unauthenticated",
+        browserSessionId: "browser-session-b",
+        platformId: "yupao",
       }),
     ]);
     repository.close();

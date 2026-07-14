@@ -18,13 +18,11 @@ packageExtensions:
 
 catalog:
   "@modelcontextprotocol/sdk": ^1.29.0
-  "@playwright/mcp": ^0.0.78
   "@shajara/host": ^0.11.0
   "@types/node": ^26.1.1
   drizzle-kit: 1.0.0-rc.4
   drizzle-orm: 1.0.0-rc.4
   oxlint: ^1.73.0
-  playwright: 1.62.0-alpha-1783623505000
   typescript: ^7.0.2
   vite: ^8.1.4
   vitest: ^4.1.10

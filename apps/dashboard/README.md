@@ -1,13 +1,17 @@
 # Dashboard
 
 Dashboard is Job Boardwalk's local read surface. It presents durable workspace information
-assembled by the user, agent, and browser observer. Platform access is shown as a timestamped last
-observation with its evidence strength, not as a live authentication guarantee. The dashboard does
-not own SQLite, browser sessions, Playwright, or the Workspace Service lifecycle.
+assembled by the user, agent, and Browser Session. For each platform, it shows the latest definite
+authentication observation and any later unresolved access interruption, together with observation
+times. This history is not a live authentication guarantee. Dashboard does not own SQLite, browser
+sessions, Playwright, or the Workspace Service lifecycle.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. The
 Dashboard does not open or control that window.
+
+The **重新读取本地记录** button fetches the workspace overview from Workspace Service again. It
+does not open, navigate, or refresh a browser page.
 
 ## Development
 

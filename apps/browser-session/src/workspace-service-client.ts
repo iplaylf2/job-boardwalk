@@ -1,6 +1,6 @@
 import process from "node:process";
 
-import type { RecordPlatformAccessObservationInput } from "@job-boardwalk/contracts";
+import type { PlatformAccessObservationInput } from "@job-boardwalk/contracts";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -15,7 +15,7 @@ export class WorkspaceServiceClient {
   readonly #serviceUrl = resolveWorkspaceServiceUrl();
 
   public *recordPlatformAccessObservation(
-    observation: RecordPlatformAccessObservationInput,
+    observation: PlatformAccessObservationInput,
   ): RiteCoroutine<void> {
     const response = yield* until(() =>
       fetch(`${this.#serviceUrl}/api/platform-access/observations`, {

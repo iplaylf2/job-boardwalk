@@ -19,7 +19,6 @@
     "@hono/node-server": "2.0.8",
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
-    "@job-boardwalk/storage-layout": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "@shajara/host": "catalog:",
     "drizzle-orm": "catalog:",

@@ -1,14 +1,16 @@
 CREATE TABLE `platform_access_observations` (
 	`account_display_name` text,
+	`authentication_state` text,
 	`browser_session_id` text NOT NULL,
 	`evidence` text NOT NULL,
 	`id` integer PRIMARY KEY AUTOINCREMENT,
+	`interruption` text,
 	`observed_at` text NOT NULL,
 	`platform_id` text NOT NULL,
-	`state` text NOT NULL,
-	CONSTRAINT "platform_access_observations_state" CHECK("state" in ('authentication-unverified', 'authenticated', 'login-required', 'verification-required', 'blocked')),
-	CONSTRAINT "platform_access_observations_evidence" CHECK("evidence" in ('authentication-cookie', 'authenticated-page', 'account-identity', 'login-page', 'verification-page', 'access-denied-page')),
-	CONSTRAINT "platform_access_observations_assessment" CHECK(("state" = 'authentication-unverified' and "evidence" = 'authentication-cookie') or ("state" = 'authenticated' and "evidence" in ('authenticated-page', 'account-identity')) or ("state" = 'login-required' and "evidence" = 'login-page') or ("state" = 'verification-required' and "evidence" = 'verification-page') or ("state" = 'blocked' and "evidence" = 'access-denied-page'))
+	CONSTRAINT "platform_access_observations_authentication_state" CHECK("authentication_state" is null or "authentication_state" in ('authenticated', 'unauthenticated')),
+	CONSTRAINT "platform_access_observations_interruption" CHECK("interruption" is null or "interruption" in ('verification-required', 'access-denied')),
+	CONSTRAINT "platform_access_observations_evidence" CHECK("evidence" in ('account-identity', 'login-page', 'verification-page', 'access-denied-page')),
+	CONSTRAINT "platform_access_observations_assessment" CHECK(("authentication_state" = 'authenticated' and "interruption" is null and "evidence" = 'account-identity') or ("authentication_state" = 'unauthenticated' and "interruption" is null and "evidence" = 'login-page') or ("authentication_state" is null and "interruption" = 'verification-required' and "evidence" = 'verification-page') or ("authentication_state" is null and "interruption" = 'access-denied' and "evidence" = 'access-denied-page'))
 );
 --> statement-breakpoint
 CREATE TABLE `profile_facts` (

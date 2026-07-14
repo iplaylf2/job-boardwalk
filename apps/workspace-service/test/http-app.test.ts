@@ -16,19 +16,21 @@ const mcpRequestHeaders = {
   accept: "application/json, text/event-stream",
   "content-type": "application/json",
 };
+const defaultPlatformAccessAssessment = {
+  authenticationState: "authenticated",
+  evidence: "account-identity",
+};
 
 function postPlatformAccessObservation(
   httpApp: ReturnType<typeof createWorkspaceServiceHttpApp>,
-  state = "authentication-unverified",
-  evidence = "authentication-cookie",
+  input: Record<string, unknown> = defaultPlatformAccessAssessment,
 ) {
   return httpApp.request("/api/platform-access/observations", {
     body: JSON.stringify({
       browserSessionId: "browser-session-test",
-      evidence,
       observedAt: "2026-07-13T01:00:00+00:00",
       platformId: "boss",
-      state,
+      ...input,
     }),
     headers: { "content-type": "application/json" },
     method: "POST",
@@ -89,20 +91,20 @@ test("accepts and projects the latest durable platform access observation", asyn
     const observationResponse = await postPlatformAccessObservation(httpApp);
     expect(observationResponse.status).toBe(createdStatus);
     expect(await observationResponse.json()).toMatchObject({
+      authenticationState: "authenticated",
       observedAt: "2026-07-13T01:00:00.000Z",
       platformId: "boss",
-      state: "authentication-unverified",
     });
 
     const overviewResponse = await httpApp.request("/api/workspace/overview");
     expect(await overviewResponse.json()).toMatchObject({
-      platformAccess: [
+      platformAccessSummaries: [
         {
           label: "BOSS直聘",
-          latestObservation: {
+          latestAuthentication: {
+            authenticationState: "authenticated",
             browserSessionId: "browser-session-test",
-            evidence: "authentication-cookie",
-            state: "authentication-unverified",
+            evidence: "account-identity",
           },
           platformId: "boss",
         },
@@ -110,14 +112,16 @@ test("accepts and projects the latest durable platform access observation", asyn
       ],
     });
 
-    const invalidResponse = await postPlatformAccessObservation(httpApp, "definitely-logged-in");
+    const invalidResponse = await postPlatformAccessObservation(httpApp, {
+      authenticationState: "definitely-logged-in",
+      evidence: "account-identity",
+    });
     expect(invalidResponse.status).toBe(badRequestStatus);
 
-    const mismatchedEvidenceResponse = await postPlatformAccessObservation(
-      httpApp,
-      "authenticated",
-      "authentication-cookie",
-    );
+    const mismatchedEvidenceResponse = await postPlatformAccessObservation(httpApp, {
+      authenticationState: "authenticated",
+      evidence: "login-page",
+    });
     expect(mismatchedEvidenceResponse.status).toBe(badRequestStatus);
   } finally {
     repository.close();

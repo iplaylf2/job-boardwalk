@@ -12,8 +12,8 @@ account changes, applications, and communication always remain under user contro
 Job Boardwalk separates the browser that produces live evidence from the workspace that preserves
 durable facts:
 
-- [Browser Session](apps/browser-session/) owns the visible, persistent Playwright browser shared
-  by the user and agent.
+- [Browser Session](apps/browser-session/) keeps a persistent MCP connection to the visible browser
+  supplied by the graphical host and exposes it to the agent over stdio.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP.
 - [Dashboard](apps/dashboard/) reads the durable workspace; it does not control the browser or
@@ -25,9 +25,9 @@ the authoritative collaboration model, ownership boundaries, and current capabil
 
 ## Current scope
 
-The Workspace Service currently stores platform-access observations, profile facts, and target
-locations. Research runs, interruptions, job results, and analysis are product direction, not yet
-current capabilities.
+The Workspace Service currently stores platform-access observations, including access
+interruptions, plus profile facts and target locations. Research runs, run-level interruptions,
+job results, and analysis are product direction, not yet current capabilities.
 
 ## Run locally
 
@@ -50,12 +50,21 @@ pnpm --filter @job-boardwalk/dashboard dev
 Open <http://127.0.0.1:54311>. The Workspace Service MCP endpoint is
 <http://127.0.0.1:54310/mcp>.
 
-When browser research is needed, an agent host in the graphical environment starts Browser Session
-as a stdio MCP server:
+When browser research is needed, install the official Playwright Extension in Chrome or Edge on the
+graphical host and run Playwright MCP there with `--extension`, `--port`, and
+`--shared-browser-context`. Then point Browser Session at its `/mcp` endpoint and run the stdio
+gateway:
 
 ```sh
-pnpm --filter @job-boardwalk/browser-session dev
+JOB_BOARDWALK_PLAYWRIGHT_MCP_URL=http://127.0.0.1:8931/mcp \
+  pnpm --filter @job-boardwalk/browser-session mcp
 ```
+
+Configure Browser Session as a stdio MCP server in whichever agent host you use. During normal
+research it initializes the extension-bound tab once, reuses that tab, pauses for user login or
+verification, then resumes after user acknowledgement. Agent-host and graphical-host configuration
+is local and is not part of the product contract. See the Browser Session README for host
+networking and access-control requirements.
 
 Each application's README documents its own configuration and operation.
 
@@ -63,5 +72,5 @@ Each application's README documents its own configuration and operation.
 
 - [`apps/`](apps/) contains the three product applications.
 - [`docs/`](docs/) owns cross-application product design.
-- [`packages/`](packages/) contains shared product contracts and storage conventions.
+- [`packages/`](packages/) contains shared product contracts and the recruiting-platform catalog.
 - [`internal/`](internal/) contains private monorepo tooling.
