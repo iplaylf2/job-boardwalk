@@ -26,42 +26,8 @@ export type PlatformAccessAssessment =
   | { evidence: "verification-page"; interruption: "verification-required" }
   | { evidence: "access-denied-page"; interruption: "access-denied" };
 
-type AuthenticatedPlatformAccessAssessment = Extract<
-  PlatformAccessAssessment,
-  { authenticationState: "authenticated" }
->;
-
-type UnauthenticatedPlatformAccessAssessment = Extract<
-  PlatformAccessAssessment,
-  { authenticationState: "unauthenticated" }
->;
-
-type VerificationPlatformAccessAssessment = Extract<
-  PlatformAccessAssessment,
-  { interruption: "verification-required" }
->;
-
-type DeniedPlatformAccessAssessment = Extract<
-  PlatformAccessAssessment,
-  { interruption: "access-denied" }
->;
-
-export type PlatformAccessOutcome =
-  | { assessment: AuthenticatedPlatformAccessAssessment; outcome: "authenticated" }
-  | {
-      assessment: UnauthenticatedPlatformAccessAssessment;
-      outcome: "login-required";
-    }
-  | {
-      assessment: VerificationPlatformAccessAssessment;
-      outcome: "verification-required";
-    }
-  | { assessment: DeniedPlatformAccessAssessment; outcome: "access-denied" }
-  | { outcome: "indeterminate" };
-
 interface PlatformAccessObservationCommon {
   accountDisplayName?: string;
-  browserSessionId: string;
   observedAt: string;
   platformId: PlatformId;
 }

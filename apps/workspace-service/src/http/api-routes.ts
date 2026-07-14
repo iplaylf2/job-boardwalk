@@ -12,7 +12,7 @@ import type {
   PlatformAuthenticationState,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
-import { until } from "@shajara/host";
+import { CanceledError, InterruptedError, ScopeError, until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
@@ -20,6 +20,7 @@ import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
+const internalServerErrorStatus = 500;
 
 class InvalidRequestError extends Error {
   public constructor(message: string) {
@@ -38,6 +39,14 @@ function readRequiredString(input: Record<string, unknown>, key: string): string
     throw new InvalidRequestError(`${key} 必须是非空字符串`);
   }
   return value.trim();
+}
+
+function readRequiredBoolean(input: Record<string, unknown>, key: string): boolean {
+  const value = input[key];
+  if (typeof value !== "boolean") {
+    throw new InvalidRequestError(`${key} 必须是布尔值`);
+  }
+  return value;
 }
 
 function readOptionalString(input: Record<string, unknown>, key: string): string | undefined {
@@ -100,7 +109,7 @@ function readPlatformAccessAssessment(
   ) {
     return { evidence, interruption };
   }
-  throw new InvalidRequestError("观察结果与 evidence 不匹配");
+  throw new InvalidRequestError("authenticationState、interruption 与 evidence 的组合无效");
 }
 
 function* readJsonObject(context: Context): RiteCoroutine<Record<string, unknown>> {
@@ -120,11 +129,18 @@ function* readJsonObject(context: Context): RiteCoroutine<Record<string, unknown
   return input;
 }
 
-function invalidRequestResponse(error: unknown, context: Context): Response {
+function requestErrorResponse(error: unknown, context: Context): Response {
   if (error instanceof InvalidRequestError) {
     return context.json({ error: error.message }, badRequestStatus);
   }
-  throw error;
+  if (
+    error instanceof CanceledError ||
+    error instanceof InterruptedError ||
+    error instanceof ScopeError
+  ) {
+    throw error;
+  }
+  return context.json({ error: "Workspace Service 内部错误" }, internalServerErrorStatus);
 }
 
 function registerProfileFactRoutes(
@@ -137,7 +153,7 @@ function registerProfileFactRoutes(
       try {
         const input = yield* readJsonObject(context);
         repository.setProfileFact({
-          confirmed: input["confirmed"] === true,
+          confirmed: readRequiredBoolean(input, "confirmed"),
           key: readRequiredString(input, "key"),
           reason: readRequiredString(input, "reason"),
           source: readRequiredString(input, "source"),
@@ -145,7 +161,7 @@ function registerProfileFactRoutes(
         });
         return context.json({ ok: true }, createdStatus);
       } catch (error) {
-        return invalidRequestResponse(error, context);
+        return requestErrorResponse(error, context);
       }
     }),
   );
@@ -186,7 +202,6 @@ function registerPlatformAccessObservationRoutes(
         );
         const accountDisplayName = readOptionalString(input, "accountDisplayName");
         const observation = repository.recordPlatformAccessObservation({
-          browserSessionId: readRequiredString(input, "browserSessionId"),
           observedAt: readObservedAt(input),
           platformId,
           ...assessment,
@@ -194,7 +209,7 @@ function registerPlatformAccessObservationRoutes(
         });
         return context.json(observation, createdStatus);
       } catch (error) {
-        return invalidRequestResponse(error, context);
+        return requestErrorResponse(error, context);
       }
     }),
   );
@@ -226,7 +241,7 @@ function registerTargetLocationRoutes(
         });
         return context.json({ ok: true }, createdStatus);
       } catch (error) {
-        return invalidRequestResponse(error, context);
+        return requestErrorResponse(error, context);
       }
     }),
   );
@@ -239,8 +254,12 @@ function registerWorkspaceOverviewRoutes(
 ): void {
   app.get("/api/workspace/overview", (context) =>
     serviceScope.run(function* getWorkspaceOverview() {
-      yield* [];
-      return context.json(readWorkspaceOverview(repository));
+      try {
+        yield* [];
+        return context.json(readWorkspaceOverview(repository));
+      } catch (error) {
+        return requestErrorResponse(error, context);
+      }
     }),
   );
 }

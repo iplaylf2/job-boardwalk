@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "74a3eb57-e7e0-419d-8208-77b71ec599e3",
+  "id": "e7f48fb4-ff83-4820-b39e-da13ab1c89d7",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -37,16 +37,6 @@
       "default": null,
       "generated": null,
       "name": "authentication_state",
-      "entityType": "columns",
-      "table": "platform_access_observations"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "browser_session_id",
       "entityType": "columns",
       "table": "platform_access_observations"
     },

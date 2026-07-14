@@ -145,7 +145,7 @@ function ProfileFactsPanel(props: { facts: ProfileFact[] }) {
       <SectionHeading number="02" title="求职资料" />
       <Show
         when={props.facts.length !== emptyCollectionLength}
-        fallback={<p class="empty">尚无已登记的求职资料。AI 助手登记的信息会显示在这里。</p>}
+        fallback={<p class="empty">尚无已登记的求职资料。写入工作区后会显示在这里。</p>}
       >
         <dl>
           <For each={props.facts}>

@@ -15,17 +15,33 @@
   top-level scope; resources, concurrent work, cancellation, and shutdown stay in `RiteCoroutine`
   routines. Keep `async`/Promise interop at external SDK, HTTP, and process-entry boundaries and
   adapt it with `until(...)` rather than spreading `async` through application code.
+- Application coordination interfaces return `RiteCoroutine`; they do not hide an internal
+  `async` call tree behind a Promise-returning controller or service method. Adapt each external
+  Promise at the leaf call that creates it, and use shajara primitives for application-owned waits,
+  races, and cancellation.
+
+## Dependency versions
+
+- The default pnpm catalog is the shared-version contract: an external package belongs there when
+  two or more workspace manifests declare that same package. Those manifests use `catalog:`.
+- An external dependency used by only one workspace manifest keeps its version in that manifest,
+  even when it is architecturally important. Workspace-owned packages always use `workspace:*`.
+  When usage changes, move the version and every affected declaration together so the rule remains
+  mechanically visible.
 
 ## Browser control and handoff
 
 - Use the Browser Session MCP tools configured by the current agent host for recruiting-platform
-  navigation and research. Do not launch an unrelated browser profile or create an ad hoc
-  automation script when these tools are available.
+  navigation and research. They are backed by Patchright attached to the user-owned graphical
+  browser through CDP. Do not launch another browser profile or create an ad hoc automation script
+  when these tools are available.
 - Login, verification, credentials, applications, messages, and account changes remain under user
   control. When one appears, stop browser input, state exactly what is visible, and ask the user to
   take over the project browser window.
+- Treat the BOSS HTTPS allowlist only as a navigation scope. It does not authorize login,
+  verification, applications, messages, or account changes.
 - Treat a browser action as visibly successful only after the controlled page evidence and the
-  user's observation agree. A backend URL, page title, tool success response, or cookie alone must
+  user's observation agree. A backend URL, page title, tool response, or other backend signal must
   not override the user's report that a different page or window is visible.
 - Resume browser input only after the user says the handoff is complete. Re-observe the live page
   before continuing, and report any remaining login or verification barrier.
@@ -33,18 +49,26 @@
   browser for login or verification, do not open extra pages, refresh, or send browser input until
   the user explicitly returns control. This pause does not restrict ordinary navigation, paging,
   retries, or necessary refreshes during agent-controlled research.
-- Keep Browser Session and the extension-bound tab open while handing control between user and
+- Keep Browser Session and the CDP-controlled tab open while handing control between user and
   agent. Browser profile persistence belongs to the graphical host; the project never copies or
   stores its cookies.
 
 ## Browser action pacing
 
-- Use `browser_observe_platform_access` at workflow boundaries and after meaningful page or
-  handoff state changes. Each call performs one semantic read.
+- Use `browser_snapshot` at workflow boundaries and after meaningful page or handoff
+  state changes. Browser Session does not interpret page content; the agent owns each semantic read.
 - Normal automation may observe, retry, navigate, or refresh when the workflow requires it, but
   actions must be paced and bounded. Avoid tight polling loops, repeated visible page churn, and
   retries that continue without new evidence. Route names alone are not evidence of a verification
   barrier.
+
+## Testing
+
+- Test observable behavior at the boundary that owns it. Cover representative accepted and rejected
+  cases for public MCP capabilities, URL and input validation, error classification, persistence
+  invariants, and resource lifecycle.
+- Keep tests independent of undocumented routes, reader-facing prose, and third-party driver
+  internals.
 
 ## Local services
 
@@ -52,13 +76,11 @@
   Server entry points do not load `.env` automatically; the user or agent host decides how to
   supply its values. Inspect the local file before asking the user to repeat host addresses, but
   never print or commit its contents.
-- Keep `PLAYWRIGHT_MCP_EXTENSION_TOKEN` in the graphical host's Playwright MCP process. It does not
-  belong in the project `.env`, logs, or tool output.
-- Workspace Service must be running at `http://127.0.0.1:54310` for browser access observations to
-  be saved.
+- Workspace Service runs at `http://127.0.0.1:54310` and owns durable observations submitted after
+  agent interpretation; Browser Session does not write them automatically.
 - Dashboard is the read-only durable view at `http://127.0.0.1:54311`; it does not establish or
   verify a live browser session.
-- Browser Session requires `JOB_BOARDWALK_PLAYWRIGHT_MCP_URL` to point at a graphical host running
-  Playwright MCP with the official extension. For each upstream connection, it initializes the
-  current extension-bound tab before exposing browser actions; do not bypass it with a second MCP
-  client or ad hoc script.
+- Browser Session requires `JOB_BOARDWALK_CDP_URL` to point at a graphical Edge or Chrome instance
+  launched with a dedicated profile and `--remote-allow-origins=http://localhost`. It follows
+  standard HTTP proxy resolution unless `JOB_BOARDWALK_CDP_PROXY_URL` overrides it. Do not expose
+  the CDP port beyond the WSL/VM boundary or bypass Browser Session with a second CDP client.

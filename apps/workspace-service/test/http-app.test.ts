@@ -11,7 +11,8 @@ import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 const badRequestStatus = 400;
 const createdStatus = 201;
 const successfulStatus = 200;
-const notFoundStatus = 404;
+const forbiddenStatus = 403;
+const internalServerErrorStatus = 500;
 const mcpRequestHeaders = {
   accept: "application/json, text/event-stream",
   "content-type": "application/json",
@@ -27,7 +28,6 @@ function postPlatformAccessObservation(
 ) {
   return httpApp.request("/api/platform-access/observations", {
     body: JSON.stringify({
-      browserSessionId: "browser-session-test",
       observedAt: "2026-07-13T01:00:00+00:00",
       platformId: "boss",
       ...input,
@@ -51,6 +51,19 @@ test("keeps request errors inside the long-lived service scope", async () => {
     });
     expect(invalidResponse.status).toBe(badRequestStatus);
 
+    const invalidBooleanResponse = await httpApp.request("/api/profile/facts", {
+      body: JSON.stringify({
+        confirmed: "yes",
+        key: "target-role",
+        reason: "test",
+        source: "test",
+        value: "后端工程师",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(invalidBooleanResponse.status).toBe(badRequestStatus);
+
     const followingResponse = await httpApp.request("/api/workspace/overview");
     expect(followingResponse.status).toBe(successfulStatus);
   } finally {
@@ -59,22 +72,41 @@ test("keeps request errors inside the long-lived service scope", async () => {
   }
 });
 
-test("does not expose browser or account-action routes", async () => {
+test("reports an unexpected repository failure as a server error", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  await using serviceScope = createScope();
+  const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
+  repository.close();
+
+  try {
+    const response = await httpApp.request("/api/workspace/overview");
+    expect(response.status).toBe(internalServerErrorStatus);
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("rejects writes from a non-local web origin", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
   await using serviceScope = createScope();
   const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
 
   try {
-    const browserAction = await httpApp.request("/api/platforms/boss/browser/open", {
+    const response = await httpApp.request("/api/profile/facts", {
+      body: JSON.stringify({
+        confirmed: true,
+        key: "target-role",
+        reason: "test",
+        source: "test",
+        value: "后端工程师",
+      }),
+      headers: { "content-type": "application/json", origin: "https://example.invalid" },
       method: "POST",
     });
-    expect(browserAction.status).toBe(notFoundStatus);
-
-    const accountAction = await httpApp.request("/api/platforms/boss/apply", {
-      method: "POST",
-    });
-    expect(accountAction.status).toBe(notFoundStatus);
+    expect(response.status).toBe(forbiddenStatus);
+    expect(await response.json()).toEqual({ error: "拒绝来自非本地页面的请求" });
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -103,7 +135,6 @@ test("accepts and projects the latest durable platform access observation", asyn
           label: "BOSS直聘",
           latestAuthentication: {
             authenticationState: "authenticated",
-            browserSessionId: "browser-session-test",
             evidence: "account-identity",
           },
           platformId: "boss",

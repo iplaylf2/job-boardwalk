@@ -1,7 +1,6 @@
 CREATE TABLE `platform_access_observations` (
 	`account_display_name` text,
 	`authentication_state` text,
-	`browser_session_id` text NOT NULL,
 	`evidence` text NOT NULL,
 	`id` integer PRIMARY KEY AUTOINCREMENT,
 	`interruption` text,

@@ -8,28 +8,28 @@
   },
   "scripts": {
     "build": "vite build",
-    "dev": "tsx watch src/workspace-service-server.ts",
+    "dev": "tsx watch src/main.ts",
     "db:generate": "drizzle-kit generate",
     "lint": "oxlint --config oxlint.config.ts .",
-    "start": "node dist/workspace-service-server.js",
+    "start": "node dist/workspace-service.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "2.0.8",
+    "@hono/node-server": "catalog:",
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "@shajara/host": "catalog:",
-    "drizzle-orm": "catalog:",
-    "hono": "4.12.29"
+    "drizzle-orm": "1.0.0-rc.4",
+    "hono": "catalog:"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",
-    "drizzle-kit": "catalog:",
+    "drizzle-kit": "1.0.0-rc.4",
     "oxlint": "catalog:",
-    "tsx": "^4.20.3",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

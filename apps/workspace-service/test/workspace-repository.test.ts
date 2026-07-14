@@ -52,20 +52,17 @@ describe("platform access observations", () => {
     repository.recordPlatformAccessObservation({
       accountDisplayName: "求职者 A",
       authenticationState: "authenticated",
-      browserSessionId: "browser-session-a",
       evidence: "account-identity",
       observedAt: "2026-07-13T01:01:00.000Z",
       platformId: "boss",
     });
     repository.recordPlatformAccessObservation({
       authenticationState: "unauthenticated",
-      browserSessionId: "browser-session-b",
       evidence: "login-page",
       observedAt: "2026-07-13T01:02:00.000Z",
       platformId: "yupao",
     });
     repository.recordPlatformAccessObservation({
-      browserSessionId: "browser-session-b",
       evidence: "verification-page",
       interruption: "verification-required",
       observedAt: "2026-07-13T01:03:00.000Z",
@@ -76,17 +73,14 @@ describe("platform access observations", () => {
       expect.objectContaining({
         accountDisplayName: "求职者 A",
         authenticationState: "authenticated",
-        browserSessionId: "browser-session-a",
         platformId: "boss",
       }),
       expect.objectContaining({
-        browserSessionId: "browser-session-b",
         interruption: "verification-required",
         platformId: "yupao",
       }),
       expect.objectContaining({
         authenticationState: "unauthenticated",
-        browserSessionId: "browser-session-b",
         platformId: "yupao",
       }),
     ]);

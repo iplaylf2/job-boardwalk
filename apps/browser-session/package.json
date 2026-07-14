@@ -1,30 +1,34 @@
 {
   "name": "@job-boardwalk/browser-session",
   "private": true,
-  "description": "Persistent MCP gateway to a user-visible Playwright browser on a graphical host.",
+  "description": "Persistent HTTP MCP gateway to a user-owned browser over Patchright CDP.",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
   },
   "scripts": {
     "build": "vite build",
-    "dev": "tsx watch src/browser-session-server.ts",
+    "dev": "tsx watch src/main.ts",
     "lint": "oxlint --config oxlint.config.ts .",
-    "start": "node dist/browser-session-server.js",
+    "start": "node dist/browser-session.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@job-boardwalk/contracts": "workspace:*",
+    "@hono/node-server": "catalog:",
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
-    "@shajara/host": "catalog:"
+    "@shajara/host": "catalog:",
+    "hono": "catalog:",
+    "patchright": "1.61.1",
+    "proxy-from-env": "2.1.0"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",
+    "@types/proxy-from-env": "1.0.4",
     "oxlint": "catalog:",
-    "tsx": "^4.20.3",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

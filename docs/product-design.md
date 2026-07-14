@@ -5,8 +5,8 @@ research: finding opportunities, revisiting sources, organizing evidence, and ex
 roles merit attention.
 
 This document is the source of truth for cross-application product behavior and boundaries. It
-describes the intended product unless a section explicitly states the current implementation.
-Application READMEs document only what the software currently exposes and how to operate it.
+describes the intended product. The root README summarizes current scope, while application READMEs
+document the software each application currently exposes and how to operate it.
 
 ## Delegation boundary
 
@@ -36,24 +36,24 @@ an explicit authorization model of its own. General research access does not gra
 
 Job Boardwalk separates live browser execution from durable workspace state.
 
-The **Browser Session** owns the visible-browser session protocol and upstream connection
-lifecycle. The graphical host owns the browser process, official Playwright Extension, visible
-tabs, and profile. Browser Session reaches that host through a configurable MCP endpoint rather
-than assuming a particular operating system or display topology. The agent host owns the Browser
-Session stdio child process and discovers its tools; Browser Session owns the tool surface and
-notifies the host when upstream browser tools become available.
+The **Browser Session** owns the visible-browser connection and generic action lifecycle. The
+graphical host owns a dedicated browser process, visible tabs, and profile. Browser Session attaches
+through Patchright CDP from a long-lived local HTTP MCP service, but never launches or closes that
+browser. The agent host connects directly to the service and discovers stable project-owned tools
+without owning browser lifecycle.
 
 The **Workspace Service** owns recruiting context, research progress, normalized observations, and
 analysis. It exposes domain resources and tools to the agent and a read API to the Dashboard. It is
-headless and does not own Playwright, browser profiles, authentication cookies, or desktop windows.
+headless and does not own browser automation, browser profiles, authentication cookies, or desktop
+windows.
 
 The **Dashboard** is an independent view of durable workspace data. It neither controls the browser
 nor replaces the agent conversation.
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
-durable facts and conclusions derived from that evidence. Browser Session may also submit bounded
-access observations, such as a visible login page, to the Workspace Service's write API.
+durable facts and conclusions derived from that evidence. The agent may submit a justified access
+observation to the Workspace Service; Browser Session does not classify or persist page meaning.
 
 ## Browser handoff
 
@@ -73,18 +73,20 @@ Only one actor drives a browser session at a time. Human takeover pauses agent i
 resumes after the user explicitly returns control; the agent then observes the live page again
 before continuing.
 
-The graphical host keeps its normal browser profile, so cookies and ordinary client state survive
-between sessions. Credentials and verification input stay inside the platform window. Job
-Boardwalk HTTP and MCP responses never expose authentication cookies or browser profile contents;
-token-bearing extension URLs are redacted at the Browser Session boundary.
+The graphical host keeps a dedicated persistent browser profile, so cookies and ordinary client
+state survive between sessions. Credentials and verification input stay inside the platform
+window. Job Boardwalk does not query cookies or browser storage. Browser snapshots omit form-control
+values and password controls, and HTTP and MCP responses do not expose authentication cookies or
+browser profile contents.
 
 ## Access observations
 
-Platform access is an append-only observation stream. Browser Session performs one semantic read
-per observation request. A workflow may request observations automatically at workflow boundaries,
-after meaningful page changes, or during a bounded recovery. Navigation, retries, and necessary
-refreshes may also be automated when paced and bounded; tight polling loops and repeated visible
-page churn are not part of the workflow. Authentication observations have a definite
+Platform access is an append-only observation stream. The agent derives one semantic assessment
+from current browser evidence at an observation boundary; Browser Session only supplies the bounded
+page snapshot. A workflow may request observations automatically at workflow boundaries, after
+meaningful page changes, or during a bounded recovery. Navigation, retries, and necessary refreshes
+may also be automated when paced and bounded; tight polling loops and repeated visible page churn
+are not part of the workflow. Authentication observations have a definite
 `authenticated` or `unauthenticated` result based on platform page evidence; cookie presence alone
 does not produce an authentication observation. Verification requests and access denial are
 separate interruptions rather than additional authentication states. An observation may include a
@@ -122,26 +124,3 @@ The intended Dashboard surface includes:
 
 Browser interaction and user handoff happen through the agent conversation and the visible platform
 window, not through Dashboard controls.
-
-## Current implementation
-
-The Workspace Service currently stores platform-access observations and reads or updates profile
-facts and target locations. Its MCP surface currently reads the workspace overview; its HTTP API
-also accepts the current write operations.
-
-Browser Session currently acts as a long-lived stdio MCP gateway to a configurable Streamable HTTP
-Playwright MCP endpoint on the graphical host. That upstream service connects to an existing Chrome
-or Edge profile through the official Playwright Extension. Browser Session supervises one upstream
-client at a time, initializes the extension-bound current tab before any browser action, and
-reconnects without terminating its downstream MCP surface when the upstream becomes unavailable.
-Its stable platform-access tools either open a catalog-owned platform entry or observe the current
-page, then report an authenticated, login-required, verification-required, access-denied, or
-indeterminate outcome and record definite evidence. Optional raw upstream tools may also be exposed
-when the agent host refreshes dynamic discovery, but opening or re-observing platform access does
-not depend on them. Automatic writes remain limited to explicitly requested browser-derived access
-observations. The agent is responsible for translating recruiting page content into the structured
-domain operations accepted by the Workspace Service.
-
-Research-run, run-level interruption, job-result, and analysis persistence are not implemented yet.
-They should be introduced as aligned MCP contracts, durable data models, and Dashboard read
-models—not as browser primitives or isolated UI state.

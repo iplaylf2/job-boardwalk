@@ -28,7 +28,6 @@ function toPlatformAccessObservationMetadata(row: PlatformAccessObservationRow) 
     throw new Error(`数据库中存在未知招聘平台：${row.platformId}`);
   }
   return {
-    browserSessionId: row.browserSessionId,
     id: row.id,
     observedAt: row.observedAt,
     platformId: row.platformId,

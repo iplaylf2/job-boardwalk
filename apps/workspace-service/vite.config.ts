@@ -14,7 +14,7 @@ function isPackageImport(identifier: string): boolean {
 export default defineConfig({
   build: {
     lib: {
-      entry: { "workspace-service-server": "src/workspace-service-server.ts" },
+      entry: { "workspace-service": "src/main.ts" },
       fileName: (_format, entryName) => `${entryName}.js`,
       formats: ["es"],
     },

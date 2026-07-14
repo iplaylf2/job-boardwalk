@@ -10,9 +10,8 @@ or update profile facts and target locations. It does not yet expose research ru
 interruptions, job observations, or analysis.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
-which supervises the MCP connection to Playwright and the official browser extension on the
-graphical host. The agent coordinates live browser work with the durable workspace exposed by this
-service.
+which owns the Patchright CDP connection to the graphical browser. The agent coordinates live
+browser work with the durable workspace exposed by this service.
 
 ## Concurrency model
 
@@ -61,15 +60,14 @@ The loopback HTTP surface currently exposes:
 - `POST /api/search-intent/locations`
 
 Shared request and response types live in
-[`@job-boardwalk/contracts`](../../packages/contracts/). Browser Session records visible page
-evidence without credentials or cookie values:
+[`@job-boardwalk/contracts`](../../packages/contracts/). An agent may submit a structured conclusion
+after interpreting current browser evidence; Browser Session does not create this observation:
 
 ```json
 {
   "platformId": "boss",
   "authenticationState": "authenticated",
   "evidence": "account-identity",
-  "browserSessionId": "a-session-id",
   "observedAt": "2026-07-13T01:00:00.000Z"
 }
 ```
@@ -120,6 +118,7 @@ pnpm --filter @job-boardwalk/workspace-service db:generate
 
 ## Local security boundary
 
-Workspace Service binds only to `127.0.0.1`. API mutations and MCP requests carrying a non-local
+Workspace Service binds only to `127.0.0.1`. Non-GET API and MCP requests carrying a non-local
 browser origin are rejected. The service has no access to authentication cookies or browser profile
-contents. Local state is created with owner-only permissions on systems that support POSIX modes.
+contents. Origin filtering is not authentication; local processes are inside the service trust
+boundary. Local state is created with owner-only permissions on systems that support POSIX modes.

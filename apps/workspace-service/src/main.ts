@@ -7,7 +7,7 @@ import type { RiteCoroutine, Scope } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
 
 import { createWorkspaceServiceHttpApp } from "./http/app.js";
-import { prepareWorkspaceDatabasePath } from "./persistence/workspace-storage.js";
+import { prepareWorkspaceDatabasePath } from "./persistence/database-path.js";
 import { WorkspaceRepository } from "./persistence/workspace-repository.js";
 
 const privateFileCreationMask = 0o077;

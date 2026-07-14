@@ -8,7 +8,6 @@ export const platformAccessObservations = sqliteTable(
     authenticationState: text("authentication_state", {
       enum: ["authenticated", "unauthenticated"],
     }),
-    browserSessionId: text("browser_session_id").notNull(),
     evidence: text({
       enum: ["account-identity", "login-page", "verification-page", "access-denied-page"],
     }).notNull(),

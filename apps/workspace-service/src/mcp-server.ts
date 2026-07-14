@@ -1,6 +1,4 @@
-import type { Hono } from "hono";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
@@ -8,7 +6,6 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { until } from "@shajara/host";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
@@ -29,7 +26,7 @@ function registerResourceHandlers(
       resources: [
         {
           description:
-            "本机工作区概览，包含各平台最近一次明确的登录状态、其后的未解除访问中断、求职资料和目标城市。",
+            "本机工作区概览，包含各平台最近一次明确的登录状态、其后尚未解除的访问中断、求职资料和目标城市。",
           mimeType: "application/json",
           name: "workspace-overview",
           title: "Job Boardwalk 工作区概览",
@@ -64,7 +61,7 @@ function createToolListResult() {
       {
         annotations: { readOnlyHint: true },
         description:
-          "读取本机工作区概览，包括各平台最近一次明确的登录状态、其后的未解除访问中断、求职资料和目标城市。",
+          "读取本机工作区概览，包括各平台最近一次明确的登录状态、其后尚未解除的访问中断、求职资料和目标城市。",
         inputSchema: { additionalProperties: false, properties: {}, type: "object" as const },
         name: toolNames.readWorkspaceOverview,
         title: "读取 Job Boardwalk 工作区概览",
@@ -96,7 +93,10 @@ function registerToolHandlers(
   });
 }
 
-function createMcpServer(repository: WorkspaceRepository, serviceScope: Scope): McpServer {
+export function createWorkspaceMcpServer(
+  repository: WorkspaceRepository,
+  serviceScope: Scope,
+): McpServer {
   const mcpServer = new McpServer(
     { name: "job-boardwalk", version: "0.1.0" },
     { capabilities: { resources: {}, tools: {} } },
@@ -104,25 +104,4 @@ function createMcpServer(repository: WorkspaceRepository, serviceScope: Scope): 
   registerResourceHandlers(mcpServer, repository, serviceScope);
   registerToolHandlers(mcpServer, repository, serviceScope);
   return mcpServer;
-}
-
-export function registerMcpHttpEndpoint(
-  app: Hono,
-  repository: WorkspaceRepository,
-  serviceScope: Scope,
-): void {
-  app.all("/mcp", (context) =>
-    serviceScope.run(function* handleMcpRequest() {
-      const mcpServer = createMcpServer(repository, serviceScope);
-      const httpTransport = new WebStandardStreamableHTTPServerTransport({
-        enableJsonResponse: true,
-      });
-      yield* until(() => mcpServer.connect(httpTransport));
-      try {
-        return yield* until(() => httpTransport.handleRequest(context.req.raw));
-      } finally {
-        yield* until(() => mcpServer.close());
-      }
-    }),
-  );
 }

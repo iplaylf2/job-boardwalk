@@ -1,16 +1,18 @@
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
 
-import type { Scope } from "@shajara/host";
-
-import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-
-import { registerApiRoutes } from "./api-routes.js";
 import { registerMcpEndpoint } from "./mcp-endpoint.js";
+import type { BrowserToolBackend } from "#/browser/tool-backend.js";
+import type { Scope } from "@shajara/host";
 
 const badRequestStatus = 400;
 const forbiddenStatus = 403;
 const internalServerErrorStatus = 500;
+
+export interface BrowserSessionHttpDependencies {
+  browserBackend: BrowserToolBackend;
+  serviceScope: Scope;
+}
 
 function parseOrigin(value: string): URL | null {
   try {
@@ -22,7 +24,7 @@ function parseOrigin(value: string): URL | null {
 
 function localOriginGuard(context: Context, next: Next) {
   const origin = context.req.header("origin");
-  if (context.req.method !== "GET" && origin) {
+  if (origin) {
     const originUrl = parseOrigin(origin);
     if (!originUrl) {
       return Promise.resolve(context.json({ error: "Origin 必须是有效 URL" }, badRequestStatus));
@@ -34,23 +36,20 @@ function localOriginGuard(context: Context, next: Next) {
   return next();
 }
 
-function registerLocalOriginGuard(app: Hono): void {
-  app.use("/api/*", localOriginGuard);
-  app.use("/mcp", localOriginGuard);
-}
-
-export function createWorkspaceServiceHttpApp(
-  repository: WorkspaceRepository,
-  serviceScope: Scope,
-): Hono {
+export function createBrowserSessionHttpApp(dependencies: BrowserSessionHttpDependencies): Hono {
   const app = new Hono();
 
-  app.onError((error, context) =>
-    context.json({ error: error.message }, internalServerErrorStatus),
+  app.onError((error, requestContext) =>
+    requestContext.json({ error: error.message }, internalServerErrorStatus),
   );
-  registerLocalOriginGuard(app);
-  registerApiRoutes(app, repository, serviceScope);
-  registerMcpEndpoint(app, repository, serviceScope);
+  app.get("/health", (requestContext) =>
+    requestContext.json({
+      browser: dependencies.browserBackend.status,
+      status: "ok",
+    }),
+  );
+  app.use("/mcp", localOriginGuard);
+  registerMcpEndpoint(app, dependencies.browserBackend, dependencies.serviceScope);
 
   return app;
 }
