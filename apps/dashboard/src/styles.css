@@ -97,19 +97,55 @@ button:active {
 .browser-session {
   grid-column: 1 / -1;
 }
-.browser-session-presence p {
-  margin: 10px 0;
-  color: #666d63;
+.browser-session-presence {
+  display: grid;
+  gap: 12px;
 }
-.browser-session-presence strong,
-.browser-session-presence time {
+.browser-session-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.browser-session-presence p {
+  margin: 0;
+  color: #666d63;
+  line-height: 1.55;
+}
+.browser-session-meta {
   display: block;
   color: #7c8278;
   font-size: 12px;
 }
-.browser-session-presence strong {
-  margin-bottom: 5px;
+.diagnostic-details {
+  border: 1px solid #d8d5c9;
+  border-radius: 10px;
+  background: #f6f3ea;
+  color: #62675f;
+  font-size: 12px;
+}
+.diagnostic-details summary {
+  padding: 9px 12px;
   color: #596057;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+.diagnostic-details[open] summary {
+  border-bottom: 1px solid #d8d5c9;
+}
+.diagnostic-details pre {
+  max-height: 180px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  color: #5e645b;
+  font:
+    11px/1.55 ui-monospace,
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .section-heading {
   display: flex;
@@ -274,5 +310,10 @@ dl span {
   .platform-row {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+  .browser-session-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
   }
 }

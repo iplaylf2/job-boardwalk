@@ -18,10 +18,12 @@ function formatReceivedAt(receivedAt: string): string {
 function AvailableBrowserView(props: { status: AvailableBrowserStatus }) {
   return (
     <>
-      <span class="status status-positive">浏览器可用</span>
-      <p>Browser Session 在线；当前有 {String(props.status.tabCount)} 个浏览器标签页。</p>
+      <div class="browser-session-summary">
+        <span class="status status-positive">浏览器可用</span>
+        <p>Browser Session 在线；当前有 {String(props.status.tabCount)} 个浏览器标签页。</p>
+      </div>
       <Show when={props.status.browserVersion}>
-        {(version) => <strong>Chromium {version()}</strong>}
+        {(version) => <span class="browser-session-meta">Chromium {version()}</span>}
       </Show>
     </>
   );
@@ -30,9 +32,20 @@ function AvailableBrowserView(props: { status: AvailableBrowserStatus }) {
 function UnavailableBrowserView(props: { status: UnavailableBrowserStatus }) {
   return (
     <>
-      <span class="status status-attention">浏览器不可用</span>
-      <p>Browser Session 在线，但浏览器暂时无法响应操作。</p>
-      <Show when={props.status.lastError}>{(lastError) => <strong>{lastError()}</strong>}</Show>
+      <div class="browser-session-summary">
+        <span class="status status-attention">浏览器不可用</span>
+        <p>会话服务仍在线，但受控浏览器没有成功启动。可稍后重试或检查运行环境。</p>
+      </div>
+      <Show when={props.status.lastError}>
+        {(lastError) => (
+          <details class="diagnostic-details">
+            <summary>查看技术详情</summary>
+            <pre>
+              <code>{lastError()}</code>
+            </pre>
+          </details>
+        )}
+      </Show>
     </>
   );
 }
@@ -58,7 +71,7 @@ function OnlinePresenceView(props: { presence: OnlinePresence }) {
       >
         {(status) => <AvailableBrowserView status={status()} />}
       </Show>
-      <time datetime={props.presence.receivedAt}>
+      <time class="browser-session-meta" datetime={props.presence.receivedAt}>
         状态更新：{formatReceivedAt(props.presence.receivedAt)}
       </time>
     </div>
@@ -70,9 +83,11 @@ function OfflinePresenceView(props: {
 }) {
   return (
     <div class="browser-session-presence">
-      <span class="status status-warning">Browser Session 离线</span>
-      <p>状态报告已经超时，浏览器当前状态未知。</p>
-      <time datetime={props.presence.lastReceivedAt}>
+      <div class="browser-session-summary">
+        <span class="status status-warning">Browser Session 离线</span>
+        <p>状态报告已经超时，浏览器当前状态未知。</p>
+      </div>
+      <time class="browser-session-meta" datetime={props.presence.lastReceivedAt}>
         最后更新：{formatReceivedAt(props.presence.lastReceivedAt)}
       </time>
     </div>
@@ -90,8 +105,10 @@ export function BrowserSessionPanel(props: { presence: BrowserSessionPresence })
             when={props.presence.state === "offline" ? props.presence : null}
             fallback={
               <div class="browser-session-presence">
-                <span class="status status-unknown">Browser Session 状态未知</span>
-                <p>启动 Browser Session 后，这里会显示浏览器运行状态。</p>
+                <div class="browser-session-summary">
+                  <span class="status status-unknown">Browser Session 状态未知</span>
+                  <p>启动 Browser Session 后，这里会显示浏览器运行状态。</p>
+                </div>
               </div>
             }
           >
