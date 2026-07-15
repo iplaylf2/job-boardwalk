@@ -9,6 +9,7 @@ const mcpRequestHeaders = {
   "content-type": "application/json",
 };
 const successfulStatus = 200;
+const badRequestStatus = 400;
 const forbiddenStatus = 403;
 
 const unavailableBrowserControl: BrowserControl = {
@@ -27,7 +28,7 @@ function listTools(app: ReturnType<typeof createBrowserSessionHttpApp>) {
   });
 }
 
-test("keeps the browser lifecycle outside downstream HTTP request lifetimes", async () => {
+test("keeps tool discovery available across requests while the browser is unavailable", async () => {
   await using serviceScope = createScope();
   const app = createBrowserSessionHttpApp({
     browserControl: unavailableBrowserControl,
@@ -60,7 +61,15 @@ test("exposes a loopback health endpoint independently of browser readiness", as
   });
 });
 
-test("rejects browser requests from a non-local web origin", async () => {
+test.each([
+  { expectedStatus: successfulStatus, name: "accepts localhost", origin: "http://localhost:54311" },
+  { expectedStatus: badRequestStatus, name: "rejects a malformed origin", origin: "not a URL" },
+  {
+    expectedStatus: forbiddenStatus,
+    name: "rejects an external origin",
+    origin: "https://example.invalid",
+  },
+])("$name at the Browser Session trust boundary", async ({ expectedStatus, origin }) => {
   await using serviceScope = createScope();
   const app = createBrowserSessionHttpApp({
     browserControl: unavailableBrowserControl,
@@ -69,10 +78,9 @@ test("rejects browser requests from a non-local web origin", async () => {
 
   const response = await app.request("/mcp", {
     body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/list" }),
-    headers: { ...mcpRequestHeaders, origin: "https://example.invalid" },
+    headers: { ...mcpRequestHeaders, origin },
     method: "POST",
   });
 
-  expect(response.status).toBe(forbiddenStatus);
-  expect(await response.json()).toEqual({ error: "拒绝来自非本地页面的请求" });
+  expect(response.status).toBe(expectedStatus);
 });

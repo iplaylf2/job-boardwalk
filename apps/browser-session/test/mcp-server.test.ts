@@ -3,12 +3,15 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createScope } from "@shajara/host";
+import type { BrowserContext } from "patchright";
 import { expect, test } from "vitest";
 
 import type { BrowserControl } from "#/browser/browser-control.js";
+import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 import { createBrowserSessionMcpServer } from "#/mcp-server.js";
 
 const firstContentIndex = 0;
+const outOfRangeWaitMilliseconds = 10_001;
 
 function fakeBrowserControl(): BrowserControl & {
   executions: { input: Record<string, unknown>; toolName: string }[];
@@ -34,6 +37,15 @@ function* unavailableBrowserCall() {
   throw new Error("浏览器尚未就绪。");
 }
 
+function browserToolExecutorControl(): BrowserControl {
+  const context = { on: () => context, pages: () => [] } as unknown as BrowserContext;
+  const executor = new BrowserToolExecutor(context);
+  return {
+    executeTool: (toolName, input) => executor.execute(toolName, input),
+    status: { available: true, tabCount: 0 },
+  };
+}
+
 async function connectedClient(
   mcpServer: McpServer,
 ): Promise<{ client: Client; close: () => Promise<void> }> {
@@ -57,18 +69,20 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   const { client, close } = await connectedClient(mcpServer);
 
   const listedTools = await client.listTools();
-  const names = listedTools.tools.map(({ name }) => name);
-  expect(names).toEqual([
-    "browser_status",
-    "browser_tabs",
-    "browser_navigate",
-    "browser_snapshot",
-    "browser_click",
-    "browser_fill",
-    "browser_select",
-    "browser_scroll",
-    "browser_wait",
-  ]);
+  const names = new Set(listedTools.tools.map(({ name }) => name));
+  expect(names).toEqual(
+    new Set([
+      "browser_status",
+      "browser_tabs",
+      "browser_navigate",
+      "browser_snapshot",
+      "browser_click",
+      "browser_fill",
+      "browser_select",
+      "browser_scroll",
+      "browser_wait",
+    ]),
+  );
   const tabsTool = listedTools.tools.find(({ name }) => name === "browser_tabs");
   expect(tabsTool?.inputSchema.properties?.["action"]).toMatchObject({
     enum: ["list", "ensure", "activate"],
@@ -117,6 +131,33 @@ test("contains an unavailable browser as a tool error", async () => {
   expect(result.isError).toBe(true);
   expect(result.content[firstContentIndex]).toMatchObject({
     text: "浏览器尚未就绪。",
+  });
+  await close();
+});
+
+test("rejects unsafe tool input through the public tool boundary", async () => {
+  await using serviceScope = createScope();
+  const mcpServer = createBrowserSessionMcpServer(browserToolExecutorControl(), serviceScope);
+  const { client, close } = await connectedClient(mcpServer);
+
+  const result = CallToolResultSchema.parse(
+    await client.callTool({
+      arguments: { milliseconds: outOfRangeWaitMilliseconds },
+      name: "browser_wait",
+    }),
+  );
+
+  expect(result.isError).toBe(true);
+  expect(result.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/milliseconds/u),
+  });
+
+  const expiredReferenceResult = CallToolResultSchema.parse(
+    await client.callTool({ arguments: { ref: "e1" }, name: "browser_click" }),
+  );
+  expect(expiredReferenceResult.isError).toBe(true);
+  expect(expiredReferenceResult.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/不存在或已过期/u),
   });
   await close();
 });

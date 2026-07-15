@@ -46,7 +46,7 @@ interface PageSnapshot extends Omit<SnapshotMetadata, "elements"> {
 
 // The callback stays self-contained because Patchright serializes it into the page realm.
 // eslint-disable-next-line complexity, max-lines-per-function, max-statements
-function captureSnapshotMetadata(input: {
+export function captureSnapshotMetadata(input: {
   maximumElements: number;
   maximumHrefCharacters: number;
   maximumNameCharacters: number;

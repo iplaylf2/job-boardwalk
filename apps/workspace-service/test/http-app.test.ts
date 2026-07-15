@@ -14,15 +14,11 @@ const createdStatus = 201;
 const successfulStatus = 200;
 const forbiddenStatus = 403;
 const internalServerErrorStatus = 500;
+const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 const mcpRequestHeaders = {
   accept: "application/json, text/event-stream",
   "content-type": "application/json",
 };
-const defaultPlatformAccessAssessment = {
-  authenticationState: "authenticated",
-  evidence: "account-identity",
-};
-
 function createTestHttpApp(
   repository: WorkspaceRepository,
   serviceScope: ReturnType<typeof createScope>,
@@ -35,15 +31,21 @@ function createTestHttpApp(
   });
 }
 
-function postPlatformAccessObservation(
-  httpApp: ReturnType<typeof createWorkspaceServiceHttpApp>,
-  input: Record<string, unknown> = defaultPlatformAccessAssessment,
-) {
-  return httpApp.request("/api/platform-access/observations", {
+function createTestRepository(directory: string): WorkspaceRepository {
+  return new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+}
+
+function postProfileFact(httpApp: ReturnType<typeof createWorkspaceServiceHttpApp>, value: string) {
+  return httpApp.request("/api/profile/facts", {
     body: JSON.stringify({
-      observedAt: "2026-07-13T01:00:00+00:00",
-      platformId: "boss",
-      ...input,
+      confirmed: true,
+      key: "target-role",
+      reason: "test",
+      source: "conversation",
+      value,
     }),
     headers: { "content-type": "application/json" },
     method: "POST",
@@ -52,7 +54,7 @@ function postPlatformAccessObservation(
 
 test("keeps request errors inside the long-lived service scope", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
 
@@ -87,7 +89,7 @@ test("keeps request errors inside the long-lived service scope", async () => {
 
 test("reports an unexpected repository failure as a server error", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
   repository.close();
@@ -100,9 +102,17 @@ test("reports an unexpected repository failure as a server error", async () => {
   }
 });
 
-test("rejects writes from a non-local web origin", async () => {
+test.each([
+  { expectedStatus: createdStatus, name: "accepts localhost", origin: "http://localhost:54311" },
+  { expectedStatus: badRequestStatus, name: "rejects a malformed origin", origin: "not a URL" },
+  {
+    expectedStatus: forbiddenStatus,
+    name: "rejects an external origin",
+    origin: "https://example.invalid",
+  },
+])("$name at the Workspace Service trust boundary", async ({ expectedStatus, origin }) => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
 
@@ -115,58 +125,51 @@ test("rejects writes from a non-local web origin", async () => {
         source: "test",
         value: "后端工程师",
       }),
-      headers: { "content-type": "application/json", origin: "https://example.invalid" },
+      headers: { "content-type": "application/json", origin },
       method: "POST",
     });
-    expect(response.status).toBe(forbiddenStatus);
-    expect(await response.json()).toEqual({ error: "拒绝来自非本地页面的请求" });
+    expect(response.status).toBe(expectedStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
   }
 });
 
-test("accepts and projects the latest durable platform access observation", async () => {
+test("updates profile and target intent through the public HTTP boundary", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
 
   try {
-    const observationResponse = await postPlatformAccessObservation(httpApp);
-    expect(observationResponse.status).toBe(createdStatus);
-    expect(await observationResponse.json()).toMatchObject({
-      authenticationState: "authenticated",
-      observedAt: "2026-07-13T01:00:00.000Z",
-      platformId: "boss",
+    const initialProfileResponse = await postProfileFact(httpApp, "后端工程师");
+    expect(initialProfileResponse.status).toBe(createdStatus);
+    const updatedProfileResponse = await postProfileFact(httpApp, "平台工程师");
+    expect(updatedProfileResponse.status).toBe(createdStatus);
+    const locationResponse = await httpApp.request("/api/search-intent/locations", {
+      body: JSON.stringify({
+        city: "上海",
+        priority: 1,
+        reason: "test",
+        requirement: "preferred",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
     });
+    expect(locationResponse.status).toBe(createdStatus);
 
     const overviewResponse = await httpApp.request("/api/workspace/overview");
     expect(await overviewResponse.json()).toMatchObject({
-      platformAccessSummaries: [
+      profileFacts: [
         {
-          label: "BOSS直聘",
-          latestAuthentication: {
-            authenticationState: "authenticated",
-            evidence: "account-identity",
-          },
-          platformId: "boss",
+          confirmed: true,
+          key: "target-role",
+          source: "conversation",
+          value: "平台工程师",
         },
-        { label: "鱼泡直聘", platformId: "yupao" },
       ],
+      targetLocations: [{ city: "上海", priority: 1, requirement: "preferred" }],
     });
-
-    const invalidResponse = await postPlatformAccessObservation(httpApp, {
-      authenticationState: "definitely-logged-in",
-      evidence: "account-identity",
-    });
-    expect(invalidResponse.status).toBe(badRequestStatus);
-
-    const mismatchedEvidenceResponse = await postPlatformAccessObservation(httpApp, {
-      authenticationState: "authenticated",
-      evidence: "login-page",
-    });
-    expect(mismatchedEvidenceResponse.status).toBe(badRequestStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -175,7 +178,7 @@ test("accepts and projects the latest durable platform access observation", asyn
 
 test("accepts leased Browser Session presence for dashboard reads", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const presenceTracker = new BrowserSessionPresenceTracker(() =>
     Date.parse("2026-07-15T01:00:00.000Z"),
@@ -219,7 +222,7 @@ test("accepts leased Browser Session presence for dashboard reads", async () => 
 
 test("serves MCP from the same workspace state", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
   repository.setProfileFact({

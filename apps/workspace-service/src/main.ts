@@ -1,4 +1,5 @@
 import process from "node:process";
+import path from "node:path";
 
 import { serve } from "@hono/node-server";
 import type { ServerType } from "@hono/node-server";
@@ -12,6 +13,7 @@ import { WorkspaceRepository } from "./persistence/workspace-repository.js";
 import { BrowserSessionPresenceTracker } from "./runtime/browser-session-presence.js";
 
 const privateFileCreationMask = 0o077;
+const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 process.umask(privateFileCreationMask);
 
 function closeHttpServer(httpServer: ServerType): Promise<void> {
@@ -37,7 +39,7 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
 
 function* runWorkspaceService(serviceScope: Scope): RiteCoroutine<void> {
   const databasePath = yield* prepareWorkspaceDatabasePath();
-  const repository = new WorkspaceRepository(databasePath);
+  const repository = new WorkspaceRepository({ databasePath, migrationsDirectory });
   const browserSessionPresenceTracker = new BrowserSessionPresenceTracker();
   const httpApp = createWorkspaceServiceHttpApp({
     browserSessionPresenceTracker,

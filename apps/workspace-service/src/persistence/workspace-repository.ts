@@ -1,4 +1,3 @@
-import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { existsSync } from "node:fs";
 
@@ -78,30 +77,27 @@ function toPlatformAccessObservation(row: PlatformAccessObservationRow): Platfor
   );
 }
 
-function resolveMigrationsDirectory(): string {
-  const candidates = [
-    path.resolve(import.meta.dirname, "../migrations"),
-    path.resolve(import.meta.dirname, "../../migrations"),
-  ];
-  const migrationsDirectory = candidates.find((candidate) => existsSync(candidate));
-  if (!migrationsDirectory) {
-    throw new Error("找不到 Workspace Service 数据库迁移目录");
-  }
-  return migrationsDirectory;
-}
-
 export class WorkspaceRepository {
   readonly #client: DatabaseSync;
   readonly #database;
 
-  public constructor(databasePath: string) {
+  public constructor({
+    databasePath,
+    migrationsDirectory,
+  }: {
+    databasePath: string;
+    migrationsDirectory: string;
+  }) {
+    if (!existsSync(migrationsDirectory)) {
+      throw new Error(`找不到 Workspace Service 数据库迁移目录：${migrationsDirectory}`);
+    }
     this.#client = new DatabaseSync(databasePath);
     this.#client.exec(
       "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 3000;",
     );
     this.#database = drizzle({ client: this.#client });
     migrate(this.#database, {
-      migrationsFolder: resolveMigrationsDirectory(),
+      migrationsFolder: migrationsDirectory,
     });
   }
 

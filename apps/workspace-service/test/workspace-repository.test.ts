@@ -2,53 +2,20 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, test } from "vitest";
+import { expect, test } from "vitest";
 
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
-const firstArrayIndex = 0;
-const temporaryDirectories: string[] = [];
+const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 
-async function createRepositoryFixture(): Promise<WorkspaceRepository> {
+test("keeps authentication and interruption observations as separate history", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
-  temporaryDirectories.push(directory);
-  return new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
-}
-
-afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories
-      .splice(firstArrayIndex)
-      .map((directory) => rm(directory, { recursive: true })),
-  );
-});
-
-describe("workspace repository", () => {
-  test("persists agent-authored profile facts", async () => {
-    const repository = await createRepositoryFixture();
-    repository.setProfileFact({
-      confirmed: true,
-      key: "target-role",
-      reason: "用户明确说明目标岗位",
-      source: "conversation",
-      value: "后端工程师",
-    });
-
-    expect(repository.listProfileFacts()).toMatchObject([
-      {
-        confirmed: true,
-        key: "target-role",
-        source: "conversation",
-        value: "后端工程师",
-      },
-    ]);
-    repository.close();
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
   });
-});
 
-describe("platform access observations", () => {
-  test("keeps authentication and interruption observations as separate history", async () => {
-    const repository = await createRepositoryFixture();
+  try {
     repository.recordPlatformAccessObservation({
       accountDisplayName: "求职者 A",
       authenticationState: "authenticated",
@@ -84,6 +51,8 @@ describe("platform access observations", () => {
         platformId: "yupao",
       }),
     ]);
+  } finally {
     repository.close();
-  });
+    await rm(directory, { recursive: true });
+  }
 });
