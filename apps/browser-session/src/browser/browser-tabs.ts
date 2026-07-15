@@ -1,12 +1,15 @@
 import type { BrowserContext, Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
 import {
-  assertBossNavigationUrl,
-  bossEntryUrl,
-  isBossNavigationUrl,
-} from "./boss-navigation-scope.js";
+  assertPlatformNavigationUrl,
+  findRecruitingPlatformAdapter,
+  readPlatformId,
+  recruitingPlatformAdapters,
+  requireRecruitingPlatformAdapter,
+} from "./recruiting-platform-adapters.js";
 
 const blankPageUrls = new Set(["about:blank", "edge://newtab/", "chrome://newtab/"]);
 const firstPageId = 1;
@@ -25,11 +28,11 @@ export function parseOptionalTabId(params: Record<string, unknown>): number | nu
 
 export function* readNavigationPageSummary(
   page: Page,
-): RiteCoroutine<{ title: string; url: string }> {
+): RiteCoroutine<{ platformId: PlatformId; title: string; url: string }> {
   const url = page.url();
-  assertBossNavigationUrl(url);
+  const { platformId } = requireRecruitingPlatformAdapter(url);
   const title = yield* until(() => page.title());
-  return { title, url };
+  return { platformId, title, url };
 }
 
 export class BrowserTabs {
@@ -60,8 +63,8 @@ export class BrowserTabs {
     if (!page || page.isClosed()) {
       throw new Error("指定标签页不存在或已经关闭。");
     }
-    if (!isBossNavigationUrl(page.url())) {
-      throw new Error("指定标签页已经离开当前 BOSS HTTPS 导航范围。");
+    if (!findRecruitingPlatformAdapter(page.url())) {
+      throw new Error("指定标签页已离开受支持招聘平台的 HTTPS 导航范围。");
     }
     return page;
   }
@@ -72,16 +75,42 @@ export class BrowserTabs {
     }
     if (this.#selectedPageId !== null) {
       const selected = this.#pages.get(this.#selectedPageId);
-      if (selected && !selected.isClosed() && isBossNavigationUrl(selected.url())) {
+      if (selected && !selected.isClosed() && findRecruitingPlatformAdapter(selected.url())) {
         return [this.#selectedPageId, selected];
       }
     }
     for (const [id, page] of this.#pages) {
-      if (!page.isClosed() && isBossNavigationUrl(page.url())) {
+      if (!page.isClosed() && findRecruitingPlatformAdapter(page.url())) {
         return [id, page];
       }
     }
-    throw new Error("没有可用的 BOSS 标签页；请先调用 browser_tabs ensure 准备页面。");
+    throw new Error("没有可用的招聘平台标签页；请先调用 browser_tabs ensure 准备页面。");
+  }
+
+  public resolvePlatformPage(platformId: PlatformId, requestedId: number | null): [number, Page] {
+    if (requestedId !== null) {
+      const page = this.requireNavigationPage(requestedId);
+      assertPlatformNavigationUrl(platformId, page.url());
+      return [requestedId, page];
+    }
+    if (this.#selectedPageId !== null) {
+      const selected = this.#pages.get(this.#selectedPageId);
+      if (
+        selected &&
+        !selected.isClosed() &&
+        recruitingPlatformAdapters[platformId].isNavigationUrl(selected.url())
+      ) {
+        return [this.#selectedPageId, selected];
+      }
+    }
+    for (const [id, page] of this.#pages) {
+      if (!page.isClosed() && recruitingPlatformAdapters[platformId].isNavigationUrl(page.url())) {
+        return [id, page];
+      }
+    }
+    throw new Error(
+      `没有可用的${recruitingPlatformAdapters[platformId].label}标签页；请先调用 browser_tabs ensure 准备页面。`,
+    );
   }
 
   public *executeAction(input: Record<string, unknown>): RiteCoroutine<unknown> {
@@ -106,13 +135,14 @@ export class BrowserTabs {
 
   *#list(): RiteCoroutine<unknown> {
     const navigationPages = [...this.#pages].filter(([_id, page]) =>
-      isBossNavigationUrl(page.url()),
+      findRecruitingPlatformAdapter(page.url()),
     );
     const tabs = [];
     for (const [id, page] of navigationPages) {
       tabs.push({
         active: id === this.#selectedPageId,
         id,
+        platformId: requireRecruitingPlatformAdapter(page.url()).platformId,
         title: yield* until(() => page.title()),
         url: page.url(),
       });
@@ -121,12 +151,14 @@ export class BrowserTabs {
   }
 
   *#ensure(params: Record<string, unknown>): RiteCoroutine<unknown> {
+    const platformId = readPlatformId(params);
+    const adapter = recruitingPlatformAdapters[platformId];
     const requestedUrl = params["url"];
     const hasRequestedUrl = typeof requestedUrl === "string";
-    const url = hasRequestedUrl ? requestedUrl : bossEntryUrl;
-    assertBossNavigationUrl(url);
+    const url = hasRequestedUrl ? requestedUrl : adapter.entryUrl;
+    assertPlatformNavigationUrl(platformId, url);
     const existingNavigationPage = [...this.#pages].find(([_id, page]) =>
-      isBossNavigationUrl(page.url()),
+      adapter.isNavigationUrl(page.url()),
     );
     if (existingNavigationPage) {
       const [, existingPage] = existingNavigationPage;
@@ -173,7 +205,7 @@ export class BrowserTabs {
     this.#nextPageId += firstPageId;
     this.#pageIds.set(page, id);
     this.#pages.set(id, page);
-    if (isBossNavigationUrl(page.url())) {
+    if (findRecruitingPlatformAdapter(page.url())) {
       this.markSelected(id);
     }
     page.once("close", () => {

@@ -3,11 +3,15 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { CanceledError, ScopeError } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
+import { platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
 
 import type { BrowserControl } from "#/browser/browser-control.js";
 
 const minimumWaitMilliseconds = 0;
 const jsonIndentationSpaces = 2;
+const supportedPlatformLabels = platformIds
+  .map((platformId) => platformCatalog[platformId].label)
+  .join("、");
 
 const browserTools = [
   {
@@ -19,10 +23,11 @@ const browserTools = [
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "列出、准备或激活 BOSS HTTPS 导航范围内的标签页。action=ensure 会优先复用已有的范围内标签页。",
+      "列出或激活受支持招聘平台的标签页；也可按 platformId 准备标签页。action=ensure 优先复用该平台已有标签页。",
     inputSchema: {
       properties: {
         action: { enum: ["list", "ensure", "activate"], type: "string" },
+        platformId: { enum: [...platformIds], type: "string" },
         tabId: { type: "number" },
         url: { type: "string" },
       },
@@ -33,7 +38,7 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "把范围内的标签页导航至 BOSS HTTPS URL；导航范围不授权任何账号操作。",
+    description: "将现有标签页导航到同一招聘平台内的指定 HTTPS URL；导航范围不授权任何账号操作。",
     inputSchema: {
       properties: { tabId: { type: "number" }, url: { type: "string" } },
       required: ["url"],
@@ -76,7 +81,7 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "在最近一次快照的控件中选择值，仅用于筛选等研究操作；账号变更由用户操作。",
+    description: "在最近一次快照的控件中选择选项，仅用于筛选等研究操作；账号变更由用户操作。",
     inputSchema: {
       properties: { ref: { type: "string" }, value: { type: "string" } },
       required: ["ref", "value"],
@@ -86,7 +91,7 @@ const browserTools = [
   },
   {
     annotations: { idempotentHint: false, openWorldHint: true, readOnlyHint: true },
-    description: "在范围内的 BOSS 标签页滚动最多 5000 像素，或滚动到指定元素。",
+    description: "在受支持招聘平台的标签页滚动最多 5000 像素，或滚动到指定元素。",
     inputSchema: {
       properties: {
         deltaY: { maximum: 5000, minimum: -5000, type: "number" },
@@ -147,8 +152,7 @@ export function createBrowserSessionMcpServer(
     { name: "job-boardwalk-browser-session", version: "0.1.0" },
     {
       capabilities: { tools: { listChanged: true } },
-      instructions:
-        "Browser Session 管理一个可见的 Patchright 浏览器，并提供 BOSS HTTPS 导航范围内的标签页和页面操作。调用方必须依据 browser_snapshot 的有界证据解释页面，并与用户实际看到的窗口核对。导航范围只允许研究导航，不授权登录、验证、投递、发送消息或账号变更。truncated 表示快照正文、元素或链接已被裁剪；快照不返回表单当前值或密码框，元素 ref 只对最近一次快照有效。遇到用户控制的操作时，立即停止浏览器输入，让用户接管同一标签页；用户明确交回控制权并重新观察页面后才能继续。",
+      instructions: `Browser Session 管理一个可见的 Patchright 浏览器，并通过统一平台适配器控制 ${supportedPlatformLabels} 的标签页。调用方必须依据 browser_snapshot 返回的有界证据解释页面，并与用户实际看到的窗口核对。HTTPS 导航范围只允许研究导航，不授权登录、验证、投递、发送消息或账号变更。truncated 表示快照正文、元素或链接已被裁剪；快照不返回表单当前值或密码框，元素 ref 仅对最近一次快照有效。需要用户操作时，立即停止浏览器输入并让用户接管同一标签页；只有在用户明确交回控制权并重新观察页面后，才能继续。`,
     },
   );
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>

@@ -3,7 +3,10 @@ import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
 import { BrowserTabs, parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
-import { assertBossNavigationLink, assertBossNavigationUrl } from "./boss-navigation-scope.js";
+import {
+  assertPlatformNavigationLink,
+  requireRecruitingPlatformAdapter,
+} from "./recruiting-platform-adapters.js";
 import {
   capturePageSnapshot,
   maximumElementHrefCharacters,
@@ -99,7 +102,9 @@ export class BrowserToolExecutor {
     const reference = yield* this.#verifiedReference(params);
     try {
       if (reference.href) {
-        assertBossNavigationLink(reference.href);
+        const page = this.#tabs.requireNavigationPage(reference.tabId);
+        const { platformId } = requireRecruitingPlatformAdapter(page.url());
+        assertPlatformNavigationLink(platformId, reference.href);
       }
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
       yield* until(() => reference.locator.click());
@@ -121,8 +126,8 @@ export class BrowserToolExecutor {
 
   *#navigate(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const url = requiredString(params, "url");
-    assertBossNavigationUrl(url);
-    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
+    const { platformId } = requireRecruitingPlatformAdapter(url);
+    const [tabId, page] = this.#tabs.resolvePlatformPage(platformId, parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     yield* until(() => page.bringToFront());
     yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));

@@ -38,8 +38,8 @@
 - Login, verification, credentials, applications, messages, and account changes remain under user
   control. When research reaches one of these actions, stop browser input, state exactly what is
   visible, and ask the user to take over the project browser window.
-- Treat the BOSS HTTPS allowlist only as a navigation scope. It does not authorize login,
-  verification, applications, messages, or account changes.
+- Treat each supported recruiting platform's HTTPS scope only as a navigation boundary. It does not
+  authorize login, verification, applications, messages, or account changes.
 - Treat a browser action as visibly successful only after the controlled page evidence and the
   user's observation agree. A backend URL, page title, tool response, or other backend signal must
   not override the user's report that a different page or window is visible.

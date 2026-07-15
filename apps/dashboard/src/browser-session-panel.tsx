@@ -19,7 +19,7 @@ function AvailableBrowserView(props: { status: AvailableBrowserStatus }) {
   return (
     <>
       <span class="status status-positive">浏览器可用</span>
-      <p>Browser Session 在线 · {String(props.status.tabCount)} 个标签页</p>
+      <p>Browser Session 在线，当前有 {String(props.status.tabCount)} 个浏览器标签页。</p>
       <Show when={props.status.browserVersion}>
         {(version) => <strong>Chromium {version()}</strong>}
       </Show>
@@ -31,7 +31,7 @@ function UnavailableBrowserView(props: { status: UnavailableBrowserStatus }) {
   return (
     <>
       <span class="status status-attention">浏览器不可用</span>
-      <p>Browser Session 在线 · 浏览器暂不能执行工具</p>
+      <p>Browser Session 在线，但浏览器暂时无法执行工具。</p>
       <Show when={props.status.lastError}>{(lastError) => <strong>{lastError()}</strong>}</Show>
     </>
   );

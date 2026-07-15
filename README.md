@@ -28,9 +28,11 @@ boundaries.
 
 ## Current scope
 
-The Workspace Service currently stores platform-access observations, including access
-interruptions, plus profile facts and target locations. Research runs, run-level interruptions,
-job observations, and analysis are product direction, not yet current capabilities.
+Browser Session currently supports both BOSS直聘 and 鱼泡直聘 through one shared
+recruiting-platform adapter workflow. Workspace Service stores platform-access observations,
+including access interruptions, plus profile facts and target locations. Research runs, run-level
+interruptions, job observations, and analysis remain product direction rather than current
+capabilities.
 
 ## Run locally
 
@@ -75,8 +77,9 @@ data directory and owns it for the service lifetime. It reports runtime status t
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
 
 During research, the agent pauses browser input for login, verification, applications, messages,
-and account changes, then resumes only after the user explicitly returns control. The BOSS HTTPS
-navigation scope permits research navigation only; it does not authorize those actions.
+and account changes, then resumes only after the user explicitly returns control. A supported
+platform's HTTPS navigation scope permits research navigation only; it does not authorize those
+actions.
 
 Each application's README documents its own configuration and operation.
 

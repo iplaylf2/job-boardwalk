@@ -2,14 +2,15 @@
 
 Browser Session is Job Boardwalk's long-lived loopback HTTP MCP service for a visible persistent
 browser. It launches Patchright Chromium, owns the dedicated profile and browser process, coordinates
-tabs and page actions, and leaves recruiting-page meaning to the agent.
+tabs and page actions, and leaves recruiting-platform page meaning to the agent.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
 bounded page evidence lets the agent reconcile automation results with the window the user can see.
 
-The current tool surface is limited to the BOSS HTTPS navigation scope. Membership in that scope
-permits only research navigation; it does not authorize an account action.
+The current tool surface supports both BOSS直聘 and 鱼泡直聘 through one recruiting-platform
+adapter contract. A platform's HTTPS navigation scope permits research navigation only; it does not
+authorize account actions.
 
 ## Run Browser Session
 
@@ -70,17 +71,19 @@ state for the next service run.
 
 ### Tabs and page evidence
 
-Only BOSS HTTPS tabs can be listed or controlled through the current page tools. This navigation
-scope authorizes research navigation, not account actions. The service can list and activate
-in-scope tabs, or ensure that a suitable tab exists by reusing one before creating another. It does
-not expose unconditional tab creation or a tab-close action.
+Tabs for BOSS直聘 and 鱼泡直聘 are discovered, selected, validated, and controlled through the same
+adapter-driven workflow. `browser_tabs ensure` requires a `platformId` (`boss` or `yupao`), then
+reuses a tab for that platform before creating one at its catalog entry URL. The service can list
+and activate all in-scope tabs, but does not expose unconditional tab creation or a tab-close
+action. Each adapter owns only the platform identity, entry URL, label, and HTTPS hostname rule;
+page actions remain platform-independent.
 
 Snapshots bound rendered text, element count, element names, and link lengths, and report any
 clipping through `truncated`. They omit all form-control values and do not expose password controls.
 Before using a ref, Browser Session verifies that the referenced element still matches the latest
-snapshot. Explicit links outside BOSS HTTPS scope are rejected before clicking, and every action
-must still finish on an in-scope page. Click, fill, selection, scrolling, and navigation use
-Patchright page APIs.
+snapshot. Explicit links outside the current tab's platform scope are rejected before clicking,
+and every action must still finish on a supported platform page. Click, fill, selection, scrolling,
+and navigation use Patchright page APIs.
 
 ## Agent responsibility and handoff
 
@@ -90,6 +93,11 @@ the agent stops browser input and asks the user to take over the same visible ta
 after the user explicitly returns control and the live page is observed again.
 
 ## Maintenance constraints
+
+The adapter registry is exhaustive over the catalog's `PlatformId` type. Adding a recruiting
+platform therefore requires both catalog metadata and a Browser Session adapter; TypeScript rejects
+a registry that omits the new platform. Platform-specific page interpretation does not belong in
+the adapter or Browser Session.
 
 Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
 made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page

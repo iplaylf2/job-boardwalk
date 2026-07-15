@@ -13,6 +13,8 @@ import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-pr
 import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
+const workspaceOverviewDescription =
+  "本机工作区概览，包含由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态、未解除的访问中断、求职资料和目标城市。";
 const toolNames = {
   readWorkspaceOverview: "read_workspace_overview",
 } as const;
@@ -27,8 +29,7 @@ function registerResourceHandlers(
     Promise.resolve({
       resources: [
         {
-          description:
-            "本机工作区概览，包含由租约判定的 Browser Session 在线状态、各平台最近一次明确的登录状态、尚无后续观察解除的访问中断、求职资料和目标城市。",
+          description: workspaceOverviewDescription,
           mimeType: "application/json",
           name: "workspace-overview",
           title: "Job Boardwalk 工作区概览",
@@ -62,8 +63,7 @@ function createToolListResult() {
     tools: [
       {
         annotations: { readOnlyHint: true },
-        description:
-          "读取本机工作区概览，包括由租约判定的 Browser Session 在线状态、各平台最近一次明确的登录状态、尚无后续观察解除的访问中断、求职资料和目标城市。",
+        description: workspaceOverviewDescription,
         inputSchema: { additionalProperties: false, properties: {}, type: "object" as const },
         name: toolNames.readWorkspaceOverview,
         title: "读取 Job Boardwalk 工作区概览",

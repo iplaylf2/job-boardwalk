@@ -87,6 +87,9 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   expect(tabsTool?.inputSchema.properties?.["action"]).toMatchObject({
     enum: ["list", "ensure", "activate"],
   });
+  expect(tabsTool?.inputSchema.properties?.["platformId"]).toMatchObject({
+    enum: ["boss", "yupao"],
+  });
   const clickTool = listedTools.tools.find(({ name }) => name === "browser_click");
   expect(clickTool?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
   const snapshotTool = listedTools.tools.find(({ name }) => name === "browser_snapshot");
@@ -150,6 +153,14 @@ test("rejects unsafe tool input through the public tool boundary", async () => {
   expect(result.isError).toBe(true);
   expect(result.content[firstContentIndex]).toMatchObject({
     text: expect.stringMatching(/milliseconds/u),
+  });
+
+  const missingPlatformResult = CallToolResultSchema.parse(
+    await client.callTool({ arguments: { action: "ensure" }, name: "browser_tabs" }),
+  );
+  expect(missingPlatformResult.isError).toBe(true);
+  expect(missingPlatformResult.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/platformId/u),
   });
 
   const expiredReferenceResult = CallToolResultSchema.parse(

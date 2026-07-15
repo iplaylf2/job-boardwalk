@@ -22,7 +22,7 @@ const emptyCollectionLength = 0;
 
 const platformAuthenticationCopy = {
   authenticated: {
-    detail: "页面观察中出现了账号身份信息。",
+    detail: "页面观察中识别到账号身份信息。",
     label: "观察时已登录",
     tone: "positive",
   },
@@ -35,12 +35,12 @@ const platformAuthenticationCopy = {
 
 const platformAccessInterruptionCopy = {
   "access-denied": {
-    detail: "观察时页面拒绝了访问；请以平台窗口当前显示的内容为准。",
+    detail: "观察时平台页面拒绝访问；请以平台窗口当前显示的内容为准。",
     label: "访问受阻",
     tone: "warning",
   },
   "verification-required": {
-    detail: "观察时页面要求人工验证；如果平台窗口仍有提示，请先在窗口中完成验证。",
+    detail: "观察时平台页面要求人工验证；若当前仍有提示，请先在平台窗口中完成验证。",
     label: "需要人工验证",
     tone: "attention",
   },
@@ -116,7 +116,7 @@ function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
                 fallback={
                   <div class="platform-observation empty-observation">
                     <span class="status status-unknown">登录状态尚未记录</span>
-                    <p>完成一次明确的页面观察后，结果会显示在这里。</p>
+                    <p>明确记录一次平台登录状态后，结果会显示在这里。</p>
                   </div>
                 }
               >

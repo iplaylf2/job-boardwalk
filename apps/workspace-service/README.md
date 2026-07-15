@@ -96,6 +96,7 @@ conclusion. Browser Session does not interpret or create this observation:
 Observations are append-only. Authentication is recorded as `authenticated` or `unauthenticated`;
 verification and access denial use the separate `interruption` field. The workspace overview
 projects the latest definite authentication result and only an interruption newer than that result.
+`platformId` accepts the catalog identifiers `boss` and `yupao`.
 
 ### Profile and search intent
 
