@@ -2,7 +2,8 @@
 
 Browser Session is Job Boardwalk's long-lived loopback HTTP MCP service for a visible persistent
 browser. It launches Patchright Chromium, owns the dedicated profile and browser process, coordinates
-tabs and page actions, and leaves recruiting-platform page meaning to the agent.
+tabs and page actions, and derives authentication observations from top-level navigation responses
+recognized by platform adapters. Recruiting-platform page meaning remains with the agent.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
@@ -41,15 +42,24 @@ directory. Set `JOB_BOARDWALK_BROWSER_PROFILE_PATH` to choose an exact path. Bro
 not share this path or profile with another service. Project entrypoints do not load `.env`
 themselves.
 
-Every five seconds, Browser Session sends Workspace Service a bounded status report containing
-browser availability, version, tab count, and the latest browser error when unavailable. Set
-`JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is not available at
-<http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
-control.
+## Endpoints and reporting
 
 The Streamable HTTP MCP endpoint is <http://127.0.0.1:54312/mcp>; health is available at
 <http://127.0.0.1:54312/health>. The service binds to loopback and rejects non-local browser origins,
 but this is not authentication: local processes are inside the service trust boundary.
+
+Every five seconds, Browser Session sends Workspace Service a bounded status report containing
+browser availability, version, tab count, the latest browser error when unavailable, and the latest
+authentication observation derived from browser navigation. Set
+`JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is not available at
+<http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
+control.
+
+For BOSS直聘, a successful top-level response under `/web/geek/*` records `authenticated`. If a
+navigation that began under that protected path redirects to the catalog login URL, Browser Session
+records `unauthenticated`. It sends no detection request and does not refresh or open a page for
+this purpose. A page loaded before monitoring began produces no new observation until a later
+qualifying navigation.
 
 ## Runtime behavior
 
@@ -103,9 +113,9 @@ returns control and the live page is observed again.
 ## Maintenance constraints
 
 The adapter registry is exhaustive over the catalog's `PlatformId` type. Adding a recruiting
-platform therefore requires both catalog metadata and a Browser Session adapter; TypeScript rejects
-a registry that omits the new platform. Platform-specific page interpretation does not belong in
-the adapter or Browser Session.
+platform therefore requires catalog metadata and a Browser Session adapter. Classification of
+conclusive authentication responses belongs in the adapter; interpretation that needs general
+page meaning remains outside Browser Session.
 
 Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
 made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page

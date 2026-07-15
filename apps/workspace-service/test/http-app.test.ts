@@ -189,6 +189,7 @@ test("accepts leased Browser Session presence for dashboard reads", async () => 
     const reportResponse = await httpApp.request("/api/browser-session/status", {
       body: JSON.stringify({
         browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
+        platformAccessObservations: [],
       }),
       headers: { "content-type": "application/json" },
       method: "PUT",
@@ -209,7 +210,10 @@ test("accepts leased Browser Session presence for dashboard reads", async () => 
     });
 
     const invalidResponse = await httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({ browserStatus: { available: true } }),
+      body: JSON.stringify({
+        browserStatus: { available: true },
+        platformAccessObservations: [],
+      }),
       headers: { "content-type": "application/json" },
       method: "PUT",
     });

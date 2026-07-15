@@ -1,8 +1,8 @@
 import type {
-  PlatformAccessObservation,
   PlatformAccessSummary,
-  PlatformAuthenticationObservation,
-  PlatformAccessInterruptionObservation,
+  RecordedPlatformAccessObservation,
+  RecordedPlatformAuthenticationObservation,
+  RecordedPlatformAccessInterruptionObservation,
   WorkspaceOverview,
 } from "@job-boardwalk/contracts";
 import { platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
@@ -24,11 +24,11 @@ export function readWorkspaceOverview(
         (observation) => observation.platformId === platformId,
       );
       const latestAuthentication = platformObservations.find(
-        (observation): observation is PlatformAuthenticationObservation =>
+        (observation): observation is RecordedPlatformAuthenticationObservation =>
           "authenticationState" in observation,
       );
       const latestInterruption = platformObservations.find(
-        (observation): observation is PlatformAccessInterruptionObservation =>
+        (observation): observation is RecordedPlatformAccessInterruptionObservation =>
           "interruption" in observation,
       );
       const summary: PlatformAccessSummary = {
@@ -53,8 +53,8 @@ export function readWorkspaceOverview(
 }
 
 function compareObservationRecency(
-  left: PlatformAccessObservation,
-  right: PlatformAccessObservation,
+  left: RecordedPlatformAccessObservation,
+  right: RecordedPlatformAccessObservation,
 ): number {
   const timestampComparison = left.observedAt.localeCompare(right.observedAt);
   return timestampComparison === equalRecency ? left.id - right.id : timestampComparison;

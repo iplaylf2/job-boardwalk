@@ -4,12 +4,11 @@ import { sql } from "drizzle-orm";
 export const platformAccessObservations = sqliteTable(
   "platform_access_observations",
   {
-    accountDisplayName: text("account_display_name"),
     authenticationState: text("authentication_state", {
       enum: ["authenticated", "unauthenticated"],
     }),
     evidence: text({
-      enum: ["account-identity", "login-page", "verification-page", "access-denied-page"],
+      enum: ["protected-resource", "login-redirect", "verification-page", "access-denied-page"],
     }).notNull(),
     id: integer().primaryKey({ autoIncrement: true }),
     interruption: text({ enum: ["verification-required", "access-denied"] }),
@@ -27,11 +26,11 @@ export const platformAccessObservations = sqliteTable(
     ),
     check(
       "platform_access_observations_evidence",
-      sql`${table.evidence} in ('account-identity', 'login-page', 'verification-page', 'access-denied-page')`,
+      sql`${table.evidence} in ('protected-resource', 'login-redirect', 'verification-page', 'access-denied-page')`,
     ),
     check(
       "platform_access_observations_assessment",
-      sql`(${table.authenticationState} = 'authenticated' and ${table.interruption} is null and ${table.evidence} = 'account-identity') or (${table.authenticationState} = 'unauthenticated' and ${table.interruption} is null and ${table.evidence} = 'login-page') or (${table.authenticationState} is null and ${table.interruption} = 'verification-required' and ${table.evidence} = 'verification-page') or (${table.authenticationState} is null and ${table.interruption} = 'access-denied' and ${table.evidence} = 'access-denied-page')`,
+      sql`(${table.authenticationState} = 'authenticated' and ${table.interruption} is null and ${table.evidence} = 'protected-resource') or (${table.authenticationState} = 'unauthenticated' and ${table.interruption} is null and ${table.evidence} = 'login-redirect') or (${table.authenticationState} is null and ${table.interruption} = 'verification-required' and ${table.evidence} = 'verification-page') or (${table.authenticationState} is null and ${table.interruption} = 'access-denied' and ${table.evidence} = 'access-denied-page')`,
     ),
   ],
 );

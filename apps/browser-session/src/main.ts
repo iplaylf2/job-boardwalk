@@ -51,6 +51,7 @@ function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
   const statusReporter = new BrowserSessionStatusReporter(
     resolveWorkspaceServiceUrl(),
     () => browserControl.status,
+    () => browserControl.platformAccessObservations,
   );
   const httpApp = createBrowserSessionHttpApp({
     browserControl,

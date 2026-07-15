@@ -20,11 +20,10 @@ durable facts:
   leased Browser Session presence. It never controls the browser.
 
 The agent interprets live browser evidence and may submit structured observations to Workspace
-Service. Independently, Browser Session sends bounded runtime status reports to Workspace Service,
-which derives leased presence for Dashboard and MCP readers. Browser Session never sends
-credentials, cookies, browser storage, or profile contents. See
-[Product design](docs/product-design.md) for the authoritative collaboration model and ownership
-boundaries.
+Service. Browser Session separately derives authentication observations from qualifying top-level
+platform navigation responses and reports them to Workspace Service. Workspace Service derives
+leased presence and deduplicates durable observations for Dashboard and MCP readers. See [Product
+design](docs/product-design.md) for the authoritative collaboration model and ownership boundaries.
 
 ## Current scope
 
@@ -84,10 +83,10 @@ while the agent host connects to <http://127.0.0.1:54312/mcp>.
 When the user requests login, or visible page evidence shows that the requested workflow requires
 authentication and the current session is unauthenticated, the agent proactively opens the
 platform login interface. The agent then pauses browser input so the user can enter credentials and
-complete verification.
-Applications, messages, and account changes likewise remain under user control, and the agent
-resumes only after the user explicitly returns control. A supported platform's HTTPS navigation
-scope permits research and login-handoff preparation only; it does not authorize those user actions.
+complete verification. Applications, messages, and account changes likewise remain under user
+control, and the agent resumes only after the user explicitly returns control. A supported
+platform's HTTPS navigation scope permits research and login-handoff preparation only; it does not
+authorize those user actions.
 
 Each application's README documents its own configuration and operation.
 

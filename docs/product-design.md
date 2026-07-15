@@ -52,20 +52,22 @@ presence. It neither controls the browser nor requires an active agent conversat
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
-durable facts and conclusions derived from that evidence. The agent may submit a justified access
-observation to the Workspace Service; Browser Session does not classify or persist page meaning.
+durable facts and conclusions derived from that evidence. Browser Session adapters may derive an
+authentication assessment from a real top-level navigation response for a protected page, while page
+interpretation remains agent-owned.
 
-Browser Session sends bounded runtime status directly to Workspace Service. A report includes
-browser availability, version, and tab count, plus the latest browser error when unavailable.
-Workspace Service treats each report as a short lease: before the first report, presence is unknown;
-after a lease expires, presence is offline. Reporting failure never prevents Browser Session from
-operating. Runtime reports never imply platform authentication and contain no cookies, credentials,
-storage contents, or page meaning.
+Browser Session sends bounded status directly to Workspace Service. A report includes browser
+availability, version, and tab count, plus the latest browser error when unavailable and any
+platform authentication observations cached from real browser navigation. Workspace Service treats
+runtime status as a short lease and stores only changed access observations: before the first
+report, presence is unknown; after a lease expires, presence is offline. Reporting failure never
+prevents Browser Session from operating. Reports contain no cookies, credentials, storage contents,
+or unrestricted page text.
 
 ## Browser handoff
 
-The browser lifecycle proactively prepares a visible login handoff while keeping identity actions
-user-controlled and preserving the session used for research:
+The login-handoff workflow keeps identity actions under user control while preserving the browser
+session used for research:
 
 1. When the user requests login, or visible page evidence shows that the requested workflow
    requires authentication and the current session is unauthenticated, the agent asks Browser
@@ -91,19 +93,21 @@ and HTTP and MCP responses do not expose authentication cookies or browser profi
 
 ## Access observations
 
-Platform access is an append-only observation stream. The agent derives one semantic assessment
-from current browser evidence at an observation boundary; Browser Session only supplies the bounded
-page snapshot. A workflow may request observations automatically at workflow boundaries, after
-meaningful page changes, or during a bounded recovery. Navigation, retries, and necessary refreshes
-may also be automated when paced and bounded; tight polling loops and repeated visible page churn
-are not part of the workflow.
+Platform access is an append-only observation stream. An adapter may treat a successful top-level
+response for a page known to require authentication as conclusive evidence that the session was
+authenticated at that moment. Browser Session observes only navigation responses the visible
+browser already receives; it does not issue a detection request, refresh a page, or open a tab. It
+uses only response success, the final URL, and the server redirect chain for this assessment. It
+does not inspect DOM controls, cookie values, browser storage, or response bodies. The agent derives
+assessments that require page interpretation from bounded snapshots.
 
-Authentication observations have a definite `authenticated` or `unauthenticated` result based on
-platform page evidence; cookie presence alone does not produce an authentication observation.
-Verification requests and access denial are separate interruptions rather than additional
-authentication states. An observation may include a display name found on the page, but never
-credentials, cookie values, or browser storage. Route names alone do not establish an interruption;
-visible verification controls or semantic page content must support that conclusion.
+An authentication observation records `authenticated` when a protected-page navigation succeeds,
+or `unauthenticated` when that navigation redirects to the platform login destination. Opening a
+login page directly and cookie presence alone do not produce an observation. Verification requests
+and access denial are separate interruptions rather than additional authentication states. An
+observation never includes credentials, cookie values, browser storage, or protected response
+content. Route names alone do not establish an interruption; visible verification controls or
+semantic page content must support that conclusion.
 
 The Dashboard displays the latest definite authentication observation and any later unresolved
 interruption. It includes the observation time rather than presenting historical evidence as a

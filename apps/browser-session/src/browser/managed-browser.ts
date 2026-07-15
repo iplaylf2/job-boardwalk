@@ -1,11 +1,12 @@
 import { chromium } from "patchright";
 import type { BrowserContext } from "patchright";
-import type { BrowserRuntimeStatus } from "@job-boardwalk/contracts";
+import type { BrowserRuntimeStatus, PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { CanceledError, ScopeError, completer, sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
-import { wait } from "@shajara/host/primitives";
+import { race, wait } from "@shajara/host/primitives";
 
 import type { BrowserControl } from "./browser-control.js";
+import { PlatformAccessMonitor } from "./platform-access-monitor.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
 const initialFailureCount = 0;
@@ -40,6 +41,7 @@ export class ManagedBrowser implements BrowserControl {
   readonly #launchContext: PersistentContextLauncher;
   readonly #profilePath: string;
   #context: BrowserContext | null = null;
+  #platformAccessMonitor: PlatformAccessMonitor | null = null;
   #toolExecutor: BrowserToolExecutor | null = null;
   #lastError: Error | null = null;
 
@@ -76,6 +78,10 @@ export class ManagedBrowser implements BrowserControl {
     return yield* this.#toolExecutor.execute(toolName, input);
   }
 
+  public get platformAccessObservations(): PlatformAccessObservation[] {
+    return this.#platformAccessMonitor?.observations ?? [];
+  }
+
   public *supervise(reportError: (error: Error) => void): RiteCoroutine<never> {
     let failureCount = initialFailureCount;
     while (true) {
@@ -98,12 +104,15 @@ export class ManagedBrowser implements BrowserControl {
     const closed = yield* completer<Error>();
     context.once("close", () => closed.resolve(new Error("浏览器窗口已经关闭。")));
     this.#context = context;
+    const platformAccessMonitor = new PlatformAccessMonitor(context);
+    this.#platformAccessMonitor = platformAccessMonitor;
     this.#toolExecutor = new BrowserToolExecutor(context);
     this.#lastError = null;
     try {
-      return yield* wait(closed.future);
+      return yield* race([() => platformAccessMonitor.run(), () => wait(closed.future)]);
     } finally {
       this.#context = null;
+      this.#platformAccessMonitor = null;
       this.#toolExecutor = null;
       yield* until(() => context.close());
     }

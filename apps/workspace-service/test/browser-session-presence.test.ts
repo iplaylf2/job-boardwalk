@@ -9,11 +9,7 @@ test("expires browser session reports instead of presenting stale state as curre
   const tracker = new BrowserSessionPresenceTracker(() => now, leaseMilliseconds);
 
   expect(tracker.presence).toEqual({ state: "unknown" });
-  expect(
-    tracker.receive({
-      browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
-    }),
-  ).toEqual({
+  expect(tracker.receive({ available: true, browserVersion: "149.0", tabCount: 1 })).toEqual({
     browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
     leaseExpiresAt: "2026-07-15T01:00:15.000Z",
     receivedAt: "2026-07-15T01:00:00.000Z",

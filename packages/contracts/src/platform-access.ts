@@ -9,8 +9,8 @@ export const platformAccessInterruptions = ["verification-required", "access-den
 export type PlatformAccessInterruption = (typeof platformAccessInterruptions)[number];
 
 export const platformAccessEvidenceKinds = [
-  "account-identity",
-  "login-page",
+  "protected-resource",
+  "login-redirect",
   "verification-page",
   "access-denied-page",
 ] as const;
@@ -20,31 +20,29 @@ export type PlatformAccessEvidenceKind = (typeof platformAccessEvidenceKinds)[nu
 export type PlatformAccessAssessment =
   | {
       authenticationState: "authenticated";
-      evidence: "account-identity";
+      evidence: "protected-resource";
     }
-  | { authenticationState: "unauthenticated"; evidence: "login-page" }
+  | { authenticationState: "unauthenticated"; evidence: "login-redirect" }
   | { evidence: "verification-page"; interruption: "verification-required" }
   | { evidence: "access-denied-page"; interruption: "access-denied" };
 
-interface PlatformAccessObservationCommon {
-  accountDisplayName?: string;
+interface PlatformAccessObservationContext {
   observedAt: string;
   platformId: PlatformId;
 }
 
-export type PlatformAccessObservationInput = PlatformAccessAssessment &
-  PlatformAccessObservationCommon;
+export type PlatformAccessObservation = PlatformAccessAssessment & PlatformAccessObservationContext;
 
-export type PlatformAccessObservation = PlatformAccessObservationInput & {
+export type RecordedPlatformAccessObservation = PlatformAccessObservation & {
   id: number;
 };
 
-export type PlatformAuthenticationObservation = Extract<
-  PlatformAccessObservation,
+export type RecordedPlatformAuthenticationObservation = Extract<
+  RecordedPlatformAccessObservation,
   { authenticationState: PlatformAuthenticationState }
 >;
 
-export type PlatformAccessInterruptionObservation = Extract<
-  PlatformAccessObservation,
+export type RecordedPlatformAccessInterruptionObservation = Extract<
+  RecordedPlatformAccessObservation,
   { interruption: PlatformAccessInterruption }
 >;

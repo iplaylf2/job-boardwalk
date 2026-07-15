@@ -11,7 +11,7 @@ The page shows:
 - each platform's latest definite authentication observation and any later unresolved interruption;
 - profile facts and target locations.
 
-Observation times remain visible because saved platform evidence is historical; it does not
+Observation times remain visible because saved platform observations are historical; they do not
 guarantee the platform's current authentication state. Browser Session presence is separate,
 short-lived runtime state. Dashboard owns neither state source: it does not own SQLite, Browser
 Session, Patchright, or the Workspace Service lifecycle.
@@ -20,8 +20,8 @@ Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. Dashboard
 does not open or control that window.
 
-Dashboard refreshes the workspace overview every five seconds. `刷新工作区` requests an immediate
-refresh. Neither action opens, navigates, or refreshes a browser page.
+Dashboard rereads the workspace overview every five seconds. This affects only the local Workspace
+Service API; it never opens, navigates, or refreshes a browser page.
 
 ## Run Dashboard
 

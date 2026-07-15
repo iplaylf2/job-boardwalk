@@ -32,6 +32,14 @@ export function readRequiredBoolean(input: Record<string, unknown>, key: string)
   return value;
 }
 
+export function readRequiredArray(input: Record<string, unknown>, key: string): unknown[] {
+  const value = input[key];
+  if (!Array.isArray(value)) {
+    throw new InvalidRequestError(`${key} 必须是数组`);
+  }
+  return value;
+}
+
 export function readOptionalString(
   input: Record<string, unknown>,
   key: string,

@@ -2,8 +2,8 @@ import { createMemo, createSignal, For, Loading, onSettled, Show } from "solid-j
 import type { JSX } from "@solidjs/web";
 import type {
   PlatformAccessSummary,
-  PlatformAuthenticationObservation,
-  PlatformAccessInterruptionObservation,
+  RecordedPlatformAuthenticationObservation,
+  RecordedPlatformAccessInterruptionObservation,
   ProfileFact,
   TargetLocation,
   WorkspaceOverview,
@@ -22,25 +22,25 @@ const emptyCollectionLength = 0;
 
 const platformAuthenticationCopy = {
   authenticated: {
-    detail: "该次观察在页面中识别到账号身份信息。",
-    label: "观察时已登录",
+    detail: "浏览器当时成功打开了需要登录的页面。",
+    label: "当时已登录",
     tone: "positive",
   },
   unauthenticated: {
-    detail: "该次观察显示的是平台登录页面。",
-    label: "观察时未登录",
+    detail: "浏览器当时访问需要登录的页面，但平台将其转到了登录页。",
+    label: "当时未登录",
     tone: "attention",
   },
 } as const;
 
 const platformAccessInterruptionCopy = {
   "access-denied": {
-    detail: "该次观察显示平台拒绝访问；请以平台窗口当前显示的内容为准。",
+    detail: "平台当时拒绝了访问；请以平台窗口当前显示的内容为准。",
     label: "访问受阻",
     tone: "warning",
   },
   "verification-required": {
-    detail: "该次观察显示平台要求人工验证；若当前仍有提示，请在平台窗口中完成验证。",
+    detail: "平台当时要求人工验证；若当前仍有提示，请在平台窗口中完成验证。",
     label: "需要人工验证",
     tone: "attention",
   },
@@ -62,7 +62,9 @@ function formatProfileFactSource(source: string): string {
   return sourceCopy[source] ?? source;
 }
 
-function PlatformAuthenticationView(props: { observation: PlatformAuthenticationObservation }) {
+function PlatformAuthenticationView(props: {
+  observation: RecordedPlatformAuthenticationObservation;
+}) {
   function authenticationCopy() {
     return platformAuthenticationCopy[props.observation.authenticationState];
   }
@@ -70,11 +72,6 @@ function PlatformAuthenticationView(props: { observation: PlatformAuthentication
     <div class="platform-observation">
       <span class={`status status-${authenticationCopy().tone}`}>{authenticationCopy().label}</span>
       <p>{authenticationCopy().detail}</p>
-      <Show when={props.observation.accountDisplayName}>
-        {(accountDisplayName) => (
-          <strong class="account">页面显示的账号：{accountDisplayName()}</strong>
-        )}
-      </Show>
       <time datetime={props.observation.observedAt}>
         观察时间：{formatObservedAt(props.observation.observedAt)}
       </time>
@@ -83,7 +80,7 @@ function PlatformAuthenticationView(props: { observation: PlatformAuthentication
 }
 
 function PlatformAccessInterruptionView(props: {
-  observation: PlatformAccessInterruptionObservation;
+  observation: RecordedPlatformAccessInterruptionObservation;
 }) {
   function interruptionCopy() {
     return platformAccessInterruptionCopy[props.observation.interruption];
@@ -115,8 +112,8 @@ function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
                 when={platform.latestAuthentication}
                 fallback={
                   <div class="platform-observation empty-observation">
-                    <span class="status status-unknown">暂无登录观察</span>
-                    <p>记录明确的登录状态后，会显示在这里。</p>
+                    <span class="status status-unknown">暂无登录记录</span>
+                    <p>有明确的登录结果后，会显示在这里。</p>
                   </div>
                 }
               >
@@ -219,9 +216,6 @@ export function App(): JSX.Element {
             集中查看浏览器状态、平台访问记录、求职资料和目标城市，无需保持 AI 助手会话。
           </p>
         </div>
-        <button type="button" onClick={() => setRefreshCount((value) => value + refreshIncrement)}>
-          刷新工作区
-        </button>
       </header>
 
       <Loading fallback={<p class="loading">正在读取本机工作区…</p>}>

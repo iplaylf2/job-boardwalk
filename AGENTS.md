@@ -76,8 +76,10 @@
   Server entry points do not load `.env` automatically; the user or agent host decides how to
   supply its values. Inspect the local file before asking the user to repeat host addresses, but
   never print or commit its contents.
-- Workspace Service runs at `http://127.0.0.1:54310` and owns durable observations submitted after
-  agent interpretation; Browser Session does not write them automatically.
+- Workspace Service runs at `http://127.0.0.1:54310` and owns durable observations. Browser Session
+  may automatically submit a platform authentication change only when an adapter finds a
+  conclusive result in a top-level navigation response already received by the visible browser.
+  Observations requiring page interpretation remain agent-owned.
 - Dashboard is the read-only view at `http://127.0.0.1:54311`; it shows durable workspace data and
   leased Browser Session presence, but does not establish or control the browser session.
 - Browser Session launches a visible persistent Patchright Chromium process and owns its dedicated

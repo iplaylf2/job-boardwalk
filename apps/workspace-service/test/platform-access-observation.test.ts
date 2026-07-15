@@ -11,6 +11,9 @@ import { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presenc
 
 const badRequestStatus = 400;
 const createdStatus = 201;
+const successfulStatus = 200;
+const initialObservationCount = 1;
+const changedObservationCount = 2;
 const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 
 function createTestRepository(directory: string): WorkspaceRepository {
@@ -63,26 +66,26 @@ test("validates and projects durable platform access observations", async () => 
   try {
     const observationResponse = await postObservation(httpApp, {
       authenticationState: "authenticated",
-      evidence: "account-identity",
+      evidence: "protected-resource",
     });
     expect(observationResponse.status).toBe(createdStatus);
     expect(await readBossSummary(httpApp)).toMatchObject({
       label: "BOSS直聘",
       latestAuthentication: {
         authenticationState: "authenticated",
-        evidence: "account-identity",
+        evidence: "protected-resource",
       },
       platformId: "boss",
     });
 
     const invalidResponse = await postObservation(httpApp, {
       authenticationState: "definitely-logged-in",
-      evidence: "account-identity",
+      evidence: "protected-resource",
     });
     expect(invalidResponse.status).toBe(badRequestStatus);
     const mismatchedEvidenceResponse = await postObservation(httpApp, {
       authenticationState: "authenticated",
-      evidence: "login-page",
+      evidence: "login-redirect",
     });
     expect(mismatchedEvidenceResponse.status).toBe(badRequestStatus);
   } finally {
@@ -100,7 +103,7 @@ test("shows only interruptions newer than the latest authentication", async () =
   try {
     await postObservation(httpApp, {
       authenticationState: "authenticated",
-      evidence: "account-identity",
+      evidence: "protected-resource",
     });
     await postObservation(httpApp, {
       evidence: "verification-page",
@@ -113,10 +116,57 @@ test("shows only interruptions newer than the latest authentication", async () =
 
     await postObservation(httpApp, {
       authenticationState: "authenticated",
-      evidence: "account-identity",
+      evidence: "protected-resource",
       observedAt: "2026-07-13T01:02:00+00:00",
     });
     expect(await readBossSummary(httpApp)).not.toHaveProperty("unresolvedInterruption");
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("persists only Browser Session platform-state changes", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  function reportAuthentication(authenticationState: "authenticated" | "unauthenticated") {
+    return httpApp.request("/api/browser-session/status", {
+      body: JSON.stringify({
+        browserStatus: { available: true, tabCount: 1 },
+        platformAccessObservations: [
+          authenticationState === "authenticated"
+            ? {
+                authenticationState,
+                evidence: "protected-resource",
+                observedAt: "2026-07-15T02:00:00.000Z",
+                platformId: "boss",
+              }
+            : {
+                authenticationState,
+                evidence: "login-redirect",
+                observedAt: "2026-07-15T02:01:00.000Z",
+                platformId: "boss",
+              },
+        ],
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+  }
+
+  try {
+    const initialResponse = await reportAuthentication("authenticated");
+    const repeatedResponse = await reportAuthentication("authenticated");
+    expect(initialResponse.status).toBe(successfulStatus);
+    expect(repeatedResponse.status).toBe(successfulStatus);
+    expect(repository.listPlatformAccessObservations()).toHaveLength(initialObservationCount);
+
+    const changedResponse = await reportAuthentication("unauthenticated");
+    expect(changedResponse.status).toBe(successfulStatus);
+    expect(repository.listPlatformAccessObservations()).toHaveLength(changedObservationCount);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

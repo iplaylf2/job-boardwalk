@@ -3,11 +3,15 @@ import type { BrowserRuntimeStatus, BrowserSessionStatusReport } from "@job-boar
 import type { Scope } from "@shajara/host";
 
 import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
+import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
+
+import { readPlatformAccessObservation } from "./platform-access-observation-parser.js";
 
 import {
   InvalidRequestError,
   isRecord,
   readJsonObject,
+  readRequiredArray,
   readOptionalString,
   readRequiredBoolean,
   requestErrorResponse,
@@ -35,19 +39,32 @@ function readBrowserStatus(input: Record<string, unknown>): BrowserRuntimeStatus
 }
 
 function readStatusReport(input: Record<string, unknown>): BrowserSessionStatusReport {
-  return { browserStatus: readBrowserStatus(input) };
+  const platformAccessObservations = readRequiredArray(input, "platformAccessObservations").map(
+    (value) => {
+      if (!isRecord(value)) {
+        throw new InvalidRequestError("platformAccessObservations 的项目必须是对象");
+      }
+      return readPlatformAccessObservation(value);
+    },
+  );
+  return { browserStatus: readBrowserStatus(input), platformAccessObservations };
 }
 
 export function registerBrowserSessionStatusRoute(
   app: Hono,
   presenceTracker: BrowserSessionPresenceTracker,
+  repository: WorkspaceRepository,
   serviceScope: Scope,
 ): void {
   app.put("/api/browser-session/status", (context) =>
     serviceScope.run(function* updateBrowserSessionStatus() {
       try {
         const input = yield* readJsonObject(context);
-        const presence = presenceTracker.receive(readStatusReport(input));
+        const report = readStatusReport(input);
+        for (const observation of report.platformAccessObservations) {
+          repository.recordPlatformAccessObservationIfChanged(observation);
+        }
+        const presence = presenceTracker.receive(report.browserStatus);
         return context.json(presence, successfulStatus);
       } catch (error) {
         return requestErrorResponse(error, context);

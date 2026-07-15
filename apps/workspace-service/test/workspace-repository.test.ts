@@ -17,15 +17,14 @@ test("keeps authentication and interruption observations as separate history", a
 
   try {
     repository.recordPlatformAccessObservation({
-      accountDisplayName: "求职者 A",
       authenticationState: "authenticated",
-      evidence: "account-identity",
+      evidence: "protected-resource",
       observedAt: "2026-07-13T01:01:00.000Z",
       platformId: "boss",
     });
     repository.recordPlatformAccessObservation({
       authenticationState: "unauthenticated",
-      evidence: "login-page",
+      evidence: "login-redirect",
       observedAt: "2026-07-13T01:02:00.000Z",
       platformId: "yupao",
     });
@@ -38,7 +37,6 @@ test("keeps authentication and interruption observations as separate history", a
 
     expect(repository.listPlatformAccessObservations()).toEqual([
       expect.objectContaining({
-        accountDisplayName: "求职者 A",
         authenticationState: "authenticated",
         platformId: "boss",
       }),

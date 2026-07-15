@@ -13,10 +13,11 @@ Live web interaction belongs to the separate [`browser-session`](../browser-sess
 which owns the visible persistent Patchright browser. The agent coordinates that live browser work
 with the durable workspace exposed by this service.
 
-Browser Session also sends runtime status reports directly to Workspace Service. An in-memory
-presence tracker renews a short lease for each report and makes the result available to Dashboard
-and MCP readers. It is separate from agent-interpreted durable platform-access observations. An
-expired lease is shown as offline rather than current browser state.
+Browser Session also sends status reports directly to Workspace Service. An in-memory presence
+tracker renews a short lease for each report and makes the result available to Dashboard and MCP
+readers. The same report may carry authentication observations derived from real platform
+navigation responses; the service validates, deduplicates, and persists them. An expired lease is
+shown as offline rather than current browser state.
 
 ## Run Workspace Service
 
@@ -70,25 +71,28 @@ Browser Session renews its presence lease with a bounded status report:
     "available": true,
     "browserVersion": "150.0.0.0",
     "tabCount": 1
-  }
+  },
+  "platformAccessObservations": []
 }
 ```
 
 Workspace Service assigns `receivedAt` when it accepts the report. A current lease appears as
 `online`; an expired lease appears as `offline`; before the first report, presence is `unknown`.
-This state remains in memory, resets to `unknown` when Workspace Service restarts, and is not a
-platform-authentication observation.
+This presence state remains in memory and resets to `unknown` when Workspace Service restarts.
+Platform-access observations carried in the report are durable and are appended only when the
+latest state for that platform changes.
 
 ### Platform-access observations
 
 After interpreting current browser evidence, an agent may submit a structured platform-access
-conclusion. Browser Session does not interpret or create this observation:
+conclusion. Browser Session uses the same contract for authentication observations derived from
+qualifying top-level navigation responses:
 
 ```json
 {
   "platformId": "boss",
   "authenticationState": "authenticated",
-  "evidence": "account-identity",
+  "evidence": "protected-resource",
   "observedAt": "2026-07-13T01:00:00.000Z"
 }
 ```

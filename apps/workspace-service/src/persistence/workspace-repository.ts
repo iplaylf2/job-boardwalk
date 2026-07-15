@@ -7,8 +7,8 @@ import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
 import type {
   PlatformAccessObservation,
-  PlatformAccessObservationInput,
   ProfileFact,
+  RecordedPlatformAccessObservation,
   TargetLocation,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
@@ -22,7 +22,21 @@ import {
 
 type PlatformAccessObservationRow = typeof platformAccessObservations.$inferSelect;
 
-function toPlatformAccessObservationMetadata(row: PlatformAccessObservationRow) {
+function samePlatformAccessState(
+  left: RecordedPlatformAccessObservation,
+  right: PlatformAccessObservation,
+): boolean {
+  return (
+    left.platformId === right.platformId &&
+    ("authenticationState" in left ? left.authenticationState : null) ===
+      ("authenticationState" in right ? right.authenticationState : null) &&
+    ("interruption" in left ? left.interruption : null) ===
+      ("interruption" in right ? right.interruption : null) &&
+    left.evidence === right.evidence
+  );
+}
+
+function toRecordedPlatformAccessObservationMetadata(row: PlatformAccessObservationRow) {
   if (!isPlatformId(row.platformId)) {
     throw new Error(`数据库中存在未知招聘平台：${row.platformId}`);
   }
@@ -30,16 +44,17 @@ function toPlatformAccessObservationMetadata(row: PlatformAccessObservationRow) 
     id: row.id,
     observedAt: row.observedAt,
     platformId: row.platformId,
-    ...(row.accountDisplayName === null ? {} : { accountDisplayName: row.accountDisplayName }),
   };
 }
 
-function toPlatformAccessObservation(row: PlatformAccessObservationRow): PlatformAccessObservation {
-  const observationMetadata = toPlatformAccessObservationMetadata(row);
+function toRecordedPlatformAccessObservation(
+  row: PlatformAccessObservationRow,
+): RecordedPlatformAccessObservation {
+  const observationMetadata = toRecordedPlatformAccessObservationMetadata(row);
   if (
     row.authenticationState === "authenticated" &&
     row.interruption === null &&
-    row.evidence === "account-identity"
+    row.evidence === "protected-resource"
   ) {
     return {
       ...observationMetadata,
@@ -50,7 +65,7 @@ function toPlatformAccessObservation(row: PlatformAccessObservationRow): Platfor
   if (
     row.authenticationState === "unauthenticated" &&
     row.interruption === null &&
-    row.evidence === "login-page"
+    row.evidence === "login-redirect"
   ) {
     return {
       ...observationMetadata,
@@ -110,13 +125,28 @@ export class WorkspaceRepository {
   }
 
   public recordPlatformAccessObservation(
-    input: PlatformAccessObservationInput,
-  ): PlatformAccessObservation {
-    const row = this.#database.insert(platformAccessObservations).values(input).returning().get();
-    return toPlatformAccessObservation(row);
+    observation: PlatformAccessObservation,
+  ): RecordedPlatformAccessObservation {
+    const row = this.#database
+      .insert(platformAccessObservations)
+      .values(observation)
+      .returning()
+      .get();
+    return toRecordedPlatformAccessObservation(row);
   }
 
-  public listPlatformAccessObservations(): PlatformAccessObservation[] {
+  public recordPlatformAccessObservationIfChanged(
+    observation: PlatformAccessObservation,
+  ): RecordedPlatformAccessObservation | null {
+    const latest = this.listPlatformAccessObservations().find(
+      (candidate) => candidate.platformId === observation.platformId,
+    );
+    return latest && samePlatformAccessState(latest, observation)
+      ? null
+      : this.recordPlatformAccessObservation(observation);
+  }
+
+  public listPlatformAccessObservations(): RecordedPlatformAccessObservation[] {
     return this.#database
       .select()
       .from(platformAccessObservations)
@@ -126,7 +156,7 @@ export class WorkspaceRepository {
         desc(platformAccessObservations.id),
       )
       .all()
-      .map(toPlatformAccessObservation);
+      .map(toRecordedPlatformAccessObservation);
   }
 
   public listTargetLocations(): TargetLocation[] {

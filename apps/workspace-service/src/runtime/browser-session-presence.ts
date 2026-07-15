@@ -1,8 +1,9 @@
-import type { BrowserSessionPresence, BrowserSessionStatusReport } from "@job-boardwalk/contracts";
+import type { BrowserRuntimeStatus, BrowserSessionPresence } from "@job-boardwalk/contracts";
 
 const defaultLeaseMilliseconds = 15_000;
 
-interface ReceivedStatusReport extends BrowserSessionStatusReport {
+interface ReceivedStatusReport {
+  browserStatus: BrowserRuntimeStatus;
   leaseExpiresAt: number;
   receivedAt: number;
 }
@@ -39,10 +40,10 @@ export class BrowserSessionPresenceTracker {
     };
   }
 
-  public receive(report: BrowserSessionStatusReport): BrowserSessionPresence {
+  public receive(browserStatus: BrowserRuntimeStatus): BrowserSessionPresence {
     const receivedAt = this.#now();
     this.#latestReport = {
-      ...report,
+      browserStatus,
       leaseExpiresAt: receivedAt + this.#leaseMilliseconds,
       receivedAt,
     };

@@ -34,7 +34,7 @@ function UnavailableBrowserView(props: { status: UnavailableBrowserStatus }) {
     <>
       <div class="browser-session-summary">
         <span class="status status-attention">浏览器不可用</span>
-        <p>会话服务仍在线，但受控浏览器没有成功启动。可稍后重试或检查运行环境。</p>
+        <p>会话服务仍在线，但当前没有可用的受控浏览器。可稍后重试或检查运行环境。</p>
       </div>
       <Show when={props.status.lastError}>
         {(lastError) => (
@@ -72,7 +72,7 @@ function OnlinePresenceView(props: { presence: OnlinePresence }) {
         {(status) => <AvailableBrowserView status={status()} />}
       </Show>
       <time class="browser-session-meta" datetime={props.presence.receivedAt}>
-        状态更新：{formatReceivedAt(props.presence.receivedAt)}
+        报告时间：{formatReceivedAt(props.presence.receivedAt)}
       </time>
     </div>
   );
@@ -88,7 +88,7 @@ function OfflinePresenceView(props: {
         <p>状态报告已经超时，浏览器当前状态未知。</p>
       </div>
       <time class="browser-session-meta" datetime={props.presence.lastReceivedAt}>
-        最后更新：{formatReceivedAt(props.presence.lastReceivedAt)}
+        最后报告：{formatReceivedAt(props.presence.lastReceivedAt)}
       </time>
     </div>
   );

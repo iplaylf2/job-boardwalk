@@ -98,13 +98,16 @@ export class BrowserTabs {
       if (
         selected &&
         !selected.isClosed() &&
-        recruitingPlatformAdapters[platformId].isNavigationUrl(selected.url())
+        recruitingPlatformAdapters[platformId].isInNavigationScope(selected.url())
       ) {
         return [this.#selectedPageId, selected];
       }
     }
     for (const [id, page] of this.#pages) {
-      if (!page.isClosed() && recruitingPlatformAdapters[platformId].isNavigationUrl(page.url())) {
+      if (
+        !page.isClosed() &&
+        recruitingPlatformAdapters[platformId].isInNavigationScope(page.url())
+      ) {
         return [id, page];
       }
     }
@@ -164,7 +167,7 @@ export class BrowserTabs {
     const url = hasRequestedUrl ? requestedUrl : adapter.entryUrl;
     assertPlatformNavigationUrl(platformId, url);
     const existingNavigationPage = [...this.#pages].find(([_id, page]) =>
-      adapter.isNavigationUrl(page.url()),
+      adapter.isInNavigationScope(page.url()),
     );
     if (existingNavigationPage) {
       const [, existingPage] = existingNavigationPage;

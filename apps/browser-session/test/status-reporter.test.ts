@@ -18,6 +18,14 @@ test("reports the current browser status to Workspace Service", async () => {
   const reporter = new BrowserSessionStatusReporter(
     new URL("http://workspace.test:54310"),
     () => ({ available: true, browserVersion: "149.0", tabCount: 2 }),
+    () => [
+      {
+        authenticationState: "authenticated" as const,
+        evidence: "protected-resource" as const,
+        observedAt: "2026-07-15T02:00:00.000Z",
+        platformId: "boss" as const,
+      },
+    ],
     fetchImplementation,
   );
   await using scope = createScope();
@@ -30,6 +38,14 @@ test("reports the current browser status to Workspace Service", async () => {
   );
   expect(JSON.parse(String(requests[firstRequestIndex]?.init?.body))).toEqual({
     browserStatus: { available: true, browserVersion: "149.0", tabCount: 2 },
+    platformAccessObservations: [
+      {
+        authenticationState: "authenticated",
+        evidence: "protected-resource",
+        observedAt: "2026-07-15T02:00:00.000Z",
+        platformId: "boss",
+      },
+    ],
   });
 });
 

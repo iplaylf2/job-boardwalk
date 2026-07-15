@@ -17,7 +17,7 @@ export function registerApiRoutes(
   serviceScope: Scope,
 ): void {
   registerWorkspaceOverviewRoute(app, repository, presenceTracker, serviceScope);
-  registerBrowserSessionStatusRoute(app, presenceTracker, serviceScope);
+  registerBrowserSessionStatusRoute(app, presenceTracker, repository, serviceScope);
   registerPlatformAccessObservationRoute(app, repository, serviceScope);
   registerProfileFactRoute(app, repository, serviceScope);
   registerTargetLocationRoute(app, repository, serviceScope);

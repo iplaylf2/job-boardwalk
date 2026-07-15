@@ -4,15 +4,15 @@ import type { BrowserSessionPresence } from "./browser-session.ts";
 import type { ProfileFact } from "./profile.ts";
 import type { TargetLocation } from "./search-intent.ts";
 import type {
-  PlatformAuthenticationObservation,
-  PlatformAccessInterruptionObservation,
+  RecordedPlatformAuthenticationObservation,
+  RecordedPlatformAccessInterruptionObservation,
 } from "./platform-access.ts";
 
 export interface PlatformAccessSummary {
   label: string;
-  latestAuthentication?: PlatformAuthenticationObservation;
+  latestAuthentication?: RecordedPlatformAuthenticationObservation;
   platformId: PlatformId;
-  unresolvedInterruption?: PlatformAccessInterruptionObservation;
+  unresolvedInterruption?: RecordedPlatformAccessInterruptionObservation;
 }
 
 export interface WorkspaceOverview {
