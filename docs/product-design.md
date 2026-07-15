@@ -64,12 +64,15 @@ storage contents, or page meaning.
 
 ## Browser handoff
 
-The browser lifecycle keeps login visible and user-controlled while preserving the session used
-for research:
+The browser lifecycle proactively prepares a visible login handoff while keeping identity actions
+user-controlled and preserving the session used for research:
 
-1. The agent asks Browser Session to open or navigate a visible platform page.
-2. If the platform requires login or verification, the agent stops browser actions and asks the
-   user to take over that window.
+1. When the user requests login, or visible page evidence shows that the requested workflow
+   requires authentication and the current session is unauthenticated, the agent asks Browser
+   Session to reuse the platform tab and open its login interface.
+2. Once the login interface is visibly ready, the agent stops browser actions and asks the user to
+   take over that window. Opening the interface prepares the handoff; it does not authorize the
+   agent to enter or submit credentials or verification input.
 3. The user completes the login or verification and returns control to the agent.
 4. The agent resumes read-only research in the same browser profile and records results through the
    Workspace Service.

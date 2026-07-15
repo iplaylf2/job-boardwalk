@@ -1,7 +1,7 @@
 # Packages
 
 - [`platform-catalog`](platform-catalog/) owns stable recruiting-platform identifiers, display
-  labels, and browser entry URLs.
+  labels, canonical web origins, navigation domains, and destination paths.
 - [`contracts`](contracts/) owns product contracts shared across applications. It reuses
   `PlatformId` from the catalog instead of defining a second platform vocabulary.
 

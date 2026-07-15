@@ -74,6 +74,7 @@ test("always exposes the project-owned Patchright browser tools", async () => {
     new Set([
       "browser_status",
       "browser_tabs",
+      "browser_prepare_login",
       "browser_navigate",
       "browser_snapshot",
       "browser_click",
@@ -104,6 +105,25 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   expect(result.content[firstContentIndex]).toMatchObject({
     text: expect.stringContaining("https://www.zhipin.com/"),
   });
+
+  await close();
+});
+
+test("exposes and forwards proactive login handoff preparation", async () => {
+  await using serviceScope = createScope();
+  const browserControl = fakeBrowserControl();
+  const mcpServer = createBrowserSessionMcpServer(browserControl, serviceScope);
+  const { client, close } = await connectedClient(mcpServer);
+
+  const listedTools = await client.listTools();
+  const prepareLoginTool = listedTools.tools.find(({ name }) => name === "browser_prepare_login");
+  expect(prepareLoginTool?.inputSchema.required).toContain("platformId");
+  expect(prepareLoginTool?.description).toMatch(/主动|复用/u);
+
+  await client.callTool({ arguments: { platformId: "boss" }, name: "browser_prepare_login" });
+  expect(browserControl.executions).toEqual([
+    { input: { platformId: "boss" }, toolName: "browser_prepare_login" },
+  ]);
   await close();
 });
 
@@ -160,6 +180,14 @@ test("rejects unsafe tool input through the public tool boundary", async () => {
   );
   expect(missingPlatformResult.isError).toBe(true);
   expect(missingPlatformResult.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/platformId/u),
+  });
+
+  const missingLoginPlatformResult = CallToolResultSchema.parse(
+    await client.callTool({ arguments: {}, name: "browser_prepare_login" }),
+  );
+  expect(missingLoginPlatformResult.isError).toBe(true);
+  expect(missingLoginPlatformResult.content[firstContentIndex]).toMatchObject({
     text: expect.stringMatching(/platformId/u),
   });
 

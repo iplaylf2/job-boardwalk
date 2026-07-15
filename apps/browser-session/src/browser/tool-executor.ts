@@ -74,6 +74,9 @@ export class BrowserToolExecutor {
       case "browser_tabs": {
         return yield* this.#tabs.executeAction(input);
       }
+      case "browser_prepare_login": {
+        return yield* this.#prepareLogin(input);
+      }
       case "browser_navigate": {
         return yield* this.#navigate(input);
       }
@@ -109,6 +112,14 @@ export class BrowserToolExecutor {
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
       yield* until(() => reference.locator.click());
       return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
+    } finally {
+      this.#clearElementReferences();
+    }
+  }
+
+  *#prepareLogin(params: Record<string, unknown>): RiteCoroutine<unknown> {
+    try {
+      return yield* this.#tabs.prepareLogin(params);
     } finally {
       this.#clearElementReferences();
     }

@@ -133,6 +133,12 @@ export class BrowserTabs {
     throw new Error(`不支持的标签页动作：${action}`);
   }
 
+  public *prepareLogin(input: Record<string, unknown>): RiteCoroutine<unknown> {
+    const platformId = readPlatformId(input);
+    const adapter = recruitingPlatformAdapters[platformId];
+    return yield* this.#ensure({ platformId, url: adapter.loginUrl });
+  }
+
   *#list(): RiteCoroutine<unknown> {
     const navigationPages = [...this.#pages].filter(([_id, page]) =>
       findRecruitingPlatformAdapter(page.url()),

@@ -81,10 +81,13 @@ Browser Session launches a visible browser with a dedicated profile in the opera
 data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
 
-During research, the agent pauses browser input for login, verification, applications, messages,
-and account changes, then resumes only after the user explicitly returns control. A supported
-platform's HTTPS navigation scope permits research navigation only; it does not authorize those
-actions.
+When the user requests login, or visible page evidence shows that the requested workflow requires
+authentication and the current session is unauthenticated, the agent proactively opens the
+platform login interface. The agent then pauses browser input so the user can enter credentials and
+complete verification.
+Applications, messages, and account changes likewise remain under user control, and the agent
+resumes only after the user explicitly returns control. A supported platform's HTTPS navigation
+scope permits research and login-handoff preparation only; it does not authorize those user actions.
 
 Each application's README documents its own configuration and operation.
 

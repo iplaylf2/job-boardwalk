@@ -1,4 +1,9 @@
-import { isPlatformId, platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
+import {
+  isPlatformId,
+  platformCatalog,
+  platformIds,
+  resolvePlatformWebUrl,
+} from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
 // eslint-disable-next-line no-script-url
@@ -7,17 +12,16 @@ const scriptUrlProtocol = "javascript:";
 export interface RecruitingPlatformAdapter {
   readonly entryUrl: string;
   readonly label: string;
+  readonly loginUrl: string;
   readonly platformId: PlatformId;
   readonly isNavigationUrl: (value: string) => boolean;
 }
 
-function hostnameAdapter(
-  platformId: PlatformId,
-  hostnameSuffix: string,
-): RecruitingPlatformAdapter {
+function platformAdapter(platformId: PlatformId): RecruitingPlatformAdapter {
   const metadata = platformCatalog[platformId];
+  const hostnameSuffix = metadata.web.navigationDomain;
   return {
-    ...metadata,
+    entryUrl: resolvePlatformWebUrl(platformId, "entry"),
     isNavigationUrl(value) {
       try {
         const url = new URL(value);
@@ -29,13 +33,15 @@ function hostnameAdapter(
         return false;
       }
     },
+    label: metadata.label,
+    loginUrl: resolvePlatformWebUrl(platformId, "login"),
     platformId,
   };
 }
 
 export const recruitingPlatformAdapters = {
-  boss: hostnameAdapter("boss", "zhipin.com"),
-  yupao: hostnameAdapter("yupao", "yupao.com"),
+  boss: platformAdapter("boss"),
+  yupao: platformAdapter("yupao"),
 } as const satisfies Record<PlatformId, RecruitingPlatformAdapter>;
 
 export function readPlatformId(params: Record<string, unknown>): PlatformId {

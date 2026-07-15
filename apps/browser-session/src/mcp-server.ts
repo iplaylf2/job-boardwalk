@@ -38,6 +38,17 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
+    description:
+      "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并提交登录。",
+    inputSchema: {
+      properties: { platformId: { enum: [...platformIds], type: "string" } },
+      required: ["platformId"],
+      type: "object",
+    },
+    name: "browser_prepare_login",
+  },
+  {
+    annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description: "将现有标签页导航到同一招聘平台内的指定 HTTPS URL；导航范围不授权任何账号操作。",
     inputSchema: {
       properties: { tabId: { type: "number" }, url: { type: "string" } },
@@ -61,7 +72,8 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
-    description: "点击最近一次快照中的元素引用。不得用于登录、验证、投递、发送消息或修改账号。",
+    description:
+      "点击最近一次快照中的元素引用。登录交接使用 browser_prepare_login；不得用此工具提交登录、完成验证、投递职位、发送消息或变更账号。",
     inputSchema: {
       properties: { ref: { type: "string" } },
       required: ["ref"],
@@ -152,7 +164,7 @@ export function createBrowserSessionMcpServer(
     { name: "job-boardwalk-browser-session", version: "0.1.0" },
     {
       capabilities: { tools: { listChanged: true } },
-      instructions: `Browser Session 管理一个可见的 Patchright 浏览器，并通过统一平台适配器控制 ${supportedPlatformLabels} 的标签页。调用方必须依据 browser_snapshot 返回的有界证据解释页面，并与用户实际看到的窗口核对。HTTPS 导航范围只允许研究导航，不授权登录、验证、投递、发送消息或账号变更。truncated 表示快照正文、元素或链接已被裁剪；快照不返回表单当前值或密码框，元素 ref 仅对最近一次快照有效。需要用户操作时，立即停止浏览器输入并让用户接管同一标签页；只有在用户明确交回控制权并重新观察页面后，才能继续。`,
+      instructions: `Browser Session 管理一个可见的 Patchright 浏览器，并通过统一平台适配器控制 ${supportedPlatformLabels} 的标签页。调用方必须依据 browser_snapshot 返回的有界证据解释页面，并与用户实际看到的窗口核对。用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，调用 browser_prepare_login 主动打开登录界面；打开界面只是在准备用户交接，不授权代理填写或提交凭据、扫码或完成验证码等验证。HTTPS 导航范围只允许研究导航和明确的登录交接准备，不授权投递职位、发送消息或变更账号。truncated 表示快照正文、元素或链接已被裁剪；快照不返回表单当前值或密码框，元素 ref 仅对最近一次快照有效。需要用户操作时，立即停止浏览器输入并让用户接管同一标签页；只有在用户明确交回控制权并重新观察页面后，才能继续。`,
     },
   );
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>

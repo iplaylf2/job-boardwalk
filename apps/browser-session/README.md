@@ -9,8 +9,8 @@ Browser Session tools never read or return cookies, browser storage, or profile 
 bounded page evidence lets the agent reconcile automation results with the window the user can see.
 
 The current tool surface supports both BOSS直聘 and 鱼泡直聘 through one recruiting-platform
-adapter contract. A platform's HTTPS navigation scope permits research navigation only; it does not
-authorize account actions.
+adapter contract. A platform's HTTPS navigation scope permits research navigation and explicit
+login-handoff preparation; it does not authorize login, verification, or other account actions.
 
 ## Run Browser Session
 
@@ -75,8 +75,9 @@ Tabs for BOSS直聘 and 鱼泡直聘 are discovered, selected, validated, and co
 adapter-driven workflow. `browser_tabs ensure` requires a `platformId` (`boss` or `yupao`), then
 reuses a tab for that platform before creating one at its catalog entry URL. The service can list
 and activate all in-scope tabs, but does not expose unconditional tab creation or a tab-close
-action. Each adapter owns only the platform identity, entry URL, label, and HTTPS hostname rule;
-page actions remain platform-independent.
+action. The platform catalog owns each platform's label and web navigation metadata: its canonical
+origin, navigation domain, and entry and login paths. Adapters derive destinations and the HTTPS
+navigation boundary from that one contract. Page actions remain platform-independent.
 
 Snapshots bound rendered text, element count, element names, and link lengths, and report any
 clipping through `truncated`. They omit all form-control values and do not expose password controls.
@@ -85,12 +86,19 @@ snapshot. Explicit links outside the current tab's platform scope are rejected b
 and every action must still finish on a supported platform page. Click, fill, selection, scrolling,
 and navigation use Patchright page APIs.
 
+`browser_prepare_login` is the explicit login-handoff preparation path. When the user asks to log
+in, or visible page evidence shows that the requested workflow requires authentication and the
+current session is unauthenticated, the agent uses this tool to reuse the platform tab and open its
+catalog-defined login destination. The direct destination avoids rediscovering a page control on
+every handoff. Once the login interface is visible, the agent stops browser input and hands the
+same window to the user.
+
 ## Agent responsibility and handoff
 
-The agent paces actions and interprets snapshots. Login, verification, credentials, applications,
-messages, and account changes remain under user control. When research reaches one of these actions,
-the agent stops browser input and asks the user to take over the same visible tab. It resumes only
-after the user explicitly returns control and the live page is observed again.
+The agent paces actions and interprets snapshots. Entering credentials, scanning a login QR code,
+completing verification, submitting the login form, applying for jobs, sending messages, and
+changing an account remain under user control. The agent resumes only after the user explicitly
+returns control and the live page is observed again.
 
 ## Maintenance constraints
 
@@ -106,7 +114,7 @@ not add Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
 
 ## Development
 
-Tests cover the public tool contract, URL and Origin boundaries, bounded inputs, browser-context
+Tests cover the public tool contract, URL and origin boundaries, bounded inputs, browser-context
 behavior, and lifecycle ownership. Driver internals and reader-facing prose are not test contracts.
 
 ```sh

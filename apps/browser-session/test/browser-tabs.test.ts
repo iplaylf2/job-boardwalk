@@ -1,6 +1,7 @@
 import type { BrowserContext, Page } from "patchright";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
+import { resolvePlatformWebUrl } from "@job-boardwalk/platform-catalog";
 
 import {
   assertPlatformNavigationLink,
@@ -16,6 +17,8 @@ interface FakePage {
 }
 
 const firstNavigationCount = 1;
+const bossLoginUrl = resolvePlatformWebUrl("boss", "login");
+const yupaoLoginUrl = resolvePlatformWebUrl("yupao", "login");
 // eslint-disable-next-line no-script-url
 const scriptControlHref = "javascript:;";
 
@@ -47,6 +50,35 @@ function fakeBrowserContext(page: Page): BrowserContext {
   } as unknown as BrowserContext;
   return context;
 }
+
+test.each([
+  {
+    destination: "entry" as const,
+    expectedUrl: "https://www.zhipin.com/",
+    platformId: "boss" as const,
+  },
+  {
+    destination: "login" as const,
+    expectedUrl: "https://www.zhipin.com/web/user/",
+    platformId: "boss" as const,
+  },
+  {
+    destination: "entry" as const,
+    expectedUrl: "https://www.yupao.com/",
+    platformId: "yupao" as const,
+  },
+  {
+    destination: "login" as const,
+    expectedUrl: "https://www.yupao.com/web/login/",
+    platformId: "yupao" as const,
+  },
+])(
+  "resolves $platformId $destination from its shared web navigation metadata",
+  ({ destination, expectedUrl, platformId }) => {
+    expect(resolvePlatformWebUrl(platformId, destination)).toBe(expectedUrl);
+    expect(findRecruitingPlatformAdapter(expectedUrl)?.platformId).toBe(platformId);
+  },
+);
 
 test.each([
   { platformId: "boss" as const, url: "https://www.zhipin.com/job_detail/example.html" },
@@ -115,6 +147,30 @@ test("requires a supported platform when ensuring a tab", () => {
   const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
 
   expect(() => tabs.executeAction({ action: "ensure" }).next()).toThrow(/platformId/u);
+});
+
+test("prepares the configured login interface in the existing platform tab", async () => {
+  await using scope = createScope();
+  const fake = fakePage("https://www.zhipin.com/beijing/");
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+
+  const result = await scope.run(() => tabs.prepareLogin({ platformId: "boss" }));
+
+  expect(fake.navigationCount).toBe(firstNavigationCount);
+  expect(fake.url).toBe(bossLoginUrl);
+  expect(result).toMatchObject({ platformId: "boss", title: "Jobs", url: bossLoginUrl });
+});
+
+test("prepares every supported platform through its configured login URL", async () => {
+  await using scope = createScope();
+  const fake = fakePage("https://www.yupao.com/");
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+
+  const result = await scope.run(() => tabs.prepareLogin({ platformId: "yupao" }));
+
+  expect(fake.navigationCount).toBe(firstNavigationCount);
+  expect(fake.url).toBe(yupaoLoginUrl);
+  expect(result).toMatchObject({ platformId: "yupao", title: "Jobs", url: yupaoLoginUrl });
 });
 
 test("surfaces a page that has left scope instead of reporting navigation success", () => {
