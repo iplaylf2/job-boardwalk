@@ -4,9 +4,9 @@ Workspace Service owns Job Boardwalk's durable local workspace and workspace rea
 sole owner of SQLite persistence. Its loopback HTTP server exposes `/api` to Dashboard and `/mcp`
 to MCP clients; it does not serve Dashboard assets or own a browser process.
 
-The repository's [product design](../../docs/product-design.md) defines the target delegation and
-browser-collaboration model. The current service can preserve platform-access observations and read
-or update profile facts and target locations. It does not yet expose research runs, run-level
+The repository's [product design](../../docs/product-design.md) defines the intended delegation and
+browser-collaboration model. The current service preserves platform-access observations and reads
+or updates profile facts and target locations. It does not yet expose research runs, run-level
 interruptions, job observations, or analysis.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
@@ -18,7 +18,7 @@ presence tracker renews a short lease for each report and makes the result avail
 and MCP readers. It is separate from agent-interpreted durable platform-access observations. An
 expired lease is shown as offline rather than current browser state.
 
-## Run the service
+## Run Workspace Service
 
 For development:
 

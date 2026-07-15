@@ -23,7 +23,7 @@ const browserTools = [
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "列出或激活受支持招聘平台的标签页；也可按 platformId 准备标签页。action=ensure 优先复用该平台已有标签页。",
+      "列出或激活受支持招聘平台的标签页，也可按 platformId 准备标签页。action 为 ensure 时优先复用该平台已有标签页。",
     inputSchema: {
       properties: {
         action: { enum: ["list", "ensure", "activate"], type: "string" },
@@ -104,7 +104,7 @@ const browserTools = [
   },
   {
     annotations: { idempotentHint: true, openWorldHint: false, readOnlyHint: true },
-    description: "在下一次观察或操作前等待一段有界时间。",
+    description: "在下一次观察或操作前等待指定时间，最长 10 秒。",
     inputSchema: {
       properties: {
         milliseconds: { maximum: 10_000, minimum: minimumWaitMilliseconds, type: "number" },

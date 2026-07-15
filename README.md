@@ -1,8 +1,8 @@
 # Job Boardwalk
 
-Job Boardwalk is a local AI job-search secretary for delegated research. It helps an agent search
-recruiting platforms, preserve findings, revisit sources, and compare opportunities with the
-user's confirmed goals.
+Job Boardwalk is a local AI job-search secretary for delegated research. It gives an agent a
+visible browser for recruiting-platform research and a durable workspace for preserving findings,
+revisiting sources, and comparing opportunities with the user's confirmed goals.
 
 Read-only research may continue unattended within the scope set by the user. Login, verification,
 account changes, applications, and communication always remain under user control.
@@ -28,15 +28,20 @@ boundaries.
 
 ## Current scope
 
-Browser Session currently supports both BOSS直聘 and 鱼泡直聘 through one shared
-recruiting-platform adapter workflow. Workspace Service stores platform-access observations,
-including access interruptions, plus profile facts and target locations. Research runs, run-level
-interruptions, job observations, and analysis remain product direction rather than current
-capabilities.
+Available now:
+
+- Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow.
+- Workspace Service stores platform-access observations and interruptions, profile facts, and
+  target locations.
+- Dashboard displays that durable workspace data alongside leased Browser Session presence.
+
+Research runs, run-level interruptions, job observations, and analysis remain product direction;
+they are not yet exposed by the applications.
 
 ## Run locally
 
-Requirements are Node.js 26.5 or later and pnpm 11.11 or later.
+Requirements are Node.js 26.5 or later and pnpm 11.13 or later. pnpm automatically downloads the
+project's pinned Node.js runtime for workspace scripts when the host runtime does not match.
 
 Install dependencies and validate the workspace:
 
@@ -85,7 +90,8 @@ Each application's README documents its own configuration and operation.
 
 ## Repository map
 
-- [`apps/`](apps/) contains the product applications.
-- [`docs/`](docs/) owns cross-application product design.
-- [`packages/`](packages/) contains shared product contracts and the recruiting-platform catalog.
-- [`internal/`](internal/) contains private monorepo tooling.
+- [`apps/`](apps/README.md) contains the product applications.
+- [`docs/`](docs/product-design.md) owns cross-application product design.
+- [`packages/`](packages/README.md) contains shared product contracts and the recruiting-platform
+  catalog.
+- [`internal/`](internal/README.md) contains private monorepo tooling.

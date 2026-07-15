@@ -19,7 +19,7 @@ function AvailableBrowserView(props: { status: AvailableBrowserStatus }) {
   return (
     <>
       <span class="status status-positive">浏览器可用</span>
-      <p>Browser Session 在线，当前有 {String(props.status.tabCount)} 个浏览器标签页。</p>
+      <p>Browser Session 在线；当前有 {String(props.status.tabCount)} 个浏览器标签页。</p>
       <Show when={props.status.browserVersion}>
         {(version) => <strong>Chromium {version()}</strong>}
       </Show>
@@ -31,7 +31,7 @@ function UnavailableBrowserView(props: { status: UnavailableBrowserStatus }) {
   return (
     <>
       <span class="status status-attention">浏览器不可用</span>
-      <p>Browser Session 在线，但浏览器暂时无法执行工具。</p>
+      <p>Browser Session 在线，但浏览器暂时无法响应操作。</p>
       <Show when={props.status.lastError}>{(lastError) => <strong>{lastError()}</strong>}</Show>
     </>
   );
@@ -71,7 +71,7 @@ function OfflinePresenceView(props: {
   return (
     <div class="browser-session-presence">
       <span class="status status-warning">Browser Session 离线</span>
-      <p>已超过状态更新时限，浏览器当前状态未知。</p>
+      <p>状态报告已经超时，浏览器当前状态未知。</p>
       <time datetime={props.presence.lastReceivedAt}>
         最后更新：{formatReceivedAt(props.presence.lastReceivedAt)}
       </time>

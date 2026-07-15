@@ -8,7 +8,7 @@ engineStrict: true
 
 strictPeerDependencies: true
 
-# Temporary: dependency-cruiser 18 cannot analyze the workspace's TypeScript version.
+# Temporary: dependency-cruiser 18.1 cannot analyze the workspace's TypeScript version.
 # Remove this extension once the installed dependency-cruiser supports the catalog's
 # TypeScript version, then verify `pnpm depcruise` cruises TypeScript modules rather than 0.
 packageExtensions:
@@ -17,13 +17,13 @@ packageExtensions:
       typescript: 6.0.3
 
 catalog:
-  "@hono/node-server": 2.0.8
+  "@hono/node-server": 2.0.9
   "@modelcontextprotocol/sdk": ^1.29.0
   "@shajara/host": ^0.11.0
   "@types/node": ^26.1.1
-  hono: 4.12.29
-  oxlint: ^1.73.0
-  tsx: ^4.20.3
+  hono: 4.12.30
+  oxlint: ^1.74.0
+  tsx: ^4.23.1
   typescript: ^7.0.2
   vite: ^8.1.4
   vitest: ^4.1.10
@@ -32,6 +32,7 @@ catalogMode: prefer
 cleanupUnusedCatalogs: true
 
 allowBuilds:
+  "@pnpm/exe": true
   esbuild: true
   oxfmt: true
   oxlint: true
@@ -39,3 +40,57 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - "@shajara/host@0.11.0"
   - "@shajara/kernel@0.11.0"
+  - "@dom-expressions/babel-plugin-jsx@0.50.0-next.21"
+  - "@dom-expressions/jsx-compiler-darwin-arm64@0.50.0-next.21"
+  - "@dom-expressions/jsx-compiler-darwin-x64@0.50.0-next.21"
+  - "@dom-expressions/jsx-compiler-linux-arm64-gnu@0.50.0-next.21"
+  - "@dom-expressions/jsx-compiler-linux-x64-gnu@0.50.0-next.21"
+  - "@dom-expressions/jsx-compiler-wasm32-wasi@0.50.0-next.21"
+  - "@dom-expressions/jsx-compiler-win32-x64-msvc@0.50.0-next.21"
+  - "@dom-expressions/jsx-compiler@0.50.0-next.21"
+  - "@hono/node-server@2.0.9"
+  - "@oxfmt/binding-android-arm-eabi@0.59.0"
+  - "@oxfmt/binding-android-arm64@0.59.0"
+  - "@oxfmt/binding-darwin-arm64@0.59.0"
+  - "@oxfmt/binding-darwin-x64@0.59.0"
+  - "@oxfmt/binding-freebsd-x64@0.59.0"
+  - "@oxfmt/binding-linux-arm-gnueabihf@0.59.0"
+  - "@oxfmt/binding-linux-arm-musleabihf@0.59.0"
+  - "@oxfmt/binding-linux-arm64-gnu@0.59.0"
+  - "@oxfmt/binding-linux-arm64-musl@0.59.0"
+  - "@oxfmt/binding-linux-ppc64-gnu@0.59.0"
+  - "@oxfmt/binding-linux-riscv64-gnu@0.59.0"
+  - "@oxfmt/binding-linux-riscv64-musl@0.59.0"
+  - "@oxfmt/binding-linux-s390x-gnu@0.59.0"
+  - "@oxfmt/binding-linux-x64-gnu@0.59.0"
+  - "@oxfmt/binding-linux-x64-musl@0.59.0"
+  - "@oxfmt/binding-openharmony-arm64@0.59.0"
+  - "@oxfmt/binding-win32-arm64-msvc@0.59.0"
+  - "@oxfmt/binding-win32-ia32-msvc@0.59.0"
+  - "@oxfmt/binding-win32-x64-msvc@0.59.0"
+  - "@oxlint/binding-android-arm-eabi@1.74.0"
+  - "@oxlint/binding-android-arm64@1.74.0"
+  - "@oxlint/binding-darwin-arm64@1.74.0"
+  - "@oxlint/binding-darwin-x64@1.74.0"
+  - "@oxlint/binding-freebsd-x64@1.74.0"
+  - "@oxlint/binding-linux-arm-gnueabihf@1.74.0"
+  - "@oxlint/binding-linux-arm-musleabihf@1.74.0"
+  - "@oxlint/binding-linux-arm64-gnu@1.74.0"
+  - "@oxlint/binding-linux-arm64-musl@1.74.0"
+  - "@oxlint/binding-linux-ppc64-gnu@1.74.0"
+  - "@oxlint/binding-linux-riscv64-gnu@1.74.0"
+  - "@oxlint/binding-linux-riscv64-musl@1.74.0"
+  - "@oxlint/binding-linux-s390x-gnu@1.74.0"
+  - "@oxlint/binding-linux-x64-gnu@1.74.0"
+  - "@oxlint/binding-linux-x64-musl@1.74.0"
+  - "@oxlint/binding-openharmony-arm64@1.74.0"
+  - "@oxlint/binding-win32-arm64-msvc@1.74.0"
+  - "@oxlint/binding-win32-ia32-msvc@1.74.0"
+  - "@oxlint/binding-win32-x64-msvc@1.74.0"
+  - "@solidjs/signals@2.0.0-beta.18"
+  - "@solidjs/web@2.0.0-beta.18"
+  - "babel-preset-solid@2.0.0-beta.18"
+  - "oxfmt@0.59.0"
+  - "oxlint@1.74.0"
+  - "solid-js@2.0.0-beta.18"
+  - "vite-plugin-solid@3.0.0-next.8"

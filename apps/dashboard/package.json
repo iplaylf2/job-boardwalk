@@ -1,7 +1,7 @@
 {
   "name": "@job-boardwalk/dashboard",
   "private": true,
-  "description": "Read-only SolidJS dashboard for the local Job Boardwalk workspace.",
+  "description": "Read-only local view of Job Boardwalk workspace data and Browser Session presence.",
   "type": "module",
   "scripts": {
     "build": "vite build",
@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@job-boardwalk/contracts": "workspace:*",
-    "@solidjs/web": "2.0.0-beta.17",
-    "solid-js": "2.0.0-beta.17"
+    "@solidjs/web": "2.0.0-beta.18",
+    "solid-js": "2.0.0-beta.18"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
@@ -21,6 +21,6 @@
     "oxlint": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "3.0.0-next.7"
+    "vite-plugin-solid": "3.0.0-next.8"
   }
 }

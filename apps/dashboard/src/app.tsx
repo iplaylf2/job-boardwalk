@@ -22,12 +22,12 @@ const emptyCollectionLength = 0;
 
 const platformAuthenticationCopy = {
   authenticated: {
-    detail: "页面观察中识别到账号身份信息。",
+    detail: "该次观察在页面中识别到账号身份信息。",
     label: "观察时已登录",
     tone: "positive",
   },
   unauthenticated: {
-    detail: "观察记录显示当时为平台登录页面。",
+    detail: "该次观察显示的是平台登录页面。",
     label: "观察时未登录",
     tone: "attention",
   },
@@ -35,12 +35,12 @@ const platformAuthenticationCopy = {
 
 const platformAccessInterruptionCopy = {
   "access-denied": {
-    detail: "观察时平台页面拒绝访问；请以平台窗口当前显示的内容为准。",
+    detail: "该次观察显示平台拒绝访问；请以平台窗口当前显示的内容为准。",
     label: "访问受阻",
     tone: "warning",
   },
   "verification-required": {
-    detail: "观察时平台页面要求人工验证；若当前仍有提示，请先在平台窗口中完成验证。",
+    detail: "该次观察显示平台要求人工验证；若当前仍有提示，请在平台窗口中完成验证。",
     label: "需要人工验证",
     tone: "attention",
   },
@@ -72,7 +72,7 @@ function PlatformAuthenticationView(props: { observation: PlatformAuthentication
       <p>{authenticationCopy().detail}</p>
       <Show when={props.observation.accountDisplayName}>
         {(accountDisplayName) => (
-          <strong class="account">观察到的页面账号：{accountDisplayName()}</strong>
+          <strong class="account">页面显示的账号：{accountDisplayName()}</strong>
         )}
       </Show>
       <time datetime={props.observation.observedAt}>
@@ -102,7 +102,7 @@ function PlatformAccessInterruptionView(props: {
 function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
   return (
     <section class="panel platform-access">
-      <SectionHeading number="02" title="平台访问观察" />
+      <SectionHeading number="02" title="平台访问记录" />
       <div class="platform-list">
         <For each={props.summaries}>
           {(platform) => (
@@ -115,8 +115,8 @@ function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
                 when={platform.latestAuthentication}
                 fallback={
                   <div class="platform-observation empty-observation">
-                    <span class="status status-unknown">登录状态尚未记录</span>
-                    <p>明确记录一次平台登录状态后，结果会显示在这里。</p>
+                    <span class="status status-unknown">暂无登录观察</span>
+                    <p>记录明确的登录状态后，会显示在这里。</p>
                   </div>
                 }
               >
@@ -139,7 +139,7 @@ function ProfileFactsPanel(props: { facts: ProfileFact[] }) {
       <SectionHeading number="03" title="求职资料" />
       <Show
         when={props.facts.length !== emptyCollectionLength}
-        fallback={<p class="empty">尚未登记求职资料。</p>}
+        fallback={<p class="empty">暂无求职资料。</p>}
       >
         <dl>
           <For each={props.facts}>
@@ -167,7 +167,7 @@ function TargetLocationsPanel(props: { locations: TargetLocation[] }) {
       <SectionHeading number="04" title="目标城市" />
       <Show
         when={props.locations.length !== emptyCollectionLength}
-        fallback={<p class="empty">尚未设置目标城市。</p>}
+        fallback={<p class="empty">暂无目标城市。</p>}
       >
         <div class="locations">
           <For each={props.locations}>
@@ -216,7 +216,7 @@ export function App(): JSX.Element {
           <p class="eyebrow">本地 AI 求职秘书</p>
           <h1>Job Boardwalk</h1>
           <p class="lede">
-            浏览器会话、平台访问观察、求职资料和目标城市集中呈现，无需保持 AI 助手会话。
+            集中查看浏览器状态、平台访问记录、求职资料和目标城市，无需保持 AI 助手会话。
           </p>
         </div>
         <button type="button" onClick={() => setRefreshCount((value) => value + refreshIncrement)}>
