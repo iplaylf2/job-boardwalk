@@ -3,17 +3,17 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { until } from "@shajara/host";
 import type { Scope } from "@shajara/host";
 
-import type { BrowserToolBackend } from "#/browser/tool-backend.js";
+import type { BrowserControl } from "#/browser/browser-control.js";
 import { createBrowserSessionMcpServer } from "#/mcp-server.js";
 
 export function registerMcpEndpoint(
   app: Hono,
-  browserBackend: BrowserToolBackend,
+  browserControl: BrowserControl,
   serviceScope: Scope,
 ): void {
   app.all("/mcp", (requestContext) =>
     serviceScope.run(function* handleMcpRequest() {
-      const mcpServer = createBrowserSessionMcpServer(browserBackend, serviceScope);
+      const mcpServer = createBrowserSessionMcpServer(browserControl, serviceScope);
       const httpTransport = new WebStandardStreamableHTTPServerTransport({
         enableJsonResponse: true,
       });

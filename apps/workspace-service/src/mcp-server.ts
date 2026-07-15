@@ -9,6 +9,7 @@ import {
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
+import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
@@ -19,6 +20,7 @@ const toolNames = {
 function registerResourceHandlers(
   mcpServer: McpServer,
   repository: WorkspaceRepository,
+  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): void {
   mcpServer.server.setRequestHandler(ListResourcesRequestSchema, () =>
@@ -26,7 +28,7 @@ function registerResourceHandlers(
       resources: [
         {
           description:
-            "本机工作区概览，包含各平台最近一次明确的登录状态、其后尚未解除的访问中断、求职资料和目标城市。",
+            "本机工作区概览，包含由租约判定的 Browser Session 在线状态、各平台最近一次明确的登录状态、尚无后续观察解除的访问中断、求职资料和目标城市。",
           mimeType: "application/json",
           name: "workspace-overview",
           title: "Job Boardwalk 工作区概览",
@@ -41,7 +43,7 @@ function registerResourceHandlers(
     }
     return serviceScope.run(function* readWorkspaceResource() {
       yield* [];
-      const overview = readWorkspaceOverview(repository);
+      const overview = readWorkspaceOverview(repository, presenceTracker);
       return {
         contents: [
           {
@@ -61,7 +63,7 @@ function createToolListResult() {
       {
         annotations: { readOnlyHint: true },
         description:
-          "读取本机工作区概览，包括各平台最近一次明确的登录状态、其后尚未解除的访问中断、求职资料和目标城市。",
+          "读取本机工作区概览，包括由租约判定的 Browser Session 在线状态、各平台最近一次明确的登录状态、尚无后续观察解除的访问中断、求职资料和目标城市。",
         inputSchema: { additionalProperties: false, properties: {}, type: "object" as const },
         name: toolNames.readWorkspaceOverview,
         title: "读取 Job Boardwalk 工作区概览",
@@ -73,6 +75,7 @@ function createToolListResult() {
 function registerToolHandlers(
   mcpServer: McpServer,
   repository: WorkspaceRepository,
+  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): void {
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
@@ -82,7 +85,7 @@ function registerToolHandlers(
     if (request.params.name === toolNames.readWorkspaceOverview) {
       return serviceScope.run(function* readWorkspaceTool() {
         yield* [];
-        const overview = readWorkspaceOverview(repository);
+        const overview = readWorkspaceOverview(repository, presenceTracker);
         return {
           content: [{ text: JSON.stringify(overview), type: "text" as const }],
           structuredContent: { ...overview },
@@ -95,13 +98,14 @@ function registerToolHandlers(
 
 export function createWorkspaceMcpServer(
   repository: WorkspaceRepository,
+  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): McpServer {
   const mcpServer = new McpServer(
     { name: "job-boardwalk", version: "0.1.0" },
     { capabilities: { resources: {}, tools: {} } },
   );
-  registerResourceHandlers(mcpServer, repository, serviceScope);
-  registerToolHandlers(mcpServer, repository, serviceScope);
+  registerResourceHandlers(mcpServer, repository, presenceTracker, serviceScope);
+  registerToolHandlers(mcpServer, repository, presenceTracker, serviceScope);
   return mcpServer;
 }

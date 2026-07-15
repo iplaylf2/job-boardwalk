@@ -4,7 +4,7 @@ import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotoco
 import { CanceledError, ScopeError } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 
-import type { BrowserToolBackend } from "#/browser/tool-backend.js";
+import type { BrowserControl } from "#/browser/browser-control.js";
 
 const minimumWaitMilliseconds = 0;
 const jsonIndentationSpaces = 2;
@@ -12,16 +12,17 @@ const jsonIndentationSpaces = 2;
 const browserTools = [
   {
     annotations: { idempotentHint: true, openWorldHint: false, readOnlyHint: true },
-    description: "查看 Browser Session 与用户浏览器的 Patchright CDP 连接状态。",
+    description: "查看 Browser Session 所管理的可见浏览器状态。",
     inputSchema: { properties: {}, type: "object" },
-    name: "browser_session_status",
+    name: "browser_status",
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "列出、打开或激活当前 BOSS HTTPS 研究范围内的标签页。",
+    description:
+      "列出、准备或激活 BOSS HTTPS 导航范围内的标签页。action=ensure 会优先复用已有的范围内标签页。",
     inputSchema: {
       properties: {
-        action: { enum: ["list", "open", "activate"], type: "string" },
+        action: { enum: ["list", "ensure", "activate"], type: "string" },
         tabId: { type: "number" },
         url: { type: "string" },
       },
@@ -32,7 +33,7 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "将范围内的标签页导航到 BOSS HTTPS URL；这不授权任何账号操作。",
+    description: "把范围内的标签页导航至 BOSS HTTPS URL；导航范围不授权任何账号操作。",
     inputSchema: {
       properties: { tabId: { type: "number" }, url: { type: "string" } },
       required: ["url"],
@@ -119,13 +120,13 @@ function toolErrorResult(error: unknown): CallToolResult {
 
 function* forwardBrowserTool(
   request: CallToolRequest,
-  browserBackend: BrowserToolBackend,
+  browserControl: BrowserControl,
 ): RiteCoroutine<CallToolResult> {
   try {
     const result =
-      request.params.name === "browser_session_status"
-        ? browserBackend.status
-        : yield* browserBackend.execute(request.params.name, request.params.arguments ?? {});
+      request.params.name === "browser_status"
+        ? browserControl.status
+        : yield* browserControl.executeTool(request.params.name, request.params.arguments ?? {});
     return {
       content: [{ text: JSON.stringify(result, null, jsonIndentationSpaces), type: "text" }],
       structuredContent: { result },
@@ -139,7 +140,7 @@ function* forwardBrowserTool(
 }
 
 export function createBrowserSessionMcpServer(
-  browserBackend: BrowserToolBackend,
+  browserControl: BrowserControl,
   serviceScope: Scope,
 ): McpServer {
   const mcpServer = new McpServer(
@@ -147,7 +148,7 @@ export function createBrowserSessionMcpServer(
     {
       capabilities: { tools: { listChanged: true } },
       instructions:
-        "Browser Session 通过 Patchright CDP 控制 BOSS HTTPS 研究范围内的标签页和通用页面动作。agent 必须根据 browser_snapshot 的有界证据解释页面，并与用户实际看到的窗口核对。URL 位于研究范围不代表登录、投递、发送消息或账号变更获得授权。truncated 表示快照正文、元素或链接被裁剪；快照不返回表单当前值或密码框，元素 ref 仅对最近一次快照有效。遇到登录、验证、凭据、投递、消息或账号变更时，立即停止浏览器输入并让用户接管同一标签页。",
+        "Browser Session 管理一个可见的 Patchright 浏览器，并提供 BOSS HTTPS 导航范围内的标签页和页面操作。调用方必须依据 browser_snapshot 的有界证据解释页面，并与用户实际看到的窗口核对。导航范围只允许研究导航，不授权登录、验证、投递、发送消息或账号变更。truncated 表示快照正文、元素或链接已被裁剪；快照不返回表单当前值或密码框，元素 ref 只对最近一次快照有效。遇到用户控制的操作时，立即停止浏览器输入，让用户接管同一标签页；用户明确交回控制权并重新观察页面后才能继续。",
     },
   );
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
@@ -157,7 +158,7 @@ export function createBrowserSessionMcpServer(
     }),
   );
   mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
-    serviceScope.run(() => forwardBrowserTool(request, browserBackend)),
+    serviceScope.run(() => forwardBrowserTool(request, browserControl)),
   );
   return mcpServer;
 }

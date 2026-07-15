@@ -5,34 +5,33 @@ import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
-import type { BrowserToolBackend } from "#/browser/tool-backend.js";
+import type { BrowserControl } from "#/browser/browser-control.js";
 import { createBrowserSessionMcpServer } from "#/mcp-server.js";
 
 const firstContentIndex = 0;
 
-function fakeBackend(): BrowserToolBackend & {
+function fakeBrowserControl(): BrowserControl & {
   executions: { input: Record<string, unknown>; toolName: string }[];
 } {
   const executions: { input: Record<string, unknown>; toolName: string }[] = [];
   return {
-    *execute(toolName, input) {
+    *executeTool(toolName, input) {
       yield* [];
       executions.push({ input, toolName });
       return { title: "BOSS", url: "https://www.zhipin.com/" };
     },
     executions,
     status: {
+      available: true,
       browserVersion: "150.0.0.0",
-      connected: true,
-      origin: "http://localhost",
-      pageCount: 1,
+      tabCount: 1,
     },
   };
 }
 
-function* disconnectedBrowserCall() {
+function* unavailableBrowserCall() {
   yield* [];
-  throw new Error("CDP 浏览器尚未连接。");
+  throw new Error("浏览器尚未就绪。");
 }
 
 async function connectedClient(
@@ -53,14 +52,14 @@ async function connectedClient(
 
 test("always exposes the project-owned Patchright browser tools", async () => {
   await using serviceScope = createScope();
-  const browserBackend = fakeBackend();
-  const mcpServer = createBrowserSessionMcpServer(browserBackend, serviceScope);
+  const browserControl = fakeBrowserControl();
+  const mcpServer = createBrowserSessionMcpServer(browserControl, serviceScope);
   const { client, close } = await connectedClient(mcpServer);
 
   const listedTools = await client.listTools();
   const names = listedTools.tools.map(({ name }) => name);
   expect(names).toEqual([
-    "browser_session_status",
+    "browser_status",
     "browser_tabs",
     "browser_navigate",
     "browser_snapshot",
@@ -72,7 +71,7 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   ]);
   const tabsTool = listedTools.tools.find(({ name }) => name === "browser_tabs");
   expect(tabsTool?.inputSchema.properties?.["action"]).toMatchObject({
-    enum: ["list", "open", "activate"],
+    enum: ["list", "ensure", "activate"],
   });
   const clickTool = listedTools.tools.find(({ name }) => name === "browser_click");
   expect(clickTool?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
@@ -82,7 +81,7 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   const result = CallToolResultSchema.parse(
     await client.callTool({ arguments: { action: "list" }, name: "browser_tabs" }),
   );
-  expect(browserBackend.executions).toEqual([
+  expect(browserControl.executions).toEqual([
     { input: { action: "list" }, toolName: "browser_tabs" },
   ]);
   expect(result.content[firstContentIndex]).toMatchObject({
@@ -91,27 +90,25 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   await close();
 });
 
-test("reports CDP status without sending a browser command", async () => {
+test("reports browser status without sending a browser command", async () => {
   await using serviceScope = createScope();
-  const browserBackend = fakeBackend();
-  const mcpServer = createBrowserSessionMcpServer(browserBackend, serviceScope);
+  const browserControl = fakeBrowserControl();
+  const mcpServer = createBrowserSessionMcpServer(browserControl, serviceScope);
   const { client, close } = await connectedClient(mcpServer);
 
-  const result = CallToolResultSchema.parse(
-    await client.callTool({ name: "browser_session_status" }),
-  );
+  const result = CallToolResultSchema.parse(await client.callTool({ name: "browser_status" }));
   expect(result.content[firstContentIndex]).toMatchObject({
-    text: expect.stringContaining('"connected": true'),
+    text: expect.stringContaining('"available": true'),
   });
-  expect(browserBackend.executions).toEqual([]);
+  expect(browserControl.executions).toEqual([]);
   await close();
 });
 
-test("contains a disconnected CDP browser as a tool error", async () => {
+test("contains an unavailable browser as a tool error", async () => {
   await using serviceScope = createScope();
-  const browserBackend = fakeBackend();
-  browserBackend.execute = () => disconnectedBrowserCall();
-  const mcpServer = createBrowserSessionMcpServer(browserBackend, serviceScope);
+  const browserControl = fakeBrowserControl();
+  browserControl.executeTool = () => unavailableBrowserCall();
+  const mcpServer = createBrowserSessionMcpServer(browserControl, serviceScope);
   const { client, close } = await connectedClient(mcpServer);
 
   const result = CallToolResultSchema.parse(
@@ -119,7 +116,7 @@ test("contains a disconnected CDP browser as a tool error", async () => {
   );
   expect(result.isError).toBe(true);
   expect(result.content[firstContentIndex]).toMatchObject({
-    text: "CDP 浏览器尚未连接。",
+    text: "浏览器尚未就绪。",
   });
   await close();
 });

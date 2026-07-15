@@ -6,10 +6,13 @@ import { completer, createScope, until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
 
-import { CdpBrowserConnection } from "./cdp/browser-connection.js";
-import { resolveCdpConnectionOptions } from "./cdp/connection-options.js";
-import { CdpProxyTunnel, resolveDirectCdpEndpoint } from "./cdp/proxy-tunnel.js";
+import { ManagedBrowser } from "./browser/managed-browser.js";
+import { prepareBrowserProfilePath } from "./browser/profile-path.js";
 import { createBrowserSessionHttpApp } from "./http/app.js";
+import {
+  BrowserSessionStatusReporter,
+  resolveWorkspaceServiceUrl,
+} from "./workspace-service/status-reporter.js";
 
 const browserSessionPort = 54_312;
 
@@ -34,24 +37,23 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
   };
 }
 
-function reportBrowserConnectionError(error: Error): void {
+function reportBrowserError(error: Error): void {
   process.stderr.write(`[Browser Session] ${error.stack ?? error.message}\n`);
 }
 
+function reportWorkspaceStatusError(error: Error): void {
+  process.stderr.write(`[Browser Session → Workspace Service] ${error.stack ?? error.message}\n`);
+}
+
 function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
-  const connectionOptions = resolveCdpConnectionOptions();
-  const tunnel = connectionOptions.proxy
-    ? new CdpProxyTunnel(connectionOptions.endpoint, connectionOptions.proxy)
-    : null;
-  if (tunnel) {
-    yield* until(() => tunnel.start());
-  }
-  const cdpEndpoint = tunnel
-    ? tunnel.endpoint
-    : resolveDirectCdpEndpoint(connectionOptions.endpoint);
-  const browserBackend = new CdpBrowserConnection(cdpEndpoint);
+  const profilePath = yield* prepareBrowserProfilePath();
+  const browserControl = new ManagedBrowser(profilePath);
+  const statusReporter = new BrowserSessionStatusReporter(
+    resolveWorkspaceServiceUrl(),
+    () => browserControl.status,
+  );
   const httpApp = createBrowserSessionHttpApp({
-    browserBackend,
+    browserControl,
     serviceScope,
   });
   const httpServer = serve(
@@ -64,15 +66,13 @@ function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
   const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
   try {
     yield* race([
-      () => browserBackend.supervise(reportBrowserConnectionError),
+      () => browserControl.supervise(reportBrowserError),
+      () => statusReporter.run(reportWorkspaceStatusError),
       () => wait(shutdown.future),
     ]);
   } finally {
     removeShutdownHandlers();
     yield* until(() => closeHttpServer(httpServer));
-    if (tunnel) {
-      yield* until(() => tunnel.close());
-    }
   }
 }
 

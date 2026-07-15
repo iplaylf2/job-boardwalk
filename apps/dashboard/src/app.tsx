@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Loading, Show } from "solid-js";
+import { createMemo, createSignal, For, Loading, onSettled, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type {
   PlatformAccessSummary,
@@ -11,15 +11,18 @@ import type {
 
 // oxlint-disable-next-line import/no-unassigned-import -- Vite owns the CSS side-effect import.
 import "./styles.css";
+import { BrowserSessionPanel } from "./browser-session-panel.js";
+import { SectionHeading } from "./section-heading.js";
 import { readWorkspaceOverview } from "./workspace-service-client.js";
 
 const initialRefreshCount = 0;
 const refreshIncrement = 1;
+const refreshIntervalMilliseconds = 5000;
 const emptyCollectionLength = 0;
 
 const platformAuthenticationCopy = {
   authenticated: {
-    detail: "观察记录显示页面中存在已登录账号。",
+    detail: "页面观察中出现了账号身份信息。",
     label: "观察时已登录",
     tone: "positive",
   },
@@ -32,12 +35,12 @@ const platformAuthenticationCopy = {
 
 const platformAccessInterruptionCopy = {
   "access-denied": {
-    detail: "观察时页面访问被拒绝。请查看平台窗口当前的提示，再与 AI 助手确认下一步。",
+    detail: "观察时页面拒绝了访问；请以平台窗口当前显示的内容为准。",
     label: "访问受阻",
     tone: "warning",
   },
   "verification-required": {
-    detail: "观察时页面要求人工验证。如果平台窗口仍显示验证，请完成后告诉 AI 助手可以继续。",
+    detail: "观察时页面要求人工验证；如果平台窗口仍有提示，请先在窗口中完成验证。",
     label: "需要人工验证",
     tone: "attention",
   },
@@ -57,15 +60,6 @@ function formatProfileFactSource(source: string): string {
     user: "用户",
   };
   return sourceCopy[source] ?? source;
-}
-
-function SectionHeading(props: { number: string; title: string }) {
-  return (
-    <div class="section-heading">
-      <span>{props.number}</span>
-      <h2>{props.title}</h2>
-    </div>
-  );
 }
 
 function PlatformAuthenticationView(props: { observation: PlatformAuthenticationObservation }) {
@@ -108,7 +102,7 @@ function PlatformAccessInterruptionView(props: {
 function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
   return (
     <section class="panel platform-access">
-      <SectionHeading number="01" title="平台访问" />
+      <SectionHeading number="02" title="平台访问观察" />
       <div class="platform-list">
         <For each={props.summaries}>
           {(platform) => (
@@ -121,14 +115,14 @@ function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
                 when={platform.latestAuthentication}
                 fallback={
                   <div class="platform-observation empty-observation">
-                    <span class="status status-unknown">尚无登录状态记录</span>
-                    <p>保存明确的登录状态观察后，结果会显示在这里。</p>
+                    <span class="status status-unknown">登录状态尚未记录</span>
+                    <p>完成一次明确的页面观察后，结果会显示在这里。</p>
                   </div>
                 }
               >
                 {(observation) => <PlatformAuthenticationView observation={observation()} />}
               </Show>
-              <Show when={platform.activeInterruption}>
+              <Show when={platform.unresolvedInterruption}>
                 {(observation) => <PlatformAccessInterruptionView observation={observation()} />}
               </Show>
             </article>
@@ -142,10 +136,10 @@ function PlatformAccessPanel(props: { summaries: PlatformAccessSummary[] }) {
 function ProfileFactsPanel(props: { facts: ProfileFact[] }) {
   return (
     <section class="panel profile">
-      <SectionHeading number="02" title="求职资料" />
+      <SectionHeading number="03" title="求职资料" />
       <Show
         when={props.facts.length !== emptyCollectionLength}
-        fallback={<p class="empty">尚无已登记的求职资料。写入工作区后会显示在这里。</p>}
+        fallback={<p class="empty">尚未登记求职资料。</p>}
       >
         <dl>
           <For each={props.facts}>
@@ -170,7 +164,7 @@ function ProfileFactsPanel(props: { facts: ProfileFact[] }) {
 function TargetLocationsPanel(props: { locations: TargetLocation[] }) {
   return (
     <section class="panel intent">
-      <SectionHeading number="03" title="目标城市" />
+      <SectionHeading number="04" title="目标城市" />
       <Show
         when={props.locations.length !== emptyCollectionLength}
         fallback={<p class="empty">尚未设置目标城市。</p>}
@@ -193,6 +187,7 @@ function TargetLocationsPanel(props: { locations: TargetLocation[] }) {
 function WorkspaceOverviewView(props: { overview: WorkspaceOverview }) {
   return (
     <div class="grid">
+      <BrowserSessionPanel presence={props.overview.browserSessionPresence} />
       <PlatformAccessPanel summaries={props.overview.platformAccessSummaries} />
       <ProfileFactsPanel facts={props.overview.profileFacts} />
       <TargetLocationsPanel locations={props.overview.targetLocations} />
@@ -206,6 +201,13 @@ export function App(): JSX.Element {
     refreshCount();
     return readWorkspaceOverview();
   });
+  onSettled(() => {
+    const interval = setInterval(
+      () => setRefreshCount((value) => value + refreshIncrement),
+      refreshIntervalMilliseconds,
+    );
+    return () => clearInterval(interval);
+  });
 
   return (
     <main>
@@ -213,10 +215,12 @@ export function App(): JSX.Element {
         <div>
           <p class="eyebrow">本地 AI 求职秘书</p>
           <h1>Job Boardwalk</h1>
-          <p class="lede">平台访问观察、求职资料和目标城市保存在本机，供你与 AI 助手持续协作。</p>
+          <p class="lede">
+            浏览器会话、平台访问观察、求职资料和目标城市集中呈现，无需保持 AI 助手会话。
+          </p>
         </div>
         <button type="button" onClick={() => setRefreshCount((value) => value + refreshIncrement)}>
-          重新读取本地记录
+          刷新工作区
         </button>
       </header>
 

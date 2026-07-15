@@ -8,12 +8,17 @@ import type {
 import { platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
+import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 const equalRecency = 0;
 
-export function readWorkspaceOverview(repository: WorkspaceRepository): WorkspaceOverview {
+export function readWorkspaceOverview(
+  repository: WorkspaceRepository,
+  presenceTracker: BrowserSessionPresenceTracker,
+): WorkspaceOverview {
   const observations = repository.listPlatformAccessObservations();
   return {
+    browserSessionPresence: presenceTracker.presence,
     platformAccessSummaries: platformIds.map((platformId) => {
       const platformObservations = observations.filter(
         (observation) => observation.platformId === platformId,
@@ -38,7 +43,7 @@ export function readWorkspaceOverview(repository: WorkspaceRepository): Workspac
         (!latestAuthentication ||
           compareObservationRecency(latestInterruption, latestAuthentication) > equalRecency)
       ) {
-        summary.activeInterruption = latestInterruption;
+        summary.unresolvedInterruption = latestInterruption;
       }
       return summary;
     }),

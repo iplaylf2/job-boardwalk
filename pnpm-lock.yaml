@@ -70,6 +70,9 @@ importers:
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.0.8(hono@4.12.29)
+      '@job-boardwalk/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@job-boardwalk/platform-catalog':
         specifier: workspace:*
         version: link:../../packages/platform-catalog
@@ -85,9 +88,6 @@ importers:
       patchright:
         specifier: 1.61.1
         version: 1.61.1
-      proxy-from-env:
-        specifier: 2.1.0
-        version: 2.1.0
     devDependencies:
       '@job-boardwalk/presets':
         specifier: workspace:*
@@ -95,9 +95,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.1.1
-      '@types/proxy-from-env':
-        specifier: 1.0.4
-        version: 1.0.4
       oxlint:
         specifier: 'catalog:'
         version: 1.73.0
@@ -1366,9 +1363,6 @@ packages:
   '@types/node@26.1.1':
     resolution: {integrity: sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw==}
 
-  '@types/proxy-from-env@1.0.4':
-    resolution: {integrity: sha512-TPR9/bCZAr3V1eHN4G3LD3OLicdJjqX1QRXWuNcCYgE66f/K8jO2ZRtHxI2D9MbnuUP6+qiKSS8eUHp6TFHGCw==}
-
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
     engines: {node: '>=16.20.0'}
@@ -2332,10 +2326,6 @@ packages:
   proxy-addr@2.0.7:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
-
-  proxy-from-env@2.1.0:
-    resolution: {integrity: sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==}
-    engines: {node: '>=10'}
 
   qs@6.15.3:
     resolution: {integrity: sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==}
@@ -3491,10 +3481,6 @@ snapshots:
     dependencies:
       undici-types: 8.3.0
 
-  '@types/proxy-from-env@1.0.4':
-    dependencies:
-      '@types/node': 26.1.1
-
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
 
@@ -4312,8 +4298,6 @@ snapshots:
     dependencies:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
-
-  proxy-from-env@2.1.0: {}
 
   qs@6.15.3:
     dependencies:

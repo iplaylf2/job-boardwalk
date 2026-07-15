@@ -1,7 +1,7 @@
 {
   "name": "@job-boardwalk/browser-session",
   "private": true,
-  "description": "Persistent HTTP MCP gateway to a user-owned browser over Patchright CDP.",
+  "description": "Persistent HTTP MCP service for a project-owned visible Patchright browser.",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
@@ -16,17 +16,16 @@
   },
   "dependencies": {
     "@hono/node-server": "catalog:",
+    "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "@shajara/host": "catalog:",
     "hono": "catalog:",
-    "patchright": "1.61.1",
-    "proxy-from-env": "2.1.0"
+    "patchright": "1.61.1"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",
-    "@types/proxy-from-env": "1.0.4",
     "oxlint": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

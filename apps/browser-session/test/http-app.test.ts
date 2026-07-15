@@ -1,7 +1,7 @@
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
-import type { BrowserToolBackend } from "#/browser/tool-backend.js";
+import type { BrowserControl } from "#/browser/browser-control.js";
 import { createBrowserSessionHttpApp } from "#/http/app.js";
 
 const mcpRequestHeaders = {
@@ -11,12 +11,12 @@ const mcpRequestHeaders = {
 const successfulStatus = 200;
 const forbiddenStatus = 403;
 
-const idleBrowserBackend: BrowserToolBackend = {
-  *execute() {
+const unavailableBrowserControl: BrowserControl = {
+  *executeTool() {
     yield* [];
     throw new Error("browser call was not expected");
   },
-  status: { connected: false, origin: "http://localhost" },
+  status: { available: false },
 };
 
 function listTools(app: ReturnType<typeof createBrowserSessionHttpApp>) {
@@ -27,10 +27,10 @@ function listTools(app: ReturnType<typeof createBrowserSessionHttpApp>) {
   });
 }
 
-test("keeps the browser connection outside downstream HTTP request lifetimes", async () => {
+test("keeps the browser lifecycle outside downstream HTTP request lifetimes", async () => {
   await using serviceScope = createScope();
   const app = createBrowserSessionHttpApp({
-    browserBackend: idleBrowserBackend,
+    browserControl: unavailableBrowserControl,
     serviceScope,
   });
 
@@ -45,17 +45,17 @@ test("keeps the browser connection outside downstream HTTP request lifetimes", a
   expect(secondResponse.status).toBe(successfulStatus);
 });
 
-test("exposes a loopback health endpoint independently of CDP readiness", async () => {
+test("exposes a loopback health endpoint independently of browser readiness", async () => {
   await using serviceScope = createScope();
   const app = createBrowserSessionHttpApp({
-    browserBackend: idleBrowserBackend,
+    browserControl: unavailableBrowserControl,
     serviceScope,
   });
 
   const response = await app.request("/health");
   expect(response.status).toBe(successfulStatus);
   expect(await response.json()).toEqual({
-    browser: { connected: false, origin: "http://localhost" },
+    browser: { available: false },
     status: "ok",
   });
 });
@@ -63,7 +63,7 @@ test("exposes a loopback health endpoint independently of CDP readiness", async 
 test("rejects browser requests from a non-local web origin", async () => {
   await using serviceScope = createScope();
   const app = createBrowserSessionHttpApp({
-    browserBackend: idleBrowserBackend,
+    browserControl: unavailableBrowserControl,
     serviceScope,
   });
 

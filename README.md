@@ -12,17 +12,19 @@ account changes, applications, and communication always remain under user contro
 Job Boardwalk separates the browser that produces live evidence from the workspace that preserves
 durable facts:
 
-- [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that owns the
-  Patchright CDP connection and exposes project-owned browser tools to the agent.
+- [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that owns a
+  visible persistent Patchright browser and exposes project-owned browser tools to the agent.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
-  operations over HTTP and MCP.
-- [Dashboard](apps/dashboard/) reads the durable workspace; it does not control the browser or
-  claim that a previous observation is live state.
+  operations over HTTP and MCP. It also tracks leased Browser Session presence for readers.
+- [Dashboard](apps/dashboard/) reads the workspace overview, including durable observations and
+  leased Browser Session presence. It never controls the browser.
 
 The agent interprets live browser evidence and may submit structured observations to Workspace
-Service. Browser Session never interprets recruiting pages or sends credentials, cookies, or
-browser profile contents. See [Product design](docs/product-design.md) for the authoritative
-collaboration model and ownership boundaries.
+Service. Independently, Browser Session sends bounded runtime status reports to Workspace Service,
+which derives leased presence for Dashboard and MCP readers. Browser Session never sends
+credentials, cookies, browser storage, or profile contents. See
+[Product design](docs/product-design.md) for the authoritative collaboration model and ownership
+boundaries.
 
 ## Current scope
 
@@ -59,23 +61,22 @@ pnpm --filter @job-boardwalk/dashboard dev
 Open <http://127.0.0.1:54311>. The Workspace Service MCP endpoint is
 <http://127.0.0.1:54310/mcp>.
 
-### Browser and Browser Session
+### Browser Session
 
-Start a dedicated-profile Chrome or Edge window on the graphical host with remote debugging enabled
-and the exact Origin allowlist `--remote-allow-origins=http://localhost`. Browser Session attaches
-with Patchright `connectOverCDP`; it never launches or closes the graphical browser. Run Browser
-Session as a separate long-lived service and connect the agent host to
-<http://127.0.0.1:54312/mcp>.
+Install Patchright's Chromium once, then start Browser Session in a graphical desktop session:
 
-Follow the [Browser Session instructions](apps/browser-session/README.md#run-browser-session) for
-the browser flags, proxy configuration, lifecycle, and security boundary.
+```sh
+pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
+pnpm --filter @job-boardwalk/browser-session dev
+```
 
-During research, the agent pauses browser input whenever login, verification, or another
-user-controlled action is required, then resumes only after the user explicitly returns control.
-Browser Session exposes project-owned browser primitives; the agent interprets their bounded page
-evidence and checks it against what the user sees before treating an action as successful. URL scope
-permits research navigation only; it never authorizes login, applications, messages, or account
-changes.
+Browser Session launches a visible browser with a dedicated profile in the operating system's user
+data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
+while the agent host connects to <http://127.0.0.1:54312/mcp>.
+
+During research, the agent pauses browser input for login, verification, applications, messages,
+and account changes, then resumes only after the user explicitly returns control. The BOSS HTTPS
+navigation scope permits research navigation only; it does not authorize those actions.
 
 Each application's README documents its own configuration and operation.
 

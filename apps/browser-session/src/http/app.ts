@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context, Next } from "hono";
 
 import { registerMcpEndpoint } from "./mcp-endpoint.js";
-import type { BrowserToolBackend } from "#/browser/tool-backend.js";
+import type { BrowserControl } from "#/browser/browser-control.js";
 import type { Scope } from "@shajara/host";
 
 const badRequestStatus = 400;
@@ -10,7 +10,7 @@ const forbiddenStatus = 403;
 const internalServerErrorStatus = 500;
 
 export interface BrowserSessionHttpDependencies {
-  browserBackend: BrowserToolBackend;
+  browserControl: BrowserControl;
   serviceScope: Scope;
 }
 
@@ -44,12 +44,12 @@ export function createBrowserSessionHttpApp(dependencies: BrowserSessionHttpDepe
   );
   app.get("/health", (requestContext) =>
     requestContext.json({
-      browser: dependencies.browserBackend.status,
+      browser: dependencies.browserControl.status,
       status: "ok",
     }),
   );
   app.use("/mcp", localOriginGuard);
-  registerMcpEndpoint(app, dependencies.browserBackend, dependencies.serviceScope);
+  registerMcpEndpoint(app, dependencies.browserControl, dependencies.serviceScope);
 
   return app;
 }

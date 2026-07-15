@@ -7,6 +7,7 @@ import { expect, test } from "vitest";
 
 import { createWorkspaceServiceHttpApp } from "#/http/app.js";
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
+import { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
@@ -21,6 +22,18 @@ const defaultPlatformAccessAssessment = {
   authenticationState: "authenticated",
   evidence: "account-identity",
 };
+
+function createTestHttpApp(
+  repository: WorkspaceRepository,
+  serviceScope: ReturnType<typeof createScope>,
+  presenceTracker: BrowserSessionPresenceTracker = new BrowserSessionPresenceTracker(),
+) {
+  return createWorkspaceServiceHttpApp({
+    browserSessionPresenceTracker: presenceTracker,
+    repository,
+    serviceScope,
+  });
+}
 
 function postPlatformAccessObservation(
   httpApp: ReturnType<typeof createWorkspaceServiceHttpApp>,
@@ -41,7 +54,7 @@ test("keeps request errors inside the long-lived service scope", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
   await using serviceScope = createScope();
-  const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
+  const httpApp = createTestHttpApp(repository, serviceScope);
 
   try {
     const invalidResponse = await httpApp.request("/api/search-intent/locations", {
@@ -76,7 +89,7 @@ test("reports an unexpected repository failure as a server error", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
   await using serviceScope = createScope();
-  const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
+  const httpApp = createTestHttpApp(repository, serviceScope);
   repository.close();
 
   try {
@@ -91,7 +104,7 @@ test("rejects writes from a non-local web origin", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
   await using serviceScope = createScope();
-  const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
+  const httpApp = createTestHttpApp(repository, serviceScope);
 
   try {
     const response = await httpApp.request("/api/profile/facts", {
@@ -117,7 +130,7 @@ test("accepts and projects the latest durable platform access observation", asyn
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
   await using serviceScope = createScope();
-  const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
+  const httpApp = createTestHttpApp(repository, serviceScope);
 
   try {
     const observationResponse = await postPlatformAccessObservation(httpApp);
@@ -160,11 +173,55 @@ test("accepts and projects the latest durable platform access observation", asyn
   }
 });
 
+test("accepts leased Browser Session presence for dashboard reads", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
+  await using serviceScope = createScope();
+  const presenceTracker = new BrowserSessionPresenceTracker(() =>
+    Date.parse("2026-07-15T01:00:00.000Z"),
+  );
+  const httpApp = createTestHttpApp(repository, serviceScope, presenceTracker);
+
+  try {
+    const reportResponse = await httpApp.request("/api/browser-session/status", {
+      body: JSON.stringify({
+        browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(reportResponse.status).toBe(successfulStatus);
+    expect(await reportResponse.json()).toMatchObject({
+      browserStatus: { available: true, tabCount: 1 },
+      state: "online",
+    });
+
+    const overviewResponse = await httpApp.request("/api/workspace/overview");
+    expect(await overviewResponse.json()).toMatchObject({
+      browserSessionPresence: {
+        browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
+        receivedAt: "2026-07-15T01:00:00.000Z",
+        state: "online",
+      },
+    });
+
+    const invalidResponse = await httpApp.request("/api/browser-session/status", {
+      body: JSON.stringify({ browserStatus: { available: true } }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(invalidResponse.status).toBe(badRequestStatus);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
 test("serves MCP from the same workspace state", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = new WorkspaceRepository(path.join(directory, "workspace.sqlite"));
   await using serviceScope = createScope();
-  const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
+  const httpApp = createTestHttpApp(repository, serviceScope);
   repository.setProfileFact({
     confirmed: true,
     key: "target-role",

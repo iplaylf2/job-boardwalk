@@ -1,19 +1,26 @@
 # Dashboard
 
-Dashboard is Job Boardwalk's read-only local dashboard. It presents durable workspace information
-stored by Workspace Service. For each platform, it shows the latest definite authentication
-observation and any later unresolved access interruption, together with observation times. These
-records do not guarantee the current authentication state. Dashboard does not own SQLite, browser
-sessions, Patchright, or the Workspace Service lifecycle.
+Dashboard is Job Boardwalk's read-only local view of the Workspace Service. It remains useful
+without an active agent conversation.
+
+The page shows:
+
+- leased Browser Session presence and browser availability;
+- each platform's latest definite authentication observation and any later unresolved interruption;
+- profile facts and target locations.
+
+Observation times remain visible because saved platform evidence is historical, not a guarantee of
+current authentication state. Dashboard does not own SQLite, Browser Session, Patchright, or the
+Workspace Service lifecycle.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. Dashboard
 does not open or control that window.
 
-The **重新读取本地记录** button fetches the workspace overview from Workspace Service again. It
-does not open, navigate, or refresh a browser page.
+Dashboard refreshes the workspace overview every five seconds. **刷新工作区** requests an immediate
+refresh. Neither action opens, navigates, or refreshes a browser page.
 
-## Development
+## Run Dashboard
 
 Start the Workspace Service first, then run:
 
@@ -34,3 +41,13 @@ pnpm --filter @job-boardwalk/dashboard start
 ```
 
 The preview still requires a separately running Workspace Service.
+
+## Development
+
+Run the Dashboard checks with:
+
+```sh
+pnpm --filter @job-boardwalk/dashboard lint
+pnpm --filter @job-boardwalk/dashboard typecheck
+pnpm --filter @job-boardwalk/dashboard build
+```

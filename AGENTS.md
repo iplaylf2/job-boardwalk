@@ -32,12 +32,12 @@
 ## Browser control and handoff
 
 - Use the Browser Session MCP tools configured by the current agent host for recruiting-platform
-  navigation and research. They are backed by Patchright attached to the user-owned graphical
-  browser through CDP. Do not launch another browser profile or create an ad hoc automation script
-  when these tools are available.
+  navigation and research. They are backed by the visible persistent Patchright browser owned by
+  Browser Session. Do not launch another browser profile or create an ad hoc automation script when
+  these tools are available.
 - Login, verification, credentials, applications, messages, and account changes remain under user
-  control. When one appears, stop browser input, state exactly what is visible, and ask the user to
-  take over the project browser window.
+  control. When research reaches one of these actions, stop browser input, state exactly what is
+  visible, and ask the user to take over the project browser window.
 - Treat the BOSS HTTPS allowlist only as a navigation scope. It does not authorize login,
   verification, applications, messages, or account changes.
 - Treat a browser action as visibly successful only after the controlled page evidence and the
@@ -49,9 +49,9 @@
   browser for login or verification, do not open extra pages, refresh, or send browser input until
   the user explicitly returns control. This pause does not restrict ordinary navigation, paging,
   retries, or necessary refreshes during agent-controlled research.
-- Keep Browser Session and the CDP-controlled tab open while handing control between user and
-  agent. Browser profile persistence belongs to the graphical host; the project never copies or
-  stores its cookies.
+- Keep Browser Session and its controlled tab open while handing control between user and agent.
+  Its dedicated profile persists at the configured Browser Session profile path; tools never read
+  or return its cookies or storage contents.
 
 ## Browser action pacing
 
@@ -78,9 +78,10 @@
   never print or commit its contents.
 - Workspace Service runs at `http://127.0.0.1:54310` and owns durable observations submitted after
   agent interpretation; Browser Session does not write them automatically.
-- Dashboard is the read-only durable view at `http://127.0.0.1:54311`; it does not establish or
-  verify a live browser session.
-- Browser Session requires `JOB_BOARDWALK_CDP_URL` to point at a graphical Edge or Chrome instance
-  launched with a dedicated profile and `--remote-allow-origins=http://localhost`. It follows
-  standard HTTP proxy resolution unless `JOB_BOARDWALK_CDP_PROXY_URL` overrides it. Do not expose
-  the CDP port beyond the WSL/VM boundary or bypass Browser Session with a second CDP client.
+- Dashboard is the read-only view at `http://127.0.0.1:54311`; it shows durable workspace data and
+  leased Browser Session presence, but does not establish or control the browser session.
+- Browser Session launches a visible persistent Patchright Chromium process and owns its dedicated
+  profile path. Workspace Service independently owns its database path; the services do not share a
+  filesystem state root. Browser Session reports runtime status to Workspace Service, which derives
+  short-lived presence without becoming a prerequisite for browser control. Run Browser Session in
+  a graphical desktop session and do not bypass it with a second browser controller.

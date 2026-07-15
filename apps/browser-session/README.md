@@ -1,64 +1,32 @@
 # Browser Session
 
-Browser Session is Job Boardwalk's long-lived loopback HTTP MCP gateway to a user-owned graphical
-Edge or Chrome session. It attaches through Patchright `chromium.connectOverCDP`, coordinates tabs
-and page actions, and leaves recruiting-page meaning to the agent.
+Browser Session is Job Boardwalk's long-lived loopback HTTP MCP service for a visible persistent
+browser. It launches Patchright Chromium, owns the dedicated profile and browser process, coordinates
+tabs and page actions, and leaves recruiting-page meaning to the agent.
 
-The graphical host owns the browser process, dedicated profile, cookies, and visible windows.
-Browser Session never launches that process, copies its profile, reads cookies, or calls
-`browser.close()`. Patchright attaches with `noDefaults: true` so connection setup does not replace
-the default context's download, focus, or emulation settings.
+The dedicated profile survives service restarts and is never shared with another application.
+Browser Session tools never read or return cookies, browser storage, or profile contents. Their
+bounded page evidence lets the agent reconcile automation results with the window the user can see.
 
-Browser Session returns bounded page evidence. The agent interprets that evidence, reconciles it
-with what the user sees, and decides whether a durable Workspace Service observation is justified.
-
-The current tool surface is limited to BOSS HTTPS pages. Membership in that URL scope permits only
-research navigation; it does not authorize an account action.
-
-## Driver compatibility
-
-Patchright replaces Playwright at the driver boundary because enabling `Runtime` made BOSS navigate
-itself to `about:blank` during live testing. Patchright keeps the familiar page API without enabling
-that CDP domain. Browser Session also leaves console event collection disabled; do not add
-Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
-
-## Start the graphical browser
-
-Completely exit any existing process that would reuse the same Edge instance, then start a dedicated
-profile on the graphical host. A Windows Edge example is:
-
-```powershell
-msedge.exe `
-  --remote-debugging-port=9222 `
-  --remote-debugging-address=0.0.0.0 `
-  --remote-allow-origins=http://localhost `
-  --user-data-dir=C:\edge-job-boardwalk
-```
-
-`http://localhost` is the fixed Origin sent by Browser Session and is therefore the only required
-`remote-allow-origins` value. Do not use `*`. Origin filtering is not authentication because a
-non-browser client can forge the header; restrict the debugging port with the host firewall to the
-WSL/VM boundary and never expose it to a LAN or the internet.
+The current tool surface is limited to the BOSS HTTPS navigation scope. Membership in that scope
+permits only research navigation; it does not authorize an account action.
 
 ## Run Browser Session
 
-Provide the CDP URL in the process environment. Project entrypoints do not load `.env` themselves.
+Browser Session requires a graphical desktop session and Patchright's Chromium binary. It does not
+require a particular operating system, shell, VM, container, or editor.
+
+Install the browser once:
 
 ```sh
-export JOB_BOARDWALK_CDP_URL=http://172.19.0.1:9222
+pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
+```
+
+Then run the service:
+
+```sh
 pnpm --filter @job-boardwalk/browser-session dev
 ```
-
-When standard `HTTP_PROXY`/`NO_PROXY` resolution selects a proxy, Browser Session creates a
-loopback-only TCP CONNECT tunnel so both CDP discovery and the subsequent WebSocket use the same
-route. Override this choice explicitly when necessary:
-
-```sh
-export JOB_BOARDWALK_CDP_PROXY_URL=http://172.19.0.1:7897
-```
-
-Set `JOB_BOARDWALK_CDP_PROXY_URL` to an empty value to require a direct connection. The selected
-proxy must support HTTP CONNECT to the CDP port.
 
 For a built run:
 
@@ -67,32 +35,45 @@ pnpm --filter @job-boardwalk/browser-session build
 node apps/browser-session/dist/browser-session.js
 ```
 
-The Streamable HTTP MCP endpoint is <http://127.0.0.1:54312/mcp>; connection health is available at
-<http://127.0.0.1:54312/health>. The service binds to loopback and rejects non-local browser
-origins, but this is not authentication: local processes are inside the service trust boundary.
+By default, the dedicated browser profile is stored under the operating system's user data
+directory. Set `JOB_BOARDWALK_BROWSER_PROFILE_PATH` to choose an exact path. Browser Session does
+not share this path or profile with another service. Project entrypoints do not load `.env`
+themselves.
+
+Every five seconds, Browser Session sends Workspace Service a bounded status report containing
+browser availability, version, tab count, and the latest browser error when unavailable. Set
+`JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is not available at
+<http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
+control.
+
+The Streamable HTTP MCP endpoint is <http://127.0.0.1:54312/mcp>; health is available at
+<http://127.0.0.1:54312/health>. The service binds to loopback and rejects non-local browser origins,
+but this is not authentication: local processes are inside the service trust boundary.
 
 ## Runtime behavior
 
-### Connection lifecycle
+### Browser lifecycle
 
-One top-level shajara scope owns the HTTP server, optional CONNECT tunnel, Patchright connection,
-reconnection loop, and shutdown. Browser Session reconnects with bounded exponential backoff when
-the CDP browser disappears. It never replays a failed page action because the visible outcome may
-already have occurred.
+One top-level shajara scope owns the HTTP server, visible browser process, persistent context,
+Workspace Service status reporter, recovery loops, and shutdown. If the browser window is closed
+unexpectedly, Browser Session reports the interruption and launches it again with bounded
+exponential backoff. It never replays a failed page action because the visible outcome may already
+have occurred.
 
-MCP actions, tab coordination, and snapshots remain `RiteCoroutine` routines. Patchright and Node
+MCP actions, tab coordination, and snapshots run as `RiteCoroutine` routines. Patchright and Node
 Promises are adapted with `until(...)` at the leaf SDK call; application-owned waits use shajara
 primitives. Promise-returning adapters remain only at the HTTP, process-entry, and external-resource
 boundaries.
 
-Service shutdown detaches only the local Patchright transport. It never sends `Browser.close`, so
-restarting Browser Session or the agent host does not close the graphical browser or its tabs.
+Stopping Browser Session closes the browser it owns. The persistent profile retains ordinary client
+state for the next service run.
 
 ### Tabs and page evidence
 
-Only BOSS HTTPS tabs are exposed through the current MCP contract. This URL scope authorizes
-research navigation, not account actions. The service can list, open, and activate in-scope tabs;
-it does not expose a tab-close action.
+Only BOSS HTTPS tabs can be listed or controlled through the current page tools. This navigation
+scope authorizes research navigation, not account actions. The service can list and activate
+in-scope tabs, or ensure that a suitable tab exists by reusing one before creating another. It does
+not expose unconditional tab creation or a tab-close action.
 
 Snapshots bound rendered text, element count, element names, and link lengths, and report any
 clipping through `truncated`. They omit all form-control values and do not expose password controls.
@@ -104,14 +85,21 @@ Patchright page APIs.
 ## Agent responsibility and handoff
 
 The agent paces actions and interprets snapshots. Login, verification, credentials, applications,
-messages, and account changes remain under user control. When one appears, the agent stops browser
-input and asks the user to take over the same visible tab. It resumes only after the user explicitly
-returns control and the live page is observed again.
+messages, and account changes remain under user control. When research reaches one of these actions,
+the agent stops browser input and asks the user to take over the same visible tab. It resumes only
+after the user explicitly returns control and the live page is observed again.
+
+## Maintenance constraints
+
+Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
+made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page
+API without enabling that domain. Browser Session also leaves console event collection disabled; do
+not add Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
 
 ## Development
 
-Tests cover the public tool contract, URL and Origin boundaries, bounded inputs, reconnect behavior,
-and the optional proxy tunnel. Driver internals and reader-facing prose are not test contracts.
+Tests cover the public tool contract, URL and Origin boundaries, bounded inputs, browser-context
+behavior, and lifecycle ownership. Driver internals and reader-facing prose are not test contracts.
 
 ```sh
 pnpm --filter @job-boardwalk/browser-session lint

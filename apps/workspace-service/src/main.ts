@@ -9,6 +9,7 @@ import { wait } from "@shajara/host/primitives";
 import { createWorkspaceServiceHttpApp } from "./http/app.js";
 import { prepareWorkspaceDatabasePath } from "./persistence/database-path.js";
 import { WorkspaceRepository } from "./persistence/workspace-repository.js";
+import { BrowserSessionPresenceTracker } from "./runtime/browser-session-presence.js";
 
 const privateFileCreationMask = 0o077;
 process.umask(privateFileCreationMask);
@@ -37,7 +38,12 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
 function* runWorkspaceService(serviceScope: Scope): RiteCoroutine<void> {
   const databasePath = yield* prepareWorkspaceDatabasePath();
   const repository = new WorkspaceRepository(databasePath);
-  const httpApp = createWorkspaceServiceHttpApp(repository, serviceScope);
+  const browserSessionPresenceTracker = new BrowserSessionPresenceTracker();
+  const httpApp = createWorkspaceServiceHttpApp({
+    browserSessionPresenceTracker,
+    repository,
+    serviceScope,
+  });
   const httpServer = serve(
     { fetch: httpApp.fetch, hostname: "127.0.0.1", port: 54_310 },
     (info) => {

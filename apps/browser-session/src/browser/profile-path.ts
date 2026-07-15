@@ -25,26 +25,25 @@ function defaultUserDataRoot(
     : path.join(homeDirectory, ".local", "share");
 }
 
-export function resolveWorkspaceDatabasePath(
+export function resolveBrowserProfilePath(
   environment: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
   homeDirectory: string = homedir(),
 ): string {
-  const configuredPath = environment["JOB_BOARDWALK_WORKSPACE_DATABASE_PATH"]?.trim();
+  const configuredPath = environment["JOB_BOARDWALK_BROWSER_PROFILE_PATH"]?.trim();
   return configuredPath
     ? path.resolve(configuredPath)
     : path.join(
         defaultUserDataRoot(environment, platform, homeDirectory),
         "job-boardwalk",
-        "workspace-service",
-        "workspace.sqlite",
+        "browser-session",
+        "profile",
       );
 }
 
-export function* prepareWorkspaceDatabasePath(): RiteCoroutine<string> {
-  const databasePath = resolveWorkspaceDatabasePath();
-  const databaseDirectory = path.dirname(databasePath);
-  yield* until(() => mkdir(databaseDirectory, { mode: privateDirectoryMode, recursive: true }));
-  yield* until(() => chmod(databaseDirectory, privateDirectoryMode));
-  return databasePath;
+export function* prepareBrowserProfilePath(): RiteCoroutine<string> {
+  const profilePath = resolveBrowserProfilePath();
+  yield* until(() => mkdir(profilePath, { mode: privateDirectoryMode, recursive: true }));
+  yield* until(() => chmod(profilePath, privateDirectoryMode));
+  return profilePath;
 }

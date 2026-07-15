@@ -1,9 +1,9 @@
-import type { Browser, Locator } from "patchright";
+import type { BrowserContext, Locator } from "patchright";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
-import { ResearchTabs, readOptionalTabId, readPageIdentity } from "./research-tabs.js";
-import { assertResearchLink, assertResearchUrl } from "./research-scope.js";
+import { BrowserTabs, parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
+import { assertBossNavigationLink, assertBossNavigationUrl } from "./boss-navigation-scope.js";
 import {
   capturePageSnapshot,
   maximumElementHrefCharacters,
@@ -51,16 +51,16 @@ function* waitForRequestedInterval(params: Record<string, unknown>): RiteCorouti
   return { waitedMilliseconds: milliseconds };
 }
 
-export class BrowserToolRuntime {
+export class BrowserToolExecutor {
   readonly #elementReferences = new Map<string, ElementReference>();
-  readonly #tabs: ResearchTabs;
+  readonly #tabs: BrowserTabs;
 
-  public constructor(browser: Browser) {
-    this.#tabs = new ResearchTabs(browser);
+  public constructor(context: BrowserContext) {
+    this.#tabs = new BrowserTabs(context);
   }
 
-  public get pageCount(): number {
-    return this.#tabs.pageCount;
+  public get tabCount(): number {
+    return this.#tabs.tabCount;
   }
 
   public *execute(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
@@ -69,7 +69,7 @@ export class BrowserToolRuntime {
         return yield* waitForRequestedInterval(input);
       }
       case "browser_tabs": {
-        return yield* this.#tabs.execute(input);
+        return yield* this.#tabs.executeAction(input);
       }
       case "browser_navigate": {
         return yield* this.#navigate(input);
@@ -99,11 +99,11 @@ export class BrowserToolRuntime {
     const reference = yield* this.#verifiedReference(params);
     try {
       if (reference.href) {
-        assertResearchLink(reference.href);
+        assertBossNavigationLink(reference.href);
       }
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
       yield* until(() => reference.locator.click());
-      return yield* readPageIdentity(this.#tabs.require(reference.tabId));
+      return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
       this.#clearElementReferences();
     }
@@ -113,7 +113,7 @@ export class BrowserToolRuntime {
     const reference = yield* this.#verifiedReference(params);
     try {
       yield* until(() => reference.locator.fill(requiredString(params, "value")));
-      return yield* readPageIdentity(this.#tabs.require(reference.tabId));
+      return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
       this.#clearElementReferences();
     }
@@ -121,13 +121,13 @@ export class BrowserToolRuntime {
 
   *#navigate(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const url = requiredString(params, "url");
-    assertResearchUrl(url);
-    const [tabId, page] = this.#tabs.resolve(readOptionalTabId(params));
-    this.#tabs.select(tabId);
+    assertBossNavigationUrl(url);
+    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
+    this.#tabs.markSelected(tabId);
     yield* until(() => page.bringToFront());
     yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
     this.#clearElementReferences();
-    return yield* readPageIdentity(page);
+    return yield* readNavigationPageSummary(page);
   }
 
   #reference(params: Record<string, unknown>): ElementReference {
@@ -141,7 +141,7 @@ export class BrowserToolRuntime {
 
   *#verifiedReference(params: Record<string, unknown>): RiteCoroutine<ElementReference> {
     const reference = this.#reference(params);
-    this.#tabs.require(reference.tabId);
+    this.#tabs.requireNavigationPage(reference.tabId);
     const signature = yield* until(() =>
       reference.locator.evaluate(
         (element, limits) => {
@@ -181,25 +181,25 @@ export class BrowserToolRuntime {
     if (typeof params["ref"] === "string") {
       return yield* this.#scrollToReference(params);
     }
-    const [tabId, page] = this.#tabs.resolve(readOptionalTabId(params));
+    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     const hasRequestedDelta = "deltaY" in params;
     const requestedDelta = params["deltaY"];
     const deltaY = hasRequestedDelta
       ? boundedNumber(requestedDelta, "deltaY", minimumScrollDelta, maximumScrollDelta)
       : defaultScrollDelta;
-    this.#tabs.select(tabId);
+    this.#tabs.markSelected(tabId);
     yield* until(() => page.mouse.wheel(zero, deltaY));
     this.#clearElementReferences();
-    const identity = yield* readPageIdentity(page);
+    const summary = yield* readNavigationPageSummary(page);
     const scrollY = yield* until(() => page.evaluate(() => globalThis.scrollY));
-    return { ...identity, scrollY };
+    return { ...summary, scrollY };
   }
 
   *#scrollToReference(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     try {
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
-      return yield* readPageIdentity(this.#tabs.require(reference.tabId));
+      return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
       this.#clearElementReferences();
     }
@@ -209,15 +209,15 @@ export class BrowserToolRuntime {
     const reference = yield* this.#verifiedReference(params);
     try {
       yield* until(() => reference.locator.selectOption(requiredString(params, "value")));
-      return yield* readPageIdentity(this.#tabs.require(reference.tabId));
+      return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
       this.#clearElementReferences();
     }
   }
 
   *#snapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    const [tabId, page] = this.#tabs.resolve(readOptionalTabId(params));
-    this.#tabs.select(tabId);
+    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
+    this.#tabs.markSelected(tabId);
     const hasRequestedLimit = "maxTextCharacters" in params;
     const requestedLimit = params["maxTextCharacters"];
     const textLimit = hasRequestedLimit

@@ -94,6 +94,23 @@ button:active {
 .platform-access {
   grid-row: span 2;
 }
+.browser-session {
+  grid-column: 1 / -1;
+}
+.browser-session-presence p {
+  margin: 10px 0;
+  color: #666d63;
+}
+.browser-session-presence strong,
+.browser-session-presence time {
+  display: block;
+  color: #7c8278;
+  font-size: 12px;
+}
+.browser-session-presence strong {
+  margin-bottom: 5px;
+  color: #596057;
+}
 .section-heading {
   display: flex;
   align-items: baseline;
