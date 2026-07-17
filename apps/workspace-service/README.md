@@ -85,8 +85,8 @@ latest state for that platform changes.
 ### Platform-access observations
 
 After interpreting current browser evidence, an agent may submit a structured platform-access
-conclusion. Browser Session uses the same contract for authentication observations derived from
-qualifying top-level navigation responses:
+conclusion. Browser Session uses the same contract when an adapter derives an authentication
+observation from a qualifying top-level navigation response:
 
 ```json
 {
@@ -97,10 +97,17 @@ qualifying top-level navigation responses:
 }
 ```
 
-Observations are append-only. Authentication is recorded as `authenticated` or `unauthenticated`;
-verification and access denial use the separate `interruption` field. The workspace overview
+Observations are append-only. `platformId` accepts the catalog identifiers `boss` and `yupao`.
+Authentication evidence distinguishes how the conclusion was established:
+
+- `protected-resource` records `authenticated` from a successful navigation known to require
+  authentication;
+- `authenticated-page` records `authenticated` after bounded, account-specific page content
+  establishes an active session;
+- `login-redirect` records `unauthenticated` when a protected navigation redirects to login.
+
+Verification and access denial use the separate `interruption` field. The workspace overview
 projects the latest definite authentication result and only an interruption newer than that result.
-`platformId` accepts the catalog identifiers `boss` and `yupao`.
 
 ### Profile and search intent
 

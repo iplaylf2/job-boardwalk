@@ -38,7 +38,7 @@ function readPlatformAccessAssessment(
   if (
     authenticationState === "authenticated" &&
     interruption === null &&
-    evidence === "protected-resource"
+    (evidence === "protected-resource" || evidence === "authenticated-page")
   ) {
     return { authenticationState, evidence };
   }

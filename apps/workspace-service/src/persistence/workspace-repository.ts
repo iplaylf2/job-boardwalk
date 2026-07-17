@@ -54,7 +54,7 @@ function toRecordedPlatformAccessObservation(
   if (
     row.authenticationState === "authenticated" &&
     row.interruption === null &&
-    row.evidence === "protected-resource"
+    (row.evidence === "protected-resource" || row.evidence === "authenticated-page")
   ) {
     return {
       ...observationMetadata,

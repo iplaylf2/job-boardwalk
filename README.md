@@ -20,16 +20,18 @@ durable facts:
   leased Browser Session presence. It never controls the browser.
 
 The agent interprets live browser evidence and may submit structured observations to Workspace
-Service. Browser Session separately derives authentication observations from qualifying top-level
-platform navigation responses and reports them to Workspace Service. Workspace Service derives
-leased presence and deduplicates durable observations for Dashboard and MCP readers. See [Product
-design](docs/product-design.md) for the authoritative collaboration model and ownership boundaries.
+Service. When a platform adapter has a conclusive response rule, Browser Session can separately
+derive an authentication observation from a qualifying top-level navigation and report it to
+Workspace Service. Workspace Service derives leased presence and deduplicates durable observations
+for Dashboard and MCP readers. See [Product design](docs/product-design.md) for the authoritative
+collaboration model and ownership boundaries.
 
 ## Current scope
 
 Available now:
 
-- Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow.
+- Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
+  with platform-specific navigation and access-assessment rules behind adapters.
 - Workspace Service stores platform-access observations and interruptions, profile facts, and
   target locations.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence.

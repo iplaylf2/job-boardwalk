@@ -12,9 +12,11 @@ The page shows:
 - profile facts and target locations.
 
 Observation times remain visible because saved platform observations are historical; they do not
-guarantee the platform's current authentication state. Browser Session presence is separate,
-short-lived runtime state. Dashboard owns neither state source: it does not own SQLite, Browser
-Session, Patchright, or the Workspace Service lifecycle.
+guarantee the platform's current authentication state. The explanatory copy distinguishes a
+successful protected navigation from an authenticated session established through visible,
+account-specific page content. Browser Session presence is separate, short-lived runtime state.
+Dashboard owns neither state source: it does not own SQLite, Browser Session, Patchright, or the
+Workspace Service lifecycle.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. Dashboard

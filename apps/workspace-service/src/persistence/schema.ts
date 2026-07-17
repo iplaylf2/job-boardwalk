@@ -8,7 +8,13 @@ export const platformAccessObservations = sqliteTable(
       enum: ["authenticated", "unauthenticated"],
     }),
     evidence: text({
-      enum: ["protected-resource", "login-redirect", "verification-page", "access-denied-page"],
+      enum: [
+        "protected-resource",
+        "authenticated-page",
+        "login-redirect",
+        "verification-page",
+        "access-denied-page",
+      ],
     }).notNull(),
     id: integer().primaryKey({ autoIncrement: true }),
     interruption: text({ enum: ["verification-required", "access-denied"] }),
@@ -26,11 +32,11 @@ export const platformAccessObservations = sqliteTable(
     ),
     check(
       "platform_access_observations_evidence",
-      sql`${table.evidence} in ('protected-resource', 'login-redirect', 'verification-page', 'access-denied-page')`,
+      sql`${table.evidence} in ('protected-resource', 'authenticated-page', 'login-redirect', 'verification-page', 'access-denied-page')`,
     ),
     check(
       "platform_access_observations_assessment",
-      sql`(${table.authenticationState} = 'authenticated' and ${table.interruption} is null and ${table.evidence} = 'protected-resource') or (${table.authenticationState} = 'unauthenticated' and ${table.interruption} is null and ${table.evidence} = 'login-redirect') or (${table.authenticationState} is null and ${table.interruption} = 'verification-required' and ${table.evidence} = 'verification-page') or (${table.authenticationState} is null and ${table.interruption} = 'access-denied' and ${table.evidence} = 'access-denied-page')`,
+      sql`(${table.authenticationState} = 'authenticated' and ${table.interruption} is null and ${table.evidence} in ('protected-resource', 'authenticated-page')) or (${table.authenticationState} = 'unauthenticated' and ${table.interruption} is null and ${table.evidence} = 'login-redirect') or (${table.authenticationState} is null and ${table.interruption} = 'verification-required' and ${table.evidence} = 'verification-page') or (${table.authenticationState} is null and ${table.interruption} = 'access-denied' and ${table.evidence} = 'access-denied-page')`,
     ),
   ],
 );

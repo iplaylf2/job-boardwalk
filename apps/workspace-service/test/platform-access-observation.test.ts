@@ -88,6 +88,44 @@ test("validates and projects durable platform access observations", async () => 
       evidence: "login-redirect",
     });
     expect(mismatchedEvidenceResponse.status).toBe(badRequestStatus);
+    const unauthenticatedPageResponse = await postObservation(httpApp, {
+      authenticationState: "unauthenticated",
+      evidence: "authenticated-page",
+    });
+    expect(unauthenticatedPageResponse.status).toBe(badRequestStatus);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("accepts an authenticated session established from visible page evidence", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const observationResponse = await postObservation(httpApp, {
+      authenticationState: "authenticated",
+      evidence: "authenticated-page",
+      platformId: "yupao",
+    });
+    expect(observationResponse.status).toBe(createdStatus);
+
+    const response = await httpApp.request("/api/workspace/overview");
+    const overview = await response.json();
+    expect(
+      overview.platformAccessSummaries.find(
+        (summary: { platformId: string }) => summary.platformId === "yupao",
+      ),
+    ).toMatchObject({
+      latestAuthentication: {
+        authenticationState: "authenticated",
+        evidence: "authenticated-page",
+      },
+      platformId: "yupao",
+    });
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

@@ -10,6 +10,7 @@ export type PlatformAccessInterruption = (typeof platformAccessInterruptions)[nu
 
 export const platformAccessEvidenceKinds = [
   "protected-resource",
+  "authenticated-page",
   "login-redirect",
   "verification-page",
   "access-denied-page",
@@ -20,7 +21,7 @@ export type PlatformAccessEvidenceKind = (typeof platformAccessEvidenceKinds)[nu
 export type PlatformAccessAssessment =
   | {
       authenticationState: "authenticated";
-      evidence: "protected-resource";
+      evidence: "protected-resource" | "authenticated-page";
     }
   | { authenticationState: "unauthenticated"; evidence: "login-redirect" }
   | { evidence: "verification-page"; interruption: "verification-required" }

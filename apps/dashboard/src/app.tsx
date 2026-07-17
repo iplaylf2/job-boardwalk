@@ -20,16 +20,21 @@ const refreshIncrement = 1;
 const refreshIntervalMilliseconds = 5000;
 const emptyCollectionLength = 0;
 
-const platformAuthenticationCopy = {
-  authenticated: {
-    detail: "浏览器当时成功打开了需要登录的页面。",
+const platformAuthenticationEvidenceCopy = {
+  "authenticated-page": {
+    detail: "页面当时显示了账户专属内容，表明会话已登录。",
     label: "当时已登录",
     tone: "positive",
   },
-  unauthenticated: {
+  "login-redirect": {
     detail: "浏览器当时访问需要登录的页面，但平台将其转到了登录页。",
     label: "当时未登录",
     tone: "attention",
+  },
+  "protected-resource": {
+    detail: "浏览器当时成功打开了需要登录的页面。",
+    label: "当时已登录",
+    tone: "positive",
   },
 } as const;
 
@@ -66,7 +71,7 @@ function PlatformAuthenticationView(props: {
   observation: RecordedPlatformAuthenticationObservation;
 }) {
   function authenticationCopy() {
-    return platformAuthenticationCopy[props.observation.authenticationState];
+    return platformAuthenticationEvidenceCopy[props.observation.evidence];
   }
   return (
     <div class="platform-observation">

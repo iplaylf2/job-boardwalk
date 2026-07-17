@@ -305,13 +305,13 @@
       "table": "platform_access_observations"
     },
     {
-      "value": "\"evidence\" in ('protected-resource', 'login-redirect', 'verification-page', 'access-denied-page')",
+      "value": "\"evidence\" in ('protected-resource', 'authenticated-page', 'login-redirect', 'verification-page', 'access-denied-page')",
       "name": "platform_access_observations_evidence",
       "entityType": "checks",
       "table": "platform_access_observations"
     },
     {
-      "value": "(\"authentication_state\" = 'authenticated' and \"interruption\" is null and \"evidence\" = 'protected-resource') or (\"authentication_state\" = 'unauthenticated' and \"interruption\" is null and \"evidence\" = 'login-redirect') or (\"authentication_state\" is null and \"interruption\" = 'verification-required' and \"evidence\" = 'verification-page') or (\"authentication_state\" is null and \"interruption\" = 'access-denied' and \"evidence\" = 'access-denied-page')",
+      "value": "(\"authentication_state\" = 'authenticated' and \"interruption\" is null and \"evidence\" in ('protected-resource', 'authenticated-page')) or (\"authentication_state\" = 'unauthenticated' and \"interruption\" is null and \"evidence\" = 'login-redirect') or (\"authentication_state\" is null and \"interruption\" = 'verification-required' and \"evidence\" = 'verification-page') or (\"authentication_state\" is null and \"interruption\" = 'access-denied' and \"evidence\" = 'access-denied-page')",
       "name": "platform_access_observations_assessment",
       "entityType": "checks",
       "table": "platform_access_observations"

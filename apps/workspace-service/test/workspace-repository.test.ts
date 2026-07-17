@@ -34,7 +34,6 @@ test("keeps authentication and interruption observations as separate history", a
       observedAt: "2026-07-13T01:03:00.000Z",
       platformId: "yupao",
     });
-
     expect(repository.listPlatformAccessObservations()).toEqual([
       expect.objectContaining({
         authenticationState: "authenticated",

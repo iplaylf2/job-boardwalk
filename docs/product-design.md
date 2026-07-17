@@ -52,9 +52,9 @@ presence. It neither controls the browser nor requires an active agent conversat
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
-durable facts and conclusions derived from that evidence. Browser Session adapters may derive an
-authentication assessment from a real top-level navigation response for a protected page, while page
-interpretation remains agent-owned.
+durable facts and conclusions derived from that evidence. A Browser Session adapter may derive an
+authentication assessment from a real top-level navigation response when it has a conclusive
+platform-specific rule. Page interpretation remains agent-owned.
 
 Browser Session sends bounded status directly to Workspace Service. A report includes browser
 availability, version, and tab count, plus the latest browser error when unavailable and any
@@ -93,21 +93,24 @@ and HTTP and MCP responses do not expose authentication cookies or browser profi
 
 ## Access observations
 
-Platform access is an append-only observation stream. An adapter may treat a successful top-level
-response for a page known to require authentication as conclusive evidence that the session was
-authenticated at that moment. Browser Session observes only navigation responses the visible
-browser already receives; it does not issue a detection request, refresh a page, or open a tab. It
-uses only response success, the final URL, and the server redirect chain for this assessment. It
-does not inspect DOM controls, cookie values, browser storage, or response bodies. The agent derives
-assessments that require page interpretation from bounded snapshots.
+Platform access is an append-only observation stream. Browser Session passively observes navigation
+responses the visible browser already receives; it does not issue a detection request, refresh a
+page, or open a tab to check authentication. An adapter with a conclusive rule may use only response
+success, the final URL, and the server redirect chain to produce one of two authentication results:
 
-An authentication observation records `authenticated` when a protected-page navigation succeeds,
-or `unauthenticated` when that navigation redirects to the platform login destination. Opening a
-login page directly and cookie presence alone do not produce an observation. Verification requests
-and access denial are separate interruptions rather than additional authentication states. An
-observation never includes credentials, cookie values, browser storage, or protected response
-content. Route names alone do not establish an interruption; visible verification controls or
-semantic page content must support that conclusion.
+- `protected-resource` records `authenticated` when a known protected navigation succeeds;
+- `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
+  destination.
+
+Some authentication results require page interpretation instead of a response rule. After reading
+a bounded snapshot, the agent may submit `authenticated-page` when account-specific interface
+elements visible on the active page establish an authenticated session. Opening a login page
+directly, route names alone, and cookie presence do not establish authentication.
+
+Verification requests and access denial are separate interruptions rather than additional
+authentication states. The agent derives those conclusions from visible controls or semantic page
+content. No observation includes credentials, cookie values, browser storage, protected response
+content, or unrestricted page text.
 
 The Dashboard displays the latest definite authentication observation and any later unresolved
 interruption. It includes the observation time rather than presenting historical evidence as a
