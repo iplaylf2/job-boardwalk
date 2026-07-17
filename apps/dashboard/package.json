@@ -1,8 +1,11 @@
 {
   "name": "@job-boardwalk/dashboard",
   "private": true,
-  "description": "Read-only local view of Job Boardwalk workspace data and Browser Session presence.",
+  "description": "Local view and user editor for Job Boardwalk workspace data and Browser Session presence.",
   "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
   "scripts": {
     "build": "vite build",
     "dev": "vite",

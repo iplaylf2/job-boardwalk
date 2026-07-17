@@ -6,6 +6,8 @@ import type { WorkspaceRepository } from "#/persistence/workspace-repository.js"
 import {
   InvalidRequestError,
   readJsonObject,
+  readInitiator,
+  readPositiveInteger,
   readRequiredString,
   requestErrorResponse,
 } from "./request.js";
@@ -32,11 +34,27 @@ export function registerTargetLocationRoute(
         }
         repository.setTargetLocation({
           city: readRequiredString(input, "city"),
+          initiatedBy: readInitiator(input),
           priority: priority as number,
           reason: readRequiredString(input, "reason"),
           requirement,
         });
         return context.json({ ok: true }, createdStatus);
+      } catch (error) {
+        return requestErrorResponse(error, context);
+      }
+    }),
+  );
+  app.delete("/api/search-intent/locations/:id", (context) =>
+    serviceScope.run(function* deleteTargetLocation() {
+      try {
+        const input = yield* readJsonObject(context);
+        repository.deleteTargetLocation({
+          id: readPositiveInteger(context.req.param("id"), "id"),
+          initiatedBy: readInitiator(input),
+          reason: readRequiredString(input, "reason"),
+        });
+        return context.json({ ok: true });
       } catch (error) {
         return requestErrorResponse(error, context);
       }

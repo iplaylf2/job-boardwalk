@@ -43,12 +43,13 @@ owning browser lifecycle.
 
 The **Workspace Service** owns recruiting context, research progress, normalized observations, and
 analysis. It also owns the in-memory presence tracker that applies short leases to Browser Session
-runtime reports. It exposes domain resources and tools to the agent and a read API to the Dashboard.
-It is headless and does not own browser automation, browser profiles, authentication cookies, or
-desktop windows.
+runtime reports. It exposes domain resources and tools to the agent and a local API to the
+Dashboard. It is headless and does not own browser automation, browser profiles, authentication
+cookies, or desktop windows.
 
 The **Dashboard** is an independent view of durable workspace data and leased Browser Session
-presence. It neither controls the browser nor requires an active agent conversation.
+presence. It also lets the user maintain the personal context that guides the agent, including
+target locations. It neither controls the browser nor requires an active agent conversation.
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
@@ -134,17 +135,20 @@ A browser action whose response is lost has an unknown outcome. Browser Session 
 failure to the request and does not automatically replay the action; after the browser is
 restored, the agent re-observes the visible page before deciding whether another action is safe.
 
-## Target Dashboard surface
+## Dashboard surface
 
-As the product grows, the Dashboard should include:
+The Dashboard currently includes:
 
-- leased presence for local services;
+- leased Browser Session presence;
 - platform-access observations and unresolved interruptions;
-- confirmed and unconfirmed job-search facts;
-- target locations and other research intent;
+- user-editable personal details and target locations.
+
+As the product grows, it should also include:
+
+- other research intent;
 - research runs, partial progress, and interruptions;
 - normalized job observations with sources and freshness;
 - agent-produced comparisons and explanations.
 
-These additions do not change the control boundary: browser interaction and user handoff happen
+Future additions do not change the control boundary: browser interaction and user handoff happen
 through the agent conversation and the visible platform window, not through Dashboard controls.

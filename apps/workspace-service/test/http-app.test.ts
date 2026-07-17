@@ -14,6 +14,7 @@ const createdStatus = 201;
 const successfulStatus = 200;
 const forbiddenStatus = 403;
 const internalServerErrorStatus = 500;
+const firstCollectionIndex = 0;
 const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 const mcpRequestHeaders = {
   accept: "application/json, text/event-stream",
@@ -42,6 +43,7 @@ function postProfileFact(httpApp: ReturnType<typeof createWorkspaceServiceHttpAp
   return httpApp.request("/api/profile/facts", {
     body: JSON.stringify({
       confirmed: true,
+      initiatedBy: "agent",
       key: "target-role",
       reason: "test",
       source: "conversation",
@@ -69,6 +71,7 @@ test("keeps request errors inside the long-lived service scope", async () => {
     const invalidBooleanResponse = await httpApp.request("/api/profile/facts", {
       body: JSON.stringify({
         confirmed: "yes",
+        initiatedBy: "agent",
         key: "target-role",
         reason: "test",
         source: "test",
@@ -120,6 +123,7 @@ test.each([
     const response = await httpApp.request("/api/profile/facts", {
       body: JSON.stringify({
         confirmed: true,
+        initiatedBy: "agent",
         key: "target-role",
         reason: "test",
         source: "test",
@@ -135,6 +139,7 @@ test.each([
   }
 });
 
+// oxlint-disable-next-line max-lines-per-function, max-statements -- One flow verifies the complete CRUD boundary.
 test("updates profile and target intent through the public HTTP boundary", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
@@ -149,6 +154,7 @@ test("updates profile and target intent through the public HTTP boundary", async
     const locationResponse = await httpApp.request("/api/search-intent/locations", {
       body: JSON.stringify({
         city: "上海",
+        initiatedBy: "user",
         priority: 1,
         reason: "test",
         requirement: "preferred",
@@ -159,7 +165,11 @@ test("updates profile and target intent through the public HTTP boundary", async
     expect(locationResponse.status).toBe(createdStatus);
 
     const overviewResponse = await httpApp.request("/api/workspace/overview");
-    expect(await overviewResponse.json()).toMatchObject({
+    const overview = (await overviewResponse.json()) as {
+      profileFacts: { id: number }[];
+      targetLocations: { id: number }[];
+    };
+    expect(overview).toMatchObject({
       profileFacts: [
         {
           confirmed: true,
@@ -169,6 +179,36 @@ test("updates profile and target intent through the public HTTP boundary", async
         },
       ],
       targetLocations: [{ city: "上海", priority: 1, requirement: "preferred" }],
+    });
+
+    const deleteProfileResponse = await httpApp.request(
+      `/api/profile/facts/${overview.profileFacts[firstCollectionIndex]?.id}`,
+      {
+        body: JSON.stringify({
+          initiatedBy: "user",
+          reason: "test",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "DELETE",
+      },
+    );
+    expect(deleteProfileResponse.status).toBe(successfulStatus);
+    const deleteLocationResponse = await httpApp.request(
+      `/api/search-intent/locations/${overview.targetLocations[firstCollectionIndex]?.id}`,
+      {
+        body: JSON.stringify({
+          initiatedBy: "user",
+          reason: "test",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "DELETE",
+      },
+    );
+    expect(deleteLocationResponse.status).toBe(successfulStatus);
+    const emptyOverviewResponse = await httpApp.request("/api/workspace/overview");
+    expect(await emptyOverviewResponse.json()).toMatchObject({
+      profileFacts: [],
+      targetLocations: [],
     });
   } finally {
     repository.close();
@@ -231,6 +271,7 @@ test("serves MCP from the same workspace state", async () => {
   const httpApp = createTestHttpApp(repository, serviceScope);
   repository.setProfileFact({
     confirmed: true,
+    initiatedBy: "agent",
     key: "target-role",
     reason: "test",
     source: "test",

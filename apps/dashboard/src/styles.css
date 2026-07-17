@@ -72,9 +72,6 @@ h1 {
   box-shadow: 5px 5px 0 rgba(49, 54, 47, 0.16);
   backdrop-filter: blur(10px);
 }
-.platform-access {
-  grid-row: span 2;
-}
 .browser-session {
   grid-column: 1 / -1;
 }
@@ -114,11 +111,6 @@ h1 {
   margin: 0;
   font-family: "Noto Serif SC", serif;
   font-size: 22px;
-}
-.empty {
-  margin: 0;
-  color: #747970;
-  line-height: 1.7;
 }
 .platform-list {
   display: grid;
@@ -188,49 +180,6 @@ h1 {
   background: #ebe9df;
   color: #747970;
 }
-dl {
-  margin: 0;
-}
-dl div {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 8px;
-  padding: 9px 0;
-}
-dt {
-  color: #6b7267;
-  font-size: 13px;
-}
-dd {
-  margin: 0;
-  font-weight: 600;
-}
-dl span {
-  grid-column: 2;
-  color: #7c8278;
-  font-size: 11px;
-}
-.locations {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.location-card {
-  min-width: 110px;
-  border: 1px solid #b8bcaf;
-  border-radius: 12px;
-  padding: 12px;
-  background: #f7f5ec;
-}
-.location-card strong,
-.location-card span {
-  display: block;
-}
-.location-card span {
-  margin-top: 5px;
-  color: #747a70;
-  font-size: 12px;
-}
 .loading {
   color: #687266;
 }
@@ -242,9 +191,6 @@ dl span {
   }
   .grid {
     grid-template-columns: 1fr;
-  }
-  .platform-access {
-    grid-row: auto;
   }
   .platform-row {
     grid-template-columns: 1fr;

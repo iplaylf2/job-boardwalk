@@ -16,8 +16,8 @@ durable facts:
   visible persistent Patchright browser and exposes project-owned browser tools to the agent.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP. It also tracks leased Browser Session presence for readers.
-- [Dashboard](apps/dashboard/) reads the workspace overview, including durable observations and
-  leased Browser Session presence. It never controls the browser.
+- [Dashboard](apps/dashboard/) reads the workspace overview and lets the user maintain the personal
+  context that guides the agent, including target locations. It never controls the browser.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -32,9 +32,10 @@ Available now:
 
 - Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
   with platform-specific navigation and access-assessment rules behind adapters.
-- Workspace Service stores platform-access observations and interruptions, profile facts, and
-  target locations.
-- Dashboard displays that durable workspace data alongside leased Browser Session presence.
+- Workspace Service stores platform-access observations and interruptions, along with the personal
+  context that guides the agent, including target locations.
+- Dashboard displays that durable workspace data alongside leased Browser Session presence and
+  provides the user's editing surface for personal context.
 
 Research runs, run-level interruptions, job observations, and analysis remain product direction;
 they are not yet exposed by the applications.

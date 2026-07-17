@@ -14,7 +14,7 @@ import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
 const workspaceOverviewDescription =
-  "本机工作区概览，包含由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、求职资料和目标城市。";
+  "本机工作区概览，包含由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人情况和目标城市。";
 const toolNames = {
   readWorkspaceOverview: "read_workspace_overview",
 } as const;

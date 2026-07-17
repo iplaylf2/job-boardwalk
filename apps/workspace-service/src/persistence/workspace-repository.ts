@@ -1,7 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 import { existsSync } from "node:fs";
 
-import { asc, desc } from "drizzle-orm";
+// oxlint-disable max-lines -- This class is the cohesive persistence boundary for workspace state.
+import { asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-sqlite";
 import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
@@ -169,6 +170,7 @@ export class WorkspaceRepository {
 
   public setProfileFact(input: {
     confirmed: boolean;
+    initiatedBy: "agent" | "system" | "user";
     key: string;
     reason: string;
     source: string;
@@ -198,7 +200,7 @@ export class WorkspaceRepository {
       transaction
         .insert(workspaceChanges)
         .values({
-          initiatedBy: "agent",
+          initiatedBy: input.initiatedBy,
           occurredAt: now,
           operation: "set-profile-fact",
           reason: input.reason,
@@ -210,6 +212,7 @@ export class WorkspaceRepository {
 
   public setTargetLocation(input: {
     city: string;
+    initiatedBy: "agent" | "system" | "user";
     priority: number;
     reason: string;
     requirement: "preferred" | "required";
@@ -236,13 +239,67 @@ export class WorkspaceRepository {
       transaction
         .insert(workspaceChanges)
         .values({
-          initiatedBy: "agent",
+          initiatedBy: input.initiatedBy,
           occurredAt: now,
           operation: "set-target-location",
           reason: input.reason,
           subject: input.city,
         })
         .run();
+    });
+  }
+
+  public deleteProfileFact(input: {
+    id: number;
+    initiatedBy: "agent" | "system" | "user";
+    reason: string;
+  }): void {
+    const now = new Date().toISOString();
+    this.#database.transaction((transaction) => {
+      const deleted = transaction
+        .delete(profileFacts)
+        .where(eq(profileFacts.id, input.id))
+        .returning({ key: profileFacts.key })
+        .get();
+      if (deleted) {
+        transaction
+          .insert(workspaceChanges)
+          .values({
+            initiatedBy: input.initiatedBy,
+            occurredAt: now,
+            operation: "delete-profile-fact",
+            reason: input.reason,
+            subject: deleted.key,
+          })
+          .run();
+      }
+    });
+  }
+
+  public deleteTargetLocation(input: {
+    id: number;
+    initiatedBy: "agent" | "system" | "user";
+    reason: string;
+  }): void {
+    const now = new Date().toISOString();
+    this.#database.transaction((transaction) => {
+      const deleted = transaction
+        .delete(targetLocations)
+        .where(eq(targetLocations.id, input.id))
+        .returning({ city: targetLocations.city })
+        .get();
+      if (deleted) {
+        transaction
+          .insert(workspaceChanges)
+          .values({
+            initiatedBy: input.initiatedBy,
+            occurredAt: now,
+            operation: "delete-target-location",
+            reason: input.reason,
+            subject: deleted.city,
+          })
+          .run();
+      }
     });
   }
 }

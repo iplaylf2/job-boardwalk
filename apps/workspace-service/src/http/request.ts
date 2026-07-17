@@ -4,6 +4,7 @@ import type { RiteCoroutine } from "@shajara/host";
 
 const badRequestStatus = 400;
 const internalServerErrorStatus = 500;
+const minimumPositiveInteger = 1;
 
 export class InvalidRequestError extends Error {
   public constructor(message: string) {
@@ -30,6 +31,22 @@ export function readRequiredBoolean(input: Record<string, unknown>, key: string)
     throw new InvalidRequestError(`${key} 必须是布尔值`);
   }
   return value;
+}
+
+export function readInitiator(input: Record<string, unknown>): "agent" | "system" | "user" {
+  const value = input["initiatedBy"];
+  if (value !== "agent" && value !== "system" && value !== "user") {
+    throw new InvalidRequestError("initiatedBy 必须是 agent、system 或 user");
+  }
+  return value;
+}
+
+export function readPositiveInteger(value: string, name: string): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < minimumPositiveInteger) {
+    throw new InvalidRequestError(`${name} 必须是正整数`);
+  }
+  return parsed;
 }
 
 export function readRequiredArray(input: Record<string, unknown>, key: string): unknown[] {

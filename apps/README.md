@@ -2,8 +2,7 @@
 
 - [`browser-session`](browser-session/) owns the visible persistent browser and MCP browser contract.
 - [`workspace-service`](workspace-service/) owns durable local state and recruiting-domain APIs.
-- [`dashboard`](dashboard/) presents a read-only view of durable workspace data and leased Browser
-  Session presence.
+- [`dashboard`](dashboard/) presents workspace state and lets the user maintain personal context.
 
 Browser Session launches Patchright Chromium with a dedicated local profile and owns that process
 for its service lifetime. The agent host connects directly to Browser Session. Workspace Service

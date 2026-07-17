@@ -1,29 +1,33 @@
 # Dashboard
 
-Dashboard is Job Boardwalk's read-only local view of Workspace Service data. It remains useful
-without an active agent conversation and never controls the browser.
+Dashboard is Job Boardwalk's local interface. It shows durable Workspace Service data and lets the
+user maintain the personal context that guides the agent, including target locations. It remains
+useful without an active agent conversation and never controls the browser.
 
-## What Dashboard shows
+## What Dashboard does
 
-The page shows:
+The page:
 
-- leased Browser Session presence and browser availability;
-- each platform's latest definite authentication observation and any later unresolved interruption;
-- profile facts and target locations.
+- shows leased Browser Session presence and browser availability;
+- shows each platform's latest definite authentication observation and any later unresolved
+  interruption;
+- lets the user add, update, and remove personal details and target locations.
 
 Observation times remain visible because saved platform observations are historical; they do not
 guarantee the platform's current authentication state. The explanatory copy distinguishes a
 successful protected navigation from an authenticated session confirmed through visible,
 account-specific page content. Browser Session presence is separate, short-lived runtime state.
-Dashboard owns neither state source: it does not own SQLite, Browser Session, Patchright, or the
-Workspace Service lifecycle.
+Workspace Service owns the durable data and Browser Session owns the runtime status. Dashboard owns
+neither source: it does not access SQLite, Patchright, the browser profile, or either service's
+lifecycle.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. Dashboard
 does not open or control that window.
 
-Dashboard rereads the workspace overview every five seconds. This affects only the local Workspace
-Service API; it never opens, navigates, or refreshes a browser page.
+Dashboard rereads the workspace overview every five seconds and refreshes it after a user edit.
+This affects only the local Workspace Service API; it never opens, navigates, or refreshes a
+browser page.
 
 ## Run Dashboard
 

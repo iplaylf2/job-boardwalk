@@ -5,9 +5,9 @@ sole owner of SQLite persistence. Its loopback HTTP server exposes `/api` to Das
 to MCP clients; it does not serve Dashboard assets or own a browser process.
 
 The repository's [product design](../../docs/product-design.md) defines the intended delegation and
-browser-collaboration model. The current service preserves platform-access observations and reads
-or updates profile facts and target locations. It does not yet expose research runs, run-level
-interruptions, job observations, or analysis.
+browser-collaboration model. The current service preserves platform-access observations and exposes
+read and write operations for profile facts and target locations. It does not yet expose research
+runs, run-level interruptions, job observations, or analysis.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent Patchright browser. The agent coordinates that live browser work
@@ -56,7 +56,9 @@ The loopback HTTP surface currently exposes:
 - `PUT /api/browser-session/status`
 - `POST /api/platform-access/observations`
 - `POST /api/profile/facts`
+- `DELETE /api/profile/facts/:id`
 - `POST /api/search-intent/locations`
+- `DELETE /api/search-intent/locations/:id`
 
 Shared request and response types live in
 [`@job-boardwalk/contracts`](../../packages/contracts/).
@@ -109,13 +111,14 @@ Authentication evidence distinguishes how the conclusion was established:
 Verification and access denial use the separate `interruption` field. The workspace overview
 projects the latest definite authentication result and only an interruption newer than that result.
 
-### Profile and search intent
+### Personal context and search intent
 
-The profile-fact endpoint accepts:
+Profile facts represent the user's personal context. The endpoint accepts:
 
 ```json
 {
-  "key": "target-role",
+  "initiatedBy": "user",
+  "key": "目标岗位",
   "value": "后端工程师",
   "source": "user",
   "confirmed": true,
@@ -128,11 +131,17 @@ The target-location endpoint accepts:
 ```json
 {
   "city": "上海",
+  "initiatedBy": "user",
   "priority": 1,
   "requirement": "required",
-  "reason": "用户将上海设为首选城市"
+  "reason": "用户将上海设为目标城市的硬性范围"
 }
 ```
+
+Dashboard and agents use the same write boundary. `initiatedBy` records whether a change came from
+`user`, `agent`, or `system`. Individual facts and locations can be removed with
+`DELETE /api/profile/facts/:id` and `DELETE /api/search-intent/locations/:id`; both accept a JSON
+body containing `initiatedBy` and `reason`.
 
 ## Persistence
 
