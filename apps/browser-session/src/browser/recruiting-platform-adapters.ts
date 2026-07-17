@@ -5,36 +5,48 @@ import {
   resolvePlatformWebUrl,
 } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
-import type { PlatformAccessAssessment } from "@job-boardwalk/contracts";
-
-// eslint-disable-next-line no-script-url
-const scriptUrlProtocol = "javascript:";
+import type { PlatformAccessAssessment, RecommendationPageKind } from "@job-boardwalk/contracts";
 
 interface NavigationResponseFacts {
   readonly ok: boolean;
   readonly redirectSourceUrls: readonly string[];
   readonly url: string;
 }
-
 export interface PageAccessFacts {
   readonly elements: readonly {
     readonly href?: string;
   }[];
+  readonly text: string;
   readonly url: string;
 }
-
 interface RecruitingPlatformAdapter {
   readonly entryUrl: string;
   readonly label: string;
   readonly loginUrl: string;
   readonly platformId: PlatformId;
+  readonly recommendationPage: RecommendationPageAdapter;
+  readonly snapshotSettleMilliseconds?: number;
   readonly isInNavigationScope: (value: string) => boolean;
   readonly assessNavigation?: (
     response: NavigationResponseFacts,
   ) => PlatformAccessAssessment | null;
   readonly assessPage?: (page: PageAccessFacts) => PlatformAccessAssessment | null;
 }
-
+export interface RecommendationExtractionConfig {
+  readonly companySelectors: readonly string[];
+  readonly containerSelectors: readonly string[];
+  readonly detailsSelectors: readonly string[];
+  readonly excludedTitlePattern?: string;
+  readonly jobLinkPathPattern: string;
+  readonly locationSelectors: readonly string[];
+  readonly requireContainerMatch?: boolean;
+  readonly salarySelectors: readonly string[];
+  readonly titleSelectors: readonly string[];
+}
+interface RecommendationPageAdapter {
+  readonly extraction: RecommendationExtractionConfig;
+  readonly kindForUrl: (url: URL) => RecommendationPageKind | null;
+}
 function isLoginPageUrl(candidateUrl: string, loginUrl: string): boolean {
   const current = new URL(candidateUrl);
   const login = new URL(loginUrl);
@@ -94,6 +106,40 @@ function assessBossPage(page: PageAccessFacts): PlatformAccessAssessment | null 
     : null;
 }
 
+function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null {
+  const maximumHeaderLines = 20;
+  const emptyLineCount = 0;
+  const firstLineIndex = 0;
+  const nextLineOffset = 1;
+  const resumeLineOffset = 2;
+  const identityLineOffset = 3;
+  const loginLabelFragments = ["登录", "注册"] as const;
+  const accountContextLabels = new Set(["推荐", "添加求职期望"]);
+  const headerLines = page.text
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > emptyLineCount)
+    .slice(firstLineIndex, maximumHeaderLines);
+  const messageLineIndex = headerLines.findIndex(
+    (line, index) =>
+      line === "消息" &&
+      headerLines[index + nextLineOffset] === "简历" &&
+      Boolean(headerLines[index + resumeLineOffset]),
+  );
+  if (messageLineIndex < firstLineIndex) {
+    return null;
+  }
+  const identity = headerLines[messageLineIndex + resumeLineOffset];
+  const accountContext = headerLines[messageLineIndex + identityLineOffset];
+  const hasAccountIdentity =
+    Boolean(identity) &&
+    !loginLabelFragments.some((fragment) => identity?.includes(fragment)) &&
+    accountContextLabels.has(accountContext ?? "");
+  return hasAccountIdentity
+    ? { authenticationState: "authenticated", evidence: "authenticated-page" }
+    : null;
+}
+
 function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlatformAdapter {
   const metadata = platformCatalog[platformId];
   const { navigationDomain } = metadata.web;
@@ -104,6 +150,9 @@ function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlat
         const url = new URL(value);
         return (
           url.protocol === "https:" &&
+          !url.username &&
+          !url.password &&
+          !url.port &&
           (url.hostname === navigationDomain || url.hostname.endsWith(`.${navigationDomain}`))
         );
       } catch {
@@ -113,8 +162,53 @@ function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlat
     label: metadata.label,
     loginUrl: resolvePlatformWebUrl(platformId, "login"),
     platformId,
+    recommendationPage:
+      platformId === "boss" ? bossRecommendationPageAdapter : yupaoRecommendationPageAdapter,
   };
 }
+
+const bossRecommendationPageAdapter = {
+  extraction: {
+    companySelectors: [".company-name"],
+    containerSelectors: [".job-card-wrapper", ".job-card-box", ".job-list-box li"],
+    detailsSelectors: [".tag-list li", ".job-card-footer li"],
+    jobLinkPathPattern: String.raw`^/job_detail/[^/]+\.html$`,
+    locationSelectors: [".job-area", ".job-location"],
+    requireContainerMatch: true,
+    salarySelectors: [".salary"],
+    titleSelectors: [".job-name", ".job-title"],
+  },
+  kindForUrl: (url: URL) =>
+    url.pathname === "/web/geek/job-recommend" ||
+    (url.pathname === "/web/geek/jobs" && url.search === "")
+      ? "job-search-intent-recommendations"
+      : null,
+} as const satisfies RecommendationPageAdapter;
+
+const yupaoSnapshotSettleMilliseconds = 1000;
+const yupaoRecommendationPageAdapter = {
+  extraction: {
+    companySelectors: [".company-name", "[class*='company-name']"],
+    containerSelectors: [
+      ".job-card",
+      ".job-item",
+      "[class*='job-card']",
+      "[class*='job-item']",
+      "[class*='position-card']",
+      "li",
+    ],
+    detailsSelectors: [".tag-list li", "[class*='tag']"],
+    excludedTitlePattern: String.raw`^查看更多(?:信息)?$`,
+    jobLinkPathPattern: String.raw`^/zhaogong/\d+(?:/[^/]+)?\.html$`,
+    locationSelectors: [".job-area", ".job-location", ".address", "[class*='address']"],
+    salarySelectors: [".salary", "[class*='salary']"],
+    titleSelectors: [".job-name", ".job-title", "[class*='job-name']", "[class*='job-title']"],
+  },
+  kindForUrl: (url: URL) =>
+    /^\/topic\/a\d+c\d+\/$/u.test(url.pathname) && url.search === ""
+      ? "job-search-intent-recommendations"
+      : null,
+} as const satisfies RecommendationPageAdapter;
 
 export const recruitingPlatformAdapters = {
   boss: {
@@ -122,7 +216,11 @@ export const recruitingPlatformAdapters = {
     assessNavigation: assessBossNavigation,
     assessPage: assessBossPage,
   },
-  yupao: createRecruitingPlatformAdapter("yupao"),
+  yupao: {
+    ...createRecruitingPlatformAdapter("yupao"),
+    assessPage: assessYupaoPage,
+    snapshotSettleMilliseconds: yupaoSnapshotSettleMilliseconds,
+  },
 } as const satisfies Record<PlatformId, RecruitingPlatformAdapter>;
 
 export function readPlatformId(params: Record<string, unknown>): PlatformId {
@@ -151,6 +249,25 @@ export function requireRecruitingPlatformAdapter(url: string): RecruitingPlatfor
   return adapter;
 }
 
+export function requireRecommendationPage(url: string): {
+  extraction: RecommendationExtractionConfig;
+  pageKind: RecommendationPageKind;
+  platformId: PlatformId;
+} {
+  const adapter = requireRecruitingPlatformAdapter(url);
+  const pageKind = adapter.recommendationPage.kindForUrl(new URL(url));
+  if (!pageKind) {
+    throw new Error(
+      `当前页面不是${adapter.label}支持的推荐职位页面；请先打开该平台的推荐职位大页面。`,
+    );
+  }
+  return {
+    extraction: adapter.recommendationPage.extraction,
+    pageKind,
+    platformId: adapter.platformId,
+  };
+}
+
 export function assertPlatformNavigationUrl(platformId: PlatformId, url: string): void {
   const adapter = recruitingPlatformAdapters[platformId];
   if (!adapter.isInNavigationScope(url)) {
@@ -159,8 +276,5 @@ export function assertPlatformNavigationUrl(platformId: PlatformId, url: string)
 }
 
 export function assertPlatformNavigationLink(platformId: PlatformId, href: string): void {
-  const url = new URL(href);
-  if (url.protocol !== scriptUrlProtocol) {
-    assertPlatformNavigationUrl(platformId, href);
-  }
+  assertPlatformNavigationUrl(platformId, href);
 }

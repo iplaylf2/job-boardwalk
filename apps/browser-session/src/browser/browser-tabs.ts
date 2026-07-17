@@ -20,8 +20,8 @@ export function parseOptionalTabId(params: Record<string, unknown>): number | nu
     return null;
   }
   const value = params["tabId"];
-  if (!Number.isInteger(value) || typeof value !== "number") {
-    throw new TypeError("tabId 必须是整数。");
+  if (!Number.isSafeInteger(value) || typeof value !== "number" || value < firstPageId) {
+    throw new TypeError("tabId 必须是正整数。");
   }
   return value;
 }

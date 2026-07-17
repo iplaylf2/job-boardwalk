@@ -21,7 +21,7 @@ function WorkspaceOverviewView(props: { onChanged: () => void; overview: Workspa
       />
       <PersonalContextPanel
         facts={props.overview.profileFacts}
-        locations={props.overview.targetLocations}
+        intents={props.overview.jobSearchIntents}
         onChanged={props.onChanged}
       />
     </div>

@@ -6,8 +6,9 @@ to MCP clients; it does not serve Dashboard assets or own a browser process.
 
 The repository's [product design](../../docs/product-design.md) defines the intended delegation and
 browser-collaboration model. The current service preserves platform-access observations and exposes
-read and write operations for profile facts and target locations. It does not yet expose research
-runs, run-level interruptions, job observations, or analysis.
+read and write operations for profile facts and job-search intents. Each intent owns a target
+position, city, selection state, and per-platform recommendation source associations. It does not
+yet expose research runs, run-level interruptions, job observations, or analysis.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent Patchright browser. The agent coordinates that live browser work
@@ -45,7 +46,7 @@ top-level shajara scope with the HTTP API.
 The MCP surface provides:
 
 - `job-boardwalk://workspace/overview`, a resource containing Browser Session presence,
-  platform-access summaries, profile facts, and target locations;
+  platform-access summaries, profile facts, and job-search intents;
 - `read_workspace_overview`, which reads the same workspace state.
 
 ## HTTP API
@@ -57,8 +58,10 @@ The loopback HTTP surface currently exposes:
 - `POST /api/platform-access/observations`
 - `POST /api/profile/facts`
 - `DELETE /api/profile/facts/:id`
-- `POST /api/search-intent/locations`
-- `DELETE /api/search-intent/locations/:id`
+- `POST /api/search-intents`
+- `PUT /api/search-intents/:id`
+- `POST /api/search-intents/:id/select`
+- `DELETE /api/search-intents/:id`
 
 Shared request and response types live in
 [`@job-boardwalk/contracts`](../../packages/contracts/).
@@ -126,22 +129,36 @@ Profile facts represent the user's personal context. The endpoint accepts:
 }
 ```
 
-The target-location endpoint accepts:
+The job-search-intent endpoint accepts:
 
 ```json
 {
-  "city": "上海",
+  "city": "北京",
   "initiatedBy": "user",
-  "priority": 1,
-  "requirement": "required",
-  "reason": "用户将上海设为目标城市的硬性范围"
+  "name": "北京 Node.js",
+  "position": "Node.js",
+  "reason": "用户维护当前求职倾向",
+  "selected": true,
+  "sources": [
+    {
+      "label": "Node.js(北京)",
+      "platformId": "boss",
+      "url": "https://www.zhipin.com/web/geek/jobs"
+    },
+    {
+      "label": "北京后端开发",
+      "platformId": "yupao",
+      "url": "https://www.yupao.com/topic/a2c1488/"
+    }
+  ]
 }
 ```
 
 Dashboard and agents use the same write boundary. `initiatedBy` records whether a change came from
-`user`, `agent`, or `system`. Individual facts and locations can be removed with
-`DELETE /api/profile/facts/:id` and `DELETE /api/search-intent/locations/:id`; both accept a JSON
-body containing `initiatedBy` and `reason`.
+`user`, `agent`, or `system`. The schema guarantees at most one selected intent. Individual facts
+and intents can be removed with `DELETE /api/profile/facts/:id` and
+`DELETE /api/search-intents/:id`; mutations accept a JSON body containing `initiatedBy` and
+`reason`.
 
 ## Persistence
 

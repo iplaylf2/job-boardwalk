@@ -16,8 +16,9 @@ durable facts:
   visible persistent Patchright browser and exposes project-owned browser tools to the agent.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP. It also tracks leased Browser Session presence for readers.
-- [Dashboard](apps/dashboard/) reads the workspace overview and lets the user maintain the personal
-  context that guides the agent, including target locations. It never controls the browser.
+- [Dashboard](apps/dashboard/) reads the workspace overview and lets the user maintain personal
+  context and select the job-search intent that guides recommendation research. It never controls
+  the browser.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -31,14 +32,16 @@ boundaries.
 Available now:
 
 - Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
-  with platform-specific navigation and access-assessment rules behind adapters.
-- Workspace Service stores platform-access observations and interruptions, along with the personal
-  context that guides the agent, including target locations.
+  with platform-specific navigation and access-assessment rules behind adapters. It can also take a
+  bounded, structured snapshot of a loaded BOSS直聘 recommendation feed or 鱼泡直聘 topic feed; the
+  agent relates that live evidence to the selected intent held by Workspace Service.
+- Workspace Service stores platform-access observations and interruptions, along with personal
+  context and job-search intents whose per-platform source pages guide recommendation research.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
-  provides the user's editing surface for personal context.
+  lets the user maintain and select job-search intents and their platform source associations.
 
-Research runs, run-level interruptions, job observations, and analysis remain product direction;
-they are not yet exposed by the applications.
+Durable research runs, run-level interruptions, saved job observations, and saved analysis remain
+product direction; they are not yet exposed by the applications.
 
 ## Run locally
 

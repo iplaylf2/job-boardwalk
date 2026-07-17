@@ -19,6 +19,7 @@ export function readWorkspaceOverview(
   const observations = repository.listPlatformAccessObservations();
   return {
     browserSessionPresence: presenceTracker.presence,
+    jobSearchIntents: repository.listJobSearchIntents(),
     platformAccessSummaries: platformIds.map((platformId) => {
       const platformObservations = observations.filter(
         (observation) => observation.platformId === platformId,
@@ -48,7 +49,6 @@ export function readWorkspaceOverview(
       return summary;
     }),
     profileFacts: repository.listProfileFacts(),
-    targetLocations: repository.listTargetLocations(),
   };
 }
 

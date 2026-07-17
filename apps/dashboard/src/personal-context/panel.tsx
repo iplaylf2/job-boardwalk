@@ -1,15 +1,15 @@
 import { createSignal } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import type { ProfileFact, TargetLocation } from "@job-boardwalk/contracts";
+import type { JobSearchIntent, ProfileFact } from "@job-boardwalk/contracts";
 
 // oxlint-disable-next-line import/no-unassigned-import -- This panel owns its feature styles.
 import "./styles.css";
+import { JobSearchIntentsSection } from "./job-search-intents-section.js";
 import { ProfileFactsSection } from "./profile-facts-section.js";
-import { TargetLocationsSection } from "./target-locations-section.js";
 
 export function PersonalContextPanel(props: {
   facts: ProfileFact[];
-  locations: TargetLocation[];
+  intents: JobSearchIntent[];
   onChanged: () => void;
 }): JSX.Element {
   const [editing, setEditing] = createSignal(false);
@@ -37,12 +37,12 @@ export function PersonalContextPanel(props: {
         </div>
       </header>
       <div class="context-sections">
-        <ProfileFactsSection editing={editing()} facts={props.facts} onChanged={props.onChanged} />
-        <TargetLocationsSection
+        <JobSearchIntentsSection
           editing={editing()}
-          locations={props.locations}
+          intents={props.intents}
           onChanged={props.onChanged}
         />
+        <ProfileFactsSection editing={editing()} facts={props.facts} onChanged={props.onChanged} />
       </div>
     </section>
   );

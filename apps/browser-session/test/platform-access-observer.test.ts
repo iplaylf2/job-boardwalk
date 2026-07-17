@@ -104,6 +104,7 @@ test("observes authenticated BOSS account navigation in a bounded page snapshot"
             href: "https://www.zhipin.com/web/geek/recommend",
           },
         ],
+        text: "消息 简历 个人中心",
         url: "https://www.zhipin.com/beijing/",
       },
       () => Date.parse(observedAt),
@@ -127,6 +128,7 @@ test.each([
       },
     ],
     name: "an incomplete account navigation",
+    text: "",
     url: "https://www.zhipin.com/beijing/",
   },
   {
@@ -142,6 +144,7 @@ test.each([
       },
     ],
     name: "lookalike links outside the platform",
+    text: "",
     url: "https://www.zhipin.com/beijing/",
   },
   {
@@ -157,8 +160,62 @@ test.each([
       },
     ],
     name: "insecure same-domain links",
+    text: "",
     url: "https://www.zhipin.com/beijing/",
   },
-])("does not infer authentication from $name", ({ elements, url }) => {
-  expect(derivePageAccessObservation({ elements, url })).toBeNull();
+])("does not infer authentication from $name", ({ elements, text, url }) => {
+  expect(derivePageAccessObservation({ elements, text, url })).toBeNull();
+});
+
+test("observes an authenticated Yupao account identity in the bounded header", () => {
+  expect(
+    derivePageAccessObservation(
+      {
+        elements: [],
+        text: [
+          "首页",
+          "职位",
+          "公司",
+          "校园",
+          "意外险",
+          "下载APP",
+          "消息",
+          "简历",
+          "测试用户",
+          "推荐",
+          "全栈工程师",
+        ].join("\n"),
+        url: "https://www.yupao.com/topic/a2c1488/",
+      },
+      () => Date.parse(observedAt),
+    ),
+  ).toEqual({
+    authenticationState: "authenticated",
+    evidence: "authenticated-page",
+    observedAt,
+    platformId: "yupao",
+  });
+});
+
+test.each(["登录", "注册", "登录/注册", "立即登录", "免费注册"])(
+  "does not treat Yupao's %s action as an authenticated identity",
+  (identity) => {
+    expect(
+      derivePageAccessObservation({
+        elements: [],
+        text: ["首页", "职位", "消息", "简历", identity, "推荐"].join("\n"),
+        url: "https://www.yupao.com/topic/a2c1488/",
+      }),
+    ).toBeNull();
+  },
+);
+
+test("does not infer a Yupao account from a matching body-text sequence without header context", () => {
+  expect(
+    derivePageAccessObservation({
+      elements: [],
+      text: ["首页", "职位", "消息", "简历", "招聘顾问", "职位描述"].join("\n"),
+      url: "https://www.yupao.com/topic/a2c1488/",
+    }),
+  ).toBeNull();
 });

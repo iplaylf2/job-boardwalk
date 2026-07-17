@@ -16,6 +16,14 @@ platform-specific navigation and authentication rules. A platform's HTTPS naviga
 research navigation and explicit login-handoff preparation; it does not authorize login,
 verification, or other account actions.
 
+`browser_recommendation_snapshot` is the recommendation-page-specific read boundary. It accepts
+the BOSS直聘 recommendation routes (`/web/geek/job-recommend` and the query-free
+`/web/geek/jobs`) or a 鱼泡直聘 `/topic/a…c…/` intent feed. It returns bounded, deduplicated job-card
+evidence without navigating, scrolling, clicking, opening details, or persisting jobs. Homepage
+featured sections, query-bearing search pages, general job directories, and job-detail pages are
+rejected. Workspace owns the selected intent and its platform source associations; the agent
+compares that context with the live page evidence.
+
 ## Run Browser Session
 
 Browser Session requires a graphical desktop session and Patchright's Chromium binary. It does not
@@ -67,7 +75,7 @@ automatic access-assessment coverage differs:
 | Platform | Automatic access assessment                                                                                                                                                                                                              |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BOSS直聘 | Successful protected navigation records `authenticated`; redirect from protected navigation to login records `unauthenticated`; a bounded snapshot containing the complete set of account-only navigation links records `authenticated`. |
-| 鱼泡直聘 | Not configured. Evidence not covered by an adapter remains agent-owned.                                                                                                                                                                  |
+| 鱼泡直聘 | A bounded snapshot whose header contains the message and resume navigation followed by a non-login account identity records `authenticated`.                                                                                             |
 
 Navigation assessment is passive, and snapshot assessment reuses the page evidence already
 requested by the agent. Browser Session sends no detection request and does not refresh or open a
@@ -108,9 +116,15 @@ navigation boundary from that one contract. Page actions remain platform-indepen
 Snapshots bound rendered text, element count, element names, and link lengths, and report any
 clipping through `truncated`. They omit all form-control values and do not expose password controls.
 Before using a ref, Browser Session verifies that the referenced element still matches the latest
-snapshot. Explicit links outside the current tab's platform scope are rejected before clicking,
-and every action must still finish on a supported platform page. Click, fill, selection, scrolling,
-and navigation use Patchright page APIs.
+snapshot. An explicit link outside the current tab's platform scope is rejected before clicking.
+Clicking, filling, and selecting otherwise operate on the captured element without attempting to
+classify its business purpose. The agent applies the user-handoff rules before login, verification,
+application, message, or account actions.
+
+Recommendation snapshots separately bound the number of job cards to 100 and return the card's
+title, company, salary, location, tags, bounded card text, and same-platform detail link when the
+page exposes those fields. The default limit is 50. The snapshot covers only job cards already
+loaded into the current document; `truncated` reports clipping at the requested item limit.
 
 `browser_prepare_login` is the explicit login-handoff preparation path. When the user asks to log
 in, or visible page evidence shows that the requested workflow requires authentication and the

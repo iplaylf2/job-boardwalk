@@ -85,7 +85,7 @@ export function ProfileFactsSection(props: {
       <div class="panel-introduction">
         <div>
           <h3>资料摘要</h3>
-          <p>{String(props.facts.length)} 项已确认信息</p>
+          <p>{String(props.facts.length)} 项资料</p>
         </div>
         <Show when={props.editing}>
           <button class="button button-primary" type="button" onClick={beginCreate}>

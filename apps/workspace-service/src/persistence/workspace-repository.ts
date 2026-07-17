@@ -7,17 +7,19 @@ import { drizzle } from "drizzle-orm/node-sqlite";
 import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
 import type {
+  JobSearchIntent,
+  JobSearchIntentSource,
   PlatformAccessObservation,
   ProfileFact,
   RecordedPlatformAccessObservation,
-  TargetLocation,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
 import {
+  jobSearchIntents,
+  jobSearchIntentSources,
   platformAccessObservations,
   profileFacts,
-  targetLocations,
   workspaceChanges,
 } from "./schema.js";
 
@@ -160,12 +162,29 @@ export class WorkspaceRepository {
       .map(toRecordedPlatformAccessObservation);
   }
 
-  public listTargetLocations(): TargetLocation[] {
+  public listJobSearchIntents(): JobSearchIntent[] {
+    const sources = this.#database
+      .select()
+      .from(jobSearchIntentSources)
+      .orderBy(asc(jobSearchIntentSources.platformId))
+      .all();
     return this.#database
       .select()
-      .from(targetLocations)
-      .orderBy(asc(targetLocations.priority), asc(targetLocations.city))
-      .all();
+      .from(jobSearchIntents)
+      .orderBy(desc(jobSearchIntents.selected), asc(jobSearchIntents.name))
+      .all()
+      .map((intent) =>
+        Object.assign(intent, {
+          sources: sources
+            .filter((source) => source.intentId === intent.id)
+            .map(({ label, platformId, url }): JobSearchIntentSource => {
+              if (!isPlatformId(platformId)) {
+                throw new Error(`数据库中存在未知招聘平台：${platformId}`);
+              }
+              return { label, platformId, url };
+            }),
+        }),
+      );
   }
 
   public setProfileFact(input: {
@@ -210,43 +229,91 @@ export class WorkspaceRepository {
     });
   }
 
-  public setTargetLocation(input: {
+  // eslint-disable-next-line max-lines-per-function -- One transaction replaces the intent and its owned source set.
+  public saveJobSearchIntent(input: {
     city: string;
+    id?: number;
     initiatedBy: "agent" | "system" | "user";
-    priority: number;
+    name: string;
+    position: string;
     reason: string;
-    requirement: "preferred" | "required";
-  }): void {
+    selected: boolean;
+    sources: JobSearchIntentSource[];
+  }): JobSearchIntent {
     const now = new Date().toISOString();
-    this.#database.transaction((transaction) => {
-      transaction
-        .insert(targetLocations)
-        .values({
-          city: input.city,
-          priority: input.priority,
-          requirement: input.requirement,
-          updatedAt: now,
-        })
-        .onConflictDoUpdate({
-          set: {
-            priority: input.priority,
-            requirement: input.requirement,
+    const existingId = input.id ?? null;
+    // eslint-disable-next-line max-lines-per-function -- The callback is the atomic aggregate write.
+    const savedId = this.#database.transaction((transaction) => {
+      if (input.selected) {
+        transaction.update(jobSearchIntents).set({ selected: false }).run();
+      }
+      let intentId = existingId;
+      if (existingId === null) {
+        intentId = transaction
+          .insert(jobSearchIntents)
+          .values({
+            city: input.city,
+            name: input.name,
+            position: input.position,
+            selected: input.selected,
             updatedAt: now,
-          },
-          target: targetLocations.city,
-        })
+          })
+          .returning({ id: jobSearchIntents.id })
+          .get().id;
+      } else {
+        const updated = transaction
+          .update(jobSearchIntents)
+          .set({
+            city: input.city,
+            name: input.name,
+            position: input.position,
+            selected: input.selected,
+            updatedAt: now,
+          })
+          .where(eq(jobSearchIntents.id, existingId))
+          .returning({ id: jobSearchIntents.id })
+          .get();
+        if (!updated) {
+          throw new Error(`找不到求职倾向：${String(existingId)}`);
+        }
+        intentId = updated.id;
+        transaction
+          .delete(jobSearchIntentSources)
+          .where(eq(jobSearchIntentSources.intentId, intentId))
+          .run();
+      }
+      if (intentId === null) {
+        throw new Error("求职倾向保存失败。");
+      }
+      transaction
+        .insert(jobSearchIntentSources)
+        .values(
+          input.sources.map((source) => ({
+            intentId,
+            label: source.label,
+            platformId: source.platformId,
+            updatedAt: now,
+            url: source.url,
+          })),
+        )
         .run();
       transaction
         .insert(workspaceChanges)
         .values({
           initiatedBy: input.initiatedBy,
           occurredAt: now,
-          operation: "set-target-location",
+          operation: existingId === null ? "create-job-search-intent" : "update-job-search-intent",
           reason: input.reason,
-          subject: input.city,
+          subject: input.name,
         })
         .run();
+      return intentId;
     });
+    const saved = this.listJobSearchIntents().find((intent) => intent.id === savedId);
+    if (!saved) {
+      throw new Error(`保存后无法读取求职倾向：${String(savedId)}`);
+    }
+    return saved;
   }
 
   public deleteProfileFact(input: {
@@ -276,7 +343,37 @@ export class WorkspaceRepository {
     });
   }
 
-  public deleteTargetLocation(input: {
+  public selectJobSearchIntent(input: {
+    id: number;
+    initiatedBy: "agent" | "system" | "user";
+    reason: string;
+  }): void {
+    const now = new Date().toISOString();
+    this.#database.transaction((transaction) => {
+      transaction.update(jobSearchIntents).set({ selected: false }).run();
+      const selected = transaction
+        .update(jobSearchIntents)
+        .set({ selected: true, updatedAt: now })
+        .where(eq(jobSearchIntents.id, input.id))
+        .returning({ name: jobSearchIntents.name })
+        .get();
+      if (!selected) {
+        throw new Error(`找不到求职倾向：${String(input.id)}`);
+      }
+      transaction
+        .insert(workspaceChanges)
+        .values({
+          initiatedBy: input.initiatedBy,
+          occurredAt: now,
+          operation: "select-job-search-intent",
+          reason: input.reason,
+          subject: selected.name,
+        })
+        .run();
+    });
+  }
+
+  public deleteJobSearchIntent(input: {
     id: number;
     initiatedBy: "agent" | "system" | "user";
     reason: string;
@@ -284,9 +381,9 @@ export class WorkspaceRepository {
     const now = new Date().toISOString();
     this.#database.transaction((transaction) => {
       const deleted = transaction
-        .delete(targetLocations)
-        .where(eq(targetLocations.id, input.id))
-        .returning({ city: targetLocations.city })
+        .delete(jobSearchIntents)
+        .where(eq(jobSearchIntents.id, input.id))
+        .returning({ name: jobSearchIntents.name })
         .get();
       if (deleted) {
         transaction
@@ -294,9 +391,9 @@ export class WorkspaceRepository {
           .values({
             initiatedBy: input.initiatedBy,
             occurredAt: now,
-            operation: "delete-target-location",
+            operation: "delete-job-search-intent",
             reason: input.reason,
-            subject: deleted.city,
+            subject: deleted.name,
           })
           .run();
       }

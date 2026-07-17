@@ -1,3 +1,23 @@
+CREATE TABLE `job_search_intent_sources` (
+	`id` integer PRIMARY KEY AUTOINCREMENT,
+	`intent_id` integer NOT NULL,
+	`label` text NOT NULL,
+	`platform_id` text NOT NULL,
+	`updated_at` text NOT NULL,
+	`url` text NOT NULL,
+	CONSTRAINT `fk_job_search_intent_sources_intent_id_job_search_intents_id_fk` FOREIGN KEY (`intent_id`) REFERENCES `job_search_intents`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `job_search_intents` (
+	`city` text NOT NULL,
+	`id` integer PRIMARY KEY AUTOINCREMENT,
+	`name` text NOT NULL UNIQUE,
+	`position` text NOT NULL,
+	`selected` integer NOT NULL,
+	`updated_at` text NOT NULL,
+	CONSTRAINT "job_search_intents_selected" CHECK("selected" in (0, 1))
+);
+--> statement-breakpoint
 CREATE TABLE `platform_access_observations` (
 	`authentication_state` text,
 	`evidence` text NOT NULL,
@@ -20,15 +40,6 @@ CREATE TABLE `profile_facts` (
 	`value` text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `target_locations` (
-	`city` text NOT NULL UNIQUE,
-	`id` integer PRIMARY KEY AUTOINCREMENT,
-	`priority` integer NOT NULL,
-	`requirement` text NOT NULL,
-	`updated_at` text NOT NULL,
-	CONSTRAINT "target_locations_requirement" CHECK("requirement" in ('required', 'preferred'))
-);
---> statement-breakpoint
 CREATE TABLE `workspace_changes` (
 	`id` integer PRIMARY KEY AUTOINCREMENT,
 	`initiated_by` text NOT NULL,
@@ -38,3 +49,6 @@ CREATE TABLE `workspace_changes` (
 	`subject` text NOT NULL,
 	CONSTRAINT "workspace_changes_initiated_by" CHECK("initiated_by" in ('agent', 'user', 'system'))
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `job_search_intent_sources_intent_platform` ON `job_search_intent_sources` (`intent_id`,`platform_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `job_search_intents_single_selected` ON `job_search_intents` (`selected`) WHERE "job_search_intents"."selected" = 1;

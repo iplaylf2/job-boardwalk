@@ -1,8 +1,10 @@
 # Dashboard
 
 Dashboard is Job Boardwalk's local interface. It shows durable Workspace Service data and lets the
-user maintain the personal context that guides the agent, including target locations. It remains
-useful without an active agent conversation and never controls the browser.
+user maintain personal context and job-search intents. Each intent combines a target position,
+city, and per-platform recommendation-page associations; at most one is selected as the agent's
+current recommendation context. Dashboard remains useful without an active agent
+conversation and never controls the browser.
 
 ## What Dashboard does
 
@@ -11,15 +13,15 @@ The page:
 - shows leased Browser Session presence and browser availability;
 - shows each platform's latest definite authentication observation and any later unresolved
   interruption;
-- lets the user add, update, and remove personal details and target locations.
+- lets the user add, update, select, and remove job-search intents and their BOSS直聘/鱼泡直聘
+  source associations;
+- lets the user add, update, and remove other personal details.
 
 Observation times remain visible because saved platform observations are historical; they do not
-guarantee the platform's current authentication state. The explanatory copy distinguishes a
-successful protected navigation from an authenticated session confirmed through visible,
-account-specific page content. Browser Session presence is separate, short-lived runtime state.
-Workspace Service owns the durable data and Browser Session owns the runtime status. Dashboard owns
-neither source: it does not access SQLite, Patchright, the browser profile, or either service's
-lifecycle.
+guarantee the platform's current authentication state. Browser Session presence is separate,
+short-lived runtime state. Workspace Service owns the durable data and Browser Session owns the
+runtime status. Dashboard owns neither source: it does not access SQLite, Patchright, the browser
+profile, or either service's lifecycle.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. Dashboard

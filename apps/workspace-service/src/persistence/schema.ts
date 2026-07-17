@@ -1,4 +1,4 @@
-import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const platformAccessObservations = sqliteTable(
@@ -50,17 +50,38 @@ export const profileFacts = sqliteTable("profile_facts", {
   value: text().notNull(),
 });
 
-export const targetLocations = sqliteTable(
-  "target_locations",
+export const jobSearchIntents = sqliteTable(
+  "job_search_intents",
   {
-    city: text().notNull().unique(),
+    city: text().notNull(),
     id: integer().primaryKey({ autoIncrement: true }),
-    priority: integer().notNull(),
-    requirement: text({ enum: ["required", "preferred"] }).notNull(),
+    name: text().notNull().unique(),
+    position: text().notNull(),
+    selected: integer({ mode: "boolean" }).notNull(),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [
-    check("target_locations_requirement", sql`${table.requirement} in ('required', 'preferred')`),
+    check("job_search_intents_selected", sql`${table.selected} in (0, 1)`),
+    uniqueIndex("job_search_intents_single_selected")
+      .on(table.selected)
+      .where(sql`${table.selected} = 1`),
+  ],
+);
+
+export const jobSearchIntentSources = sqliteTable(
+  "job_search_intent_sources",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    intentId: integer("intent_id")
+      .notNull()
+      .references(() => jobSearchIntents.id, { onDelete: "cascade" }),
+    label: text().notNull(),
+    platformId: text("platform_id").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    url: text().notNull(),
+  },
+  (table) => [
+    uniqueIndex("job_search_intent_sources_intent_platform").on(table.intentId, table.platformId),
   ],
 );
 

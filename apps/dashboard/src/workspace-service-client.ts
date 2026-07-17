@@ -1,4 +1,4 @@
-import type { WorkspaceOverview } from "@job-boardwalk/contracts";
+import type { JobSearchIntentSource, WorkspaceOverview } from "@job-boardwalk/contracts";
 
 async function requestWorkspaceChange(path: string, init: RequestInit): Promise<void> {
   const response = await fetch(path, {
@@ -44,26 +44,42 @@ export function deleteProfileFact(id: number): Promise<void> {
   });
 }
 
-export function saveTargetLocation(input: {
+export function saveJobSearchIntent(input: {
   city: string;
-  priority: number;
-  requirement: "preferred" | "required";
+  id?: number;
+  name: string;
+  position: string;
+  selected: boolean;
+  sources: JobSearchIntentSource[];
 }): Promise<void> {
-  return requestWorkspaceChange("/api/search-intent/locations", {
+  return requestWorkspaceChange(
+    input.id ? `/api/search-intents/${input.id}` : "/api/search-intents",
+    {
+      body: JSON.stringify({
+        ...input,
+        initiatedBy: "user",
+        reason: "用户在 Dashboard 中编辑求职倾向",
+      }),
+      method: input.id ? "PUT" : "POST",
+    },
+  );
+}
+
+export function selectJobSearchIntent(id: number): Promise<void> {
+  return requestWorkspaceChange(`/api/search-intents/${id}/select`, {
     body: JSON.stringify({
-      ...input,
       initiatedBy: "user",
-      reason: "用户在 Dashboard 中编辑目标城市",
+      reason: "用户在 Dashboard 中选中当前求职倾向",
     }),
     method: "POST",
   });
 }
 
-export function deleteTargetLocation(id: number): Promise<void> {
-  return requestWorkspaceChange(`/api/search-intent/locations/${id}`, {
+export function deleteJobSearchIntent(id: number): Promise<void> {
+  return requestWorkspaceChange(`/api/search-intents/${id}`, {
     body: JSON.stringify({
       initiatedBy: "user",
-      reason: "用户在 Dashboard 中删除目标城市",
+      reason: "用户在 Dashboard 中删除求职倾向",
     }),
     method: "DELETE",
   });

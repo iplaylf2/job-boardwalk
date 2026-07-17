@@ -48,8 +48,10 @@ Dashboard. It is headless and does not own browser automation, browser profiles,
 cookies, or desktop windows.
 
 The **Dashboard** is an independent view of durable workspace data and leased Browser Session
-presence. It also lets the user maintain the personal context that guides the agent, including
-target locations. It neither controls the browser nor requires an active agent conversation.
+presence. It also lets the user maintain personal context and a collection of job-search intents.
+At most one intent is selected as the current recommendation context; each intent associates a
+target position and city with its corresponding platform recommendation pages. Dashboard neither
+controls the browser nor requires an active agent conversation.
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
@@ -57,6 +59,12 @@ durable facts and conclusions derived from that evidence. A Browser Session adap
 authentication assessment from a real top-level navigation response or a bounded page snapshot
 when it has a conclusive platform-specific rule. The agent interprets evidence not covered by an
 adapter.
+
+Browser Session may also expose a bounded, platform-specific recommendation-page snapshot as live
+evidence. It verifies that the live page is a supported BOSS直聘 intent feed or 鱼泡直聘 topic feed
+before extracting already-loaded job cards. Browser Session does not own the selected intent,
+source-page association, comparison, recommendation-quality judgments, or durable observations.
+Workspace owns the durable context, and the agent relates it to the live page evidence.
 
 Browser Session sends bounded status directly to Workspace Service. A report includes browser
 availability, version, and tab count, plus a generic failure summary when unavailable and any
@@ -92,7 +100,11 @@ Browser Session keeps a dedicated persistent browser profile, stored by default 
 operating-system user-data directory, so cookies and ordinary client state survive between service
 runs. Credentials and verification input stay inside the platform window. Job Boardwalk does not
 query cookies or browser storage. Browser snapshots omit form-control values and password controls,
-and HTTP and MCP responses do not expose authentication cookies or browser profile contents.
+and HTTP and MCP responses do not expose authentication cookies or browser profile contents. Browser
+Session exposes generic interactions with elements from a recent snapshot and validates the
+explicit destination of captured links against the current platform. It does not infer whether a
+button, text control, or selection control represents research or an account action; the agent
+applies the delegation boundary before acting.
 
 ## Access observations
 
@@ -111,6 +123,10 @@ platform-specific set of account controls that establishes an authenticated sess
 returns the same structured observation so the agent can answer without submitting it again.
 Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
 alone, display names alone, and cookie presence do not establish authentication.
+
+Recommendation-page reads classify and extract the current page without consulting Workspace
+Service. The agent reads the selected intent and its platform source association from Workspace,
+then decides whether the live page evidence belongs to that analysis context.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page
@@ -141,11 +157,12 @@ The Dashboard currently includes:
 
 - leased Browser Session presence;
 - platform-access observations and unresolved interruptions;
-- user-editable personal details and target locations.
+- user-editable personal details and selectable job-search intents with platform source
+  associations.
 
 As the product grows, it should also include:
 
-- other research intent;
+- other research intents;
 - research runs, partial progress, and interruptions;
 - normalized job observations with sources and freshness;
 - agent-produced comparisons and explanations.

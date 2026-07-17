@@ -3,9 +3,11 @@ import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
+// oxlint-disable max-lines -- The executor is the cohesive dispatch and reference-lifecycle boundary.
 import { BrowserTabs, parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
 import {
   assertPlatformNavigationLink,
+  findRecruitingPlatformAdapter,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
@@ -14,6 +16,10 @@ import {
   maximumElementHrefCharacters,
   maximumElementNameCharacters,
 } from "./page-snapshot.js";
+import {
+  captureRecommendationPage,
+  readMaximumRecommendationItems,
+} from "./recommendation-page.js";
 
 const defaultScrollDelta = 600;
 const maximumSnapshotTextCharacters = 40_000;
@@ -90,6 +96,9 @@ export class BrowserToolExecutor {
       case "browser_snapshot": {
         return yield* this.#snapshot(input);
       }
+      case "browser_recommendation_snapshot": {
+        return yield* this.#recommendationSnapshot(input);
+      }
       case "browser_click": {
         return yield* this.#click(input);
       }
@@ -113,8 +122,11 @@ export class BrowserToolExecutor {
     try {
       if (reference.href) {
         const page = this.#tabs.requireNavigationPage(reference.tabId);
-        const { platformId } = requireRecruitingPlatformAdapter(page.url());
-        assertPlatformNavigationLink(platformId, reference.href);
+        const adapter = findRecruitingPlatformAdapter(page.url());
+        if (!adapter) {
+          throw new Error("当前页面不属于受支持招聘平台的 HTTPS 导航范围。");
+        }
+        assertPlatformNavigationLink(adapter.platformId, reference.href);
       }
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
       yield* until(() => reference.locator.click());
@@ -218,6 +230,14 @@ export class BrowserToolExecutor {
     return { ...summary, scrollY };
   }
 
+  *#recommendationSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
+    const maximumItems = readMaximumRecommendationItems(params);
+    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
+    this.#tabs.markSelected(tabId);
+    const snapshot = yield* captureRecommendationPage(page, maximumItems);
+    return { ...snapshot, tabId };
+  }
+
   *#scrollToReference(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     try {
@@ -252,6 +272,11 @@ export class BrowserToolExecutor {
         )
       : maximumSnapshotTextCharacters;
     this.#clearElementReferences();
+    const settleMilliseconds =
+      findRecruitingPlatformAdapter(page.url())?.snapshotSettleMilliseconds ?? zero;
+    if (settleMilliseconds > zero) {
+      yield* sleep(settleMilliseconds);
+    }
     const snapshot = yield* capturePageSnapshot(page, textLimit);
     const platformAccessObservation = this.#observePageAccess(snapshot);
     for (const { href, locator, ref, signature } of snapshot.elements) {

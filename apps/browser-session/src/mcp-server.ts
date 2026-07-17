@@ -35,7 +35,7 @@ const browserTools = [
       properties: {
         action: { enum: ["list", "ensure", "activate"], type: "string" },
         platformId: { enum: [...platformIds], type: "string" },
-        tabId: { type: "number" },
+        tabId: { minimum: 1, type: "integer" },
         url: { type: "string" },
       },
       required: ["action"],
@@ -56,9 +56,9 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "将现有标签页导航到同一招聘平台内的指定 HTTPS URL；导航范围不授权任何账号操作。",
+    description: "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。",
     inputSchema: {
-      properties: { tabId: { type: "number" }, url: { type: "string" } },
+      properties: { tabId: { minimum: 1, type: "integer" }, url: { type: "string" } },
       required: ["url"],
       type: "object",
     },
@@ -71,16 +71,28 @@ const browserTools = [
     inputSchema: {
       properties: {
         maxTextCharacters: { maximum: 40_000, minimum: 1000, type: "number" },
-        tabId: { type: "number" },
+        tabId: { minimum: 1, type: "integer" },
       },
       type: "object",
     },
     name: "browser_snapshot",
   },
   {
-    annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
+    annotations: { idempotentHint: true, openWorldHint: true, readOnlyHint: true },
     description:
-      "点击最近一次快照中的元素引用。登录交接使用 browser_prepare_login；不得用此工具提交登录、完成验证、投递职位、发送消息或变更账号。",
+      "只读取当前已加载的职位推荐页，返回有界、去重的岗位卡片页面证据供 agent 汇总。仅支持 BOSS直聘的倾向推荐流和鱼泡直聘 topic 倾向职位流；不会把首页精选、普通搜索页、职位大全或详情页当作推荐结果，也不会导航、滚动、点击或持久化岗位。Workspace Service 保存求职倾向及平台来源关联；agent 负责将其与当前页面证据关联。",
+    inputSchema: {
+      properties: {
+        maximumItems: { maximum: 100, minimum: 1, type: "integer" },
+        tabId: { minimum: 1, type: "integer" },
+      },
+      type: "object",
+    },
+    name: "browser_recommendation_snapshot",
+  },
+  {
+    annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
+    description: "点击最近一次快照中的元素引用；显式链接必须属于当前招聘平台的 HTTPS 导航范围。",
     inputSchema: {
       properties: { ref: { type: "string" } },
       required: ["ref"],
@@ -90,7 +102,7 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "填写最近一次快照中的文本控件，仅用于搜索等研究操作；凭据和验证内容由用户填写。",
+    description: "填写最近一次快照中的文本控件；密码框不进入快照。",
     inputSchema: {
       properties: { ref: { type: "string" }, value: { type: "string" } },
       required: ["ref", "value"],
@@ -100,7 +112,7 @@ const browserTools = [
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "在最近一次快照的控件中选择选项，仅用于筛选等研究操作；账号变更由用户操作。",
+    description: "在最近一次快照的选择控件中选择选项。",
     inputSchema: {
       properties: { ref: { type: "string" }, value: { type: "string" } },
       required: ["ref", "value"],
@@ -115,7 +127,7 @@ const browserTools = [
       properties: {
         deltaY: { maximum: 5000, minimum: -5000, type: "number" },
         ref: { type: "string" },
-        tabId: { type: "number" },
+        tabId: { minimum: 1, type: "integer" },
       },
       type: "object",
     },

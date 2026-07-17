@@ -47,9 +47,10 @@ function reportWorkspaceStatusError(error: Error): void {
 
 function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
   const profilePath = yield* prepareBrowserProfilePath();
+  const workspaceServiceUrl = resolveWorkspaceServiceUrl();
   const browserControl = new ManagedBrowser(profilePath);
   const statusReporter = new BrowserSessionStatusReporter(
-    resolveWorkspaceServiceUrl(),
+    workspaceServiceUrl,
     () => browserControl.status,
     () => browserControl.platformAccessObservations,
   );

@@ -99,13 +99,15 @@ test("does not accept broad hostname similarity or insecure platform URLs", () =
   expect(findRecruitingPlatformAdapter("https://subdomain.yupao.com/")?.platformId).toBe("yupao");
   expect(findRecruitingPlatformAdapter("http://www.zhipin.com/")).toBeNull();
   expect(findRecruitingPlatformAdapter("https://yupao.com.example.invalid/")).toBeNull();
+  expect(findRecruitingPlatformAdapter("https://user:secret@www.yupao.com/")).toBeNull();
+  expect(findRecruitingPlatformAdapter("https://www.zhipin.com:8443/")).toBeNull();
 });
 
-test("rejects explicit external links while allowing in-page script controls", () => {
+test("allows only explicit same-platform HTTPS links", () => {
   expect(() =>
     assertPlatformNavigationLink("boss", "https://www.zhipin.com/web/geek/jobs"),
   ).not.toThrow();
-  expect(() => assertPlatformNavigationLink("boss", scriptControlHref)).not.toThrow();
+  expect(() => assertPlatformNavigationLink("boss", scriptControlHref)).toThrow(/HTTPS/u);
   expect(() => assertPlatformNavigationLink("boss", "https://www.yupao.com/job/123.html")).toThrow(
     /BOSS直聘/u,
   );

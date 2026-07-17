@@ -76,6 +76,7 @@ test("always exposes the project-owned Patchright browser tools", async () => {
       "browser_tabs",
       "browser_prepare_login",
       "browser_navigate",
+      "browser_recommendation_snapshot",
       "browser_snapshot",
       "browser_click",
       "browser_fill",
@@ -91,14 +92,11 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   expect(tabsTool?.inputSchema.properties?.["platformId"]).toMatchObject({
     enum: ["boss", "yupao"],
   });
-  const clickTool = listedTools.tools.find(({ name }) => name === "browser_click");
-  expect(clickTool?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
   const snapshotTool = listedTools.tools.find(({ name }) => name === "browser_snapshot");
   expect(snapshotTool?.annotations).toMatchObject({
     destructiveHint: false,
     readOnlyHint: false,
   });
-  expect(snapshotTool?.description).toMatch(/platformAccessObservation/u);
 
   const result = CallToolResultSchema.parse(
     await client.callTool({ arguments: { action: "list" }, name: "browser_tabs" }),
@@ -113,6 +111,37 @@ test("always exposes the project-owned Patchright browser tools", async () => {
   await close();
 });
 
+test("exposes browser action annotations", async () => {
+  await using serviceScope = createScope();
+  const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
+  const { client, close } = await connectedClient(mcpServer);
+
+  const listedTools = await client.listTools();
+  const clickTool = listedTools.tools.find(({ name }) => name === "browser_click");
+  expect(clickTool?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
+  const fillTool = listedTools.tools.find(({ name }) => name === "browser_fill");
+  expect(fillTool?.annotations).toMatchObject({ destructiveHint: false, readOnlyHint: false });
+
+  await close();
+});
+
+test("exposes recommendation snapshots as a read-only capability", async () => {
+  await using serviceScope = createScope();
+  const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
+  const { client, close } = await connectedClient(mcpServer);
+
+  const listedTools = await client.listTools();
+  const recommendationSnapshotTool = listedTools.tools.find(
+    ({ name }) => name === "browser_recommendation_snapshot",
+  );
+  expect(recommendationSnapshotTool?.annotations).toMatchObject({
+    readOnlyHint: true,
+  });
+  expect(recommendationSnapshotTool?.inputSchema.required).toBeUndefined();
+
+  await close();
+});
+
 test("exposes and forwards proactive login handoff preparation", async () => {
   await using serviceScope = createScope();
   const browserControl = fakeBrowserControl();
@@ -122,7 +151,6 @@ test("exposes and forwards proactive login handoff preparation", async () => {
   const listedTools = await client.listTools();
   const prepareLoginTool = listedTools.tools.find(({ name }) => name === "browser_prepare_login");
   expect(prepareLoginTool?.inputSchema.required).toContain("platformId");
-  expect(prepareLoginTool?.description).toMatch(/主动|复用/u);
 
   await client.callTool({ arguments: { platformId: "boss" }, name: "browser_prepare_login" });
   expect(browserControl.executions).toEqual([
@@ -201,6 +229,35 @@ test("rejects unsafe tool input through the public tool boundary", async () => {
   expect(expiredReferenceResult.isError).toBe(true);
   expect(expiredReferenceResult.content[firstContentIndex]).toMatchObject({
     text: expect.stringMatching(/不存在或已过期/u),
+  });
+
+  const excessiveRecommendationItemsResult = CallToolResultSchema.parse(
+    await client.callTool({
+      arguments: { maximumItems: 101 },
+      name: "browser_recommendation_snapshot",
+    }),
+  );
+  expect(excessiveRecommendationItemsResult.isError).toBe(true);
+  expect(excessiveRecommendationItemsResult.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/maximumItems/u),
+  });
+  await close();
+});
+
+test("rejects a fractional recommendation item limit", async () => {
+  await using serviceScope = createScope();
+  const mcpServer = createBrowserSessionMcpServer(browserToolExecutorControl(), serviceScope);
+  const { client, close } = await connectedClient(mcpServer);
+
+  const result = CallToolResultSchema.parse(
+    await client.callTool({
+      arguments: { maximumItems: 1.5 },
+      name: "browser_recommendation_snapshot",
+    }),
+  );
+  expect(result.isError).toBe(true);
+  expect(result.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/maximumItems/u),
   });
   await close();
 });

@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+// oxlint-disable max-lines -- This suite keeps the complete public HTTP boundary visible together.
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -54,6 +55,7 @@ function postProfileFact(httpApp: ReturnType<typeof createWorkspaceServiceHttpAp
   });
 }
 
+// oxlint-disable-next-line max-lines-per-function -- Representative validation failures share one lifecycle assertion.
 test("keeps request errors inside the long-lived service scope", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
@@ -61,7 +63,7 @@ test("keeps request errors inside the long-lived service scope", async () => {
   const httpApp = createTestHttpApp(repository, serviceScope);
 
   try {
-    const invalidResponse = await httpApp.request("/api/search-intent/locations", {
+    const invalidResponse = await httpApp.request("/api/search-intents", {
       body: "not-json",
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -81,6 +83,48 @@ test("keeps request errors inside the long-lived service scope", async () => {
       method: "POST",
     });
     expect(invalidBooleanResponse.status).toBe(badRequestStatus);
+
+    const invalidIntentSourceResponse = await httpApp.request("/api/search-intents", {
+      body: JSON.stringify({
+        city: "北京",
+        initiatedBy: "user",
+        name: "北京 Node.js",
+        position: "Node.js",
+        reason: "test",
+        selected: true,
+        sources: [
+          {
+            label: "错误来源",
+            platformId: "yupao",
+            url: "https://example.invalid/topic/a2c1488/",
+          },
+        ],
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(invalidIntentSourceResponse.status).toBe(badRequestStatus);
+
+    const credentialedIntentSourceResponse = await httpApp.request("/api/search-intents", {
+      body: JSON.stringify({
+        city: "北京",
+        initiatedBy: "user",
+        name: "带凭据来源",
+        position: "Node.js",
+        reason: "test",
+        selected: true,
+        sources: [
+          {
+            label: "错误来源",
+            platformId: "yupao",
+            url: "https://user:secret@www.yupao.com/topic/a2c1488/",
+          },
+        ],
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(credentialedIntentSourceResponse.status).toBe(badRequestStatus);
 
     const followingResponse = await httpApp.request("/api/workspace/overview");
     expect(followingResponse.status).toBe(successfulStatus);
@@ -140,7 +184,7 @@ test.each([
 });
 
 // oxlint-disable-next-line max-lines-per-function, max-statements -- One flow verifies the complete CRUD boundary.
-test("updates profile and target intent through the public HTTP boundary", async () => {
+test("updates profile and selected job-search intent through the public HTTP boundary", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
   await using serviceScope = createScope();
@@ -151,25 +195,47 @@ test("updates profile and target intent through the public HTTP boundary", async
     expect(initialProfileResponse.status).toBe(createdStatus);
     const updatedProfileResponse = await postProfileFact(httpApp, "平台工程师");
     expect(updatedProfileResponse.status).toBe(createdStatus);
-    const locationResponse = await httpApp.request("/api/search-intent/locations", {
+    const intentResponse = await httpApp.request("/api/search-intents", {
       body: JSON.stringify({
         city: "上海",
         initiatedBy: "user",
-        priority: 1,
+        name: "上海平台工程",
+        position: "平台工程师",
         reason: "test",
-        requirement: "preferred",
+        selected: true,
+        sources: [
+          {
+            label: "上海后端开发",
+            platformId: "yupao",
+            url: "https://www.yupao.com/topic/a1c1488/",
+          },
+        ],
       }),
       headers: { "content-type": "application/json" },
       method: "POST",
     });
-    expect(locationResponse.status).toBe(createdStatus);
-
+    expect(intentResponse.status).toBe(createdStatus);
     const overviewResponse = await httpApp.request("/api/workspace/overview");
     const overview = (await overviewResponse.json()) as {
+      jobSearchIntents: { id: number }[];
       profileFacts: { id: number }[];
-      targetLocations: { id: number }[];
     };
     expect(overview).toMatchObject({
+      jobSearchIntents: [
+        {
+          city: "上海",
+          name: "上海平台工程",
+          position: "平台工程师",
+          selected: true,
+          sources: [
+            {
+              label: "上海后端开发",
+              platformId: "yupao",
+              url: "https://www.yupao.com/topic/a1c1488/",
+            },
+          ],
+        },
+      ],
       profileFacts: [
         {
           confirmed: true,
@@ -178,7 +244,6 @@ test("updates profile and target intent through the public HTTP boundary", async
           value: "平台工程师",
         },
       ],
-      targetLocations: [{ city: "上海", priority: 1, requirement: "preferred" }],
     });
 
     const deleteProfileResponse = await httpApp.request(
@@ -193,8 +258,8 @@ test("updates profile and target intent through the public HTTP boundary", async
       },
     );
     expect(deleteProfileResponse.status).toBe(successfulStatus);
-    const deleteLocationResponse = await httpApp.request(
-      `/api/search-intent/locations/${overview.targetLocations[firstCollectionIndex]?.id}`,
+    const deleteIntentResponse = await httpApp.request(
+      `/api/search-intents/${overview.jobSearchIntents[firstCollectionIndex]?.id}`,
       {
         body: JSON.stringify({
           initiatedBy: "user",
@@ -204,11 +269,11 @@ test("updates profile and target intent through the public HTTP boundary", async
         method: "DELETE",
       },
     );
-    expect(deleteLocationResponse.status).toBe(successfulStatus);
+    expect(deleteIntentResponse.status).toBe(successfulStatus);
     const emptyOverviewResponse = await httpApp.request("/api/workspace/overview");
     expect(await emptyOverviewResponse.json()).toMatchObject({
+      jobSearchIntents: [],
       profileFacts: [],
-      targetLocations: [],
     });
   } finally {
     repository.close();
