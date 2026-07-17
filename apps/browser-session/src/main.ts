@@ -14,7 +14,7 @@ import {
   resolveWorkspaceServiceUrl,
 } from "./workspace-service/status-reporter.js";
 import { WorkspaceJobPostingWriter } from "./workspace-service/job-posting-writer.js";
-import { WorkspaceSelectedRecommendationPageReader } from "./workspace-service/selected-recommendation-page-reader.js";
+import { WorkspaceSelectedJobSearchIntentReader } from "./workspace-service/selected-job-search-intent-reader.js";
 
 const browserSessionPort = 54_312;
 
@@ -52,7 +52,7 @@ function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
   const workspaceServiceUrl = resolveWorkspaceServiceUrl();
   const browserControl = new ManagedBrowser(
     profilePath,
-    new WorkspaceSelectedRecommendationPageReader(workspaceServiceUrl),
+    new WorkspaceSelectedJobSearchIntentReader(workspaceServiceUrl),
     new WorkspaceJobPostingWriter(workspaceServiceUrl),
   );
   const statusReporter = new BrowserSessionStatusReporter(

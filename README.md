@@ -17,7 +17,7 @@ durable facts:
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP. It also tracks leased Browser Session presence for readers.
 - [Dashboard](apps/dashboard/) reads the workspace overview and lets the user maintain personal
-  context and select the job-search intent that guides recommendation research. It never controls
+  context and select the job-search intent that guides recruiting research. It never controls
   the browser.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
@@ -33,12 +33,14 @@ Available now:
 
 - Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
   with platform-specific navigation and access-assessment rules behind adapters. It can also take a
-  bounded, structured snapshot of a loaded BOSS直聘 recommendation feed or 鱼泡直聘 topic feed; the
-  same bounded reader opens any missing recommendation page for the selected intent and passively
-  submits job cards already displayed on those pages without replacing or refreshing other tabs.
+  bounded, structured snapshot of job cards already loaded on any supported-platform page. While a
+  job-search intent is selected, a passive collector keeps its recommendation seed pages available
+  and submits recognizable cards from every open supported-platform tab without replacing or
+  refreshing other tabs.
 - Workspace Service stores platform-access observations and interruptions, along with personal
-  context, job-search intents, and normalized page-derived job facts. It skips unchanged
-  observations and merges confident cross-platform matches while preserving every platform link.
+  context, job-search intents, and normalized job facts discovered during research. It skips
+  unchanged observations and merges confident cross-platform matches while preserving every
+  platform link.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
   lets the user maintain and select job-search intents. Its separate paginated job-library page
   supports focused browsing while preserving the original recruiting-platform sources.

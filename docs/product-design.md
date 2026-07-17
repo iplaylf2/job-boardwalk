@@ -49,9 +49,10 @@ authentication cookies, or desktop windows.
 
 The **Dashboard** is an independent view of durable workspace data and leased Browser Session
 presence. It also lets the user maintain personal context and a collection of job-search intents.
-At most one intent is selected as the current collection context; each intent associates a
-target position and city with its corresponding platform recommendation pages. Dashboard neither
-controls the browser nor requires an active agent conversation.
+At most one intent is selected as the current research direction, which enables passive
+collection; each intent associates a target position and city with its corresponding platform
+recommendation pages. Dashboard neither controls the browser nor requires an active agent
+conversation.
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
@@ -60,18 +61,7 @@ authentication assessment from a real top-level navigation response or a bounded
 when it has a conclusive platform-specific rule. The agent interprets evidence not covered by an
 adapter.
 
-Browser Session may also expose a bounded, platform-specific recommendation-page snapshot as live
-evidence. It verifies that the live page is a supported BOSS直聘 intent feed or 鱼泡直聘 topic feed
-before extracting already-loaded job cards. Browser Session does not own the selected intent,
-recommendation-page association, recommendation-quality judgments, or durable observations.
-Workspace Service owns the durable context. The selected intent determines which associated
-recommendation pages Browser Session reads passively.
-
-Collected and normalized jobs form a separate durable library rather than a page archive. Each
-platform source keeps its job and discovery links plus normalized fields; no HTML or historical
-page snapshot is stored. Workspace Service merges sources when their normalized company, title,
-and location identify the same job. An observation fingerprint skips unchanged records. Partial
-cards without that identity remain separate.
+## Runtime presence and reporting
 
 Browser Session sends bounded status directly to Workspace Service. A report includes browser
 availability, version, and tab count, plus a generic failure summary when unavailable and any
@@ -81,6 +71,27 @@ local paths or launch parameters. Workspace Service treats runtime status as a s
 stores only changed access observations: before the first report, presence is unknown; after a
 lease expires, presence is offline. Reporting failure never prevents Browser Session from
 operating. Reports contain no cookies, credentials, storage contents, or unrestricted page text.
+
+## Job discovery and library
+
+Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It
+extracts already-loaded job cards from any page inside a supported recruiting platform's
+navigation boundary without navigating, scrolling, opening details, or persisting results. Browser
+Session owns this page read, but it does not own the selected intent, semantic relevance judgments,
+or durable job observations.
+
+A selected job-search intent enables passive collection and bounds how long it runs. The intent's
+recommendation pages are seed pages that Browser Session keeps available; they are not a whitelist
+of pages eligible for collection. During that period, recognizable job cards from every open
+supported-platform tab may be submitted, including related search results and other discovery
+surfaces reached during research. A failure to read one tab is reported for that tab and does not
+discard observations from other tabs.
+
+Workspace Service turns submitted observations into a durable job library rather than a page
+archive. Each platform source keeps its job and discovery links plus normalized fields; no HTML or
+historical page snapshot is stored. Workspace Service merges sources when their normalized company,
+title, and location identify the same job. An observation fingerprint skips unchanged records.
+Partial cards without that identity remain separate.
 
 ## Browser handoff
 
@@ -117,9 +128,9 @@ applies the delegation boundary before acting.
 
 Platform access is an append-only observation stream. Browser Session passively observes navigation
 responses the visible browser already receives and applies deterministic adapter rules to bounded
-page reads. These are either snapshots requested by the agent or the recommendation-page read
-already used for passive job collection. It does not issue a detection request, refresh a page, or
-open a tab to check authentication. An adapter with a conclusive navigation rule may use response
+page reads. These are either snapshots requested by the agent or the job-card read already used
+for passive job collection. It does not issue a detection request, refresh a page, or open a tab to
+check authentication. An adapter with a conclusive navigation rule may use response
 success, the final URL, and the server redirect chain to produce one of two authentication results:
 
 - `protected-resource` records `authenticated` when a known protected navigation succeeds;
@@ -132,10 +143,10 @@ returns the same structured observation so the agent can answer without submitti
 Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
 alone, display names alone, and cookie presence do not establish authentication.
 
-Recommendation-page reads classify and extract the current page without consulting Workspace
-Service. Their bounded page evidence may also refresh a conclusive access observation. The agent
-may read the selected intent and its platform recommendation pages from Workspace when explaining
-the current recommendation context.
+An explicit job-card snapshot reads the current page without consulting Workspace Service. Its
+bounded page evidence may also refresh a conclusive access observation. The separate passive
+collector reads the selected intent and its recommendation seed pages from Workspace Service; the
+agent may read the same workspace context when explaining the current research direction.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page
@@ -168,7 +179,7 @@ The Dashboard currently includes:
 - platform-access observations and unresolved interruptions;
 - user-editable personal details and selectable job-search intents with platform recommendation
   pages;
-- a dedicated, paginated job-library workspace for normalized page facts and merged platform
+- a dedicated, paginated job-library workspace for normalized job facts and merged platform
   sources.
 
 As the product grows, it should also include:

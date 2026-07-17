@@ -6,7 +6,7 @@ import {
   resolvePlatformWebUrl,
 } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
-import type { PlatformAccessAssessment, RecommendationPageKind } from "@job-boardwalk/contracts";
+import type { PlatformAccessAssessment } from "@job-boardwalk/contracts";
 
 import { bossTextReplacements } from "./boss-text-replacements.js";
 
@@ -27,7 +27,7 @@ interface RecruitingPlatformAdapter {
   readonly label: string;
   readonly loginUrl: string;
   readonly platformId: PlatformId;
-  readonly recommendationPage: RecommendationPageAdapter;
+  readonly jobCardExtraction: JobCardExtractionConfig;
   readonly snapshotSettleMilliseconds?: number;
   readonly isInNavigationScope: (value: string) => boolean;
   readonly assessNavigation?: (
@@ -35,7 +35,7 @@ interface RecruitingPlatformAdapter {
   ) => PlatformAccessAssessment | null;
   readonly assessPage?: (page: PageAccessFacts) => PlatformAccessAssessment | null;
 }
-export interface RecommendationExtractionConfig {
+export interface JobCardExtractionConfig {
   readonly companySelectors: readonly string[];
   readonly containerSelectors: readonly string[];
   readonly detailsSelectors: readonly string[];
@@ -51,10 +51,6 @@ export interface RecommendationExtractionConfig {
   readonly titleBoundaryPattern?: string;
   readonly titleFromFirstLine?: boolean;
   readonly titleSelectors: readonly string[];
-}
-interface RecommendationPageAdapter {
-  readonly extraction: RecommendationExtractionConfig;
-  readonly kindForUrl: (url: URL) => RecommendationPageKind | null;
 }
 function isLoginPageUrl(candidateUrl: string, loginUrl: string): boolean {
   const current = new URL(candidateUrl);
@@ -141,65 +137,51 @@ function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlat
     isInNavigationScope(value) {
       return parsePlatformWebUrl(platformId, value) !== null;
     },
+    jobCardExtraction: platformId === "boss" ? bossJobCardExtraction : yupaoJobCardExtraction,
     label: metadata.label,
     loginUrl: resolvePlatformWebUrl(platformId, "login"),
     platformId,
-    recommendationPage:
-      platformId === "boss" ? bossRecommendationPageAdapter : yupaoRecommendationPageAdapter,
   };
 }
 
-const bossRecommendationPageAdapter = {
-  extraction: {
-    companySelectors: [".company-name"],
-    containerSelectors: [".job-card-wrapper", ".job-card-box", ".job-list-box li"],
-    detailsSelectors: [".tag-list li", ".job-card-footer li"],
-    educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
-    experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
-    jobLinkPathPattern: String.raw`^/job_detail/[^/]+\.html$`,
-    locationSelectors: [".job-area", ".job-location"],
-    requireContainerMatch: true,
-    salarySelectors: [".salary"],
-    salaryTextPattern: String.raw`\d+(?:-\d+)?K(?:·\d+薪)?|\d+(?:-\d+)?元/(?:天|小时)|面议`,
-    textReplacements: bossTextReplacements,
-    titleSelectors: [".job-name", ".job-title"],
-  },
-  kindForUrl: (url: URL) =>
-    url.pathname === "/web/geek/job-recommend" ||
-    (url.pathname === "/web/geek/jobs" && url.search === "")
-      ? "job-search-intent-recommendations"
-      : null,
-} as const satisfies RecommendationPageAdapter;
+const bossJobCardExtraction = {
+  companySelectors: [".company-name"],
+  containerSelectors: [".job-card-wrapper", ".job-card-box", ".job-list-box li"],
+  detailsSelectors: [".tag-list li", ".job-card-footer li"],
+  educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
+  experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
+  jobLinkPathPattern: String.raw`^/job_detail/[^/]+\.html$`,
+  locationSelectors: [".job-area", ".job-location"],
+  requireContainerMatch: true,
+  salarySelectors: [".salary"],
+  salaryTextPattern: String.raw`\d+(?:-\d+)?K(?:·\d+薪)?|\d+(?:-\d+)?元/(?:天|小时)|面议`,
+  textReplacements: bossTextReplacements,
+  titleSelectors: [".job-name", ".job-title"],
+} as const satisfies JobCardExtractionConfig;
 
 const yupaoSnapshotSettleMilliseconds = 1000;
-const yupaoRecommendationPageAdapter = {
-  extraction: {
-    companySelectors: [".company-name", "[class*='company-name']"],
-    containerSelectors: [
-      ".job-card",
-      ".job-item",
-      "[class*='job-card']",
-      "[class*='job-item']",
-      "[class*='position-card']",
-      "li",
-    ],
-    detailsSelectors: [".tag-list li", "[class*='tag']"],
-    educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
-    excludedTitlePattern: String.raw`^查看更多(?:信息)?$`,
-    experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
-    jobLinkPathPattern: String.raw`^/zhaogong/\d+(?:/[^/]+)?\.html$`,
-    locationSelectors: [".job-area", ".job-location", ".address", "[class*='address']"],
-    salarySelectors: [".salary", "[class*='salary']"],
-    salaryTextPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议`,
-    titleBoundaryPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
-    titleFromFirstLine: true,
-    titleSelectors: [".job-name", ".job-title", "[class*='job-name']", "[class*='job-title']"],
-  },
-  kindForUrl: (url: URL) =>
-    /^\/topic\/a\d+c\d+\/$/u.test(url.pathname) && url.search === ""
-      ? "job-search-intent-recommendations"
-      : null,
-} as const satisfies RecommendationPageAdapter;
+const yupaoJobCardExtraction = {
+  companySelectors: [".company-name", "[class*='company-name']"],
+  containerSelectors: [
+    ".job-card",
+    ".job-item",
+    "[class*='job-card']",
+    "[class*='job-item']",
+    "[class*='position-card']",
+    "li",
+  ],
+  detailsSelectors: [".tag-list li", "[class*='tag']"],
+  educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
+  excludedTitlePattern: String.raw`^查看更多(?:信息)?$`,
+  experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
+  jobLinkPathPattern: String.raw`^/zhaogong/\d+(?:/[^/]+)?\.html$`,
+  locationSelectors: [".job-area", ".job-location", ".address", "[class*='address']"],
+  salarySelectors: [".salary", "[class*='salary']"],
+  salaryTextPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议`,
+  titleBoundaryPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
+  titleFromFirstLine: true,
+  titleSelectors: [".job-name", ".job-title", "[class*='job-name']", "[class*='job-title']"],
+} as const satisfies JobCardExtractionConfig;
 
 export const recruitingPlatformAdapters = {
   boss: {
@@ -240,21 +222,13 @@ export function requireRecruitingPlatformAdapter(url: string): RecruitingPlatfor
   return adapter;
 }
 
-export function requireRecommendationPage(url: string): {
-  extraction: RecommendationExtractionConfig;
-  pageKind: RecommendationPageKind;
+export function requireJobCardExtraction(url: string): {
+  extraction: JobCardExtractionConfig;
   platformId: PlatformId;
 } {
   const adapter = requireRecruitingPlatformAdapter(url);
-  const pageKind = adapter.recommendationPage.kindForUrl(new URL(url));
-  if (!pageKind) {
-    throw new Error(
-      `当前页面不是${adapter.label}支持的推荐职位页面；请先打开该平台的推荐职位大页面。`,
-    );
-  }
   return {
-    extraction: adapter.recommendationPage.extraction,
-    pageKind,
+    extraction: adapter.jobCardExtraction,
     platformId: adapter.platformId,
   };
 }

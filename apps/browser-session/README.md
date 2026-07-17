@@ -16,23 +16,30 @@ platform-specific navigation and authentication rules. A platform's HTTPS naviga
 research navigation and explicit login-handoff preparation; it does not authorize login,
 verification, or other account actions.
 
-`browser_recommendation_snapshot` is the recommendation-page-specific read boundary. It accepts
-the BOSS直聘 recommendation routes (`/web/geek/job-recommend` and the query-free
-`/web/geek/jobs`) or a 鱼泡直聘 `/topic/a…c…/` intent feed. It returns bounded, deduplicated job-card
-evidence without navigating, scrolling, clicking, opening details, or persisting jobs. Homepage
-featured sections, query-bearing search pages, general job directories, and job-detail pages are
-rejected. Workspace owns the selected intent and its platform recommendation pages; the agent
-may compare that context with the live page evidence when answering the user.
+## Job-card reads and passive collection
 
-The same bounded reader runs passively when Browser Session is active. It reads the selected
-job-search intent from Workspace Service and opens an associated recommendation page when that
-exact page is not already open. It leaves other tabs untouched. It then observes only the selected
-intent's associated pages immediately and every 30 seconds and submits their currently loaded cards
-to Workspace Service without scrolling, clicking, or opening details. Repeated
-observations let Workspace Service skip unchanged records and update facts when the visible cards
-change; no agent call is required. The same bounded DOM pass refreshes any conclusive
-platform-access evidence, so a recommendation tab restored from the persistent browser profile does
-not depend on a later agent snapshot to re-establish its login observation.
+`browser_job_card_snapshot` is the structured job-card read boundary. It accepts any page inside
+BOSS直聘 or 鱼泡直聘's supported HTTPS navigation scope and returns bounded, deduplicated job-card
+evidence already present in that document without navigating, scrolling, clicking, opening
+details, or persisting jobs. A page with no recognizable cards returns an empty card collection.
+Workspace Service owns the selected intent and its platform recommendation seed pages; the agent
+compares that context with live page evidence when judging relevance.
+
+A passive collector reuses this bounded reader. It reads the selected job-search intent from
+Workspace Service and opens an associated recommendation seed page when that exact page is not
+already open, leaving other tabs untouched. It then observes every open supported-platform tab
+immediately and every 30 seconds and submits recognizable cards currently loaded in those
+documents to Workspace Service without scrolling, clicking, or opening details. This captures
+related search results and other discovery surfaces reached during directed research instead of
+treating the recommendation feed as the storage boundary.
+
+Without a selected intent, passive collection is disabled. The selected intent controls whether and
+for how long collection runs; its recommendation pages seed research but do not limit which open
+platform tabs can contribute cards. Repeated observations let Workspace Service skip unchanged
+records and update facts when visible cards change; no agent call is required. A page that closes
+or navigates during its bounded read is reported and skipped without discarding jobs collected from
+other tabs. A Workspace Service write failure stops the current pass and is retried on the next
+pass. The same bounded DOM pass refreshes any conclusive platform-access evidence.
 
 ## Run Browser Session
 
@@ -91,11 +98,11 @@ automatic access-assessment coverage differs:
 | 鱼泡直聘 | A bounded snapshot whose header contains the message and resume navigation followed by a non-login account identity records `authenticated`.                                                                                             |
 
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
-agent or the same bounded recommendation-page read already used for job collection. Browser Session
+agent or the same bounded job-card read already used for job collection. Browser Session
 sends no detection request and does not refresh or open a page for this purpose. `browser_snapshot`
 returns `platformAccessObservation`; when it is non-null, the same observation is already queued for
-the periodic Workspace Service report. A recommendation page loaded before monitoring begins is
-also reassessed by the passive collection cycle. The Dashboard still shows timestamped
+the periodic Workspace Service report. A platform page loaded before monitoring begins is also
+reassessed by the passive collection cycle. The Dashboard still shows timestamped
 observations, not a timeless live authentication guarantee.
 
 ## Runtime behavior
@@ -134,10 +141,10 @@ Clicking, filling, and selecting otherwise operate on the captured element witho
 classify its business purpose. The agent applies the user-handoff rules before login, verification,
 application, message, or account actions.
 
-Recommendation snapshots separately bound the number of job cards to 100 and return the card's
+Job-card snapshots separately bound the number of job cards to 100 and return the card's
 title, company, salary, location, tags, bounded card text, and same-platform detail link when the
 page exposes those fields. The default limit is 50. The snapshot covers only job cards already
-loaded into the current document; `truncated` reports clipping at the requested item limit.
+loaded into the current document; `truncated` reports clipping at the requested card limit.
 BOSS salary digits rendered through the page's private-use character set are deterministically
 mapped to their displayed decimal digits before the bounded card evidence is returned; this does
 not alter navigation or bypass an access decision.

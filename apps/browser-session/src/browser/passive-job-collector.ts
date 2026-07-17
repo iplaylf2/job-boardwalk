@@ -1,48 +1,46 @@
-import type { BrowserContext } from "patchright";
+import type { BrowserContext, Page } from "patchright";
 import type {
   JobPostingObservation,
+  JobCardSnapshot,
   RecommendationPageReference,
-  RecommendationPageSnapshot,
 } from "@job-boardwalk/contracts";
 import { CanceledError, ScopeError, sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
-import type { SelectedRecommendationPageReader } from "#/workspace-service/selected-recommendation-page-reader.js";
+import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
-import { captureRecommendationPage } from "./recommendation-page.js";
-import { requireRecommendationPage } from "./recruiting-platform-adapters.js";
+import { captureJobCardSnapshot } from "./job-card-snapshot.js";
+import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 
 const collectionIntervalMilliseconds = 30_000;
 const emptyCollectionLength = 0;
 const initialPageSettleMilliseconds = 1000;
-const maximumItemsPerPage = 100;
+const maximumCardsPerPage = 100;
 
 function externalJobId(jobUrl: string): string | undefined {
   const match = /\/(?<id>[^/]+?)(?:\.html?)?\/?$/u.exec(new URL(jobUrl).pathname);
   return match?.groups?.["id"];
 }
 
-export function jobPostingObservations(
-  snapshot: RecommendationPageSnapshot,
-): JobPostingObservation[] {
-  return snapshot.items.map((item) => {
-    const sourceId = externalJobId(item.href);
+export function jobPostingObservations(snapshot: JobCardSnapshot): JobPostingObservation[] {
+  return snapshot.cards.map((card) => {
+    const sourceId = externalJobId(card.href);
     return {
       collectedAt: snapshot.capturedAt,
-      ...(item.company ? { company: item.company } : {}),
-      details: item.details,
+      ...(card.company ? { company: card.company } : {}),
+      details: card.details,
       discoveryUrl: snapshot.sourceUrl,
-      ...(item.educationRequirement ? { educationRequirement: item.educationRequirement } : {}),
-      ...(item.experienceRequirement ? { experienceRequirement: item.experienceRequirement } : {}),
+      ...(card.educationRequirement ? { educationRequirement: card.educationRequirement } : {}),
+      ...(card.experienceRequirement ? { experienceRequirement: card.experienceRequirement } : {}),
       ...(sourceId ? { externalJobId: sourceId } : {}),
-      jobUrl: item.href,
-      ...(item.location ? { location: item.location } : {}),
+      jobUrl: card.href,
+      ...(card.location ? { location: card.location } : {}),
       platformId: snapshot.platformId,
-      ...(item.salary ? { salaryText: item.salary } : {}),
-      summary: item.text,
-      title: item.title,
+      ...(card.salary ? { salaryText: card.salary } : {}),
+      summary: card.text,
+      title: card.title,
     };
   });
 }
@@ -64,38 +62,53 @@ export function recommendationPagesWithoutOpenTab(
 export class PassiveJobCollector {
   readonly #context: BrowserContext;
   readonly #observePageAccess: (page: PageAccessFacts) => void;
-  readonly #recommendationPageReader: SelectedRecommendationPageReader;
+  readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   readonly #writer: JobPostingWriter;
 
   public constructor(
     context: BrowserContext,
-    recommendationPageReader: SelectedRecommendationPageReader,
+    selectedIntentReader: SelectedJobSearchIntentReader,
     writer: JobPostingWriter,
     observePageAccess: (page: PageAccessFacts) => void,
   ) {
     this.#context = context;
     this.#observePageAccess = observePageAccess;
-    this.#recommendationPageReader = recommendationPageReader;
+    this.#selectedIntentReader = selectedIntentReader;
     this.#writer = writer;
   }
 
-  public *collect(): RiteCoroutine<void> {
-    const recommendationPages = yield* this.#recommendationPageReader.read();
-    yield* this.#ensureRecommendationPages(recommendationPages);
-    const selectedPageUrls = new Set(recommendationPages.map(({ url }) => comparablePageUrl(url)));
+  public *collect(reportError: (error: Error) => void): RiteCoroutine<void> {
+    const selectedIntent = yield* this.#selectedIntentReader.read();
+    if (!selectedIntent) {
+      return;
+    }
+    yield* this.#ensureRecommendationPages(selectedIntent.recommendationPages);
     for (const page of this.#context.pages()) {
-      if (!selectedPageUrls.has(comparablePageUrl(page.url()))) {
+      if (!findRecruitingPlatformAdapter(page.url())) {
         continue;
       }
-      requireRecommendationPage(page.url());
-      const snapshot = yield* captureRecommendationPage(
-        page,
-        maximumItemsPerPage,
-        this.#observePageAccess,
-      );
+      const snapshot = yield* this.#capturePage(page, reportError);
+      if (!snapshot) {
+        continue;
+      }
       for (const observation of jobPostingObservations(snapshot)) {
         yield* this.#writer.write(observation);
       }
+    }
+  }
+
+  *#capturePage(
+    page: Page,
+    reportError: (error: Error) => void,
+  ): RiteCoroutine<JobCardSnapshot | null> {
+    try {
+      return yield* captureJobCardSnapshot(page, maximumCardsPerPage, this.#observePageAccess);
+    } catch (error) {
+      if (error instanceof CanceledError || error instanceof ScopeError) {
+        throw error;
+      }
+      reportError(error instanceof Error ? error : new Error(String(error)));
+      return null;
     }
   }
 
@@ -123,7 +136,7 @@ export class PassiveJobCollector {
   public *run(reportError: (error: Error) => void): RiteCoroutine<never> {
     while (true) {
       try {
-        yield* this.collect();
+        yield* this.collect(reportError);
       } catch (error) {
         if (error instanceof CanceledError || error instanceof ScopeError) {
           throw error;

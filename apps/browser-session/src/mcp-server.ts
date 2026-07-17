@@ -78,17 +78,22 @@ const browserTools = [
     name: "browser_snapshot",
   },
   {
-    annotations: { idempotentHint: true, openWorldHint: true, readOnlyHint: true },
+    annotations: {
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+      readOnlyHint: false,
+    },
     description:
-      "只读取当前已加载的职位推荐页，返回有界、去重的岗位卡片页面证据供 agent 汇总。仅支持 BOSS直聘的倾向推荐流和鱼泡直聘 topic 倾向职位流；不会把首页精选、普通搜索页、职位大全或详情页当作推荐结果，也不会导航、滚动、点击或持久化岗位。此工具读取实时页面证据；独立的被动采集流程会按照 Workspace Service 中选定的求职方向定期保存岗位观察。",
+      "读取当前受支持招聘平台页面中已经加载的岗位卡片，返回有界、去重的页面证据供调用方汇总。不会导航、滚动、点击或持久化岗位；同一次页面读取可能刷新平台适配器能够明确判定的访问观察，并将其加入 Browser Session 状态上报。岗位提交不由此工具触发：选中求职方向期间，独立的被动采集流程会定期将所有已打开平台页面中能识别出的岗位卡片提交到 Workspace Service，关联推荐页仅作为研究种子。",
     inputSchema: {
       properties: {
-        maximumItems: { maximum: 100, minimum: 1, type: "integer" },
+        maximumCards: { maximum: 100, minimum: 1, type: "integer" },
         tabId: { minimum: 1, type: "integer" },
       },
       type: "object",
     },
-    name: "browser_recommendation_snapshot",
+    name: "browser_job_card_snapshot",
   },
   {
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },

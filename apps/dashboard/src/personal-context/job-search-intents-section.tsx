@@ -137,19 +137,19 @@ export function JobSearchIntentsSection(props: {
           <h3>{props.editing ? "管理方向" : "正在关注"}</h3>
           <p>
             {props.editing
-              ? "当前方向决定浏览器持续读取哪些推荐页。"
-              : "浏览器会持续整理这个方向关联的推荐页。"}
+              ? "当前方向启用自动整理；推荐页用于开始研究，不会限制从其他已打开的平台页面整理岗位。"
+              : "系统会从这个方向的推荐页和其他已打开的平台页面整理岗位。"}
           </p>
         </div>
         <Show when={props.editing}>
           <button class="button button-primary" type="button" onClick={() => loadEditor(null)}>
-            添加倾向
+            添加方向
           </button>
         </Show>
       </div>
       <Show
         when={props.intents.length !== emptyCollectionLength}
-        fallback={<p class="empty">还没有求职方向。添加后，浏览器会自动读取关联的职位推荐页。</p>}
+        fallback={<p class="empty">还没有求职方向。添加后，系统会从关联推荐页开始自动整理岗位。</p>}
       >
         <div class="intent-list">
           <For each={visibleIntents()}>
@@ -199,7 +199,7 @@ export function JobSearchIntentsSection(props: {
         <form class="editor intent-editor" onSubmit={submit}>
           <div class="editor-heading">
             <strong>{editingId() === "new" ? "添加求职方向" : `编辑${name()}`}</strong>
-            <span>关联各平台中与这个方向对应的职位推荐页。</span>
+            <span>关联各平台中适合作为研究起点的职位推荐页。</span>
           </div>
           <label>
             方向名称

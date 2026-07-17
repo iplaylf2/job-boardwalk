@@ -49,7 +49,9 @@ The MCP surface provides:
 - `job-boardwalk://workspace/overview`, a resource containing Browser Session presence,
   platform-access summaries, profile facts, and job-search intents;
 - `read_workspace_overview`, which reads the same workspace state;
-- `job-boardwalk://jobs` and `read_job_library`, which expose the page-derived job library.
+- `job-boardwalk://jobs`, which exposes the first page of the current job library;
+- `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`, and
+  `platformId` filters.
 
 ## HTTP API
 
@@ -166,9 +168,12 @@ and intents can be removed with `DELETE /api/profile/facts/:id` and
 
 ### Job library
 
-Browser Session submits the normalized facts exposed by job cards that are already present in a
-supported recommendation page: title, company, location, salary text, detail tags, bounded card
-text, and the original links. `POST /api/jobs` is the service-to-service write boundary.
+Browser Session submits the facts exposed by job cards that are already present in a supported
+recruiting-platform page: title, company, location, salary text, detail tags, bounded card text, and
+the original links. A selected job-search intent enables passive collection and its recommendation
+pages seed the research. They do not limit collection to those pages: observations may come from
+any other supported-platform tab open while researching that direction. `POST /api/jobs` is the
+service-to-service write boundary.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, optional `query`, and optional `platform`
 parameters. Workspace Service applies those constraints in SQLite and returns the current page,

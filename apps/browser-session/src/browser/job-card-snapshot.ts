@@ -1,27 +1,24 @@
 import type { Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
-import type { RecommendedJobEvidence, RecommendationPageSnapshot } from "@job-boardwalk/contracts";
+import type { JobCardEvidence, JobCardSnapshot } from "@job-boardwalk/contracts";
 
-import { requireRecommendationPage } from "./recruiting-platform-adapters.js";
-import type {
-  PageAccessFacts,
-  RecommendationExtractionConfig,
-} from "./recruiting-platform-adapters.js";
+import { requireJobCardExtraction } from "./recruiting-platform-adapters.js";
+import type { JobCardExtractionConfig, PageAccessFacts } from "./recruiting-platform-adapters.js";
 
 const accessTextCharacters = 5000;
 const firstIndex = 0;
 const maximumAccessElements = 300;
 const maximumFieldCharacters = 300;
-const maximumRecommendationItems = 100;
-const maximumItemTextCharacters = 1500;
-const minimumRecommendationItems = 1;
-const defaultMaximumRecommendationItems = 50;
+const maximumJobCards = 100;
+const maximumCardTextCharacters = 1500;
+const minimumJobCards = 1;
+const defaultMaximumJobCards = 50;
 
-interface RecommendationPageMetadata {
+interface JobCardSnapshotMetadata {
   accessElements: { href?: string }[];
   accessText: string;
-  items: RecommendedJobEvidence[];
+  cards: JobCardEvidence[];
   title: string;
   truncated: boolean;
   url: string;
@@ -33,14 +30,14 @@ function normalizedText(value: string, maximumCharacters: number): string {
 
 // This callback is self-contained because Patchright serializes it into the page realm.
 // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- The serialized callback performs one bounded DOM extraction pass.
-export function captureRecommendationMetadata(input: {
+export function captureJobCardMetadata(input: {
   accessTextCharacters: number;
-  config: RecommendationExtractionConfig;
+  config: JobCardExtractionConfig;
   maximumAccessElements: number;
   maximumFieldCharacters: number;
-  maximumItemTextCharacters: number;
-  maximumItems: number;
-}): RecommendationPageMetadata {
+  maximumCardTextCharacters: number;
+  maximumCards: number;
+}): JobCardSnapshotMetadata {
   const { document } = globalThis;
   const startIndex = 0;
   const increment = 1;
@@ -90,7 +87,7 @@ export function captureRecommendationMetadata(input: {
     ? new RegExp(input.config.excludedTitlePattern, "u")
     : null;
   const seenUrls = new Set<string>();
-  const items: RecommendedJobEvidence[] = [];
+  const cards: JobCardEvidence[] = [];
   let matchingLinkCount = 0;
   for (const link of document.querySelectorAll<HTMLAnchorElement>("a[href]")) {
     // eslint-disable-next-line init-declarations
@@ -114,7 +111,7 @@ export function captureRecommendationMetadata(input: {
     // InnerText preserves the rendered block boundaries that separate Yupao card fields.
     // eslint-disable-next-line unicorn/prefer-dom-node-text-content
     const renderedLinkText = (link as HTMLElement).innerText || link.textContent || "";
-    const text = normalized(container.textContent ?? "", input.maximumItemTextCharacters);
+    const text = normalized(container.textContent ?? "", input.maximumCardTextCharacters);
     const selectorTitle = firstText(container, input.config.titleSelectors);
     const fallbackTitle = input.config.titleFromFirstLine
       ? firstLine(renderedLinkText)
@@ -133,7 +130,7 @@ export function captureRecommendationMetadata(input: {
     }
     seenUrls.add(href.href);
     matchingLinkCount += increment;
-    if (items.length === input.maximumItems) {
+    if (cards.length === input.maximumCards) {
       continue;
     }
     const details = input.config.detailsSelectors.flatMap((selector) =>
@@ -150,7 +147,7 @@ export function captureRecommendationMetadata(input: {
     const salary =
       firstText(container, input.config.salarySelectors) ??
       firstPattern(text, input.config.salaryTextPattern);
-    items.push({
+    cards.push({
       ...(company ? { company } : {}),
       details: details.filter(
         (value) => value !== educationRequirement && value !== experienceRequirement,
@@ -172,50 +169,50 @@ export function captureRecommendationMetadata(input: {
       .slice(startIndex, input.maximumAccessElements)
       .map(({ href }) => ({ href })),
     accessText: accessText.slice(startIndex, input.accessTextCharacters),
-    items,
+    cards,
     title: document.title,
-    truncated: matchingLinkCount > input.maximumItems,
+    truncated: matchingLinkCount > input.maximumCards,
     url: globalThis.location.href,
   };
 }
 
-export function readMaximumRecommendationItems(params: Record<string, unknown>): number {
-  if (!("maximumItems" in params)) {
-    return defaultMaximumRecommendationItems;
+export function readMaximumJobCards(params: Record<string, unknown>): number {
+  if (!("maximumCards" in params)) {
+    return defaultMaximumJobCards;
   }
-  const value = params["maximumItems"];
+  const value = params["maximumCards"];
   if (
     typeof value !== "number" ||
     !Number.isSafeInteger(value) ||
-    value < minimumRecommendationItems ||
-    value > maximumRecommendationItems
+    value < minimumJobCards ||
+    value > maximumJobCards
   ) {
     throw new TypeError(
-      `maximumItems 必须是 ${String(minimumRecommendationItems)} 到 ${String(maximumRecommendationItems)} 之间的数字。`,
+      `maximumCards 必须是 ${String(minimumJobCards)} 到 ${String(maximumJobCards)} 之间的数字。`,
     );
   }
   return value;
 }
 
-export function* captureRecommendationPage(
+export function* captureJobCardSnapshot(
   page: Page,
-  maximumItems: number,
+  maximumCards: number,
   observePageAccess?: (page: PageAccessFacts) => void,
-): RiteCoroutine<RecommendationPageSnapshot> {
+): RiteCoroutine<JobCardSnapshot> {
   const initialUrl = page.url();
-  const { extraction, pageKind, platformId } = requireRecommendationPage(initialUrl);
+  const { extraction, platformId } = requireJobCardExtraction(initialUrl);
   const metadata = yield* until(() =>
-    page.evaluate(captureRecommendationMetadata, {
+    page.evaluate(captureJobCardMetadata, {
       accessTextCharacters,
       config: extraction,
       maximumAccessElements,
+      maximumCardTextCharacters,
+      maximumCards,
       maximumFieldCharacters,
-      maximumItemTextCharacters,
-      maximumItems,
     }),
   );
   if (metadata.url !== initialUrl) {
-    throw new Error("推荐职位页面在读取期间发生了导航；请稳定页面后重试。");
+    throw new Error("当前页面在读取期间发生了导航；请等待页面稳定后重试。");
   }
   observePageAccess?.({
     elements: metadata.accessElements,
@@ -224,11 +221,10 @@ export function* captureRecommendationPage(
   });
   return {
     capturedAt: new Date().toISOString(),
-    items: metadata.items.map((item) => ({
-      ...item,
-      ...(item.company ? { company: normalizedText(item.company, maximumFieldCharacters) } : {}),
+    cards: metadata.cards.map((card) => ({
+      ...card,
+      ...(card.company ? { company: normalizedText(card.company, maximumFieldCharacters) } : {}),
     })),
-    pageKind,
     platformId,
     sourceTitle: metadata.title,
     sourceUrl: metadata.url,

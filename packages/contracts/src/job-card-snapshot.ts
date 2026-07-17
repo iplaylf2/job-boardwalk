@@ -1,8 +1,6 @@
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
-export type RecommendationPageKind = "job-search-intent-recommendations";
-
-export interface RecommendedJobEvidence {
+export interface JobCardEvidence {
   company?: string;
   details: string[];
   educationRequirement?: string;
@@ -14,10 +12,9 @@ export interface RecommendedJobEvidence {
   title: string;
 }
 
-export interface RecommendationPageSnapshot {
+export interface JobCardSnapshot {
   capturedAt: string;
-  items: RecommendedJobEvidence[];
-  pageKind: RecommendationPageKind;
+  cards: JobCardEvidence[];
   platformId: PlatformId;
   sourceTitle: string;
   sourceUrl: string;

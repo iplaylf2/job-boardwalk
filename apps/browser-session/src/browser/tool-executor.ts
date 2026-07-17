@@ -3,7 +3,6 @@ import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
-// oxlint-disable max-lines -- The executor is the cohesive dispatch and reference-lifecycle boundary.
 import { BrowserTabs, parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
 import {
   assertPlatformNavigationLink,
@@ -16,10 +15,7 @@ import {
   maximumElementHrefCharacters,
   maximumElementNameCharacters,
 } from "./page-snapshot.js";
-import {
-  captureRecommendationPage,
-  readMaximumRecommendationItems,
-} from "./recommendation-page.js";
+import { captureJobCardSnapshot, readMaximumJobCards } from "./job-card-snapshot.js";
 
 const defaultScrollDelta = 600;
 const maximumSnapshotTextCharacters = 40_000;
@@ -96,8 +92,8 @@ export class BrowserToolExecutor {
       case "browser_snapshot": {
         return yield* this.#snapshot(input);
       }
-      case "browser_recommendation_snapshot": {
-        return yield* this.#recommendationSnapshot(input);
+      case "browser_job_card_snapshot": {
+        return yield* this.#jobCardSnapshot(input);
       }
       case "browser_click": {
         return yield* this.#click(input);
@@ -230,11 +226,11 @@ export class BrowserToolExecutor {
     return { ...summary, scrollY };
   }
 
-  *#recommendationSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    const maximumItems = readMaximumRecommendationItems(params);
+  *#jobCardSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
+    const maximumCards = readMaximumJobCards(params);
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const snapshot = yield* captureRecommendationPage(page, maximumItems, this.#observePageAccess);
+    const snapshot = yield* captureJobCardSnapshot(page, maximumCards, this.#observePageAccess);
     return { ...snapshot, tabId };
   }
 

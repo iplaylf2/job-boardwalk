@@ -3,6 +3,11 @@ import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 import { parseJobPostingObservation } from "#/job-posting/observation-input.js";
+import {
+  defaultJobPageSize,
+  firstJobPage,
+  maximumJobPageSize,
+} from "#/job-posting/library-query.js";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
 import {
@@ -14,19 +19,15 @@ import {
 } from "./request.js";
 
 const createdStatus = 201;
-const defaultPage = 1;
-const defaultPageSize = 24;
-const maximumPageSize = 48;
-
-function readJobPageQuery(context: Context) {
-  const page = readPositiveQueryInteger(context.req.query("page"), defaultPage, "page");
+function readJobLibraryQuery(context: Context) {
+  const page = readPositiveQueryInteger(context.req.query("page"), firstJobPage, "page");
   const pageSize = readPositiveQueryInteger(
     context.req.query("pageSize"),
-    defaultPageSize,
+    defaultJobPageSize,
     "pageSize",
   );
-  if (pageSize > maximumPageSize) {
-    throw new InvalidRequestError(`pageSize 不能超过 ${String(maximumPageSize)}`);
+  if (pageSize > maximumJobPageSize) {
+    throw new InvalidRequestError(`pageSize 不能超过 ${String(maximumJobPageSize)}`);
   }
   const query = context.req.query("query")?.trim();
   const platform = context.req.query("platform");
@@ -57,7 +58,7 @@ function readPositiveQueryInteger(
     return fallback;
   }
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < defaultPage) {
+  if (!Number.isSafeInteger(parsed) || parsed < firstJobPage) {
     throw new InvalidRequestError(`${name} 必须是正整数`);
   }
   return parsed;
@@ -72,7 +73,7 @@ export function registerJobPostingRoute(
     serviceScope.run(function* readJobPostings() {
       try {
         yield* [];
-        return context.json(repository.listJobPostingPage(readJobPageQuery(context)));
+        return context.json(repository.listJobPostingPage(readJobLibraryQuery(context)));
       } catch (error) {
         return requestErrorResponse(error, context);
       }

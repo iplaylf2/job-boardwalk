@@ -117,7 +117,7 @@ export function WorkspaceStatusPanel(props: {
   return (
     <section class="status-panel" aria-labelledby="workspace-status-heading">
       <div class="status-panel-heading">
-        <p class="section-kicker">采集状态</p>
+        <p class="section-kicker">运行状态</p>
         <h2 id="workspace-status-heading">浏览器与登录</h2>
       </div>
       <div class="status-items">

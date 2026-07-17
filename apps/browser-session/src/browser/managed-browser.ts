@@ -7,7 +7,7 @@ import { race, wait } from "@shajara/host/primitives";
 
 import type { BrowserControl } from "./browser-control.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
-import type { SelectedRecommendationPageReader } from "#/workspace-service/selected-recommendation-page-reader.js";
+import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 import { PassiveJobCollector } from "./passive-job-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
@@ -45,7 +45,7 @@ export class ManagedBrowser implements BrowserControl {
   readonly #launchContext: PersistentContextLauncher;
   readonly #profilePath: string;
   readonly #jobPostingWriter: JobPostingWriter;
-  readonly #recommendationPageReader: SelectedRecommendationPageReader;
+  readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   #context: BrowserContext | null = null;
   #platformAccessObserver: PlatformAccessObserver | null = null;
   #toolExecutor: BrowserToolExecutor | null = null;
@@ -53,12 +53,12 @@ export class ManagedBrowser implements BrowserControl {
 
   public constructor(
     profilePath: string,
-    recommendationPageReader: SelectedRecommendationPageReader,
+    selectedIntentReader: SelectedJobSearchIntentReader,
     jobPostingWriter: JobPostingWriter,
     launchContext: PersistentContextLauncher = launchPersistentContext,
   ) {
     this.#profilePath = profilePath;
-    this.#recommendationPageReader = recommendationPageReader;
+    this.#selectedIntentReader = selectedIntentReader;
     this.#jobPostingWriter = jobPostingWriter;
     this.#launchContext = launchContext;
   }
@@ -115,7 +115,7 @@ export class ManagedBrowser implements BrowserControl {
     const platformAccessObserver = new PlatformAccessObserver(context);
     const passiveJobCollector = new PassiveJobCollector(
       context,
-      this.#recommendationPageReader,
+      this.#selectedIntentReader,
       this.#jobPostingWriter,
       (page) => platformAccessObserver.observePage(page),
     );

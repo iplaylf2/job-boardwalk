@@ -56,6 +56,49 @@ function postProfileFact(httpApp: ReturnType<typeof createWorkspaceServiceHttpAp
   });
 }
 
+function mcpRequest(
+  httpApp: ReturnType<typeof createWorkspaceServiceHttpApp>,
+  input: { id: number; method: string; params?: object },
+) {
+  return httpApp.request("/mcp", {
+    body: JSON.stringify({
+      id: input.id,
+      jsonrpc: "2.0",
+      method: input.method,
+      ...(input.params ? { params: input.params } : {}),
+    }),
+    headers: mcpRequestHeaders,
+    method: "POST",
+  });
+}
+
+function seedMcpWorkspace(repository: WorkspaceRepository): void {
+  repository.setProfileFact({
+    confirmed: true,
+    initiatedBy: "agent",
+    key: "target-role",
+    reason: "test",
+    source: "test",
+    value: "后端工程师",
+  });
+  repository.saveJobPostingObservation({
+    initiatedBy: "system",
+    observation: {
+      collectedAt: "2026-07-17T10:00:00.000Z",
+      company: "星海科技",
+      details: ["Node.js"],
+      discoveryUrl: "https://www.zhipin.com/web/geek/jobs?query=Node.js",
+      externalJobId: "mcp-example",
+      jobUrl: "https://www.zhipin.com/job_detail/mcp-example.html",
+      location: "北京",
+      platformId: "boss",
+      summary: "负责后端服务开发。",
+      title: "后端开发",
+    },
+    reason: "test",
+  });
+}
+
 // oxlint-disable-next-line max-lines-per-function -- Representative validation failures share one lifecycle assertion.
 test("keeps request errors inside the long-lived service scope", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
@@ -407,44 +450,169 @@ test("serves MCP from the same workspace state", async () => {
   const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
-  repository.setProfileFact({
-    confirmed: true,
-    initiatedBy: "agent",
-    key: "target-role",
-    reason: "test",
-    source: "test",
-    value: "后端工程师",
-  });
+  seedMcpWorkspace(repository);
 
   try {
-    const response = await httpApp.request("/mcp", {
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: "2.0",
-        method: "tools/call",
-        params: { arguments: {}, name: "read_workspace_overview" },
-      }),
-      headers: mcpRequestHeaders,
-      method: "POST",
+    const response = await mcpRequest(httpApp, {
+      id: 1,
+      method: "tools/call",
+      params: { arguments: {}, name: "read_workspace_overview" },
     });
     expect(response.status).toBe(successfulStatus);
     expect(await response.json()).toMatchObject({
       result: { structuredContent: { profileFacts: [{ value: "后端工程师" }] } },
     });
 
-    const libraryResponse = await httpApp.request("/mcp", {
-      body: JSON.stringify({
-        id: 2,
-        jsonrpc: "2.0",
-        method: "tools/call",
-        params: { arguments: {}, name: "read_job_library" },
-      }),
-      headers: mcpRequestHeaders,
-      method: "POST",
+    const libraryResponse = await mcpRequest(httpApp, {
+      id: 2,
+      method: "tools/call",
+      params: {
+        arguments: { page: 1, pageSize: 10, platformId: "boss", query: "后端" },
+        name: "read_job_library",
+      },
     });
     expect(await libraryResponse.json()).toMatchObject({
-      result: { structuredContent: { jobs: [] } },
+      result: {
+        structuredContent: {
+          jobs: [
+            {
+              sources: [
+                {
+                  discoveryUrl: "https://www.zhipin.com/web/geek/jobs?query=Node.js",
+                  jobUrl: "https://www.zhipin.com/job_detail/mcp-example.html",
+                },
+              ],
+              title: "后端开发",
+            },
+          ],
+          page: 1,
+          pageSize: 10,
+          total: 1,
+        },
+      },
     });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("advertises job-library filters by public tool name", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const toolsResponse = await mcpRequest(httpApp, { id: 1, method: "tools/list" });
+    const toolsPayload = (await toolsResponse.json()) as {
+      result: { tools: { inputSchema: object; name: string }[] };
+    };
+    expect(
+      toolsPayload.result.tools.find(({ name }) => name === "read_workspace_overview"),
+    ).toMatchObject({ inputSchema: { properties: {} } });
+    expect(toolsPayload.result.tools.find(({ name }) => name === "read_job_library")).toMatchObject(
+      {
+        inputSchema: {
+          properties: {
+            page: { minimum: 1, type: "integer" },
+            pageSize: { maximum: 48, minimum: 1, type: "integer" },
+            platformId: { enum: ["boss", "yupao"] },
+            query: { type: "string" },
+          },
+        },
+      },
+    );
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("contains invalid and unknown MCP job-library input", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const invalidLibraryResponse = await mcpRequest(httpApp, {
+      id: 1,
+      method: "tools/call",
+      params: {
+        arguments: { pageSize: maximumPageSizePlusOne },
+        name: "read_job_library",
+      },
+    });
+    expect(await invalidLibraryResponse.json()).toMatchObject({
+      result: {
+        content: [{ text: expect.stringMatching(/pageSize/u), type: "text" }],
+        isError: true,
+      },
+    });
+    const unknownArgumentResponse = await mcpRequest(httpApp, {
+      id: 2,
+      method: "tools/call",
+      params: {
+        arguments: { platform: "boss" },
+        name: "read_job_library",
+      },
+    });
+    expect(await unknownArgumentResponse.json()).toMatchObject({
+      result: {
+        content: [{ text: expect.stringMatching(/不支持参数：platform/u), type: "text" }],
+        isError: true,
+      },
+    });
+    const followingOverviewResponse = await httpApp.request("/api/workspace/overview");
+    expect(followingOverviewResponse.status).toBe(successfulStatus);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("contains unexpected MCP read failures without exposing repository details", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+  repository.close();
+
+  try {
+    const response = await mcpRequest(httpApp, {
+      id: 1,
+      method: "tools/call",
+      params: { arguments: {}, name: "read_job_library" },
+    });
+    expect(await response.json()).toMatchObject({
+      result: {
+        content: [{ text: "Workspace Service 无法完成工作区读取。", type: "text" }],
+        isError: true,
+      },
+    });
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("rejects an unknown MCP resource without failing the service scope", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const response = await mcpRequest(httpApp, {
+      id: 1,
+      method: "resources/read",
+      params: { uri: "job-boardwalk://unknown" },
+    });
+    expect(await response.json()).toMatchObject({
+      error: { message: expect.stringMatching(/未知的 Job Boardwalk 资源/u) },
+    });
+    const followingOverviewResponse = await httpApp.request("/api/workspace/overview");
+    expect(followingOverviewResponse.status).toBe(successfulStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

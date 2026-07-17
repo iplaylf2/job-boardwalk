@@ -22,6 +22,7 @@ import type {
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
 import { normalizeJobPostingSalary } from "#/job-posting/salary.js";
+import type { JobLibraryQuery } from "#/job-posting/library-query.js";
 
 import {
   jobPostings,
@@ -342,12 +343,7 @@ export class WorkspaceRepository {
       .map((job) => toJobPosting(job, sourceRows));
   }
 
-  public listJobPostingPage(input: {
-    page: number;
-    pageSize: number;
-    platformId?: "boss" | "yupao";
-    query?: string;
-  }): JobPostingPage {
+  public listJobPostingPage(input: JobLibraryQuery): JobPostingPage {
     const condition = this.#jobPageCondition(input);
     const total =
       this.#database.select({ value: count() }).from(jobPostings).where(condition).get()?.value ??

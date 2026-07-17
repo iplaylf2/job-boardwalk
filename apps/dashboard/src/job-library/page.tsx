@@ -127,7 +127,11 @@ export function JobLibraryPage(): JSX.Element {
   usePeriodicRefresh(() => setRefreshCount((value) => value + refreshIncrement));
 
   return (
-    <AppShell active="jobs" title="岗位库" lede="查看从推荐页整理出的岗位，并通过原始链接核对。">
+    <AppShell
+      active="jobs"
+      title="岗位库"
+      lede="查看研究过程中发现并整理的岗位，通过原始链接回到招聘平台核对。"
+    >
       <section class="job-library" aria-labelledby="job-results-heading">
         <JobLibraryFilters
           draftQuery={draftQuery()}

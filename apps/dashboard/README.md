@@ -2,14 +2,14 @@
 
 Dashboard is Job Boardwalk's local interface. It shows durable Workspace Service data and lets the
 user maintain personal context and job-search intents. Each intent combines a target position,
-city, and per-platform recommendation-page associations; at most one is selected as the current
-collection context. Dashboard remains useful without an active agent
-conversation and never controls the browser.
+city, and per-platform recommendation-page associations. At most one is selected as the current
+research direction, enabling passive collection while selected. Dashboard remains useful without
+an active agent conversation and never controls the browser.
 
 The interface has two primary destinations:
 
-- `/` centers the selected search direction and its personal context, with collection health kept
-  in a secondary status rail;
+- `/` centers the selected search direction and its personal context, with browser and access
+  health kept in a secondary status rail;
 - `/jobs` is the job-library workspace for search, platform filtering, source links, and paginated
   browsing.
 
@@ -26,8 +26,8 @@ The page:
 - lets the user add, update, select, and remove job-search intents and their BOSS直聘/鱼泡直聘
   recommendation-page associations;
 - lets the user add, update, and remove other personal details;
-- provides a searchable library of jobs collected from recommendation pages, with a platform
-  filter and server-backed pagination;
+- provides a searchable library of jobs discovered during directed platform research, with a
+  platform filter and server-backed pagination;
 - displays confident cross-platform matches as one job while retaining each recruiting-site link.
 
 Observation times remain visible because saved platform observations are historical; they do not

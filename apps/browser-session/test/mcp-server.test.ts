@@ -76,7 +76,7 @@ test("always exposes the project-owned Patchright browser tools", async () => {
       "browser_tabs",
       "browser_prepare_login",
       "browser_navigate",
-      "browser_recommendation_snapshot",
+      "browser_job_card_snapshot",
       "browser_snapshot",
       "browser_click",
       "browser_fill",
@@ -125,19 +125,20 @@ test("exposes browser action annotations", async () => {
   await close();
 });
 
-test("exposes recommendation snapshots as a read-only capability", async () => {
+test("discloses the access-observation side effect of job-card snapshots", async () => {
   await using serviceScope = createScope();
   const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
   const { client, close } = await connectedClient(mcpServer);
 
   const listedTools = await client.listTools();
-  const recommendationSnapshotTool = listedTools.tools.find(
-    ({ name }) => name === "browser_recommendation_snapshot",
+  const jobCardSnapshotTool = listedTools.tools.find(
+    ({ name }) => name === "browser_job_card_snapshot",
   );
-  expect(recommendationSnapshotTool?.annotations).toMatchObject({
-    readOnlyHint: true,
+  expect(jobCardSnapshotTool?.annotations).toMatchObject({
+    destructiveHint: false,
+    readOnlyHint: false,
   });
-  expect(recommendationSnapshotTool?.inputSchema.required).toBeUndefined();
+  expect(jobCardSnapshotTool?.inputSchema.required).toBeUndefined();
 
   await close();
 });
@@ -231,33 +232,33 @@ test("rejects unsafe tool input through the public tool boundary", async () => {
     text: expect.stringMatching(/不存在或已过期/u),
   });
 
-  const excessiveRecommendationItemsResult = CallToolResultSchema.parse(
+  const excessiveJobCardsResult = CallToolResultSchema.parse(
     await client.callTool({
-      arguments: { maximumItems: 101 },
-      name: "browser_recommendation_snapshot",
+      arguments: { maximumCards: 101 },
+      name: "browser_job_card_snapshot",
     }),
   );
-  expect(excessiveRecommendationItemsResult.isError).toBe(true);
-  expect(excessiveRecommendationItemsResult.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/maximumItems/u),
+  expect(excessiveJobCardsResult.isError).toBe(true);
+  expect(excessiveJobCardsResult.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/maximumCards/u),
   });
   await close();
 });
 
-test("rejects a fractional recommendation item limit", async () => {
+test("rejects a fractional job-card limit", async () => {
   await using serviceScope = createScope();
   const mcpServer = createBrowserSessionMcpServer(browserToolExecutorControl(), serviceScope);
   const { client, close } = await connectedClient(mcpServer);
 
   const result = CallToolResultSchema.parse(
     await client.callTool({
-      arguments: { maximumItems: 1.5 },
-      name: "browser_recommendation_snapshot",
+      arguments: { maximumCards: 1.5 },
+      name: "browser_job_card_snapshot",
     }),
   );
   expect(result.isError).toBe(true);
   expect(result.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/maximumItems/u),
+    text: expect.stringMatching(/maximumCards/u),
   });
   await close();
 });
