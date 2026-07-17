@@ -21,8 +21,18 @@ the BOSS直聘 recommendation routes (`/web/geek/job-recommend` and the query-fr
 `/web/geek/jobs`) or a 鱼泡直聘 `/topic/a…c…/` intent feed. It returns bounded, deduplicated job-card
 evidence without navigating, scrolling, clicking, opening details, or persisting jobs. Homepage
 featured sections, query-bearing search pages, general job directories, and job-detail pages are
-rejected. Workspace owns the selected intent and its platform source associations; the agent
-compares that context with the live page evidence.
+rejected. Workspace owns the selected intent and its platform recommendation pages; the agent
+may compare that context with the live page evidence when answering the user.
+
+The same bounded reader runs passively when Browser Session is active. It reads the selected
+job-search intent from Workspace Service and opens an associated recommendation page when that
+exact page is not already open. It leaves other tabs untouched. It then observes only the selected
+intent's associated pages immediately and every 30 seconds and submits their currently loaded cards
+to Workspace Service without scrolling, clicking, or opening details. Repeated
+observations let Workspace Service skip unchanged records and update facts when the visible cards
+change; no agent call is required. The same bounded DOM pass refreshes any conclusive
+platform-access evidence, so a recommendation tab restored from the persistent browser profile does
+not depend on a later agent snapshot to re-establish its login observation.
 
 ## Run Browser Session
 
@@ -62,10 +72,13 @@ but this is not authentication: local processes are inside the service trust bou
 Every five seconds, Browser Session sends Workspace Service a bounded status report containing
 browser availability, version, tab count, a generic failure summary when unavailable, and the
 latest authentication observation, if any, derived by an adapter from browser navigation or a
-requested snapshot. Detailed browser errors remain in the local process log. Set
+bounded page read. Detailed browser errors remain in the local process log. Set
 `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is not available at
 <http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
 control.
+
+Job-card submission uses the same Workspace Service URL. A failed submission is reported locally
+and retried by the next bounded collection pass without stopping browser control.
 
 ### Platform adapter coverage
 
@@ -77,13 +90,13 @@ automatic access-assessment coverage differs:
 | BOSS直聘 | Successful protected navigation records `authenticated`; redirect from protected navigation to login records `unauthenticated`; a bounded snapshot containing the complete set of account-only navigation links records `authenticated`. |
 | 鱼泡直聘 | A bounded snapshot whose header contains the message and resume navigation followed by a non-login account identity records `authenticated`.                                                                                             |
 
-Navigation assessment is passive, and snapshot assessment reuses the page evidence already
-requested by the agent. Browser Session sends no detection request and does not refresh or open a
-page for this purpose. `browser_snapshot` returns `platformAccessObservation`; when it is non-null,
-the same observation is already queued for the periodic Workspace Service report. A page loaded
-before monitoring begins can therefore be assessed by a later snapshot without a separate agent
-submission. The Dashboard still shows timestamped observations, not a timeless live authentication
-guarantee.
+Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
+agent or the same bounded recommendation-page read already used for job collection. Browser Session
+sends no detection request and does not refresh or open a page for this purpose. `browser_snapshot`
+returns `platformAccessObservation`; when it is non-null, the same observation is already queued for
+the periodic Workspace Service report. A recommendation page loaded before monitoring begins is
+also reassessed by the passive collection cycle. The Dashboard still shows timestamped
+observations, not a timeless live authentication guarantee.
 
 ## Runtime behavior
 
@@ -125,6 +138,9 @@ Recommendation snapshots separately bound the number of job cards to 100 and ret
 title, company, salary, location, tags, bounded card text, and same-platform detail link when the
 page exposes those fields. The default limit is 50. The snapshot covers only job cards already
 loaded into the current document; `truncated` reports clipping at the requested item limit.
+BOSS salary digits rendered through the page's private-use character set are deterministically
+mapped to their displayed decimal digits before the bounded card evidence is returned; this does
+not alter navigation or bypass an access decision.
 
 `browser_prepare_login` is the explicit login-handoff preparation path. When the user asks to log
 in, or visible page evidence shows that the requested workflow requires authentication and the

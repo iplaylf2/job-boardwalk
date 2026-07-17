@@ -1,11 +1,19 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "39eda884-9465-4528-a512-393da4a8276d",
+  "id": "d7b56a0e-d2ec-4356-9ebe-8f372ad17564",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
-      "name": "job_search_intent_sources",
+      "name": "job_posting_sources",
+      "entityType": "tables"
+    },
+    {
+      "name": "job_postings",
+      "entityType": "tables"
+    },
+    {
+      "name": "job_search_intent_recommendation_pages",
       "entityType": "tables"
     },
     {
@@ -25,24 +33,24 @@
       "entityType": "tables"
     },
     {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": true,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "job_search_intent_sources"
-    },
-    {
-      "type": "integer",
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "intent_id",
+      "name": "collected_at",
       "entityType": "columns",
-      "table": "job_search_intent_sources"
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "company",
+      "entityType": "columns",
+      "table": "job_posting_sources"
     },
     {
       "type": "text",
@@ -50,9 +58,109 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "label",
+      "name": "details",
       "entityType": "columns",
-      "table": "job_search_intent_sources"
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "discovery_url",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "education_requirement",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "experience_requirement",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "external_job_id",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "job_url",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_checked_at",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "location",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "normalized_salary",
+      "entityType": "columns",
+      "table": "job_posting_sources"
     },
     {
       "type": "text",
@@ -62,7 +170,147 @@
       "generated": null,
       "name": "platform_id",
       "entityType": "columns",
-      "table": "job_search_intent_sources"
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "salary_text",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_fingerprint",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "summary",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "company",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "details",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "education_requirement",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "experience_requirement",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identity_key",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "location",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "summary",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "job_postings"
     },
     {
       "type": "text",
@@ -72,7 +320,57 @@
       "generated": null,
       "name": "updated_at",
       "entityType": "columns",
-      "table": "job_search_intent_sources"
+      "table": "job_postings"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "intent_id",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "label",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "platform_id",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
     },
     {
       "type": "text",
@@ -82,7 +380,7 @@
       "generated": null,
       "name": "url",
       "entityType": "columns",
-      "table": "job_search_intent_sources"
+      "table": "job_search_intent_recommendation_pages"
     },
     {
       "type": "text",
@@ -325,21 +623,46 @@
       "table": "workspace_changes"
     },
     {
+      "columns": ["job_id"],
+      "tableTo": "job_postings",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_job_posting_sources_job_id_job_postings_id_fk",
+      "entityType": "fks",
+      "table": "job_posting_sources"
+    },
+    {
       "columns": ["intent_id"],
       "tableTo": "job_search_intents",
       "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_job_search_intent_sources_intent_id_job_search_intents_id_fk",
+      "name": "fk_job_search_intent_recommendation_pages_intent_id_job_search_intents_id_fk",
       "entityType": "fks",
-      "table": "job_search_intent_sources"
+      "table": "job_search_intent_recommendation_pages"
     },
     {
       "columns": ["id"],
       "nameExplicit": false,
-      "name": "job_search_intent_sources_pk",
-      "table": "job_search_intent_sources",
+      "name": "job_posting_sources_pk",
+      "table": "job_posting_sources",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "job_postings_pk",
+      "table": "job_postings",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "job_search_intent_recommendation_pages_pk",
+      "table": "job_search_intent_recommendation_pages",
       "entityType": "pks"
     },
     {
@@ -373,6 +696,42 @@
     {
       "columns": [
         {
+          "value": "platform_id",
+          "isExpression": false
+        },
+        {
+          "value": "external_job_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "job_posting_sources_platform_external_id",
+      "entityType": "indexes",
+      "table": "job_posting_sources"
+    },
+    {
+      "columns": [
+        {
+          "value": "platform_id",
+          "isExpression": false
+        },
+        {
+          "value": "job_url",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "job_posting_sources_platform_url",
+      "entityType": "indexes",
+      "table": "job_posting_sources"
+    },
+    {
+      "columns": [
+        {
           "value": "intent_id",
           "isExpression": false
         },
@@ -384,9 +743,9 @@
       "isUnique": true,
       "where": null,
       "origin": "manual",
-      "name": "job_search_intent_sources_intent_platform",
+      "name": "job_search_intent_recommendation_pages_intent_platform",
       "entityType": "indexes",
-      "table": "job_search_intent_sources"
+      "table": "job_search_intent_recommendation_pages"
     },
     {
       "columns": [
@@ -401,6 +760,13 @@
       "name": "job_search_intents_single_selected",
       "entityType": "indexes",
       "table": "job_search_intents"
+    },
+    {
+      "columns": ["identity_key"],
+      "nameExplicit": false,
+      "name": "job_postings_identity_key_unique",
+      "entityType": "uniques",
+      "table": "job_postings"
     },
     {
       "columns": ["name"],

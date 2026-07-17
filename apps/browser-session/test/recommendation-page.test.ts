@@ -23,7 +23,7 @@ function bossRecommendationLinks(): HTMLAnchorElement[] {
       ".company-name": "星海科技",
       ".job-area": "上海",
       ".job-name": "后端工程师",
-      ".salary": "25-35K",
+      ".salary": "-K",
     },
     ["3-5年", "本科"],
   );
@@ -72,7 +72,7 @@ function recommendationLink(href: string, title: string, container: Element): HT
 function yupaoRecommendationLinks(): HTMLAnchorElement[] {
   const jobContainer = recommendationContainer({}, []);
   const moreContainer = recommendationContainer({}, []);
-  jobContainer.textContent = "Java开发工程师 1.5-2万元/月";
+  jobContainer.textContent = "Java开发工程师 1.5-2万元/月 Java 3-5年 本科";
   moreContainer.textContent = "查看更多信息";
   return [
     recommendationLink(
@@ -122,7 +122,9 @@ test("extracts bounded, deduplicated evidence only from same-origin job cards", 
   });
 
   const metadata = captureRecommendationMetadata({
+    accessTextCharacters: 5000,
     config: requireRecommendationPage("https://www.zhipin.com/web/geek/job-recommend").extraction,
+    maximumAccessElements: 300,
     maximumFieldCharacters: 300,
     maximumItemTextCharacters: 1500,
     maximumItems: 1,
@@ -144,6 +146,7 @@ test("extracts bounded, deduplicated evidence only from same-origin job cards", 
 
 test("excludes Yupao's more-information entry from job evidence", () => {
   vi.stubGlobal("document", {
+    body: { innerText: "消息\n简历\n测试用户\n推荐" },
     querySelectorAll: () => yupaoRecommendationLinks(),
     title: "北京招聘信息 - 鱼泡直聘",
   });
@@ -153,12 +156,22 @@ test("excludes Yupao's more-information entry from job evidence", () => {
   });
 
   const metadata = captureRecommendationMetadata({
+    accessTextCharacters: 5000,
     config: requireRecommendationPage("https://www.yupao.com/topic/a2c1488/").extraction,
+    maximumAccessElements: 300,
     maximumFieldCharacters: 300,
     maximumItemTextCharacters: 1500,
     maximumItems: 50,
   });
 
-  expect(metadata.items.map(({ title }) => title)).toEqual(["Java开发工程师"]);
+  expect(metadata.items).toMatchObject([
+    {
+      educationRequirement: "本科",
+      experienceRequirement: "3-5年",
+      salary: "1.5-2万元/月",
+      title: "Java开发工程师",
+    },
+  ]);
+  expect(metadata.accessText).toBe("消息\n简历\n测试用户\n推荐");
   expect(metadata.truncated).toBe(false);
 });

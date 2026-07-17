@@ -18,21 +18,16 @@ export function PersonalContextPanel(props: {
     <section class="profile-panel" aria-labelledby="profile-heading">
       <header class="profile-heading">
         <div>
-          <p class="section-kicker">求职画像</p>
-          <h2 id="profile-heading">个人情况</h2>
+          <p class="section-kicker">当前上下文</p>
+          <h2 id="profile-heading">求职方向</h2>
         </div>
         <div class="profile-heading-actions">
-          <p>
-            {editing()
-              ? "编辑操作已显示，完成后返回简洁的阅读视图。"
-              : "这些信息会作为助手筛选和解释岗位的依据。"}
-          </p>
           <button
             class={`button mode-button ${editing() ? "mode-button-active" : ""}`}
             type="button"
             onClick={() => setEditing((value) => !value)}
           >
-            {editing() ? "完成编辑" : "编辑资料"}
+            {editing() ? "完成" : "调整"}
           </button>
         </div>
       </header>

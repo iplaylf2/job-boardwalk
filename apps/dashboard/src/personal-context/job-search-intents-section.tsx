@@ -1,6 +1,6 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import type { JobSearchIntent, JobSearchIntentSource } from "@job-boardwalk/contracts";
+import type { JobSearchIntent, RecommendationPageReference } from "@job-boardwalk/contracts";
 
 // oxlint-disable max-lines-per-function -- The editor state stays next to the intent collection it controls.
 import {
@@ -10,14 +10,14 @@ import {
 } from "#/workspace-service-client.js";
 
 const emptyCollectionLength = 0;
-type PlatformId = JobSearchIntentSource["platformId"];
+type PlatformId = RecommendationPageReference["platformId"];
 const platformLabels: Record<PlatformId, string> = {
   boss: "BOSS直聘",
   yupao: "鱼泡直聘",
 };
 
-function sourceFor(intent: JobSearchIntent | null, platformId: PlatformId) {
-  return intent?.sources.find((source) => source.platformId === platformId);
+function recommendationPageFor(intent: JobSearchIntent | null, platformId: PlatformId) {
+  return intent?.recommendationPages.find((page) => page.platformId === platformId);
 }
 
 export function JobSearchIntentsSection(props: {
@@ -25,6 +25,9 @@ export function JobSearchIntentsSection(props: {
   intents: JobSearchIntent[];
   onChanged: () => void;
 }): JSX.Element {
+  const visibleIntents = createMemo(() =>
+    props.editing ? props.intents : props.intents.filter((intent) => intent.selected),
+  );
   const [editingId, setEditingId] = createSignal<number | "new" | null>(null);
   const [name, setName] = createSignal("");
   const [position, setPosition] = createSignal("");
@@ -49,34 +52,32 @@ export function JobSearchIntentsSection(props: {
     setName(intent?.name ?? "");
     setPosition(intent?.position ?? "");
     setCity(intent?.city ?? "");
-    setBossLabel(sourceFor(intent, "boss")?.label ?? "");
-    setBossUrl(sourceFor(intent, "boss")?.url ?? "");
-    setYupaoLabel(sourceFor(intent, "yupao")?.label ?? "");
-    setYupaoUrl(sourceFor(intent, "yupao")?.url ?? "");
+    setBossLabel(recommendationPageFor(intent, "boss")?.label ?? "");
+    setBossUrl(recommendationPageFor(intent, "boss")?.url ?? "");
+    setYupaoLabel(recommendationPageFor(intent, "yupao")?.label ?? "");
+    setYupaoUrl(recommendationPageFor(intent, "yupao")?.url ?? "");
     setError("");
     setEditingId(intent?.id ?? "new");
   }
 
-  function readSources(): JobSearchIntentSource[] {
+  function readRecommendationPages(): RecommendationPageReference[] {
     const candidates = [
       { label: bossLabel().trim(), platformId: "boss" as const, url: bossUrl().trim() },
       { label: yupaoLabel().trim(), platformId: "yupao" as const, url: yupaoUrl().trim() },
     ];
-    for (const source of candidates) {
-      if (Boolean(source.label) !== Boolean(source.url)) {
-        throw new Error(
-          `${platformLabels[source.platformId]}的显示标签和推荐页 URL 需要同时填写。`,
-        );
+    for (const page of candidates) {
+      if (Boolean(page.label) !== Boolean(page.url)) {
+        throw new Error(`${platformLabels[page.platformId]}的显示标签和推荐页 URL 需要同时填写。`);
       }
     }
-    const sources = candidates.filter(
+    const recommendationPages = candidates.filter(
       ({ label, url }) =>
         label.length > emptyCollectionLength && url.length > emptyCollectionLength,
     );
-    if (sources.length === emptyCollectionLength) {
+    if (recommendationPages.length === emptyCollectionLength) {
       throw new Error("至少关联一个招聘平台的职位推荐页。");
     }
-    return sources;
+    return recommendationPages;
   }
 
   async function submit(event: SubmitEvent): Promise<void> {
@@ -90,13 +91,13 @@ export function JobSearchIntentsSection(props: {
         ...(typeof editingId() === "number" ? { id: editingId() as number } : {}),
         name: name(),
         position: position(),
+        recommendationPages: readRecommendationPages(),
         selected: existing?.selected ?? props.intents.length === emptyCollectionLength,
-        sources: readSources(),
       });
       setEditingId(null);
       props.onChanged();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "无法保存求职倾向。");
+      setError(caughtError instanceof Error ? caughtError.message : "无法保存求职方向。");
     } finally {
       setSaving(false);
     }
@@ -109,7 +110,7 @@ export function JobSearchIntentsSection(props: {
       await selectJobSearchIntent(intent.id);
       props.onChanged();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "无法选中求职倾向。");
+      setError(caughtError instanceof Error ? caughtError.message : "无法选中求职方向。");
     } finally {
       setSaving(false);
     }
@@ -123,7 +124,7 @@ export function JobSearchIntentsSection(props: {
       setEditingId(null);
       props.onChanged();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "无法删除求职倾向。");
+      setError(caughtError instanceof Error ? caughtError.message : "无法删除求职方向。");
     } finally {
       setSaving(false);
     }
@@ -133,9 +134,12 @@ export function JobSearchIntentsSection(props: {
     <section class="intent-section">
       <div class="panel-introduction">
         <div>
-          <p class="section-kicker">推荐上下文</p>
-          <h3>求职倾向</h3>
-          <p>当前倾向为助手提供推荐职位的分析上下文。</p>
+          <h3>{props.editing ? "管理方向" : "正在关注"}</h3>
+          <p>
+            {props.editing
+              ? "当前方向决定浏览器持续读取哪些推荐页。"
+              : "浏览器会持续整理这个方向关联的推荐页。"}
+          </p>
         </div>
         <Show when={props.editing}>
           <button class="button button-primary" type="button" onClick={() => loadEditor(null)}>
@@ -145,15 +149,15 @@ export function JobSearchIntentsSection(props: {
       </div>
       <Show
         when={props.intents.length !== emptyCollectionLength}
-        fallback={<p class="empty">还没有求职倾向；添加后才能关联并分析推荐职位页。</p>}
+        fallback={<p class="empty">还没有求职方向。添加后，浏览器会自动读取关联的职位推荐页。</p>}
       >
         <div class="intent-list">
-          <For each={props.intents}>
+          <For each={visibleIntents()}>
             {(intent) => (
               <article class={`intent-card ${intent.selected ? "intent-card-selected" : ""}`}>
                 <div class="intent-card-heading">
                   <div>
-                    <span class="item-label">{intent.selected ? "当前倾向" : "候选倾向"}</span>
+                    <span class="item-label">{intent.selected ? "当前方向" : "其他方向"}</span>
                     <h4>{intent.name}</h4>
                   </div>
                   <div class="intent-card-actions">
@@ -178,10 +182,10 @@ export function JobSearchIntentsSection(props: {
                   {intent.position} · {intent.city}
                 </p>
                 <div class="intent-sources">
-                  <For each={intent.sources}>
-                    {(source) => (
+                  <For each={intent.recommendationPages}>
+                    {(page) => (
                       <span>
-                        {platformLabels[source.platformId]} · {source.label}
+                        {platformLabels[page.platformId]} · {page.label}
                       </span>
                     )}
                   </For>
@@ -194,11 +198,11 @@ export function JobSearchIntentsSection(props: {
       <Show when={editingId() !== null}>
         <form class="editor intent-editor" onSubmit={submit}>
           <div class="editor-heading">
-            <strong>{editingId() === "new" ? "添加求职倾向" : `编辑${name()}`}</strong>
-            <span>为这个倾向关联各平台对应的职位推荐页。</span>
+            <strong>{editingId() === "new" ? "添加求职方向" : `编辑${name()}`}</strong>
+            <span>关联各平台中与这个方向对应的职位推荐页。</span>
           </div>
           <label>
-            倾向名称
+            方向名称
             <input
               required
               value={name()}

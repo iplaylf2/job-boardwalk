@@ -1,5 +1,7 @@
 import { render } from "@solidjs/web";
 
+// oxlint-disable-next-line import/no-unassigned-import -- The application entry owns global styles.
+import "./styles.css";
 import { App } from "./app.js";
 
 const root = document.querySelector("#app");

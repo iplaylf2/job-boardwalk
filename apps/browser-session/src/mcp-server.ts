@@ -80,7 +80,7 @@ const browserTools = [
   {
     annotations: { idempotentHint: true, openWorldHint: true, readOnlyHint: true },
     description:
-      "只读取当前已加载的职位推荐页，返回有界、去重的岗位卡片页面证据供 agent 汇总。仅支持 BOSS直聘的倾向推荐流和鱼泡直聘 topic 倾向职位流；不会把首页精选、普通搜索页、职位大全或详情页当作推荐结果，也不会导航、滚动、点击或持久化岗位。Workspace Service 保存求职倾向及平台来源关联；agent 负责将其与当前页面证据关联。",
+      "只读取当前已加载的职位推荐页，返回有界、去重的岗位卡片页面证据供 agent 汇总。仅支持 BOSS直聘的倾向推荐流和鱼泡直聘 topic 倾向职位流；不会把首页精选、普通搜索页、职位大全或详情页当作推荐结果，也不会导航、滚动、点击或持久化岗位。此工具读取实时页面证据；独立的被动采集流程会按照 Workspace Service 中选定的求职方向定期保存岗位观察。",
     inputSchema: {
       properties: {
         maximumItems: { maximum: 100, minimum: 1, type: "integer" },

@@ -4,9 +4,14 @@ import type { RiteCoroutine } from "@shajara/host";
 import type { RecommendedJobEvidence, RecommendationPageSnapshot } from "@job-boardwalk/contracts";
 
 import { requireRecommendationPage } from "./recruiting-platform-adapters.js";
-import type { RecommendationExtractionConfig } from "./recruiting-platform-adapters.js";
+import type {
+  PageAccessFacts,
+  RecommendationExtractionConfig,
+} from "./recruiting-platform-adapters.js";
 
+const accessTextCharacters = 5000;
 const firstIndex = 0;
+const maximumAccessElements = 300;
 const maximumFieldCharacters = 300;
 const maximumRecommendationItems = 100;
 const maximumItemTextCharacters = 1500;
@@ -14,6 +19,8 @@ const minimumRecommendationItems = 1;
 const defaultMaximumRecommendationItems = 50;
 
 interface RecommendationPageMetadata {
+  accessElements: { href?: string }[];
+  accessText: string;
   items: RecommendedJobEvidence[];
   title: string;
   truncated: boolean;
@@ -25,9 +32,11 @@ function normalizedText(value: string, maximumCharacters: number): string {
 }
 
 // This callback is self-contained because Patchright serializes it into the page realm.
-// eslint-disable-next-line max-lines-per-function, max-statements
+// eslint-disable-next-line complexity, max-lines-per-function, max-statements -- The serialized callback performs one bounded DOM extraction pass.
 export function captureRecommendationMetadata(input: {
+  accessTextCharacters: number;
   config: RecommendationExtractionConfig;
+  maximumAccessElements: number;
   maximumFieldCharacters: number;
   maximumItemTextCharacters: number;
   maximumItems: number;
@@ -36,7 +45,10 @@ export function captureRecommendationMetadata(input: {
   const startIndex = 0;
   const increment = 1;
   function normalized(value: string, maximumCharacters: number): string {
-    return value.replaceAll(/\s+/gu, " ").trim().slice(startIndex, maximumCharacters);
+    const decoded = [...value]
+      .map((character) => input.config.textReplacements?.[character] ?? character)
+      .join("");
+    return decoded.replaceAll(/\s+/gu, " ").trim().slice(startIndex, maximumCharacters);
   }
   function firstText(container: Element, selectors: readonly string[]): string | null {
     for (const selector of selectors) {
@@ -49,6 +61,20 @@ export function captureRecommendationMetadata(input: {
       }
     }
     return null;
+  }
+  function firstLine(value: string): string {
+    return (
+      value
+        .split(/\r?\n/u)
+        .map((line) => normalized(line, input.maximumFieldCharacters))
+        .find(Boolean) ?? ""
+    );
+  }
+  function firstPattern(value: string, pattern: string | undefined): string | null {
+    if (!pattern) {
+      return null;
+    }
+    return new RegExp(pattern, "u").exec(value)?.at(startIndex) ?? null;
   }
   function closestContainer(link: HTMLAnchorElement): Element | null {
     for (const selector of input.config.containerSelectors) {
@@ -85,10 +111,23 @@ export function captureRecommendationMetadata(input: {
     if (!container) {
       continue;
     }
-    const title =
-      firstText(container, input.config.titleSelectors) ??
-      normalized(link.textContent ?? "", input.maximumFieldCharacters);
+    // InnerText preserves the rendered block boundaries that separate Yupao card fields.
+    // eslint-disable-next-line unicorn/prefer-dom-node-text-content
+    const renderedLinkText = (link as HTMLElement).innerText || link.textContent || "";
     const text = normalized(container.textContent ?? "", input.maximumItemTextCharacters);
+    const selectorTitle = firstText(container, input.config.titleSelectors);
+    const fallbackTitle = input.config.titleFromFirstLine
+      ? firstLine(renderedLinkText)
+      : normalized(link.textContent ?? "", input.maximumFieldCharacters);
+    const titleBoundary = firstPattern(fallbackTitle, input.config.titleBoundaryPattern);
+    const title =
+      selectorTitle ??
+      normalized(
+        titleBoundary
+          ? fallbackTitle.slice(startIndex, fallbackTitle.indexOf(titleBoundary))
+          : fallbackTitle,
+        input.maximumFieldCharacters,
+      );
     if (!title || !text || excludedTitlePattern?.test(title)) {
       continue;
     }
@@ -106,10 +145,18 @@ export function captureRecommendationMetadata(input: {
     );
     const company = firstText(container, input.config.companySelectors);
     const location = firstText(container, input.config.locationSelectors);
-    const salary = firstText(container, input.config.salarySelectors);
+    const educationRequirement = firstPattern(text, input.config.educationTextPattern);
+    const experienceRequirement = firstPattern(text, input.config.experienceTextPattern);
+    const salary =
+      firstText(container, input.config.salarySelectors) ??
+      firstPattern(text, input.config.salaryTextPattern);
     items.push({
       ...(company ? { company } : {}),
-      details,
+      details: details.filter(
+        (value) => value !== educationRequirement && value !== experienceRequirement,
+      ),
+      ...(educationRequirement ? { educationRequirement } : {}),
+      ...(experienceRequirement ? { experienceRequirement } : {}),
       href: href.href,
       ...(location ? { location } : {}),
       ...(salary ? { salary } : {}),
@@ -117,7 +164,14 @@ export function captureRecommendationMetadata(input: {
       title,
     });
   }
+  // InnerText preserves the visible header lines used by platform access assessment.
+  // eslint-disable-next-line unicorn/prefer-dom-node-text-content
+  const accessText = document.body?.innerText ?? "";
   return {
+    accessElements: [...document.querySelectorAll<HTMLAnchorElement>("a[href]")]
+      .slice(startIndex, input.maximumAccessElements)
+      .map(({ href }) => ({ href })),
+    accessText: accessText.slice(startIndex, input.accessTextCharacters),
     items,
     title: document.title,
     truncated: matchingLinkCount > input.maximumItems,
@@ -146,12 +200,15 @@ export function readMaximumRecommendationItems(params: Record<string, unknown>):
 export function* captureRecommendationPage(
   page: Page,
   maximumItems: number,
+  observePageAccess?: (page: PageAccessFacts) => void,
 ): RiteCoroutine<RecommendationPageSnapshot> {
   const initialUrl = page.url();
   const { extraction, pageKind, platformId } = requireRecommendationPage(initialUrl);
   const metadata = yield* until(() =>
     page.evaluate(captureRecommendationMetadata, {
+      accessTextCharacters,
       config: extraction,
+      maximumAccessElements,
       maximumFieldCharacters,
       maximumItemTextCharacters,
       maximumItems,
@@ -160,6 +217,11 @@ export function* captureRecommendationPage(
   if (metadata.url !== initialUrl) {
     throw new Error("推荐职位页面在读取期间发生了导航；请稳定页面后重试。");
   }
+  observePageAccess?.({
+    elements: metadata.accessElements,
+    text: metadata.accessText,
+    url: metadata.url,
+  });
   return {
     capturedAt: new Date().toISOString(),
     items: metadata.items.map((item) => ({

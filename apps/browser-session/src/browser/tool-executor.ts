@@ -234,7 +234,7 @@ export class BrowserToolExecutor {
     const maximumItems = readMaximumRecommendationItems(params);
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const snapshot = yield* captureRecommendationPage(page, maximumItems);
+    const snapshot = yield* captureRecommendationPage(page, maximumItems, this.#observePageAccess);
     return { ...snapshot, tabId };
   }
 

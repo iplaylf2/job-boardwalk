@@ -1,5 +1,6 @@
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import type { NormalizedSalary } from "@job-boardwalk/contracts";
 
 export const platformAccessObservations = sqliteTable(
   "platform_access_observations",
@@ -68,8 +69,8 @@ export const jobSearchIntents = sqliteTable(
   ],
 );
 
-export const jobSearchIntentSources = sqliteTable(
-  "job_search_intent_sources",
+export const jobSearchIntentRecommendationPages = sqliteTable(
+  "job_search_intent_recommendation_pages",
   {
     id: integer().primaryKey({ autoIncrement: true }),
     intentId: integer("intent_id")
@@ -81,7 +82,57 @@ export const jobSearchIntentSources = sqliteTable(
     url: text().notNull(),
   },
   (table) => [
-    uniqueIndex("job_search_intent_sources_intent_platform").on(table.intentId, table.platformId),
+    uniqueIndex("job_search_intent_recommendation_pages_intent_platform").on(
+      table.intentId,
+      table.platformId,
+    ),
+  ],
+);
+
+export const jobPostings = sqliteTable("job_postings", {
+  company: text(),
+  createdAt: text("created_at").notNull(),
+  details: text({ mode: "json" }).$type<string[]>().notNull(),
+  educationRequirement: text("education_requirement"),
+  experienceRequirement: text("experience_requirement"),
+  id: integer().primaryKey({ autoIncrement: true }),
+  identityKey: text("identity_key").notNull().unique(),
+  location: text(),
+  summary: text().notNull(),
+  title: text().notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const jobPostingSources = sqliteTable(
+  "job_posting_sources",
+  {
+    collectedAt: text("collected_at").notNull(),
+    company: text(),
+    details: text({ mode: "json" }).$type<string[]>().notNull(),
+    discoveryUrl: text("discovery_url").notNull(),
+    educationRequirement: text("education_requirement"),
+    experienceRequirement: text("experience_requirement"),
+    externalJobId: text("external_job_id"),
+    id: integer().primaryKey({ autoIncrement: true }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobPostings.id, { onDelete: "cascade" }),
+    jobUrl: text("job_url").notNull(),
+    lastCheckedAt: text("last_checked_at").notNull(),
+    location: text(),
+    normalizedSalary: text("normalized_salary", { mode: "json" }).$type<NormalizedSalary>(),
+    platformId: text("platform_id").notNull(),
+    salaryText: text("salary_text"),
+    sourceFingerprint: text("source_fingerprint").notNull(),
+    summary: text().notNull(),
+    title: text().notNull(),
+  },
+  (table) => [
+    uniqueIndex("job_posting_sources_platform_external_id").on(
+      table.platformId,
+      table.externalJobId,
+    ),
+    uniqueIndex("job_posting_sources_platform_url").on(table.platformId, table.jobUrl),
   ],
 );
 

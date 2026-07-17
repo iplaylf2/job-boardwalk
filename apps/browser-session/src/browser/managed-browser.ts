@@ -6,6 +6,9 @@ import type { RiteCoroutine } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
 
 import type { BrowserControl } from "./browser-control.js";
+import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
+import type { SelectedRecommendationPageReader } from "#/workspace-service/selected-recommendation-page-reader.js";
+import { PassiveJobCollector } from "./passive-job-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
@@ -41,6 +44,8 @@ function launchPersistentContext(profilePath: string): Promise<BrowserContext> {
 export class ManagedBrowser implements BrowserControl {
   readonly #launchContext: PersistentContextLauncher;
   readonly #profilePath: string;
+  readonly #jobPostingWriter: JobPostingWriter;
+  readonly #recommendationPageReader: SelectedRecommendationPageReader;
   #context: BrowserContext | null = null;
   #platformAccessObserver: PlatformAccessObserver | null = null;
   #toolExecutor: BrowserToolExecutor | null = null;
@@ -48,9 +53,13 @@ export class ManagedBrowser implements BrowserControl {
 
   public constructor(
     profilePath: string,
+    recommendationPageReader: SelectedRecommendationPageReader,
+    jobPostingWriter: JobPostingWriter,
     launchContext: PersistentContextLauncher = launchPersistentContext,
   ) {
     this.#profilePath = profilePath;
+    this.#recommendationPageReader = recommendationPageReader;
+    this.#jobPostingWriter = jobPostingWriter;
     this.#launchContext = launchContext;
   }
 
@@ -85,7 +94,7 @@ export class ManagedBrowser implements BrowserControl {
     let failureCount = initialFailureCount;
     while (true) {
       try {
-        const closed = yield* this.#launchOnce();
+        const closed = yield* this.#launchOnce(reportError);
         failureCount = this.#recordFailure(closed, initialFailureCount, reportError);
       } catch (error) {
         if (error instanceof CanceledError || error instanceof ScopeError) {
@@ -98,19 +107,29 @@ export class ManagedBrowser implements BrowserControl {
     }
   }
 
-  *#launchOnce(): RiteCoroutine<Error> {
+  *#launchOnce(reportError: (error: Error) => void): RiteCoroutine<Error> {
     const context = yield* until(() => this.#launchContext(this.#profilePath));
     const closed = yield* completer<Error>();
     context.once("close", () => closed.resolve(new Error("浏览器窗口已经关闭。")));
     this.#context = context;
     const platformAccessObserver = new PlatformAccessObserver(context);
+    const passiveJobCollector = new PassiveJobCollector(
+      context,
+      this.#recommendationPageReader,
+      this.#jobPostingWriter,
+      (page) => platformAccessObserver.observePage(page),
+    );
     this.#platformAccessObserver = platformAccessObserver;
     this.#toolExecutor = new BrowserToolExecutor(context, (page) =>
       platformAccessObserver.observePage(page),
     );
     this.#hasFailed = false;
     try {
-      return yield* race([() => platformAccessObserver.run(), () => wait(closed.future)]);
+      return yield* race([
+        () => platformAccessObserver.run(),
+        () => passiveJobCollector.run(reportError),
+        () => wait(closed.future),
+      ]);
     } finally {
       this.#context = null;
       this.#platformAccessObserver = null;

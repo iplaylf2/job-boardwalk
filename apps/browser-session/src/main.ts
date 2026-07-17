@@ -13,6 +13,8 @@ import {
   BrowserSessionStatusReporter,
   resolveWorkspaceServiceUrl,
 } from "./workspace-service/status-reporter.js";
+import { WorkspaceJobPostingWriter } from "./workspace-service/job-posting-writer.js";
+import { WorkspaceSelectedRecommendationPageReader } from "./workspace-service/selected-recommendation-page-reader.js";
 
 const browserSessionPort = 54_312;
 
@@ -48,7 +50,11 @@ function reportWorkspaceStatusError(error: Error): void {
 function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
   const profilePath = yield* prepareBrowserProfilePath();
   const workspaceServiceUrl = resolveWorkspaceServiceUrl();
-  const browserControl = new ManagedBrowser(profilePath);
+  const browserControl = new ManagedBrowser(
+    profilePath,
+    new WorkspaceSelectedRecommendationPageReader(workspaceServiceUrl),
+    new WorkspaceJobPostingWriter(workspaceServiceUrl),
+  );
   const statusReporter = new BrowserSessionStatusReporter(
     workspaceServiceUrl,
     () => browserControl.status,

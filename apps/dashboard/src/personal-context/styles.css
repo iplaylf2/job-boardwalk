@@ -1,37 +1,56 @@
 .context-sections {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 28px;
-  padding-top: 22px;
+  gap: 36px;
+  padding-top: 28px;
 }
 
-.context-primary {
+.context-primary,
+.intent-section {
   min-width: 0;
 }
 
 .intent-section {
-  min-width: 0;
-  border-bottom: 1px solid #dcddd2;
-  padding-bottom: 24px;
+  border-bottom: 1px solid #cfd0c7;
+  padding-bottom: 34px;
+}
+
+.panel-introduction {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panel-introduction h3 {
+  margin: 0;
+  font-family: "Noto Serif SC", serif;
+  font-size: 17px;
+}
+
+.panel-introduction p {
+  margin: 5px 0 0;
+  color: #7b8077;
+  font-size: 11px;
 }
 
 .intent-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .intent-card {
-  border: 1px solid #d2d4c8;
-  border-radius: 12px;
-  padding: 14px;
-  background: #f8f6ee;
+  border-top: 1px solid #d0d2c8;
+  padding: 18px 0 4px;
+}
+
+.intent-card:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .intent-card-selected {
-  border-color: #8da13e;
-  background: #f0f6dc;
-  box-shadow: inset 3px 0 #9db44b;
+  border-color: #a9b875;
 }
 
 .intent-card-heading,
@@ -39,17 +58,20 @@
   display: flex;
   align-items: start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 
 .intent-card h4 {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
   font-family: "Noto Serif SC", serif;
-  font-size: 16px;
+  font-size: clamp(26px, 3.3vw, 42px);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
 }
 
 .intent-target {
-  margin: 12px 0;
+  margin: 15px 0 18px;
+  color: #41463e;
   font-size: 14px;
   font-weight: 600;
 }
@@ -57,73 +79,47 @@
 .intent-sources {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px 18px;
 }
 
 .intent-sources span {
-  border-radius: 999px;
-  padding: 4px 8px;
-  background: #e6e5dc;
-  color: #656b61;
-  font-size: 10px;
-}
-
-.intent-card-selected .intent-sources span {
-  background: #dde9b7;
-  color: #4f5c21;
-}
-
-.intent-editor {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 14px;
-}
-
-.intent-editor .editor-wide {
-  grid-column: 1 / -1;
-}
-
-.panel-introduction,
-.subsection-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.panel-introduction h3,
-.subsection-heading h3 {
-  margin: 0;
-  font-family: "Noto Serif SC", serif;
-  font-size: 17px;
-}
-
-.panel-introduction p {
-  margin: 3px 0 0;
-  color: #7a8076;
+  position: relative;
+  color: #687064;
   font-size: 11px;
 }
 
-.empty {
-  margin: 0;
-  color: #747970;
-  font-size: 13px;
-  line-height: 1.6;
+.intent-sources span + span::before {
+  position: absolute;
+  left: -11px;
+  color: #a9aca3;
+  content: "·";
+}
+
+.item-label {
+  overflow: hidden;
+  color: #747a70;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .button {
-  border: 1px solid #aeb2a7;
-  border-radius: 9px;
-  padding: 7px 11px;
-  color: #32372f;
+  border: 1px solid #9fa598;
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #343a31;
   background: transparent;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .button:hover {
-  background: #eeece2;
+  border-color: #66742f;
+  background: #e9efd2;
 }
 
 .button:disabled {
@@ -132,14 +128,10 @@
 }
 
 .button-primary {
-  border-color: #687b28;
-  background: #d9ed9a;
+  border-color: #72822e;
+  background: #dceba8;
   color: #34420b;
   white-space: nowrap;
-}
-
-.button-primary:hover {
-  background: #cfe587;
 }
 
 .button-danger {
@@ -149,14 +141,12 @@
 }
 
 .mode-button {
-  flex: 0 0 auto;
-  border-color: #83897e;
-  background: #fffefa;
+  background: rgba(255, 254, 249, 0.55);
 }
 
 .mode-button-active {
   border-color: #687b28;
-  background: #edf3d8;
+  background: #e9efd2;
   color: #445214;
 }
 
@@ -165,7 +155,7 @@
   padding: 2px;
   color: #66752e;
   background: transparent;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -176,18 +166,24 @@
   text-underline-offset: 3px;
 }
 
+.empty {
+  max-width: 520px;
+  margin: 0;
+  color: #777c73;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .editable-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0 24px;
 }
 
 .editable-row {
   min-width: 0;
-  border: 1px solid #dcddd2;
-  border-radius: 11px;
-  background: #f8f6ee;
-  padding: 13px 14px;
+  border-top: 1px solid #d6d7ce;
+  padding: 14px 0;
 }
 
 .editable-row-heading {
@@ -195,101 +191,42 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
 
-.item-label {
-  overflow: hidden;
-  color: #6b7267;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.editable-row-body {
+  display: grid;
+  gap: 6px;
 }
 
 .item-value {
-  margin: 0 0 8px;
-  font-size: 14px;
+  margin: 0;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1.55;
 }
 
 .item-meta {
-  color: #898e85;
-  font-size: 10px;
-}
-
-.context-subsection {
-  align-self: start;
-  border-radius: 12px;
-  background: #eeece2;
-  padding: 16px;
-}
-
-.subsection-heading {
-  align-items: end;
-}
-
-.subsection-heading .section-kicker {
-  margin-bottom: 5px;
+  color: #92968e;
   font-size: 9px;
-}
-
-.locations {
-  display: grid;
-  gap: 8px;
-}
-
-.location-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  border: 1px solid #c9cbbf;
-  border-radius: 9px;
-  padding: 9px 10px;
-  background: #fffefa;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.location-card:hover {
-  border-color: #687b28;
-}
-
-.location-card-static {
-  cursor: default;
-}
-
-.location-card-static:hover {
-  border-color: #c9cbbf;
-}
-
-.location-card span {
-  color: #747a70;
-  font-size: 10px;
 }
 
 .editor {
   display: grid;
   grid-template-columns: minmax(150px, 0.6fr) minmax(240px, 1.4fr);
   gap: 12px;
-  border: 1px solid #cfd1c5;
-  border-radius: 11px;
-  margin-bottom: 14px;
-  padding: 14px;
-  background: #f2f0e7;
+  border-top: 1px solid #aeb3a5;
+  border-bottom: 1px solid #aeb3a5;
+  margin: 18px 0;
+  padding: 18px 0;
 }
 
-.context-subsection .editor {
-  grid-template-columns: 1fr;
-  border: 0;
-  margin: 14px -4px -4px;
-  padding: 12px;
-  background: #fffefa;
+.intent-editor {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.intent-editor .editor-wide {
+  grid-column: 1 / -1;
 }
 
 .editor-heading,
@@ -306,7 +243,7 @@
 
 .editor-heading span {
   color: #7a8076;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .editor > label {
@@ -314,7 +251,7 @@
   align-content: start;
   gap: 6px;
   color: #596057;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -322,17 +259,17 @@
 .editor textarea {
   width: 100%;
   border: 1px solid #b8bcaf;
-  border-radius: 8px;
+  border-radius: 7px;
   padding: 9px 10px;
   color: #20231f;
   background: #fffefa;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .editor input:focus,
 .editor textarea:focus {
   border-color: #687b28;
-  outline: 3px solid rgba(175, 199, 91, 0.24);
+  outline: 3px solid rgba(175, 199, 91, 0.2);
 }
 
 .editor input:disabled {
@@ -345,32 +282,6 @@
   resize: vertical;
 }
 
-.editor fieldset {
-  display: grid;
-  gap: 7px;
-  border: 0;
-  margin: 0;
-  padding: 0;
-}
-
-.editor legend {
-  margin-bottom: 7px;
-  color: #596057;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.editor .radio-option {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.editor .radio-option input {
-  width: auto;
-}
-
 .form-actions {
   display: flex;
   align-items: center;
@@ -380,28 +291,13 @@
 .form-error {
   margin: 0;
   color: #8b351c;
-  font-size: 11px;
-}
-
-@media (max-width: 920px) {
-  .context-sections {
-    grid-template-columns: 1fr;
-  }
-
-  .context-subsection {
-    width: 100%;
-  }
+  font-size: 10px;
 }
 
 @media (max-width: 620px) {
   .editable-list,
   .intent-editor,
-  .intent-list,
   .editor {
     grid-template-columns: 1fr;
-  }
-
-  .profile-panel {
-    padding: 18px;
   }
 }

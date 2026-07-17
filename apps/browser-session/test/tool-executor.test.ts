@@ -50,6 +50,25 @@ function fakeContext(page: Page): BrowserContext {
   return context;
 }
 
+function fakeAuthenticatedYupaoRecommendationPage(): Page {
+  const url = "https://www.yupao.com/topic/a2c1488/";
+  const page = {
+    evaluate: () =>
+      Promise.resolve({
+        accessElements: [],
+        accessText: "消息\n简历\n测试用户\n推荐",
+        items: [],
+        title: "北京招聘信息 - 鱼泡直聘",
+        truncated: false,
+        url,
+      }),
+    isClosed: () => false,
+    once: () => page,
+    url: () => url,
+  } as unknown as Page;
+  return page;
+}
+
 function fakeActionPage(element: { href?: string; name: string; role: string }) {
   const signature = `${element.role}:${element.name}:${element.href ?? ""}`;
   const state = {
@@ -123,6 +142,23 @@ test("returns and queues an adapter-owned access observation with a bounded snap
     }),
   ]);
   expect(JSON.stringify(observer.observations)).not.toMatch(/消息|简历|个人中心|\/web\/geek\//u);
+});
+
+test("refreshes platform access evidence while reading a recommendation page", async () => {
+  const context = fakeContext(fakeAuthenticatedYupaoRecommendationPage());
+  const observer = new PlatformAccessObserver(context);
+  const executor = new BrowserToolExecutor(context, (page) => observer.observePage(page));
+  await using scope = createScope();
+
+  await scope.run(() => executor.execute("browser_recommendation_snapshot", {}));
+
+  expect(observer.observations).toEqual([
+    expect.objectContaining({
+      authenticationState: "authenticated",
+      evidence: "authenticated-page",
+      platformId: "yupao",
+    }),
+  ]);
 });
 
 test("clicks a same-platform link through its captured element", async () => {

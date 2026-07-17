@@ -1,6 +1,6 @@
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
-export interface JobSearchIntentSource {
+export interface RecommendationPageReference {
   label: string;
   platformId: PlatformId;
   url: string;
@@ -12,6 +12,6 @@ export interface JobSearchIntent {
   name: string;
   position: string;
   selected: boolean;
-  sources: JobSearchIntentSource[];
+  recommendationPages: RecommendationPageReference[];
   updatedAt: string;
 }

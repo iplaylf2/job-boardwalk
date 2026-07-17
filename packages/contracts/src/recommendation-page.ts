@@ -5,6 +5,8 @@ export type RecommendationPageKind = "job-search-intent-recommendations";
 export interface RecommendedJobEvidence {
   company?: string;
   details: string[];
+  educationRequirement?: string;
+  experienceRequirement?: string;
   href: string;
   location?: string;
   salary?: string;

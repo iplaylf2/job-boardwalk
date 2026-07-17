@@ -84,8 +84,12 @@ export function ProfileFactsSection(props: {
     <div class="context-primary">
       <div class="panel-introduction">
         <div>
-          <h3>资料摘要</h3>
-          <p>{String(props.facts.length)} 项资料</p>
+          <h3>个人条件</h3>
+          <p>
+            {props.facts.length === emptyCollectionLength
+              ? "尚未补充；这不会影响岗位采集。"
+              : `${String(props.facts.length)} 项由你维护的个人条件`}
+          </p>
         </div>
         <Show when={props.editing}>
           <button class="button button-primary" type="button" onClick={beginCreate}>
@@ -97,14 +101,14 @@ export function ProfileFactsSection(props: {
         <form class="editor" onSubmit={submit}>
           <div class="editor-heading">
             <strong>{editingId() === "new" ? "添加资料" : `编辑${key()}`}</strong>
-            <span>只保留会影响岗位判断的信息。</span>
+            <span>填写需要助手在解释岗位时考虑的信息。</span>
           </div>
           <label>
             信息类别
             <input
               required
               value={key()}
-              placeholder="例如：目标岗位、工作经验、工作偏好"
+              placeholder="例如：工作经验、行业偏好、通勤限制"
               disabled={editingId() !== "new"}
               onInput={(event) => setKey(event.currentTarget.value)}
             />
@@ -151,7 +155,7 @@ export function ProfileFactsSection(props: {
         when={props.facts.length !== emptyCollectionLength}
         fallback={
           <Show when={editingId() !== "new"}>
-            <p class="empty">还没有填写个人情况，可以先从目标岗位或工作经历写起。</p>
+            <p class="empty">需要助手结合你的情况解释岗位时，再补充经验、偏好或限制。</p>
           </Show>
         }
       >

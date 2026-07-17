@@ -41,15 +41,15 @@ action lifecycle. It launches Patchright Chromium from a long-lived local HTTP M
 agent host connects directly to the service and discovers stable project-owned tools without
 owning browser lifecycle.
 
-The **Workspace Service** owns recruiting context, research progress, normalized observations, and
-analysis. It also owns the in-memory presence tracker that applies short leases to Browser Session
-runtime reports. It exposes domain resources and tools to the agent and a local API to the
-Dashboard. It is headless and does not own browser automation, browser profiles, authentication
-cookies, or desktop windows.
+The **Workspace Service** owns recruiting context, normalized job facts, platform-access
+observations, and their persistence. It also owns the in-memory presence tracker that applies short
+leases to Browser Session runtime reports. It exposes domain resources and tools to the agent and a
+local API to the Dashboard. It is headless and does not own browser automation, browser profiles,
+authentication cookies, or desktop windows.
 
 The **Dashboard** is an independent view of durable workspace data and leased Browser Session
 presence. It also lets the user maintain personal context and a collection of job-search intents.
-At most one intent is selected as the current recommendation context; each intent associates a
+At most one intent is selected as the current collection context; each intent associates a
 target position and city with its corresponding platform recommendation pages. Dashboard neither
 controls the browser nor requires an active agent conversation.
 
@@ -63,8 +63,15 @@ adapter.
 Browser Session may also expose a bounded, platform-specific recommendation-page snapshot as live
 evidence. It verifies that the live page is a supported BOSS直聘 intent feed or 鱼泡直聘 topic feed
 before extracting already-loaded job cards. Browser Session does not own the selected intent,
-source-page association, comparison, recommendation-quality judgments, or durable observations.
-Workspace owns the durable context, and the agent relates it to the live page evidence.
+recommendation-page association, recommendation-quality judgments, or durable observations.
+Workspace Service owns the durable context. The selected intent determines which associated
+recommendation pages Browser Session reads passively.
+
+Collected and normalized jobs form a separate durable library rather than a page archive. Each
+platform source keeps its job and discovery links plus normalized fields; no HTML or historical
+page snapshot is stored. Workspace Service merges sources when their normalized company, title,
+and location identify the same job. An observation fingerprint skips unchanged records. Partial
+cards without that identity remain separate.
 
 Browser Session sends bounded status directly to Workspace Service. A report includes browser
 availability, version, and tab count, plus a generic failure summary when unavailable and any
@@ -109,8 +116,9 @@ applies the delegation boundary before acting.
 ## Access observations
 
 Platform access is an append-only observation stream. Browser Session passively observes navigation
-responses the visible browser already receives and applies deterministic adapter rules when the
-agent requests a bounded page snapshot. It does not issue a detection request, refresh a page, or
+responses the visible browser already receives and applies deterministic adapter rules to bounded
+page reads. These are either snapshots requested by the agent or the recommendation-page read
+already used for passive job collection. It does not issue a detection request, refresh a page, or
 open a tab to check authentication. An adapter with a conclusive navigation rule may use response
 success, the final URL, and the server redirect chain to produce one of two authentication results:
 
@@ -125,8 +133,9 @@ Missing or incomplete controls produce no conclusion. Opening a login page direc
 alone, display names alone, and cookie presence do not establish authentication.
 
 Recommendation-page reads classify and extract the current page without consulting Workspace
-Service. The agent reads the selected intent and its platform source association from Workspace,
-then decides whether the live page evidence belongs to that analysis context.
+Service. Their bounded page evidence may also refresh a conclusive access observation. The agent
+may read the selected intent and its platform recommendation pages from Workspace when explaining
+the current recommendation context.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page
@@ -157,15 +166,16 @@ The Dashboard currently includes:
 
 - leased Browser Session presence;
 - platform-access observations and unresolved interruptions;
-- user-editable personal details and selectable job-search intents with platform source
-  associations.
+- user-editable personal details and selectable job-search intents with platform recommendation
+  pages;
+- a dedicated, paginated job-library workspace for normalized page facts and merged platform
+  sources.
 
 As the product grows, it should also include:
 
 - other research intents;
 - research runs, partial progress, and interruptions;
-- normalized job observations with sources and freshness;
-- agent-produced comparisons and explanations.
+- broader comparisons and explanations across the job library.
 
 Future additions do not change the control boundary: browser interaction and user handoff happen
 through the agent conversation and the visible platform window, not through Dashboard controls.

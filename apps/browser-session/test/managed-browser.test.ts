@@ -3,6 +3,20 @@ import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { ManagedBrowser } from "#/browser/managed-browser.js";
+import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
+import type { SelectedRecommendationPageReader } from "#/workspace-service/selected-recommendation-page-reader.js";
+
+const jobPostingWriter = {
+  *write() {
+    yield* [];
+  },
+} satisfies JobPostingWriter;
+const recommendationPageReader = {
+  *read() {
+    yield* [];
+    return [];
+  },
+} satisfies SelectedRecommendationPageReader;
 
 function fakeContext(): BrowserContext {
   const browser = { version: () => "150.0.0.0" } as Browser;
@@ -17,7 +31,12 @@ function fakeContext(): BrowserContext {
 }
 
 test("starts unavailable without leaking profile details through status", () => {
-  const browser = new ManagedBrowser("/private/profile", () => Promise.resolve(fakeContext()));
+  const browser = new ManagedBrowser(
+    "/private/profile",
+    recommendationPageReader,
+    jobPostingWriter,
+    () => Promise.resolve(fakeContext()),
+  );
 
   expect(browser.status).toEqual({ available: false });
 });
@@ -27,7 +46,12 @@ test("contains browser launch failures as unavailable tool calls", async () => {
   const launchError = new Error(
     "graphical session unavailable at /private/browser-profile/Default",
   );
-  const browser = new ManagedBrowser("/private/profile", () => Promise.reject(launchError));
+  const browser = new ManagedBrowser(
+    "/private/profile",
+    recommendationPageReader,
+    jobPostingWriter,
+    () => Promise.reject(launchError),
+  );
   const reportedErrors: Error[] = [];
   const supervision = scope.run(() => browser.supervise((error) => reportedErrors.push(error)));
 

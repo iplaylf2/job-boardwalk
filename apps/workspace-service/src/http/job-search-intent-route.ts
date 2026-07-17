@@ -1,7 +1,11 @@
 import type { Hono } from "hono";
 import type { Scope } from "@shajara/host";
-import type { JobSearchIntentSource } from "@job-boardwalk/contracts";
-import { isPlatformId, platformCatalog } from "@job-boardwalk/platform-catalog";
+import type { RecommendationPageReference } from "@job-boardwalk/contracts";
+import {
+  isPlatformId,
+  parsePlatformWebUrl,
+  platformCatalog,
+} from "@job-boardwalk/platform-catalog";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
@@ -20,42 +24,28 @@ import {
 const createdStatus = 201;
 const emptyCollectionLength = 0;
 
-function readUrl(value: string, index: number): URL {
-  try {
-    return new URL(value);
-  } catch {
-    throw new InvalidRequestError(`sources[${String(index)}].url 必须是有效 URL`);
+function readRecommendationPages(input: Record<string, unknown>): RecommendationPageReference[] {
+  const recommendationPages = readRequiredArray(input, "recommendationPages");
+  if (recommendationPages.length === emptyCollectionLength) {
+    throw new InvalidRequestError("recommendationPages 至少需要一个平台关联");
   }
-}
-
-function readIntentSources(input: Record<string, unknown>): JobSearchIntentSource[] {
-  const sources = readRequiredArray(input, "sources");
-  if (sources.length === emptyCollectionLength) {
-    throw new InvalidRequestError("sources 至少需要一个平台关联");
-  }
-  const parsed = sources.map((source, index) => {
-    if (!isRecord(source)) {
-      throw new InvalidRequestError(`sources[${String(index)}] 必须是对象`);
+  const parsed = recommendationPages.map((page, index) => {
+    if (!isRecord(page)) {
+      throw new InvalidRequestError(`recommendationPages[${String(index)}] 必须是对象`);
     }
-    const platformId = readRequiredString(source, "platformId");
+    const platformId = readRequiredString(page, "platformId");
     if (!isPlatformId(platformId)) {
-      throw new InvalidRequestError(`sources[${String(index)}].platformId 不受支持`);
+      throw new InvalidRequestError(`recommendationPages[${String(index)}].platformId 不受支持`);
     }
-    const url = readUrl(readRequiredString(source, "url"), index);
-    const { navigationDomain } = platformCatalog[platformId].web;
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      (url.hostname !== navigationDomain && !url.hostname.endsWith(`.${navigationDomain}`))
-    ) {
+    const url = parsePlatformWebUrl(platformId, readRequiredString(page, "url"));
+    if (!url) {
       throw new InvalidRequestError(
-        `sources[${String(index)}].url 必须属于${platformCatalog[platformId].label}`,
+        `recommendationPages[${String(index)}].url 必须属于${platformCatalog[platformId].label}`,
       );
     }
+    url.hash = "";
     return {
-      label: readRequiredString(source, "label"),
+      label: readRequiredString(page, "label"),
       platformId,
       url: url.href,
     };
@@ -74,8 +64,8 @@ function saveIntent(repository: WorkspaceRepository, input: Record<string, unkno
     name: readRequiredString(input, "name"),
     position: readRequiredString(input, "position"),
     reason: readRequiredString(input, "reason"),
+    recommendationPages: readRecommendationPages(input),
     selected: readRequiredBoolean(input, "selected"),
-    sources: readIntentSources(input),
   });
 }
 

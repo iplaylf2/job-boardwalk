@@ -16,6 +16,7 @@ const successfulStatus = 200;
 const forbiddenStatus = 403;
 const internalServerErrorStatus = 500;
 const firstCollectionIndex = 0;
+const maximumPageSizePlusOne = 49;
 const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 const mcpRequestHeaders = {
   accept: "application/json, text/event-stream",
@@ -91,14 +92,14 @@ test("keeps request errors inside the long-lived service scope", async () => {
         name: "北京 Node.js",
         position: "Node.js",
         reason: "test",
-        selected: true,
-        sources: [
+        recommendationPages: [
           {
             label: "错误来源",
             platformId: "yupao",
             url: "https://example.invalid/topic/a2c1488/",
           },
         ],
+        selected: true,
       }),
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -112,14 +113,14 @@ test("keeps request errors inside the long-lived service scope", async () => {
         name: "带凭据来源",
         position: "Node.js",
         reason: "test",
-        selected: true,
-        sources: [
+        recommendationPages: [
           {
             label: "错误来源",
             platformId: "yupao",
             url: "https://user:secret@www.yupao.com/topic/a2c1488/",
           },
         ],
+        selected: true,
       }),
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -202,14 +203,14 @@ test("updates profile and selected job-search intent through the public HTTP bou
         name: "上海平台工程",
         position: "平台工程师",
         reason: "test",
-        selected: true,
-        sources: [
+        recommendationPages: [
           {
             label: "上海后端开发",
             platformId: "yupao",
             url: "https://www.yupao.com/topic/a1c1488/",
           },
         ],
+        selected: true,
       }),
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -226,14 +227,14 @@ test("updates profile and selected job-search intent through the public HTTP bou
           city: "上海",
           name: "上海平台工程",
           position: "平台工程师",
-          selected: true,
-          sources: [
+          recommendationPages: [
             {
               label: "上海后端开发",
               platformId: "yupao",
               url: "https://www.yupao.com/topic/a1c1488/",
             },
           ],
+          selected: true,
         },
       ],
       profileFacts: [
@@ -275,6 +276,78 @@ test("updates profile and selected job-search intent through the public HTTP bou
       jobSearchIntents: [],
       profileFacts: [],
     });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+// oxlint-disable-next-line max-lines-per-function -- One flow covers accepted, rejected, and read behavior.
+test("stores and reads collected page facts through the public HTTP boundary", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const response = await httpApp.request("/api/jobs", {
+      body: JSON.stringify({
+        collectedAt: "2026-07-17T10:00:00.000Z",
+        company: "星海科技",
+        details: ["Node.js"],
+        discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
+        initiatedBy: "system",
+        jobUrl: "https://www.zhipin.com/job_detail/example.html",
+        location: "北京",
+        platformId: "boss",
+        reason: "test",
+        salaryText: "20-30K",
+        summary: "负责后端服务开发。",
+        title: "后端开发",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(response.status).toBe(createdStatus);
+    expect(await response.json()).toMatchObject({
+      job: {
+        company: "星海科技",
+        sources: [{ platformId: "boss" }],
+        title: "后端开发",
+      },
+      outcome: "created",
+    });
+
+    const invalidSourceResponse = await httpApp.request("/api/jobs", {
+      body: JSON.stringify({
+        collectedAt: "2026-07-17T10:00:00.000Z",
+        company: "星海科技",
+        details: [],
+        discoveryUrl: "https://example.invalid/jobs",
+        initiatedBy: "system",
+        jobUrl: "https://example.invalid/job/example",
+        platformId: "boss",
+        reason: "test",
+        summary: "负责后端服务开发。",
+        title: "后端开发",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(invalidSourceResponse.status).toBe(badRequestStatus);
+
+    const libraryResponse = await httpApp.request("/api/jobs?page=1&pageSize=1&platform=boss");
+    expect(await libraryResponse.json()).toMatchObject({
+      jobs: [{ company: "星海科技", sources: [{ platformId: "boss" }] }],
+      page: 1,
+      pageCount: 1,
+      pageSize: 1,
+      total: 1,
+    });
+    const invalidPageSize = await httpApp.request(
+      `/api/jobs?pageSize=${String(maximumPageSizePlusOne)}`,
+    );
+    expect(invalidPageSize.status).toBe(badRequestStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -357,6 +430,20 @@ test("serves MCP from the same workspace state", async () => {
     expect(response.status).toBe(successfulStatus);
     expect(await response.json()).toMatchObject({
       result: { structuredContent: { profileFacts: [{ value: "后端工程师" }] } },
+    });
+
+    const libraryResponse = await httpApp.request("/mcp", {
+      body: JSON.stringify({
+        id: 2,
+        jsonrpc: "2.0",
+        method: "tools/call",
+        params: { arguments: {}, name: "read_job_library" },
+      }),
+      headers: mcpRequestHeaders,
+      method: "POST",
+    });
+    expect(await libraryResponse.json()).toMatchObject({
+      result: { structuredContent: { jobs: [] } },
     });
   } finally {
     repository.close();

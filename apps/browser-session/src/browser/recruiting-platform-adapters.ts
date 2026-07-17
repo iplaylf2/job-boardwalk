@@ -1,11 +1,14 @@
 import {
   isPlatformId,
+  parsePlatformWebUrl,
   platformCatalog,
   platformIds,
   resolvePlatformWebUrl,
 } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import type { PlatformAccessAssessment, RecommendationPageKind } from "@job-boardwalk/contracts";
+
+import { bossTextReplacements } from "./boss-text-replacements.js";
 
 interface NavigationResponseFacts {
   readonly ok: boolean;
@@ -36,11 +39,17 @@ export interface RecommendationExtractionConfig {
   readonly companySelectors: readonly string[];
   readonly containerSelectors: readonly string[];
   readonly detailsSelectors: readonly string[];
+  readonly educationTextPattern?: string;
   readonly excludedTitlePattern?: string;
   readonly jobLinkPathPattern: string;
   readonly locationSelectors: readonly string[];
   readonly requireContainerMatch?: boolean;
   readonly salarySelectors: readonly string[];
+  readonly salaryTextPattern?: string;
+  readonly textReplacements?: Readonly<Record<string, string>>;
+  readonly experienceTextPattern?: string;
+  readonly titleBoundaryPattern?: string;
+  readonly titleFromFirstLine?: boolean;
   readonly titleSelectors: readonly string[];
 }
 interface RecommendationPageAdapter {
@@ -54,12 +63,7 @@ function isLoginPageUrl(candidateUrl: string, loginUrl: string): boolean {
 }
 
 function isBossProtectedPageUrl(url: string): boolean {
-  const parsed = new URL(url);
-  const { navigationDomain } = platformCatalog.boss.web;
-  return (
-    (parsed.hostname === navigationDomain || parsed.hostname.endsWith(`.${navigationDomain}`)) &&
-    parsed.pathname.startsWith("/web/geek/")
-  );
+  return parsePlatformWebUrl("boss", url)?.pathname.startsWith("/web/geek/") ?? false;
 }
 
 function assessBossNavigation(response: NavigationResponseFacts): PlatformAccessAssessment | null {
@@ -79,17 +83,7 @@ function isBossAccountLink(href: string | undefined, pathname: string): boolean 
   if (!href) {
     return false;
   }
-  try {
-    const url = new URL(href);
-    const { navigationDomain } = platformCatalog.boss.web;
-    return (
-      url.protocol === "https:" &&
-      (url.hostname === navigationDomain || url.hostname.endsWith(`.${navigationDomain}`)) &&
-      url.pathname === pathname
-    );
-  } catch {
-    return false;
-  }
+  return parsePlatformWebUrl("boss", href)?.pathname === pathname;
 }
 
 function assessBossPage(page: PageAccessFacts): PlatformAccessAssessment | null {
@@ -142,22 +136,10 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
 
 function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlatformAdapter {
   const metadata = platformCatalog[platformId];
-  const { navigationDomain } = metadata.web;
   return {
     entryUrl: resolvePlatformWebUrl(platformId, "entry"),
     isInNavigationScope(value) {
-      try {
-        const url = new URL(value);
-        return (
-          url.protocol === "https:" &&
-          !url.username &&
-          !url.password &&
-          !url.port &&
-          (url.hostname === navigationDomain || url.hostname.endsWith(`.${navigationDomain}`))
-        );
-      } catch {
-        return false;
-      }
+      return parsePlatformWebUrl(platformId, value) !== null;
     },
     label: metadata.label,
     loginUrl: resolvePlatformWebUrl(platformId, "login"),
@@ -172,10 +154,14 @@ const bossRecommendationPageAdapter = {
     companySelectors: [".company-name"],
     containerSelectors: [".job-card-wrapper", ".job-card-box", ".job-list-box li"],
     detailsSelectors: [".tag-list li", ".job-card-footer li"],
+    educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
+    experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
     jobLinkPathPattern: String.raw`^/job_detail/[^/]+\.html$`,
     locationSelectors: [".job-area", ".job-location"],
     requireContainerMatch: true,
     salarySelectors: [".salary"],
+    salaryTextPattern: String.raw`\d+(?:-\d+)?K(?:·\d+薪)?|\d+(?:-\d+)?元/(?:天|小时)|面议`,
+    textReplacements: bossTextReplacements,
     titleSelectors: [".job-name", ".job-title"],
   },
   kindForUrl: (url: URL) =>
@@ -198,10 +184,15 @@ const yupaoRecommendationPageAdapter = {
       "li",
     ],
     detailsSelectors: [".tag-list li", "[class*='tag']"],
+    educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
     excludedTitlePattern: String.raw`^查看更多(?:信息)?$`,
+    experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
     jobLinkPathPattern: String.raw`^/zhaogong/\d+(?:/[^/]+)?\.html$`,
     locationSelectors: [".job-area", ".job-location", ".address", "[class*='address']"],
     salarySelectors: [".salary", "[class*='salary']"],
+    salaryTextPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议`,
+    titleBoundaryPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
+    titleFromFirstLine: true,
     titleSelectors: [".job-name", ".job-title", "[class*='job-name']", "[class*='job-title']"],
   },
   kindForUrl: (url: URL) =>

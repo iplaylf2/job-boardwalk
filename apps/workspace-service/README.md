@@ -6,9 +6,10 @@ to MCP clients; it does not serve Dashboard assets or own a browser process.
 
 The repository's [product design](../../docs/product-design.md) defines the intended delegation and
 browser-collaboration model. The current service preserves platform-access observations and exposes
-read and write operations for profile facts and job-search intents. Each intent owns a target
-position, city, selection state, and per-platform recommendation source associations. It does not
-yet expose research runs, run-level interruptions, job observations, or analysis.
+read and write operations for profile facts, job-search intents, normalized jobs, and their
+platform sources. Each intent owns a target position, city, selection state, and per-platform
+recommendation-page references. It does not store recruiting pages or historical page
+snapshots.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent Patchright browser. The agent coordinates that live browser work
@@ -17,7 +18,7 @@ with the durable workspace exposed by this service.
 Browser Session also sends status reports directly to Workspace Service. An in-memory presence
 tracker renews a short lease for each report and makes the result available to Dashboard and MCP
 readers. The same report may carry authentication observations derived from real platform
-navigation responses or bounded snapshots; the service validates, deduplicates, and persists them.
+navigation responses or bounded page reads; the service validates, deduplicates, and persists them.
 An expired lease is shown as offline rather than current browser state.
 
 ## Run Workspace Service
@@ -47,7 +48,8 @@ The MCP surface provides:
 
 - `job-boardwalk://workspace/overview`, a resource containing Browser Session presence,
   platform-access summaries, profile facts, and job-search intents;
-- `read_workspace_overview`, which reads the same workspace state.
+- `read_workspace_overview`, which reads the same workspace state;
+- `job-boardwalk://jobs` and `read_job_library`, which expose the page-derived job library.
 
 ## HTTP API
 
@@ -62,6 +64,8 @@ The loopback HTTP surface currently exposes:
 - `PUT /api/search-intents/:id`
 - `POST /api/search-intents/:id/select`
 - `DELETE /api/search-intents/:id`
+- `GET /api/jobs`
+- `POST /api/jobs`
 
 Shared request and response types live in
 [`@job-boardwalk/contracts`](../../packages/contracts/).
@@ -121,11 +125,11 @@ Profile facts represent the user's personal context. The endpoint accepts:
 ```json
 {
   "initiatedBy": "user",
-  "key": "目标岗位",
-  "value": "后端工程师",
+  "key": "工作经验",
+  "value": "5 年后端开发",
   "source": "user",
   "confirmed": true,
-  "reason": "用户明确说明目标岗位"
+  "reason": "用户明确说明工作经验"
 }
 ```
 
@@ -137,9 +141,8 @@ The job-search-intent endpoint accepts:
   "initiatedBy": "user",
   "name": "北京 Node.js",
   "position": "Node.js",
-  "reason": "用户维护当前求职倾向",
-  "selected": true,
-  "sources": [
+  "reason": "用户维护当前求职方向",
+  "recommendationPages": [
     {
       "label": "Node.js(北京)",
       "platformId": "boss",
@@ -150,7 +153,8 @@ The job-search-intent endpoint accepts:
       "platformId": "yupao",
       "url": "https://www.yupao.com/topic/a2c1488/"
     }
-  ]
+  ],
+  "selected": true
 }
 ```
 
@@ -159,6 +163,27 @@ Dashboard and agents use the same write boundary. `initiatedBy` records whether 
 and intents can be removed with `DELETE /api/profile/facts/:id` and
 `DELETE /api/search-intents/:id`; mutations accept a JSON body containing `initiatedBy` and
 `reason`.
+
+### Job library
+
+Browser Session submits the normalized facts exposed by job cards that are already present in a
+supported recommendation page: title, company, location, salary text, detail tags, bounded card
+text, and the original links. `POST /api/jobs` is the service-to-service write boundary.
+
+Dashboard reads `GET /api/jobs` with `page`, `pageSize`, optional `query`, and optional `platform`
+parameters. Workspace Service applies those constraints in SQLite and returns the current page,
+total result count, and page count. `pageSize` is capped at 48.
+
+Workspace Service first deduplicates observations by platform plus external job ID or job URL. It
+merges a new cross-platform source only when normalized company, title, and location are all
+available and match; partial cards remain separate to avoid false merges. An unchanged observation
+only advances the source's latest check time. The database keeps the current normalized result and
+original links, not page snapshots or match judgments.
+
+Salary normalization preserves the platform's original `salaryText` and adds a CNY amount in K
+with its source period. Monthly salary carries a month count only when the source explicitly says
+something such as `13薪`. No annual package is calculated from monthly, daily, or hourly rates;
+annual values are shown only when the source itself uses an annual salary period.
 
 ## Persistence
 

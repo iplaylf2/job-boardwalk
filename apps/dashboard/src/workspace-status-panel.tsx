@@ -31,7 +31,7 @@ function BrowserStatus(props: { presence: BrowserSessionPresence }): JSX.Element
     return (
       <>
         <span class="status status-unknown">状态未知</span>
-        <span class="status-meta">等待会话服务</span>
+        <span class="status-meta">等待浏览器会话</span>
       </>
     );
   }
@@ -69,7 +69,7 @@ function PlatformAuthenticationStatus(props: {
     <>
       <span class={`status status-${copy.tone}`}>{copy.label}</span>
       <time class="status-meta" datetime={props.observation.observedAt}>
-        {formatTimestamp(props.observation.observedAt)} 记录
+        记录于 {formatTimestamp(props.observation.observedAt)}
       </time>
     </>
   );
@@ -85,8 +85,8 @@ function PlatformStatus(props: { platform: PlatformAccessSummary }): JSX.Element
             when={props.platform.latestAuthentication}
             fallback={
               <>
-                <span class="status status-unknown">没有记录</span>
-                <span class="status-meta">等待明确证据</span>
+                <span class="status status-unknown">登录状态未确认</span>
+                <span class="status-meta">等待页面证据</span>
               </>
             }
           >
@@ -100,7 +100,7 @@ function PlatformStatus(props: { platform: PlatformAccessSummary }): JSX.Element
             <>
               <span class={`status status-${copy.tone}`}>{copy.label}</span>
               <time class="status-meta" datetime={observation().observedAt}>
-                {formatTimestamp(observation().observedAt)} 记录
+                记录于 {formatTimestamp(observation().observedAt)}
               </time>
             </>
           );
@@ -117,8 +117,8 @@ export function WorkspaceStatusPanel(props: {
   return (
     <section class="status-panel" aria-labelledby="workspace-status-heading">
       <div class="status-panel-heading">
-        <p class="section-kicker">运行状态</p>
-        <h2 id="workspace-status-heading">工作区已连接</h2>
+        <p class="section-kicker">采集状态</p>
+        <h2 id="workspace-status-heading">浏览器与登录</h2>
       </div>
       <div class="status-items">
         <article class="status-item">

@@ -34,14 +34,17 @@ Available now:
 - Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
   with platform-specific navigation and access-assessment rules behind adapters. It can also take a
   bounded, structured snapshot of a loaded BOSS直聘 recommendation feed or 鱼泡直聘 topic feed; the
-  agent relates that live evidence to the selected intent held by Workspace Service.
+  same bounded reader opens any missing recommendation page for the selected intent and passively
+  submits job cards already displayed on those pages without replacing or refreshing other tabs.
 - Workspace Service stores platform-access observations and interruptions, along with personal
-  context and job-search intents whose per-platform source pages guide recommendation research.
+  context, job-search intents, and normalized page-derived job facts. It skips unchanged
+  observations and merges confident cross-platform matches while preserving every platform link.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
-  lets the user maintain and select job-search intents and their platform source associations.
+  lets the user maintain and select job-search intents. Its separate paginated job-library page
+  supports focused browsing while preserving the original recruiting-platform sources.
 
-Durable research runs, run-level interruptions, saved job observations, and saved analysis remain
-product direction; they are not yet exposed by the applications.
+Durable research runs and run-level progress remain product direction; they are not yet exposed by
+the applications.
 
 ## Run locally
 
