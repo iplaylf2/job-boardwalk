@@ -6,55 +6,55 @@ const PlatformId = toolInput.enumerated(...platformIds);
 const OptionalTabId = toolInput("number.integer >= 1");
 const ElementReference = toolInput("string > 0");
 
-export const BrowserStatusInput = toolInput({});
+const BrowserStatusInput = toolInput({});
 
-export const BrowserTabsInput = toolInput({
+const BrowserTabsInput = toolInput({
   action: "'list' | 'ensure' | 'activate'",
   "platformId?": PlatformId,
   "tabId?": OptionalTabId,
   "url?": "string",
 });
 
-export const BrowserPrepareLoginInput = toolInput({
+const BrowserPrepareLoginInput = toolInput({
   platformId: PlatformId,
 });
 
-export const BrowserNavigateInput = toolInput({
+const BrowserNavigateInput = toolInput({
   "tabId?": OptionalTabId,
   url: "string > 0",
 });
 
-export const BrowserSnapshotInput = toolInput({
+const BrowserSnapshotInput = toolInput({
   maxTextCharacters: "1000 <= number <= 40000 = 40000",
   "tabId?": OptionalTabId,
 });
 
-export const BrowserJobCardSnapshotInput = toolInput({
+const BrowserJobCardSnapshotInput = toolInput({
   maximumCards: "1 <= number.integer <= 100 = 50",
   "tabId?": OptionalTabId,
 });
 
-export const BrowserClickInput = toolInput({
+const BrowserClickInput = toolInput({
   ref: ElementReference,
 });
 
-export const BrowserFillInput = toolInput({
-  ref: ElementReference,
-  value: "string > 0",
-});
-
-export const BrowserSelectInput = toolInput({
+const BrowserFillInput = toolInput({
   ref: ElementReference,
   value: "string > 0",
 });
 
-export const BrowserScrollInput = toolInput({
+const BrowserSelectInput = toolInput({
+  ref: ElementReference,
+  value: "string > 0",
+});
+
+const BrowserScrollInput = toolInput({
   deltaY: "-5000 <= number <= 5000 = 600",
   "ref?": "string",
   "tabId?": OptionalTabId,
 });
 
-export const BrowserWaitInput = toolInput({
+const BrowserWaitInput = toolInput({
   milliseconds: "0 <= number <= 10000",
 });
 

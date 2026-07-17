@@ -192,36 +192,65 @@ test("contains an unavailable browser as a tool error", async () => {
   await close();
 });
 
-test("rejects unsafe tool input through the public tool boundary", async () => {
+const invalidBrowserToolCalls = [
+  {
+    arguments: { milliseconds: outOfRangeWaitMilliseconds },
+    expectedField: /milliseconds/u,
+    name: "browser_wait",
+    title: "a wait beyond the public limit",
+  },
+  {
+    arguments: {},
+    expectedField: /platformId/u,
+    name: "browser_prepare_login",
+    title: "a missing required platform",
+  },
+  {
+    arguments: { maximumCards: 101 },
+    expectedField: /maximumCards/u,
+    name: "browser_job_card_snapshot",
+    title: "a job-card limit above the public maximum",
+  },
+  {
+    arguments: { maximumCards: 1.5 },
+    expectedField: /maximumCards/u,
+    name: "browser_job_card_snapshot",
+    title: "a fractional job-card limit",
+  },
+  {
+    arguments: { ignored: true },
+    expectedField: /ignored/u,
+    name: "browser_snapshot",
+    title: "an undeclared argument",
+  },
+] as const;
+
+test.each(invalidBrowserToolCalls)(
+  "rejects $title",
+  async ({ arguments: input, expectedField, name }) => {
+    await using serviceScope = createScope();
+    const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
+    const { client, close } = await connectedClient(mcpServer);
+
+    const result = CallToolResultSchema.parse(await client.callTool({ arguments: input, name }));
+    expect(result.isError).toBe(true);
+    expect(result.content[firstContentIndex]).toMatchObject({
+      text: expect.stringMatching(expectedField),
+    });
+    await close();
+  },
+);
+
+test("contains contextual browser tool rejections", async () => {
   await using serviceScope = createScope();
   const mcpServer = createBrowserSessionMcpServer(browserToolExecutorControl(), serviceScope);
   const { client, close } = await connectedClient(mcpServer);
-
-  const result = CallToolResultSchema.parse(
-    await client.callTool({
-      arguments: { milliseconds: outOfRangeWaitMilliseconds },
-      name: "browser_wait",
-    }),
-  );
-
-  expect(result.isError).toBe(true);
-  expect(result.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/milliseconds/u),
-  });
 
   const missingPlatformResult = CallToolResultSchema.parse(
     await client.callTool({ arguments: { action: "ensure" }, name: "browser_tabs" }),
   );
   expect(missingPlatformResult.isError).toBe(true);
   expect(missingPlatformResult.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/platformId/u),
-  });
-
-  const missingLoginPlatformResult = CallToolResultSchema.parse(
-    await client.callTool({ arguments: {}, name: "browser_prepare_login" }),
-  );
-  expect(missingLoginPlatformResult.isError).toBe(true);
-  expect(missingLoginPlatformResult.content[firstContentIndex]).toMatchObject({
     text: expect.stringMatching(/platformId/u),
   });
 
@@ -233,52 +262,5 @@ test("rejects unsafe tool input through the public tool boundary", async () => {
     text: expect.stringMatching(/不存在或已过期/u),
   });
 
-  const excessiveJobCardsResult = CallToolResultSchema.parse(
-    await client.callTool({
-      arguments: { maximumCards: 101 },
-      name: "browser_job_card_snapshot",
-    }),
-  );
-  expect(excessiveJobCardsResult.isError).toBe(true);
-  expect(excessiveJobCardsResult.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/maximumCards/u),
-  });
-
-  await close();
-});
-
-test("rejects undeclared browser tool input", async () => {
-  await using serviceScope = createScope();
-  const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
-  const { client, close } = await connectedClient(mcpServer);
-
-  const result = CallToolResultSchema.parse(
-    await client.callTool({
-      arguments: { ignored: true },
-      name: "browser_snapshot",
-    }),
-  );
-  expect(result.isError).toBe(true);
-  expect(result.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/ignored/u),
-  });
-  await close();
-});
-
-test("rejects a fractional job-card limit", async () => {
-  await using serviceScope = createScope();
-  const mcpServer = createBrowserSessionMcpServer(browserToolExecutorControl(), serviceScope);
-  const { client, close } = await connectedClient(mcpServer);
-
-  const result = CallToolResultSchema.parse(
-    await client.callTool({
-      arguments: { maximumCards: 1.5 },
-      name: "browser_job_card_snapshot",
-    }),
-  );
-  expect(result.isError).toBe(true);
-  expect(result.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/maximumCards/u),
-  });
   await close();
 });
