@@ -217,6 +217,9 @@ catalogs:
     '@types/node':
       specifier: ^26.1.1
       version: 26.1.1
+    arktype:
+      specifier: ^2.2.3
+      version: 2.2.3
     hono:
       specifier: 4.12.30
       version: 4.12.30
@@ -284,6 +287,9 @@ importers:
       '@shajara/host':
         specifier: 'catalog:'
         version: 0.11.0
+      arktype:
+        specifier: 'catalog:'
+        version: 2.2.3
       hono:
         specifier: 'catalog:'
         version: 4.12.30
@@ -361,6 +367,9 @@ importers:
       '@shajara/host':
         specifier: 'catalog:'
         version: 0.11.0
+      arktype:
+        specifier: 'catalog:'
+        version: 2.2.3
       drizzle-orm:
         specifier: 1.0.0-rc.4
         version: 1.0.0-rc.4(arktype@2.2.3)(zod@4.4.3)
@@ -408,7 +417,7 @@ importers:
         specifier: workspace:*
         version: link:../platform-catalog
       arktype:
-        specifier: ^2.2.3
+        specifier: 'catalog:'
         version: 2.2.3
     devDependencies:
       '@job-boardwalk/presets':

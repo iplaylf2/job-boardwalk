@@ -15,14 +15,8 @@ import {
   maximumElementHrefCharacters,
   maximumElementNameCharacters,
 } from "./page-snapshot.js";
-import { captureJobCardSnapshot, readMaximumJobCards } from "./job-card-snapshot.js";
+import { captureJobCardSnapshot } from "./job-card-snapshot.js";
 
-const defaultScrollDelta = 600;
-const maximumSnapshotTextCharacters = 40_000;
-const minimumSnapshotTextCharacters = 1000;
-const maximumWaitMilliseconds = 10_000;
-const maximumScrollDelta = 5000;
-const minimumScrollDelta = -maximumScrollDelta;
 const zero = 0;
 
 interface ElementReference {
@@ -32,28 +26,8 @@ interface ElementReference {
   tabId: number;
 }
 
-function boundedNumber(value: unknown, name: string, minimum: number, maximum: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum) {
-    throw new TypeError(`${name} 必须是 ${String(minimum)} 到 ${String(maximum)} 之间的数字。`);
-  }
-  return value;
-}
-
-function requiredString(params: Record<string, unknown>, name: string): string {
-  const value = params[name];
-  if (typeof value !== "string" || value.length === zero) {
-    throw new TypeError(`缺少参数 ${name}。`);
-  }
-  return value;
-}
-
 function* waitForRequestedInterval(params: Record<string, unknown>): RiteCoroutine<unknown> {
-  const milliseconds = boundedNumber(
-    params["milliseconds"],
-    "milliseconds",
-    zero,
-    maximumWaitMilliseconds,
-  );
+  const milliseconds = params["milliseconds"] as number;
   yield* sleep(milliseconds);
   return { waitedMilliseconds: milliseconds };
 }
@@ -143,7 +117,7 @@ export class BrowserToolExecutor {
   *#fill(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     try {
-      yield* until(() => reference.locator.fill(requiredString(params, "value")));
+      yield* until(() => reference.locator.fill(params["value"] as string));
       return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
       this.#clearElementReferences();
@@ -151,7 +125,7 @@ export class BrowserToolExecutor {
   }
 
   *#navigate(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    const url = requiredString(params, "url");
+    const url = params["url"] as string;
     const { platformId } = requireRecruitingPlatformAdapter(url);
     const [tabId, page] = this.#tabs.resolvePlatformPage(platformId, parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
@@ -162,7 +136,7 @@ export class BrowserToolExecutor {
   }
 
   #reference(params: Record<string, unknown>): ElementReference {
-    const ref = requiredString(params, "ref");
+    const ref = params["ref"] as string;
     const reference = this.#elementReferences.get(ref);
     if (!reference) {
       throw new Error("元素引用不存在或已过期；请重新调用 browser_snapshot。");
@@ -213,11 +187,7 @@ export class BrowserToolExecutor {
       return yield* this.#scrollToReference(params);
     }
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
-    const hasRequestedDelta = "deltaY" in params;
-    const requestedDelta = params["deltaY"];
-    const deltaY = hasRequestedDelta
-      ? boundedNumber(requestedDelta, "deltaY", minimumScrollDelta, maximumScrollDelta)
-      : defaultScrollDelta;
+    const deltaY = params["deltaY"] as number;
     this.#tabs.markSelected(tabId);
     yield* until(() => page.mouse.wheel(zero, deltaY));
     this.#clearElementReferences();
@@ -227,7 +197,7 @@ export class BrowserToolExecutor {
   }
 
   *#jobCardSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    const maximumCards = readMaximumJobCards(params);
+    const maximumCards = params["maximumCards"] as number;
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const snapshot = yield* captureJobCardSnapshot(page, maximumCards, this.#observePageAccess);
@@ -247,7 +217,7 @@ export class BrowserToolExecutor {
   *#select(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     try {
-      yield* until(() => reference.locator.selectOption(requiredString(params, "value")));
+      yield* until(() => reference.locator.selectOption(params["value"] as string));
       return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
       this.#clearElementReferences();
@@ -257,16 +227,7 @@ export class BrowserToolExecutor {
   *#snapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const hasRequestedLimit = "maxTextCharacters" in params;
-    const requestedLimit = params["maxTextCharacters"];
-    const textLimit = hasRequestedLimit
-      ? boundedNumber(
-          requestedLimit,
-          "maxTextCharacters",
-          minimumSnapshotTextCharacters,
-          maximumSnapshotTextCharacters,
-        )
-      : maximumSnapshotTextCharacters;
+    const textLimit = params["maxTextCharacters"] as number;
     this.#clearElementReferences();
     const settleMilliseconds =
       findRecruitingPlatformAdapter(page.url())?.snapshotSettleMilliseconds ?? zero;

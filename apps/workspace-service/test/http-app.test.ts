@@ -534,7 +534,7 @@ test("advertises job-library filters by public tool name", async () => {
     };
     expect(
       toolsPayload.result.tools.find(({ name }) => name === "read_workspace_overview"),
-    ).toMatchObject({ inputSchema: { properties: {} } });
+    ).toMatchObject({ inputSchema: { additionalProperties: false, type: "object" } });
     expect(toolsPayload.result.tools.find(({ name }) => name === "read_job_library")).toMatchObject(
       {
         inputSchema: {
@@ -584,7 +584,7 @@ test("contains invalid and unknown MCP job-library input", async () => {
     });
     expect(await unknownArgumentResponse.json()).toMatchObject({
       result: {
-        content: [{ text: expect.stringMatching(/不支持参数：platform/u), type: "text" }],
+        content: [{ text: expect.stringMatching(/platform/u), type: "text" }],
         isError: true,
       },
     });

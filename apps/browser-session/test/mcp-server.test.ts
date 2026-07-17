@@ -86,9 +86,10 @@ test("always exposes the project-owned Patchright browser tools", async () => {
     ]),
   );
   const tabsTool = listedTools.tools.find(({ name }) => name === "browser_tabs");
-  expect(tabsTool?.inputSchema.properties?.["action"]).toMatchObject({
-    enum: ["list", "ensure", "activate"],
-  });
+  const actionSchema = tabsTool?.inputSchema.properties?.["action"] as
+    | { enum?: string[] }
+    | undefined;
+  expect(new Set(actionSchema?.enum)).toEqual(new Set(["list", "ensure", "activate"]));
   expect(tabsTool?.inputSchema.properties?.["platformId"]).toMatchObject({
     enum: ["boss", "yupao"],
   });
@@ -241,6 +242,25 @@ test("rejects unsafe tool input through the public tool boundary", async () => {
   expect(excessiveJobCardsResult.isError).toBe(true);
   expect(excessiveJobCardsResult.content[firstContentIndex]).toMatchObject({
     text: expect.stringMatching(/maximumCards/u),
+  });
+
+  await close();
+});
+
+test("rejects undeclared browser tool input", async () => {
+  await using serviceScope = createScope();
+  const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
+  const { client, close } = await connectedClient(mcpServer);
+
+  const result = CallToolResultSchema.parse(
+    await client.callTool({
+      arguments: { ignored: true },
+      name: "browser_snapshot",
+    }),
+  );
+  expect(result.isError).toBe(true);
+  expect(result.content[firstContentIndex]).toMatchObject({
+    text: expect.stringMatching(/ignored/u),
   });
   await close();
 });

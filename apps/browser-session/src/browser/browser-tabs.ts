@@ -13,17 +13,9 @@ import {
 
 const blankPageUrls = new Set(["about:blank", "edge://newtab/", "chrome://newtab/"]);
 const firstPageId = 1;
-const zero = 0;
 
 export function parseOptionalTabId(params: Record<string, unknown>): number | null {
-  if (!("tabId" in params)) {
-    return null;
-  }
-  const value = params["tabId"];
-  if (!Number.isSafeInteger(value) || typeof value !== "number" || value < firstPageId) {
-    throw new TypeError("tabId 必须是正整数。");
-  }
-  return value;
+  return (params["tabId"] as number | undefined) ?? null;
 }
 
 export function* readNavigationPageSummary(
@@ -118,9 +110,6 @@ export class BrowserTabs {
 
   public *executeAction(input: Record<string, unknown>): RiteCoroutine<unknown> {
     const { action } = input;
-    if (typeof action !== "string" || action.length === zero) {
-      throw new TypeError("缺少参数 action。");
-    }
     if (action === "list") {
       return yield* this.#list();
     }

@@ -9,15 +9,13 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 import { CanceledError, InterruptedError, ScopeError } from "@shajara/host";
 import type { Scope } from "@shajara/host";
-import { platformIds } from "@job-boardwalk/platform-catalog";
-
+import { defaultJobPageSize, firstJobPage } from "#/job-posting/library-query.js";
 import {
-  defaultJobPageSize,
-  firstJobPage,
-  InvalidJobLibraryQueryError,
-  maximumJobPageSize,
-  parseJobLibraryQuery,
-} from "#/job-posting/library-query.js";
+  parseJobLibraryInput,
+  parseWorkspaceOverviewInput,
+  ReadJobLibraryInput,
+  ReadWorkspaceOverviewInput,
+} from "#/mcp/tool-input.js";
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
@@ -51,9 +49,7 @@ function toolErrorResult(error: unknown): CallToolResult {
     throw error;
   }
   const message =
-    error instanceof InvalidJobLibraryQueryError
-      ? error.message
-      : "Workspace Service 无法完成工作区读取。";
+    error instanceof TypeError ? error.message : "Workspace Service 无法完成工作区读取。";
   return {
     content: [{ text: message, type: "text" }],
     isError: true,
@@ -159,23 +155,14 @@ function createToolListResult() {
       {
         annotations: { readOnlyHint: true },
         description: workspaceOverviewDescription,
-        inputSchema: { additionalProperties: false, properties: {}, type: "object" as const },
+        inputSchema: ReadWorkspaceOverviewInput.toJsonSchema(),
         name: toolNames.readWorkspaceOverview,
         title: "读取 Job Boardwalk 工作区概览",
       },
       {
         annotations: { readOnlyHint: true },
         description: jobLibraryToolDescription,
-        inputSchema: {
-          additionalProperties: false,
-          properties: {
-            page: { minimum: 1, type: "integer" as const },
-            pageSize: { maximum: maximumJobPageSize, minimum: 1, type: "integer" as const },
-            platformId: { enum: [...platformIds], type: "string" as const },
-            query: { type: "string" as const },
-          },
-          type: "object" as const,
-        },
+        inputSchema: ReadJobLibraryInput.toJsonSchema(),
         name: toolNames.readJobLibrary,
         title: "读取 Job Boardwalk 岗位库",
       },
@@ -197,6 +184,7 @@ function registerToolHandlers(
       return serviceScope.run(function* readWorkspaceTool() {
         try {
           yield* [];
+          parseWorkspaceOverviewInput(request.params.arguments ?? {});
           const overview = readWorkspaceOverview(repository, presenceTracker);
           return structuredToolResult(overview);
         } catch (error) {
@@ -209,7 +197,7 @@ function registerToolHandlers(
         try {
           yield* [];
           return structuredToolResult(
-            repository.listJobPostingPage(parseJobLibraryQuery(request.params.arguments ?? {})),
+            repository.listJobPostingPage(parseJobLibraryInput(request.params.arguments ?? {})),
           );
         } catch (error) {
           return toolErrorResult(error);

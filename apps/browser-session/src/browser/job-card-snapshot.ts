@@ -10,10 +10,7 @@ const accessTextCharacters = 5000;
 const firstIndex = 0;
 const maximumAccessElements = 300;
 const maximumFieldCharacters = 300;
-const maximumJobCards = 100;
 const maximumCardTextCharacters = 1500;
-const minimumJobCards = 1;
-const defaultMaximumJobCards = 50;
 
 interface JobCardSnapshotMetadata {
   accessElements: { href?: string }[];
@@ -174,24 +171,6 @@ export function captureJobCardMetadata(input: {
     truncated: matchingLinkCount > input.maximumCards,
     url: globalThis.location.href,
   };
-}
-
-export function readMaximumJobCards(params: Record<string, unknown>): number {
-  if (!("maximumCards" in params)) {
-    return defaultMaximumJobCards;
-  }
-  const value = params["maximumCards"];
-  if (
-    typeof value !== "number" ||
-    !Number.isSafeInteger(value) ||
-    value < minimumJobCards ||
-    value > maximumJobCards
-  ) {
-    throw new TypeError(
-      `maximumCards 必须是 ${String(minimumJobCards)} 到 ${String(maximumJobCards)} 之间的数字。`,
-    );
-  }
-  return value;
 }
 
 export function* captureJobCardSnapshot(

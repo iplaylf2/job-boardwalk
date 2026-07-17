@@ -20,6 +20,7 @@
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "@shajara/host": "catalog:",
+    "arktype": "catalog:",
     "hono": "catalog:",
     "patchright": "1.61.1"
   },

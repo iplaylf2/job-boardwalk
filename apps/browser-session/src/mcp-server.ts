@@ -6,8 +6,22 @@ import type { RiteCoroutine, Scope } from "@shajara/host";
 import { platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
 
 import type { BrowserControl } from "#/browser/browser-control.js";
+import {
+  BrowserClickInput,
+  BrowserFillInput,
+  BrowserJobCardSnapshotInput,
+  BrowserNavigateInput,
+  BrowserPrepareLoginInput,
+  BrowserScrollInput,
+  BrowserSelectInput,
+  BrowserSnapshotInput,
+  BrowserStatusInput,
+  BrowserTabsInput,
+  BrowserWaitInput,
+  isBrowserToolName,
+  parseBrowserToolInput,
+} from "#/mcp/tool-input.js";
 
-const minimumWaitMilliseconds = 0;
 const jsonIndentationSpaces = 2;
 const supportedPlatformLabels = platformIds
   .map((platformId) => platformCatalog[platformId].label)
@@ -20,61 +34,42 @@ const browserServerInstructions = [
   "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
 ].join("\n\n");
 
+function inputSchema(contract: { toJsonSchema: () => object }): Tool["inputSchema"] {
+  return contract.toJsonSchema() as Tool["inputSchema"];
+}
+
 const browserTools = [
   {
     annotations: { idempotentHint: true, openWorldHint: false, readOnlyHint: true },
     description: "查看 Browser Session 所管理的可见浏览器状态。",
-    inputSchema: { properties: {}, type: "object" },
+    inputSchema: inputSchema(BrowserStatusInput),
     name: "browser_status",
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
       "列出或激活受支持招聘平台的标签页，也可按 platformId 准备标签页。action 为 ensure 时优先复用该平台已有标签页。",
-    inputSchema: {
-      properties: {
-        action: { enum: ["list", "ensure", "activate"], type: "string" },
-        platformId: { enum: [...platformIds], type: "string" },
-        tabId: { minimum: 1, type: "integer" },
-        url: { type: "string" },
-      },
-      required: ["action"],
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserTabsInput),
     name: "browser_tabs",
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
       "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并提交登录。",
-    inputSchema: {
-      properties: { platformId: { enum: [...platformIds], type: "string" } },
-      required: ["platformId"],
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserPrepareLoginInput),
     name: "browser_prepare_login",
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description: "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。",
-    inputSchema: {
-      properties: { tabId: { minimum: 1, type: "integer" }, url: { type: "string" } },
-      required: ["url"],
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserNavigateInput),
     name: "browser_navigate",
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
       "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。truncated 表示内容被裁剪；快照不包含表单当前值和密码框。",
-    inputSchema: {
-      properties: {
-        maxTextCharacters: { maximum: 40_000, minimum: 1000, type: "number" },
-        tabId: { minimum: 1, type: "integer" },
-      },
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserSnapshotInput),
     name: "browser_snapshot",
   },
   {
@@ -86,68 +81,37 @@ const browserTools = [
     },
     description:
       "读取当前受支持招聘平台页面中已经加载的岗位卡片，返回有界、去重的页面证据供调用方汇总。不会导航、滚动、点击或持久化岗位；同一次页面读取可能刷新平台适配器能够明确判定的访问观察，并将其加入 Browser Session 状态上报。岗位提交不由此工具触发：选中求职方向期间，独立的被动采集流程会定期将所有已打开平台页面中能识别出的岗位卡片提交到 Workspace Service，关联推荐页仅作为研究种子。",
-    inputSchema: {
-      properties: {
-        maximumCards: { maximum: 100, minimum: 1, type: "integer" },
-        tabId: { minimum: 1, type: "integer" },
-      },
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserJobCardSnapshotInput),
     name: "browser_job_card_snapshot",
   },
   {
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
     description: "点击最近一次快照中的元素引用；显式链接必须属于当前招聘平台的 HTTPS 导航范围。",
-    inputSchema: {
-      properties: { ref: { type: "string" } },
-      required: ["ref"],
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserClickInput),
     name: "browser_click",
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description: "填写最近一次快照中的文本控件；密码框不进入快照。",
-    inputSchema: {
-      properties: { ref: { type: "string" }, value: { type: "string" } },
-      required: ["ref", "value"],
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserFillInput),
     name: "browser_fill",
   },
   {
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description: "在最近一次快照的选择控件中选择选项。",
-    inputSchema: {
-      properties: { ref: { type: "string" }, value: { type: "string" } },
-      required: ["ref", "value"],
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserSelectInput),
     name: "browser_select",
   },
   {
     annotations: { idempotentHint: false, openWorldHint: true, readOnlyHint: true },
     description: "在受支持招聘平台的标签页滚动最多 5000 像素，或滚动到指定元素。",
-    inputSchema: {
-      properties: {
-        deltaY: { maximum: 5000, minimum: -5000, type: "number" },
-        ref: { type: "string" },
-        tabId: { minimum: 1, type: "integer" },
-      },
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserScrollInput),
     name: "browser_scroll",
   },
   {
     annotations: { idempotentHint: true, openWorldHint: false, readOnlyHint: true },
     description: "在下一次观察或操作前等待指定时间，最长 10 秒。",
-    inputSchema: {
-      properties: {
-        milliseconds: { maximum: 10_000, minimum: minimumWaitMilliseconds, type: "number" },
-      },
-      required: ["milliseconds"],
-      type: "object",
-    },
+    inputSchema: inputSchema(BrowserWaitInput),
     name: "browser_wait",
   },
 ] as const satisfies readonly Tool[];
@@ -164,10 +128,14 @@ function* forwardBrowserTool(
   browserControl: BrowserControl,
 ): RiteCoroutine<CallToolResult> {
   try {
+    if (!isBrowserToolName(request.params.name)) {
+      throw new Error(`不支持的浏览器工具：${request.params.name}`);
+    }
+    const input = parseBrowserToolInput(request.params.name, request.params.arguments ?? {});
     const result =
       request.params.name === "browser_status"
         ? browserControl.status
-        : yield* browserControl.executeTool(request.params.name, request.params.arguments ?? {});
+        : yield* browserControl.executeTool(request.params.name, input);
     return {
       content: [{ text: JSON.stringify(result, null, jsonIndentationSpaces), type: "text" }],
       structuredContent: { result },

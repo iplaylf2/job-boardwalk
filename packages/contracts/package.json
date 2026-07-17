@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@job-boardwalk/platform-catalog": "workspace:*",
-    "arktype": "^2.2.3"
+    "arktype": "catalog:"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",

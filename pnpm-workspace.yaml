@@ -21,6 +21,7 @@ catalog:
   "@modelcontextprotocol/sdk": ^1.29.0
   "@shajara/host": ^0.11.0
   "@types/node": ^26.1.1
+  arktype: ^2.2.3
   hono: 4.12.30
   oxlint: ^1.74.0
   tsx: ^4.23.1
