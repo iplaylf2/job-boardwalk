@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { ProfileFact } from "@job-boardwalk/contracts";
 
@@ -18,6 +18,7 @@ function formatSource(fact: ProfileFact): string {
 }
 
 export function ProfileFactsSection(props: {
+  editing: boolean;
   facts: ProfileFact[];
   onChanged: () => void;
 }): JSX.Element {
@@ -26,6 +27,15 @@ export function ProfileFactsSection(props: {
   const [value, setValue] = createSignal("");
   const [error, setError] = createSignal("");
   const [saving, setSaving] = createSignal(false);
+
+  createEffect(
+    () => props.editing,
+    (editing) => {
+      if (!editing) {
+        setEditingId(null);
+      }
+    },
+  );
 
   function beginCreate(): void {
     setKey("");
@@ -73,55 +83,34 @@ export function ProfileFactsSection(props: {
   return (
     <div class="context-primary">
       <div class="panel-introduction">
-        <p>补充你的经历、能力和求职期待，帮助助手判断哪些机会更适合你。</p>
-        <button class="button button-primary" type="button" onClick={beginCreate}>
-          补充情况
-        </button>
-      </div>
-      <Show
-        when={props.facts.length !== emptyCollectionLength}
-        fallback={
-          <Show when={editingId() !== "new"}>
-            <p class="empty">还没有填写个人情况，可以先从目标岗位或工作经历写起。</p>
-          </Show>
-        }
-      >
-        <div class="editable-list">
-          <For each={props.facts}>
-            {(fact) => (
-              <article class="editable-row">
-                <div>
-                  <span class="item-label">{fact.key}</span>
-                  <p class="item-value">{fact.value}</p>
-                  <span class="item-meta">{formatSource(fact)}</span>
-                </div>
-                <button
-                  aria-label={`编辑个人情况：${fact.key}`}
-                  class="button button-quiet"
-                  type="button"
-                  onClick={() => beginEdit(fact)}
-                >
-                  编辑
-                </button>
-              </article>
-            )}
-          </For>
+        <div>
+          <h3>资料摘要</h3>
+          <p>{String(props.facts.length)} 项已确认信息</p>
         </div>
-      </Show>
+        <Show when={props.editing}>
+          <button class="button button-primary" type="button" onClick={beginCreate}>
+            添加资料
+          </button>
+        </Show>
+      </div>
       <Show when={editingId() !== null}>
         <form class="editor" onSubmit={submit}>
+          <div class="editor-heading">
+            <strong>{editingId() === "new" ? "添加资料" : `编辑${key()}`}</strong>
+            <span>只保留会影响岗位判断的信息。</span>
+          </div>
           <label>
-            你想补充什么
+            信息类别
             <input
               required
               value={key()}
-              placeholder="例如：目标岗位、工作经历、工作偏好"
+              placeholder="例如：目标岗位、工作经验、工作偏好"
               disabled={editingId() !== "new"}
               onInput={(event) => setKey(event.currentTarget.value)}
             />
           </label>
           <label>
-            详细说明
+            内容
             <textarea
               required
               rows="3"
@@ -157,6 +146,40 @@ export function ProfileFactsSection(props: {
             </Show>
           </div>
         </form>
+      </Show>
+      <Show
+        when={props.facts.length !== emptyCollectionLength}
+        fallback={
+          <Show when={editingId() !== "new"}>
+            <p class="empty">还没有填写个人情况，可以先从目标岗位或工作经历写起。</p>
+          </Show>
+        }
+      >
+        <div class="editable-list">
+          <For each={props.facts}>
+            {(fact) => (
+              <article class="editable-row">
+                <div class="editable-row-heading">
+                  <span class="item-label">{fact.key}</span>
+                  <Show when={props.editing}>
+                    <button
+                      aria-label={`编辑个人情况：${fact.key}`}
+                      class="edit-link"
+                      type="button"
+                      onClick={() => beginEdit(fact)}
+                    >
+                      修改
+                    </button>
+                  </Show>
+                </div>
+                <div class="editable-row-body">
+                  <p class="item-value">{fact.value}</p>
+                  <span class="item-meta">{formatSource(fact)}</span>
+                </div>
+              </article>
+            )}
+          </For>
+        </div>
       </Show>
     </div>
   );

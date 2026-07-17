@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { TargetLocation } from "@job-boardwalk/contracts";
 
@@ -9,6 +9,7 @@ const emptyCollectionLength = 0;
 const nextPriorityIncrement = 1;
 
 export function TargetLocationsSection(props: {
+  editing: boolean;
   locations: TargetLocation[];
   onChanged: () => void;
 }): JSX.Element {
@@ -17,6 +18,15 @@ export function TargetLocationsSection(props: {
   const [requirement, setRequirement] = createSignal<"preferred" | "required">("preferred");
   const [error, setError] = createSignal("");
   const [saving, setSaving] = createSignal(false);
+
+  createEffect(
+    () => props.editing,
+    (editing) => {
+      if (!editing) {
+        setEditingId(null);
+      }
+    },
+  );
 
   function beginCreate(): void {
     setCity("");
@@ -72,12 +82,14 @@ export function TargetLocationsSection(props: {
     <section class="context-subsection">
       <div class="subsection-heading">
         <div>
+          <p class="section-kicker">搜索范围</p>
           <h3>目标城市</h3>
-          <p>告诉助手你愿意去哪些城市，以及哪些属于硬性范围。</p>
         </div>
-        <button class="button button-primary" type="button" onClick={beginCreate}>
-          添加城市
-        </button>
+        <Show when={props.editing}>
+          <button class="edit-link" type="button" onClick={beginCreate}>
+            添加
+          </button>
+        </Show>
       </div>
       <Show
         when={props.locations.length !== emptyCollectionLength}
@@ -89,22 +101,37 @@ export function TargetLocationsSection(props: {
       >
         <div class="locations">
           <For each={props.locations}>
-            {(location) => (
-              <button
-                class="location-card"
-                type="button"
-                aria-label={`编辑目标城市：${location.city}`}
-                onClick={() => beginEdit(location)}
-              >
-                <strong>{location.city}</strong>
-                <span>{location.requirement === "required" ? "硬性范围" : "优先考虑"}</span>
-              </button>
-            )}
+            {(location) => {
+              const content = (
+                <>
+                  <strong>{location.city}</strong>
+                  <span>{location.requirement === "required" ? "硬性范围" : "优先考虑"}</span>
+                </>
+              );
+              return (
+                <Show
+                  when={props.editing}
+                  fallback={<div class="location-card location-card-static">{content}</div>}
+                >
+                  <button
+                    class="location-card"
+                    type="button"
+                    aria-label={`编辑目标城市：${location.city}`}
+                    onClick={() => beginEdit(location)}
+                  >
+                    {content}
+                  </button>
+                </Show>
+              );
+            }}
           </For>
         </div>
       </Show>
       <Show when={editingId() !== null}>
         <form class="editor" onSubmit={submit}>
+          <div class="editor-heading">
+            <strong>{editingId() === "new" ? "添加城市" : `编辑${city()}`}</strong>
+          </div>
           <label>
             城市
             <input

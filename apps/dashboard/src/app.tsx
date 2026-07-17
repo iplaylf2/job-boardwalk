@@ -4,9 +4,8 @@ import type { WorkspaceOverview } from "@job-boardwalk/contracts";
 
 // oxlint-disable-next-line import/no-unassigned-import -- Vite owns the CSS side-effect import.
 import "./styles.css";
-import { BrowserSessionPanel } from "./browser-session-panel.js";
 import { PersonalContextPanel } from "./personal-context/panel.js";
-import { PlatformAccessPanel } from "./platform-access-panel.js";
+import { WorkspaceStatusPanel } from "./workspace-status-panel.js";
 import { readWorkspaceOverview } from "./workspace-service-client.js";
 
 const initialRefreshCount = 0;
@@ -15,9 +14,11 @@ const refreshIntervalMilliseconds = 5000;
 
 function WorkspaceOverviewView(props: { onChanged: () => void; overview: WorkspaceOverview }) {
   return (
-    <div class="grid">
-      <BrowserSessionPanel presence={props.overview.browserSessionPresence} />
-      <PlatformAccessPanel summaries={props.overview.platformAccessSummaries} />
+    <div class="workspace">
+      <WorkspaceStatusPanel
+        presence={props.overview.browserSessionPresence}
+        platforms={props.overview.platformAccessSummaries}
+      />
       <PersonalContextPanel
         facts={props.overview.profileFacts}
         locations={props.overview.targetLocations}
@@ -47,7 +48,7 @@ export function App(): JSX.Element {
         <div>
           <p class="eyebrow">本地 AI 求职秘书</p>
           <h1>Job Boardwalk</h1>
-          <p class="lede">查看浏览器与平台状态，补充个人情况，帮助助手判断哪些机会更适合你。</p>
+          <p class="lede">整理你的求职画像，让助手更快识别值得关注的机会。</p>
         </div>
       </header>
 
