@@ -1,17 +1,28 @@
-import type { PlatformId } from "@job-boardwalk/platform-catalog";
+import { contract } from "./internal/contract.ts";
+import {
+  minimumNonEmptyArrayLength,
+  normalizedTimestamp,
+  platformId,
+  positiveInteger,
+  trimmedNonEmptyString,
+} from "./internal/contract-fields.ts";
 
-export interface RecommendationPageReference {
-  label: string;
-  platformId: PlatformId;
-  url: string;
-}
+export const RecommendationPageReference = contract({
+  label: trimmedNonEmptyString,
+  platformId,
+  url: trimmedNonEmptyString,
+});
+export type RecommendationPageReference = typeof RecommendationPageReference.infer;
 
-export interface JobSearchIntent {
-  city: string;
-  id: number;
-  name: string;
-  position: string;
-  selected: boolean;
-  recommendationPages: RecommendationPageReference[];
-  updatedAt: string;
-}
+export const JobSearchIntent = contract({
+  city: trimmedNonEmptyString,
+  id: positiveInteger,
+  name: trimmedNonEmptyString,
+  position: trimmedNonEmptyString,
+  recommendationPages: RecommendationPageReference.array().atLeastLength(
+    minimumNonEmptyArrayLength,
+  ),
+  selected: "boolean",
+  updatedAt: normalizedTimestamp,
+});
+export type JobSearchIntent = typeof JobSearchIntent.infer;

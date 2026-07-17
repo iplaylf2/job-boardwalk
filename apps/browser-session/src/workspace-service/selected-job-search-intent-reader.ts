@@ -1,4 +1,5 @@
-import type { JobSearchIntent, WorkspaceOverview } from "@job-boardwalk/contracts";
+import { WorkspaceOverview } from "@job-boardwalk/contracts";
+import type { JobSearchIntent } from "@job-boardwalk/contracts";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -20,7 +21,7 @@ export class WorkspaceSelectedJobSearchIntentReader implements SelectedJobSearch
     if (!response.ok) {
       throw new Error(`Workspace Service 拒绝求职方向读取：HTTP ${String(response.status)}`);
     }
-    const overview = yield* until(() => response.json() as Promise<WorkspaceOverview>);
+    const overview = WorkspaceOverview.assert(yield* until(() => response.json()));
     return overview.jobSearchIntents.find(({ selected }) => selected) ?? null;
   }
 }

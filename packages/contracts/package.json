@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@job-boardwalk/platform-catalog": "workspace:*"
+    "@job-boardwalk/platform-catalog": "workspace:*",
+    "arktype": "^2.2.3"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",

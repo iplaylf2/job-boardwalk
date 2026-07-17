@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 // oxlint-disable max-lines -- This suite keeps the complete public HTTP boundary visible together.
+import { JobPostingPage, WorkspaceOverview } from "@job-boardwalk/contracts";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -99,7 +100,7 @@ function seedMcpWorkspace(repository: WorkspaceRepository): void {
   });
 }
 
-// oxlint-disable-next-line max-lines-per-function -- Representative validation failures share one lifecycle assertion.
+// oxlint-disable-next-line max-lines-per-function, max-statements -- Representative validation failures share one lifecycle assertion.
 test("keeps request errors inside the long-lived service scope", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
@@ -127,6 +128,21 @@ test("keeps request errors inside the long-lived service scope", async () => {
       method: "POST",
     });
     expect(invalidBooleanResponse.status).toBe(badRequestStatus);
+
+    const unknownFieldResponse = await httpApp.request("/api/profile/facts", {
+      body: JSON.stringify({
+        confirmed: true,
+        initiatedBy: "agent",
+        key: "target-role",
+        reason: "test",
+        source: "test",
+        unexpected: true,
+        value: "后端工程师",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(unknownFieldResponse.status).toBe(badRequestStatus);
 
     const invalidIntentSourceResponse = await httpApp.request("/api/search-intents", {
       body: JSON.stringify({
@@ -169,6 +185,16 @@ test("keeps request errors inside the long-lived service scope", async () => {
       method: "POST",
     });
     expect(credentialedIntentSourceResponse.status).toBe(badRequestStatus);
+
+    const unknownNestedFieldResponse = await httpApp.request("/api/browser-session/status", {
+      body: JSON.stringify({
+        browserStatus: { available: true, tabCount: 1, unexpected: true },
+        platformAccessObservations: [],
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(unknownNestedFieldResponse.status).toBe(badRequestStatus);
 
     const followingResponse = await httpApp.request("/api/workspace/overview");
     expect(followingResponse.status).toBe(successfulStatus);
@@ -260,10 +286,7 @@ test("updates profile and selected job-search intent through the public HTTP bou
     });
     expect(intentResponse.status).toBe(createdStatus);
     const overviewResponse = await httpApp.request("/api/workspace/overview");
-    const overview = (await overviewResponse.json()) as {
-      jobSearchIntents: { id: number }[];
-      profileFacts: { id: number }[];
-    };
+    const overview = WorkspaceOverview.assert(await overviewResponse.json());
     expect(overview).toMatchObject({
       jobSearchIntents: [
         {
@@ -380,7 +403,8 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     expect(invalidSourceResponse.status).toBe(badRequestStatus);
 
     const libraryResponse = await httpApp.request("/api/jobs?page=1&pageSize=1&platform=boss");
-    expect(await libraryResponse.json()).toMatchObject({
+    const library = JobPostingPage.assert(await libraryResponse.json());
+    expect(library).toMatchObject({
       jobs: [{ company: "星海科技", sources: [{ platformId: "boss" }] }],
       page: 1,
       pageCount: 1,

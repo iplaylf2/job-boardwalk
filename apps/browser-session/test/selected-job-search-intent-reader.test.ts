@@ -47,3 +47,21 @@ test("reads the selected job-search intent used by passive collection", async ()
     selected: true,
   });
 });
+
+test("rejects a workspace response that does not satisfy the shared contract", async () => {
+  const reader = new WorkspaceSelectedJobSearchIntentReader(
+    new URL("http://workspace.test:54310"),
+    () =>
+      Promise.resolve(
+        Response.json({
+          browserSessionPresence: { state: "unknown" },
+          jobSearchIntents: [],
+          profileFacts: [],
+        }),
+      ),
+  );
+  const scope = createScope();
+
+  await expect(scope.run(() => reader.read())).rejects.toThrow();
+  await expect(scope[Symbol.asyncDispose]()).rejects.toThrow();
+});

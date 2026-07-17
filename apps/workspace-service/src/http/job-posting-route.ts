@@ -1,8 +1,9 @@
 import type { Context, Hono } from "hono";
+import { SaveJobPostingObservationCommand } from "@job-boardwalk/contracts";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { parseJobPostingObservation } from "#/job-posting/observation-input.js";
+import { normalizeJobPostingObservation } from "#/job-posting/observation-normalization.js";
 import {
   defaultJobPageSize,
   firstJobPage,
@@ -10,13 +11,7 @@ import {
 } from "#/job-posting/library-query.js";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
-import {
-  InvalidRequestError,
-  readInitiator,
-  readJsonObject,
-  readRequiredString,
-  requestErrorResponse,
-} from "./request.js";
+import { InvalidRequestError, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
 function readJobLibraryQuery(context: Context) {
@@ -82,12 +77,12 @@ export function registerJobPostingRoute(
   app.post("/api/jobs", (context) =>
     serviceScope.run(function* saveJobPostingObservation() {
       try {
-        const input = yield* readJsonObject(context);
+        const input = yield* readRequestBody(context, SaveJobPostingObservationCommand);
         return context.json(
           repository.saveJobPostingObservation({
-            initiatedBy: readInitiator(input),
-            observation: parseJobPostingObservation(input),
-            reason: readRequiredString(input, "reason"),
+            initiatedBy: input.initiatedBy,
+            observation: normalizeJobPostingObservation(input),
+            reason: input.reason,
           }),
           createdStatus,
         );

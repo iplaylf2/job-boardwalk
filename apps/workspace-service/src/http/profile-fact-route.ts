@@ -1,16 +1,10 @@
 import type { Hono } from "hono";
+import { SaveProfileFactCommand, WorkspaceChangeAttribution } from "@job-boardwalk/contracts";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
-import {
-  readJsonObject,
-  readInitiator,
-  readPositiveInteger,
-  readRequiredBoolean,
-  readRequiredString,
-  requestErrorResponse,
-} from "./request.js";
+import { readPositiveInteger, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
 
@@ -22,15 +16,8 @@ export function registerProfileFactRoute(
   app.post("/api/profile/facts", (context) =>
     serviceScope.run(function* setProfileFact() {
       try {
-        const input = yield* readJsonObject(context);
-        repository.setProfileFact({
-          confirmed: readRequiredBoolean(input, "confirmed"),
-          initiatedBy: readInitiator(input),
-          key: readRequiredString(input, "key"),
-          reason: readRequiredString(input, "reason"),
-          source: readRequiredString(input, "source"),
-          value: readRequiredString(input, "value"),
-        });
+        const input = yield* readRequestBody(context, SaveProfileFactCommand);
+        repository.setProfileFact(input);
         return context.json({ ok: true }, createdStatus);
       } catch (error) {
         return requestErrorResponse(error, context);
@@ -40,11 +27,10 @@ export function registerProfileFactRoute(
   app.delete("/api/profile/facts/:id", (context) =>
     serviceScope.run(function* deleteProfileFact() {
       try {
-        const input = yield* readJsonObject(context);
+        const input = yield* readRequestBody(context, WorkspaceChangeAttribution);
         repository.deleteProfileFact({
           id: readPositiveInteger(context.req.param("id"), "id"),
-          initiatedBy: readInitiator(input),
-          reason: readRequiredString(input, "reason"),
+          ...input,
         });
         return context.json({ ok: true });
       } catch (error) {

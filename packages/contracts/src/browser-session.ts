@@ -1,33 +1,48 @@
-import type { PlatformAccessObservation } from "./platform-access.ts";
+import { contract } from "./internal/contract.ts";
+import {
+  nonNegativeInteger,
+  normalizedTimestamp,
+  trimmedNonEmptyString,
+} from "./internal/contract-fields.ts";
+import { PlatformAccessObservation } from "./platform-access.ts";
 
-export type BrowserRuntimeStatus =
-  | {
-      available: false;
-      lastError?: string;
-    }
-  | {
-      available: true;
-      browserVersion?: string;
-      tabCount: number;
-    };
+const unavailableBrowserRuntimeStatus = contract({
+  available: "false",
+  "lastError?": trimmedNonEmptyString,
+});
 
-export interface BrowserSessionStatusReport {
-  browserStatus: BrowserRuntimeStatus;
-  platformAccessObservations: PlatformAccessObservation[];
-}
+const availableBrowserRuntimeStatus = contract({
+  available: "true",
+  "browserVersion?": trimmedNonEmptyString,
+  tabCount: nonNegativeInteger,
+});
 
-export type BrowserSessionPresence =
-  | {
-      state: "unknown";
-    }
-  | {
-      browserStatus: BrowserRuntimeStatus;
-      leaseExpiresAt: string;
-      receivedAt: string;
-      state: "online";
-    }
-  | {
-      lastBrowserStatus: BrowserRuntimeStatus;
-      lastReceivedAt: string;
-      state: "offline";
-    };
+export const BrowserRuntimeStatus = contract.or(
+  unavailableBrowserRuntimeStatus,
+  availableBrowserRuntimeStatus,
+);
+export type BrowserRuntimeStatus = typeof BrowserRuntimeStatus.infer;
+
+export const BrowserSessionStatusReport = contract({
+  browserStatus: BrowserRuntimeStatus,
+  platformAccessObservations: PlatformAccessObservation.array(),
+});
+export type BrowserSessionStatusReport = typeof BrowserSessionStatusReport.infer;
+
+export const BrowserSessionPresence = contract.or(
+  {
+    state: "'unknown'",
+  },
+  {
+    browserStatus: BrowserRuntimeStatus,
+    leaseExpiresAt: normalizedTimestamp,
+    receivedAt: normalizedTimestamp,
+    state: "'online'",
+  },
+  {
+    lastBrowserStatus: BrowserRuntimeStatus,
+    lastReceivedAt: normalizedTimestamp,
+    state: "'offline'",
+  },
+);
+export type BrowserSessionPresence = typeof BrowserSessionPresence.infer;

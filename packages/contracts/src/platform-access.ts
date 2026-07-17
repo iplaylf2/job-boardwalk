@@ -1,49 +1,92 @@
-import type { PlatformId } from "@job-boardwalk/platform-catalog";
+import { contract } from "./internal/contract.ts";
+import { normalizedTimestamp, platformId, positiveInteger } from "./internal/contract-fields.ts";
 
-export const platformAuthenticationStates = ["authenticated", "unauthenticated"] as const;
+const authenticatedFromProtectedResource = contract({
+  authenticationState: "'authenticated'",
+  evidence: "'protected-resource'",
+});
 
-export type PlatformAuthenticationState = (typeof platformAuthenticationStates)[number];
+const authenticatedFromPage = contract({
+  authenticationState: "'authenticated'",
+  evidence: "'authenticated-page'",
+});
 
-export const platformAccessInterruptions = ["verification-required", "access-denied"] as const;
+const unauthenticatedFromRedirect = contract({
+  authenticationState: "'unauthenticated'",
+  evidence: "'login-redirect'",
+});
 
-export type PlatformAccessInterruption = (typeof platformAccessInterruptions)[number];
+const verificationRequired = contract({
+  evidence: "'verification-page'",
+  interruption: "'verification-required'",
+});
 
-export const platformAccessEvidenceKinds = [
-  "protected-resource",
-  "authenticated-page",
-  "login-redirect",
-  "verification-page",
-  "access-denied-page",
-] as const;
+const accessDenied = contract({
+  evidence: "'access-denied-page'",
+  interruption: "'access-denied'",
+});
 
-export type PlatformAccessEvidenceKind = (typeof platformAccessEvidenceKinds)[number];
+export const PlatformAccessAssessment = contract.or(
+  authenticatedFromProtectedResource,
+  authenticatedFromPage,
+  unauthenticatedFromRedirect,
+  verificationRequired,
+  accessDenied,
+);
+export type PlatformAccessAssessment = typeof PlatformAccessAssessment.infer;
 
-export type PlatformAccessAssessment =
-  | {
-      authenticationState: "authenticated";
-      evidence: "protected-resource" | "authenticated-page";
-    }
-  | { authenticationState: "unauthenticated"; evidence: "login-redirect" }
-  | { evidence: "verification-page"; interruption: "verification-required" }
-  | { evidence: "access-denied-page"; interruption: "access-denied" };
+const observationContext = {
+  observedAt: normalizedTimestamp,
+  platformId,
+} as const;
 
-interface PlatformAccessObservationContext {
-  observedAt: string;
-  platformId: PlatformId;
-}
+const authenticatedFromProtectedResourceObservation =
+  authenticatedFromProtectedResource.merge(observationContext);
+const authenticatedFromPageObservation = authenticatedFromPage.merge(observationContext);
+const unauthenticatedFromRedirectObservation =
+  unauthenticatedFromRedirect.merge(observationContext);
+const verificationRequiredObservation = verificationRequired.merge(observationContext);
+const accessDeniedObservation = accessDenied.merge(observationContext);
 
-export type PlatformAccessObservation = PlatformAccessAssessment & PlatformAccessObservationContext;
+export const PlatformAccessObservation = contract.or(
+  authenticatedFromProtectedResourceObservation,
+  authenticatedFromPageObservation,
+  unauthenticatedFromRedirectObservation,
+  verificationRequiredObservation,
+  accessDeniedObservation,
+);
+export type PlatformAccessObservation = typeof PlatformAccessObservation.infer;
 
-export type RecordedPlatformAccessObservation = PlatformAccessObservation & {
-  id: number;
-};
+const recordedObservation = { id: positiveInteger } as const;
 
-export type RecordedPlatformAuthenticationObservation = Extract<
-  RecordedPlatformAccessObservation,
-  { authenticationState: PlatformAuthenticationState }
->;
+const recordedAuthenticatedFromProtectedResource =
+  authenticatedFromProtectedResourceObservation.merge(recordedObservation);
+const recordedAuthenticatedFromPage = authenticatedFromPageObservation.merge(recordedObservation);
+const recordedUnauthenticatedFromRedirect =
+  unauthenticatedFromRedirectObservation.merge(recordedObservation);
+const recordedVerificationRequired = verificationRequiredObservation.merge(recordedObservation);
+const recordedAccessDenied = accessDeniedObservation.merge(recordedObservation);
 
-export type RecordedPlatformAccessInterruptionObservation = Extract<
-  RecordedPlatformAccessObservation,
-  { interruption: PlatformAccessInterruption }
->;
+export const RecordedPlatformAccessObservation = contract.or(
+  recordedAuthenticatedFromProtectedResource,
+  recordedAuthenticatedFromPage,
+  recordedUnauthenticatedFromRedirect,
+  recordedVerificationRequired,
+  recordedAccessDenied,
+);
+export type RecordedPlatformAccessObservation = typeof RecordedPlatformAccessObservation.infer;
+
+export const RecordedPlatformAuthenticationObservation = contract.or(
+  recordedAuthenticatedFromProtectedResource,
+  recordedAuthenticatedFromPage,
+  recordedUnauthenticatedFromRedirect,
+);
+export type RecordedPlatformAuthenticationObservation =
+  typeof RecordedPlatformAuthenticationObservation.infer;
+
+export const RecordedPlatformAccessInterruptionObservation = contract.or(
+  recordedVerificationRequired,
+  recordedAccessDenied,
+);
+export type RecordedPlatformAccessInterruptionObservation =
+  typeof RecordedPlatformAccessInterruptionObservation.infer;

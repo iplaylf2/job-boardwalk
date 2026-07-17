@@ -407,6 +407,9 @@ importers:
       '@job-boardwalk/platform-catalog':
         specifier: workspace:*
         version: link:../platform-catalog
+      arktype:
+        specifier: ^2.2.3
+        version: 2.2.3
     devDependencies:
       '@job-boardwalk/presets':
         specifier: workspace:*
@@ -3025,10 +3028,8 @@ snapshots:
   '@ark/schema@0.56.2':
     dependencies:
       '@ark/util': 0.56.2
-    optional: true
 
-  '@ark/util@0.56.2':
-    optional: true
+  '@ark/util@0.56.2': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -3943,14 +3944,12 @@ snapshots:
   arkregex@0.0.8:
     dependencies:
       '@ark/util': 0.56.2
-    optional: true
 
   arktype@2.2.3:
     dependencies:
       '@ark/schema': 0.56.2
       '@ark/util': 0.56.2
       arkregex: 0.0.8
-    optional: true
 
   assertion-error@2.0.1: {}
 

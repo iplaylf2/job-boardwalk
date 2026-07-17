@@ -1,23 +1,25 @@
-import type { PlatformId } from "@job-boardwalk/platform-catalog";
-
-import type { BrowserSessionPresence } from "./browser-session.ts";
-import type { ProfileFact } from "./profile.ts";
-import type { JobSearchIntent } from "./search-intent.ts";
-import type {
+import { BrowserSessionPresence } from "./browser-session.ts";
+import { contract } from "./internal/contract.ts";
+import { platformId, trimmedNonEmptyString } from "./internal/contract-fields.ts";
+import { ProfileFact } from "./profile.ts";
+import { JobSearchIntent } from "./search-intent.ts";
+import {
   RecordedPlatformAuthenticationObservation,
   RecordedPlatformAccessInterruptionObservation,
 } from "./platform-access.ts";
 
-export interface PlatformAccessSummary {
-  label: string;
-  latestAuthentication?: RecordedPlatformAuthenticationObservation;
-  platformId: PlatformId;
-  unresolvedInterruption?: RecordedPlatformAccessInterruptionObservation;
-}
+export const PlatformAccessSummary = contract({
+  label: trimmedNonEmptyString,
+  "latestAuthentication?": RecordedPlatformAuthenticationObservation,
+  platformId,
+  "unresolvedInterruption?": RecordedPlatformAccessInterruptionObservation,
+});
+export type PlatformAccessSummary = typeof PlatformAccessSummary.infer;
 
-export interface WorkspaceOverview {
-  browserSessionPresence: BrowserSessionPresence;
-  jobSearchIntents: JobSearchIntent[];
-  platformAccessSummaries: PlatformAccessSummary[];
-  profileFacts: ProfileFact[];
-}
+export const WorkspaceOverview = contract({
+  browserSessionPresence: BrowserSessionPresence,
+  jobSearchIntents: JobSearchIntent.array(),
+  platformAccessSummaries: PlatformAccessSummary.array(),
+  profileFacts: ProfileFact.array(),
+});
+export type WorkspaceOverview = typeof WorkspaceOverview.infer;

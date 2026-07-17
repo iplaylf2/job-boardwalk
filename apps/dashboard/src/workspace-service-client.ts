@@ -1,8 +1,5 @@
-import type {
-  JobPostingPage,
-  RecommendationPageReference,
-  WorkspaceOverview,
-} from "@job-boardwalk/contracts";
+import { JobPostingPage, WorkspaceOverview } from "@job-boardwalk/contracts";
+import type { RecommendationPageReference } from "@job-boardwalk/contracts";
 
 async function requestWorkspaceChange(path: string, init: RequestInit): Promise<void> {
   const response = await fetch(path, {
@@ -21,7 +18,7 @@ export async function readWorkspaceOverview(): Promise<WorkspaceOverview> {
   if (!response.ok) {
     throw new Error("无法读取本机工作区。请确认工作区服务已经启动。");
   }
-  return (await response.json()) as WorkspaceOverview;
+  return WorkspaceOverview.assert(await response.json());
 }
 
 export async function readJobPostingPage(input: {
@@ -40,7 +37,7 @@ export async function readJobPostingPage(input: {
   if (!response.ok) {
     throw new Error("无法读取岗位库。请确认工作区服务已经启动。");
   }
-  return (await response.json()) as JobPostingPage;
+  return JobPostingPage.assert(await response.json());
 }
 
 export function saveProfileFact(input: { key: string; value: string }): Promise<void> {
@@ -75,17 +72,15 @@ export function saveJobSearchIntent(input: {
   selected: boolean;
   recommendationPages: RecommendationPageReference[];
 }): Promise<void> {
-  return requestWorkspaceChange(
-    input.id ? `/api/search-intents/${input.id}` : "/api/search-intents",
-    {
-      body: JSON.stringify({
-        ...input,
-        initiatedBy: "user",
-        reason: "用户在 Dashboard 中编辑求职方向",
-      }),
-      method: input.id ? "PUT" : "POST",
-    },
-  );
+  const { id, ...intent } = input;
+  return requestWorkspaceChange(id ? `/api/search-intents/${id}` : "/api/search-intents", {
+    body: JSON.stringify({
+      ...intent,
+      initiatedBy: "user",
+      reason: "用户在 Dashboard 中编辑求职方向",
+    }),
+    method: id ? "PUT" : "POST",
+  });
 }
 
 export function selectJobSearchIntent(id: number): Promise<void> {
