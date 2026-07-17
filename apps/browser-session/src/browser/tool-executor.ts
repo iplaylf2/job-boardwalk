@@ -1,4 +1,5 @@
 import type { BrowserContext, Locator } from "patchright";
+import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -7,6 +8,7 @@ import {
   assertPlatformNavigationLink,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 import {
   capturePageSnapshot,
   maximumElementHrefCharacters,
@@ -56,9 +58,14 @@ function* waitForRequestedInterval(params: Record<string, unknown>): RiteCorouti
 
 export class BrowserToolExecutor {
   readonly #elementReferences = new Map<string, ElementReference>();
+  readonly #observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null;
   readonly #tabs: BrowserTabs;
 
-  public constructor(context: BrowserContext) {
+  public constructor(
+    context: BrowserContext,
+    observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null,
+  ) {
+    this.#observePageAccess = observePageAccess;
     this.#tabs = new BrowserTabs(context);
   }
 
@@ -246,6 +253,7 @@ export class BrowserToolExecutor {
       : maximumSnapshotTextCharacters;
     this.#clearElementReferences();
     const snapshot = yield* capturePageSnapshot(page, textLimit);
+    const platformAccessObservation = this.#observePageAccess(snapshot);
     for (const { href, locator, ref, signature } of snapshot.elements) {
       this.#elementReferences.set(ref, {
         ...(href ? { href } : {}),
@@ -259,6 +267,7 @@ export class BrowserToolExecutor {
       elements: snapshot.elements.map(
         ({ locator: _locator, signature: _signature, ...element }) => element,
       ),
+      platformAccessObservation,
       tabId,
     };
   }

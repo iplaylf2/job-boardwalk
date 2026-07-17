@@ -6,7 +6,7 @@ import type { RiteCoroutine } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
 
 import type { BrowserControl } from "./browser-control.js";
-import { PlatformAccessMonitor } from "./platform-access-monitor.js";
+import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
 const initialFailureCount = 0;
@@ -16,6 +16,7 @@ const retryDelayBaseMilliseconds = 1000;
 const retryDelayMaximumMilliseconds = 30_000;
 const retryExponentMaximum = 5;
 const retryExponentBase = 2;
+const publicBrowserFailureMessage = "浏览器启动或运行失败。";
 
 type PersistentContextLauncher = (profilePath: string) => Promise<BrowserContext>;
 
@@ -41,9 +42,9 @@ export class ManagedBrowser implements BrowserControl {
   readonly #launchContext: PersistentContextLauncher;
   readonly #profilePath: string;
   #context: BrowserContext | null = null;
-  #platformAccessMonitor: PlatformAccessMonitor | null = null;
+  #platformAccessObserver: PlatformAccessObserver | null = null;
   #toolExecutor: BrowserToolExecutor | null = null;
-  #lastError: Error | null = null;
+  #hasFailed = false;
 
   public constructor(
     profilePath: string,
@@ -57,7 +58,7 @@ export class ManagedBrowser implements BrowserControl {
     if (!this.#context || !this.#toolExecutor) {
       return {
         available: false,
-        ...(this.#lastError ? { lastError: this.#lastError.message } : {}),
+        ...(this.#hasFailed ? { lastError: publicBrowserFailureMessage } : {}),
       };
     }
     const browserVersion = this.#context.browser()?.version();
@@ -70,16 +71,14 @@ export class ManagedBrowser implements BrowserControl {
 
   public *executeTool(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
     if (!this.#toolExecutor) {
-      const detail = this.#lastError
-        ? `最近一次失败：${this.#lastError.message}`
-        : "浏览器尚未就绪。";
+      const detail = this.#hasFailed ? publicBrowserFailureMessage : "浏览器尚未就绪。";
       throw new Error(`浏览器暂不可用，Browser Session 正在启动或恢复。${detail}`);
     }
     return yield* this.#toolExecutor.execute(toolName, input);
   }
 
   public get platformAccessObservations(): PlatformAccessObservation[] {
-    return this.#platformAccessMonitor?.observations ?? [];
+    return this.#platformAccessObserver?.observations ?? [];
   }
 
   public *supervise(reportError: (error: Error) => void): RiteCoroutine<never> {
@@ -104,22 +103,24 @@ export class ManagedBrowser implements BrowserControl {
     const closed = yield* completer<Error>();
     context.once("close", () => closed.resolve(new Error("浏览器窗口已经关闭。")));
     this.#context = context;
-    const platformAccessMonitor = new PlatformAccessMonitor(context);
-    this.#platformAccessMonitor = platformAccessMonitor;
-    this.#toolExecutor = new BrowserToolExecutor(context);
-    this.#lastError = null;
+    const platformAccessObserver = new PlatformAccessObserver(context);
+    this.#platformAccessObserver = platformAccessObserver;
+    this.#toolExecutor = new BrowserToolExecutor(context, (page) =>
+      platformAccessObserver.observePage(page),
+    );
+    this.#hasFailed = false;
     try {
-      return yield* race([() => platformAccessMonitor.run(), () => wait(closed.future)]);
+      return yield* race([() => platformAccessObserver.run(), () => wait(closed.future)]);
     } finally {
       this.#context = null;
-      this.#platformAccessMonitor = null;
+      this.#platformAccessObserver = null;
       this.#toolExecutor = null;
       yield* until(() => context.close());
     }
   }
 
   #recordFailure(error: Error, failureCount: number, reportError: (error: Error) => void): number {
-    this.#lastError = error;
+    this.#hasFailed = true;
     reportError(error);
     return failureCount + firstFailureCount;
   }

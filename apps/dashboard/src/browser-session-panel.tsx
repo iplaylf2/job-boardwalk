@@ -6,7 +6,6 @@ import { SectionHeading } from "./section-heading.js";
 
 type AvailableBrowserStatus = Extract<BrowserRuntimeStatus, { available: true }>;
 type OnlinePresence = Extract<BrowserSessionPresence, { state: "online" }>;
-type UnavailableBrowserStatus = Extract<BrowserRuntimeStatus, { available: false }>;
 
 function formatReceivedAt(receivedAt: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -29,24 +28,12 @@ function AvailableBrowserView(props: { status: AvailableBrowserStatus }) {
   );
 }
 
-function UnavailableBrowserView(props: { status: UnavailableBrowserStatus }) {
+function UnavailableBrowserView() {
   return (
-    <>
-      <div class="browser-session-summary">
-        <span class="status status-attention">浏览器不可用</span>
-        <p>会话服务仍在线，但当前没有可用的受控浏览器。可稍后重试或检查运行环境。</p>
-      </div>
-      <Show when={props.status.lastError}>
-        {(lastError) => (
-          <details class="diagnostic-details">
-            <summary>查看技术详情</summary>
-            <pre>
-              <code>{lastError()}</code>
-            </pre>
-          </details>
-        )}
-      </Show>
-    </>
+    <div class="browser-session-summary">
+      <span class="status status-attention">浏览器不可用</span>
+      <p>会话服务仍在线，但当前没有可用的受控浏览器。可稍后重试或检查运行环境。</p>
+    </div>
   );
 }
 
@@ -55,20 +42,9 @@ function OnlinePresenceView(props: { presence: OnlinePresence }) {
     const { browserStatus } = props.presence;
     return browserStatus.available ? browserStatus : null;
   });
-  const unavailableStatus = createMemo(() => {
-    const { browserStatus } = props.presence;
-    return browserStatus.available ? null : browserStatus;
-  });
   return (
     <div class="browser-session-presence">
-      <Show
-        when={availableStatus()}
-        fallback={
-          <Show when={unavailableStatus()}>
-            {(status) => <UnavailableBrowserView status={status()} />}
-          </Show>
-        }
-      >
+      <Show when={availableStatus()} fallback={<UnavailableBrowserView />}>
         {(status) => <AvailableBrowserView status={status()} />}
       </Show>
       <time class="browser-session-meta" datetime={props.presence.receivedAt}>

@@ -2,16 +2,16 @@
 
 Browser Session is Job Boardwalk's long-lived loopback HTTP MCP service for a visible persistent
 browser. It launches Patchright Chromium, owns the dedicated profile and browser process,
-coordinates tabs and page actions, and can derive authentication observations from top-level
-navigation responses when a platform adapter has a conclusive rule. Recruiting-platform page
-meaning remains with the agent.
+coordinates tabs and page actions, and derives authentication observations from top-level
+navigation responses and bounded snapshots when a platform adapter has a conclusive rule. Page
+meaning not covered by an adapter remains with the agent.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
 bounded page evidence lets the agent reconcile automation results with the window the user can see.
 
 The current tool surface supports both BOSS直聘 and 鱼泡直聘 through one recruiting-platform adapter
-contract. Shared tools do not imply identical response-assessment coverage: each adapter owns its
+contract. Shared tools do not imply identical access-assessment coverage: each adapter owns its
 platform-specific navigation and authentication rules. A platform's HTTPS navigation scope permits
 research navigation and explicit login-handoff preparation; it does not authorize login,
 verification, or other account actions.
@@ -52,8 +52,9 @@ The Streamable HTTP MCP endpoint is <http://127.0.0.1:54312/mcp>; health is avai
 but this is not authentication: local processes are inside the service trust boundary.
 
 Every five seconds, Browser Session sends Workspace Service a bounded status report containing
-browser availability, version, tab count, the latest browser error when unavailable, and the latest
-authentication observation, if any, derived by an adapter from browser navigation. Set
+browser availability, version, tab count, a generic failure summary when unavailable, and the
+latest authentication observation, if any, derived by an adapter from browser navigation or a
+requested snapshot. Detailed browser errors remain in the local process log. Set
 `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is not available at
 <http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
 control.
@@ -61,17 +62,20 @@ control.
 ### Platform adapter coverage
 
 Both adapters use the same tab, navigation, snapshot, and login-handoff workflow. Their current
-automatic response-assessment coverage differs:
+automatic access-assessment coverage differs:
 
-| Platform | Shared navigation and login handoff | Automatic response assessment                                                                                                                                   |
-| -------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BOSS直聘 | Yes                                 | A successful top-level response under `/web/geek/*` records `authenticated`; a redirect from that scope to the configured login URL records `unauthenticated`.  |
-| 鱼泡直聘 | Yes                                 | Not configured. Authentication that requires visible-page interpretation remains agent-owned and may be submitted to Workspace Service as `authenticated-page`. |
+| Platform | Automatic access assessment                                                                                                                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BOSS直聘 | Successful protected navigation records `authenticated`; redirect from protected navigation to login records `unauthenticated`; a bounded snapshot containing the complete set of account-only navigation links records `authenticated`. |
+| 鱼泡直聘 | Not configured. Evidence not covered by an adapter remains agent-owned.                                                                                                                                                                  |
 
-Response assessment is passive. Browser Session sends no detection request and does not refresh or
-open a page for this purpose. A page loaded before monitoring begins produces no observation until
-a later qualifying navigation. The Dashboard therefore shows timestamped observations, not a live
-authentication guarantee.
+Navigation assessment is passive, and snapshot assessment reuses the page evidence already
+requested by the agent. Browser Session sends no detection request and does not refresh or open a
+page for this purpose. `browser_snapshot` returns `platformAccessObservation`; when it is non-null,
+the same observation is already queued for the periodic Workspace Service report. A page loaded
+before monitoring begins can therefore be assessed by a later snapshot without a separate agent
+submission. The Dashboard still shows timestamped observations, not a timeless live authentication
+guarantee.
 
 ## Runtime behavior
 
@@ -117,17 +121,17 @@ same window to the user.
 
 ## Agent responsibility and handoff
 
-The agent paces actions and interprets snapshots. Entering credentials, scanning a login QR code,
-completing verification, submitting the login form, applying for jobs, sending messages, and
-changing an account remain under user control. The agent resumes only after the user explicitly
-returns control and the live page is observed again.
+The agent paces actions and interprets snapshot meaning not classified by an adapter. Entering
+credentials, scanning a login QR code, completing verification, submitting the login form, applying
+for jobs, sending messages, and changing an account remain under user control. The agent resumes
+only after the user explicitly returns control and the live page is observed again.
 
 ## Maintenance constraints
 
 The adapter registry is exhaustive over the catalog's `PlatformId` type. Adding a recruiting
-platform therefore requires catalog metadata and a Browser Session adapter. When a platform has a
-conclusive response rule, its classification belongs in that adapter. Interpretation that needs
-general page meaning remains outside Browser Session.
+platform therefore requires catalog metadata and a Browser Session adapter. Conclusive
+platform-specific access rules belong in that adapter; interpretation that needs general page
+meaning remains outside Browser Session.
 
 Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
 made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page

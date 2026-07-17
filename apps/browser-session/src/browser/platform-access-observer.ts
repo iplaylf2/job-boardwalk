@@ -4,6 +4,7 @@ import { completer } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
 
+import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
 
 function collectRedirectSourceUrls(request: Request): string[] {
@@ -16,7 +17,7 @@ function collectRedirectSourceUrls(request: Request): string[] {
   return urls;
 }
 
-export function derivePlatformAccessObservation(
+export function deriveNavigationAccessObservation(
   response: Response,
   now: () => number = Date.now,
 ): PlatformAccessObservation | null {
@@ -26,7 +27,7 @@ export function derivePlatformAccessObservation(
   }
 
   const adapter = findRecruitingPlatformAdapter(response.url());
-  const assessment = adapter?.assessAccess?.({
+  const assessment = adapter?.assessNavigation?.({
     ok: response.ok(),
     redirectSourceUrls: collectRedirectSourceUrls(request),
     url: response.url(),
@@ -41,7 +42,23 @@ export function derivePlatformAccessObservation(
   };
 }
 
-export class PlatformAccessMonitor {
+export function derivePageAccessObservation(
+  page: PageAccessFacts,
+  now: () => number = Date.now,
+): PlatformAccessObservation | null {
+  const adapter = findRecruitingPlatformAdapter(page.url);
+  const assessment = adapter?.assessPage?.(page);
+  if (!adapter || !assessment) {
+    return null;
+  }
+  return {
+    observedAt: new Date(now()).toISOString(),
+    platformId: adapter.platformId,
+    ...assessment,
+  };
+}
+
+export class PlatformAccessObserver {
   readonly #context: BrowserContext;
   #observations: PlatformAccessObservation[] = [];
 
@@ -53,18 +70,30 @@ export class PlatformAccessMonitor {
     return [...this.#observations];
   }
 
+  public observePage(page: PageAccessFacts): PlatformAccessObservation | null {
+    const observation = derivePageAccessObservation(page);
+    if (observation) {
+      this.#record(observation);
+    }
+    return observation;
+  }
+
   public *run(): RiteCoroutine<never> {
     const running = yield* completer<never>();
     this.#context.on("response", (response) => {
-      const observation = derivePlatformAccessObservation(response);
+      const observation = deriveNavigationAccessObservation(response);
       if (!observation) {
         return;
       }
-      this.#observations = [
-        ...this.#observations.filter(({ platformId }) => platformId !== observation.platformId),
-        observation,
-      ];
+      this.#record(observation);
     });
     return yield* wait(running.future);
+  }
+
+  #record(observation: PlatformAccessObservation): void {
+    this.#observations = [
+      ...this.#observations.filter(({ platformId }) => platformId !== observation.platformId),
+      observation,
+    ];
   }
 }

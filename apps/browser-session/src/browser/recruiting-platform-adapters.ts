@@ -16,13 +16,23 @@ interface NavigationResponseFacts {
   readonly url: string;
 }
 
+export interface PageAccessFacts {
+  readonly elements: readonly {
+    readonly href?: string;
+  }[];
+  readonly url: string;
+}
+
 interface RecruitingPlatformAdapter {
   readonly entryUrl: string;
   readonly label: string;
   readonly loginUrl: string;
   readonly platformId: PlatformId;
   readonly isInNavigationScope: (value: string) => boolean;
-  readonly assessAccess?: (response: NavigationResponseFacts) => PlatformAccessAssessment | null;
+  readonly assessNavigation?: (
+    response: NavigationResponseFacts,
+  ) => PlatformAccessAssessment | null;
+  readonly assessPage?: (page: PageAccessFacts) => PlatformAccessAssessment | null;
 }
 
 function isLoginPageUrl(candidateUrl: string, loginUrl: string): boolean {
@@ -40,7 +50,7 @@ function isBossProtectedPageUrl(url: string): boolean {
   );
 }
 
-function assessBossAccess(response: NavigationResponseFacts): PlatformAccessAssessment | null {
+function assessBossNavigation(response: NavigationResponseFacts): PlatformAccessAssessment | null {
   if (response.ok && isBossProtectedPageUrl(response.url)) {
     return { authenticationState: "authenticated", evidence: "protected-resource" };
   }
@@ -51,6 +61,37 @@ function assessBossAccess(response: NavigationResponseFacts): PlatformAccessAsse
     return { authenticationState: "unauthenticated", evidence: "login-redirect" };
   }
   return null;
+}
+
+function isBossAccountLink(href: string | undefined, pathname: string): boolean {
+  if (!href) {
+    return false;
+  }
+  try {
+    const url = new URL(href);
+    const { navigationDomain } = platformCatalog.boss.web;
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === navigationDomain || url.hostname.endsWith(`.${navigationDomain}`)) &&
+      url.pathname === pathname
+    );
+  } catch {
+    return false;
+  }
+}
+
+function assessBossPage(page: PageAccessFacts): PlatformAccessAssessment | null {
+  const requiredAccountPaths = [
+    "/web/geek/chat",
+    "/web/geek/resume",
+    "/web/geek/recommend",
+  ] as const;
+  const showsAuthenticatedNavigation = requiredAccountPaths.every((pathname) =>
+    page.elements.some((element) => isBossAccountLink(element.href, pathname)),
+  );
+  return showsAuthenticatedNavigation
+    ? { authenticationState: "authenticated", evidence: "authenticated-page" }
+    : null;
 }
 
 function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlatformAdapter {
@@ -76,7 +117,11 @@ function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlat
 }
 
 export const recruitingPlatformAdapters = {
-  boss: { ...createRecruitingPlatformAdapter("boss"), assessAccess: assessBossAccess },
+  boss: {
+    ...createRecruitingPlatformAdapter("boss"),
+    assessNavigation: assessBossNavigation,
+    assessPage: assessBossPage,
+  },
   yupao: createRecruitingPlatformAdapter("yupao"),
 } as const satisfies Record<PlatformId, RecruitingPlatformAdapter>;
 

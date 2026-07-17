@@ -12,6 +12,13 @@ const jsonIndentationSpaces = 2;
 const supportedPlatformLabels = platformIds
   .map((platformId) => platformCatalog[platformId].label)
   .join("、");
+const browserServerInstructions = [
+  `Browser Session 管理可见的 Patchright 浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
+  "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
+  "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
+  "用户交接：需要登录、验证或其他用户操作时，使用 browser_prepare_login 准备登录界面后立即停止浏览器输入。只有用户明确交回控制权并重新观察页面后，才能继续。",
+  "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
+].join("\n\n");
 
 const browserTools = [
   {
@@ -58,9 +65,9 @@ const browserTools = [
     name: "browser_navigate",
   },
   {
-    annotations: { idempotentHint: true, openWorldHint: true, readOnlyHint: true },
+    annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用。truncated 表示内容被裁剪；快照不包含表单当前值和密码框。",
+      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。truncated 表示内容被裁剪；快照不包含表单当前值和密码框。",
     inputSchema: {
       properties: {
         maxTextCharacters: { maximum: 40_000, minimum: 1000, type: "number" },
@@ -164,7 +171,7 @@ export function createBrowserSessionMcpServer(
     { name: "job-boardwalk-browser-session", version: "0.1.0" },
     {
       capabilities: { tools: { listChanged: true } },
-      instructions: `Browser Session 管理一个可见的 Patchright 浏览器，并通过统一平台适配器控制 ${supportedPlatformLabels} 的标签页；各适配器可以具有不同的自动访问判定能力。调用方必须依据 browser_snapshot 返回的有界证据解释页面，并与用户实际看到的窗口核对。用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，调用 browser_prepare_login 主动打开登录界面；打开界面只是在准备用户交接，不授权代理填写或提交凭据、扫码或完成验证码等验证。HTTPS 导航范围只允许研究导航和明确的登录交接准备，不授权投递职位、发送消息或变更账号。truncated 表示快照正文、元素或链接已被裁剪；快照不返回表单当前值或密码框，元素 ref 仅对最近一次快照有效。需要用户操作时，立即停止浏览器输入并让用户接管同一标签页；只有在用户明确交回控制权并重新观察页面后，才能继续。需要页面语义才能得出的登录结论由调用方记录到 Workspace Service；Browser Session 只自动报告适配器能从顶层导航响应确定的观察。`,
+      instructions: browserServerInstructions,
     },
   );
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>

@@ -16,8 +16,8 @@ with the durable workspace exposed by this service.
 Browser Session also sends status reports directly to Workspace Service. An in-memory presence
 tracker renews a short lease for each report and makes the result available to Dashboard and MCP
 readers. The same report may carry authentication observations derived from real platform
-navigation responses; the service validates, deduplicates, and persists them. An expired lease is
-shown as offline rather than current browser state.
+navigation responses or bounded snapshots; the service validates, deduplicates, and persists them.
+An expired lease is shown as offline rather than current browser state.
 
 ## Run Workspace Service
 
@@ -84,9 +84,9 @@ latest state for that platform changes.
 
 ### Platform-access observations
 
-After interpreting current browser evidence, an agent may submit a structured platform-access
-conclusion. Browser Session uses the same contract when an adapter derives an authentication
-observation from a qualifying top-level navigation response:
+Browser Session submits structured platform-access conclusions when an adapter derives an
+authentication observation from a qualifying top-level navigation response or bounded page
+snapshot. An agent may use the same endpoint only for evidence that no adapter classified:
 
 ```json
 {

@@ -19,12 +19,12 @@ durable facts:
 - [Dashboard](apps/dashboard/) reads the workspace overview, including durable observations and
   leased Browser Session presence. It never controls the browser.
 
-The agent interprets live browser evidence and may submit structured observations to Workspace
-Service. When a platform adapter has a conclusive response rule, Browser Session can separately
-derive an authentication observation from a qualifying top-level navigation and report it to
-Workspace Service. Workspace Service derives leased presence and deduplicates durable observations
-for Dashboard and MCP readers. See [Product design](docs/product-design.md) for the authoritative
-collaboration model and ownership boundaries.
+Browser Session adapters derive structured authentication observations from qualifying top-level
+navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
+evidence outside those rules and coordinates user handoff. Workspace Service derives leased
+presence and deduplicates durable observations for Dashboard and MCP readers. See
+[Product design](docs/product-design.md) for the authoritative collaboration model and ownership
+boundaries.
 
 ## Current scope
 

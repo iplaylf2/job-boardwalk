@@ -56,7 +56,8 @@
 ## Browser action pacing
 
 - Use `browser_snapshot` at workflow boundaries and after meaningful page or handoff
-  state changes. Browser Session does not interpret page content; the agent owns each semantic read.
+  state changes. A platform adapter may classify only the exact access signatures it owns; the
+  agent interprets all remaining page meaning.
 - Normal automation may observe, retry, navigate, or refresh when the workflow requires it, but
   actions must be paced and bounded. Avoid tight polling loops, repeated visible page churn, and
   retries that continue without new evidence. Route names alone are not evidence of a verification
@@ -77,9 +78,11 @@
   supply its values. Inspect the local file before asking the user to repeat host addresses, but
   never print or commit its contents.
 - Workspace Service runs at `http://127.0.0.1:54310` and owns durable observations. Browser Session
-  may automatically submit a platform authentication change only when an adapter finds a
-  conclusive result in a top-level navigation response already received by the visible browser.
-  Observations requiring page interpretation remain agent-owned.
+  may automatically submit a platform authentication change when an adapter finds a conclusive
+  result in a top-level navigation response already received by the visible browser or in a bounded
+  snapshot requested by the agent. When `browser_snapshot` returns a non-null
+  `platformAccessObservation`, it is already queued for automatic reporting and the agent must not
+  submit it again. Evidence not classified by an adapter remains agent-owned.
 - Dashboard is the read-only view at `http://127.0.0.1:54311`; it shows durable workspace data and
   leased Browser Session presence, but does not establish or control the browser session.
 - Browser Session launches a visible persistent Patchright Chromium process and owns its dedicated

@@ -24,7 +24,9 @@ test("starts unavailable without leaking profile details through status", () => 
 
 test("contains browser launch failures as unavailable tool calls", async () => {
   const scope = createScope();
-  const launchError = new Error("graphical session unavailable");
+  const launchError = new Error(
+    "graphical session unavailable at /private/browser-profile/Default",
+  );
   const browser = new ManagedBrowser("/private/profile", () => Promise.reject(launchError));
   const reportedErrors: Error[] = [];
   const supervision = scope.run(() => browser.supervise((error) => reportedErrors.push(error)));
@@ -32,11 +34,12 @@ test("contains browser launch failures as unavailable tool calls", async () => {
   await expect.poll(() => reportedErrors).toEqual([launchError]);
   expect(browser.status).toEqual({
     available: false,
-    lastError: "graphical session unavailable",
+    lastError: "浏览器启动或运行失败。",
   });
   expect(() => browser.executeTool("browser_tabs", { action: "list" }).next()).toThrow(
-    /graphical session unavailable/u,
+    /浏览器启动或运行失败/u,
   );
+  expect(JSON.stringify(browser.status)).not.toMatch(/private|browser-profile|Default/u);
 
   await scope[Symbol.asyncDispose]();
   await expect(supervision).rejects.toThrow();

@@ -53,16 +53,18 @@ presence. It neither controls the browser nor requires an active agent conversat
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
 durable facts and conclusions derived from that evidence. A Browser Session adapter may derive an
-authentication assessment from a real top-level navigation response when it has a conclusive
-platform-specific rule. Page interpretation remains agent-owned.
+authentication assessment from a real top-level navigation response or a bounded page snapshot
+when it has a conclusive platform-specific rule. The agent interprets evidence not covered by an
+adapter.
 
 Browser Session sends bounded status directly to Workspace Service. A report includes browser
-availability, version, and tab count, plus the latest browser error when unavailable and any
-platform authentication observations cached from real browser navigation. Workspace Service treats
-runtime status as a short lease and stores only changed access observations: before the first
-report, presence is unknown; after a lease expires, presence is offline. Reporting failure never
-prevents Browser Session from operating. Reports contain no cookies, credentials, storage contents,
-or unrestricted page text.
+availability, version, and tab count, plus a generic failure summary when unavailable and any
+platform authentication observations derived from navigation responses or bounded snapshots.
+Detailed browser errors remain in the Browser Session process log so status reports do not expose
+local paths or launch parameters. Workspace Service treats runtime status as a short lease and
+stores only changed access observations: before the first report, presence is unknown; after a
+lease expires, presence is offline. Reporting failure never prevents Browser Session from
+operating. Reports contain no cookies, credentials, storage contents, or unrestricted page text.
 
 ## Browser handoff
 
@@ -94,18 +96,20 @@ and HTTP and MCP responses do not expose authentication cookies or browser profi
 ## Access observations
 
 Platform access is an append-only observation stream. Browser Session passively observes navigation
-responses the visible browser already receives; it does not issue a detection request, refresh a
-page, or open a tab to check authentication. An adapter with a conclusive rule may use only response
+responses the visible browser already receives and applies deterministic adapter rules when the
+agent requests a bounded page snapshot. It does not issue a detection request, refresh a page, or
+open a tab to check authentication. An adapter with a conclusive navigation rule may use response
 success, the final URL, and the server redirect chain to produce one of two authentication results:
 
 - `protected-resource` records `authenticated` when a known protected navigation succeeds;
 - `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
   destination.
 
-Some authentication results require page interpretation instead of a response rule. After reading
-a bounded snapshot, the agent may submit `authenticated-page` when account-specific interface
-elements visible on the active page establish an authenticated session. Opening a login page
-directly, route names alone, and cookie presence do not establish authentication.
+An adapter may also produce `authenticated-page` when a bounded snapshot contains a complete,
+platform-specific set of account controls that establishes an authenticated session. The snapshot
+returns the same structured observation so the agent can answer without submitting it again.
+Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
+alone, display names alone, and cookie presence do not establish authentication.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page

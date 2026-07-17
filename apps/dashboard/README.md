@@ -13,7 +13,7 @@ The page shows:
 
 Observation times remain visible because saved platform observations are historical; they do not
 guarantee the platform's current authentication state. The explanatory copy distinguishes a
-successful protected navigation from an authenticated session established through visible,
+successful protected navigation from an authenticated session confirmed through visible,
 account-specific page content. Browser Session presence is separate, short-lived runtime state.
 Dashboard owns neither state source: it does not own SQLite, Browser Session, Patchright, or the
 Workspace Service lifecycle.

@@ -97,37 +97,6 @@ h1 {
   color: #7c8278;
   font-size: 12px;
 }
-.diagnostic-details {
-  border: 1px solid #d8d5c9;
-  border-radius: 10px;
-  background: #f6f3ea;
-  color: #62675f;
-  font-size: 12px;
-}
-.diagnostic-details summary {
-  padding: 9px 12px;
-  color: #596057;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-}
-.diagnostic-details[open] summary {
-  border-bottom: 1px solid #d8d5c9;
-}
-.diagnostic-details pre {
-  max-height: 180px;
-  margin: 0;
-  padding: 12px;
-  overflow: auto;
-  color: #5e645b;
-  font:
-    11px/1.55 ui-monospace,
-    "SFMono-Regular",
-    Consolas,
-    monospace;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 .section-heading {
   display: flex;
   align-items: baseline;
