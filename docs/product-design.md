@@ -42,17 +42,17 @@ agent host connects directly to the service and discovers stable project-owned t
 owning browser lifecycle.
 
 The **Workspace Service** owns recruiting context, normalized job facts, platform-access
-observations, and their persistence. It also owns the in-memory presence tracker that applies short
-leases to Browser Session runtime reports. It exposes domain resources and tools to the agent and a
-local API to the Dashboard. It is headless and does not own browser automation, browser profiles,
-authentication cookies, or desktop windows.
+observations, research reports, and their persistence. It also owns the in-memory presence tracker
+that applies short leases to Browser Session status reports. It exposes domain resources and tools
+to the agent and a local API to the Dashboard. It is headless and does not own browser automation,
+browser profiles, authentication cookies, or desktop windows.
 
 The **Dashboard** is an independent view of durable workspace data and leased Browser Session
 presence. It also lets the user maintain personal context and a collection of job-search intents.
 At most one intent is selected as the current research direction, which enables passive
 collection; each intent associates a target position and city with its corresponding platform
-recommendation pages. Dashboard neither controls the browser nor requires an active agent
-conversation.
+recommendation pages. It also presents unexpired research reports as workspace documents. Dashboard
+neither controls the browser nor requires an active agent conversation.
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
@@ -63,14 +63,15 @@ adapter.
 
 ## Runtime presence and reporting
 
-Browser Session sends bounded status directly to Workspace Service. A report includes browser
-availability, version, and tab count, plus a generic failure summary when unavailable and any
-platform authentication observations derived from navigation responses or bounded snapshots.
-Detailed browser errors remain in the Browser Session process log so status reports do not expose
-local paths or launch parameters. Workspace Service treats runtime status as a short lease and
-stores only changed access observations: before the first report, presence is unknown; after a
-lease expires, presence is offline. Reporting failure never prevents Browser Session from
-operating. Reports contain no cookies, credentials, storage contents, or unrestricted page text.
+Browser Session sends bounded status reports directly to Workspace Service. Each status report
+includes browser availability, version, and tab count, plus a generic failure summary when
+unavailable and any platform authentication observations derived from navigation responses or
+bounded snapshots. Detailed browser errors remain in the Browser Session process log so status
+reports do not expose local paths or launch parameters. Workspace Service treats runtime status as
+a short lease and stores only changed access observations: before the first status report, presence
+is unknown; after a lease expires, presence is offline. Reporting failure never prevents Browser
+Session from operating. Status reports contain no cookies, credentials, storage contents, or
+unrestricted page text.
 
 ## Job discovery and library
 
@@ -171,6 +172,19 @@ A browser action whose response is lost has an unknown outcome. Browser Session 
 failure to the request and does not automatically replay the action; after the browser is
 restored, the agent re-observes the visible page before deciding whether another action is safe.
 
+## Research reports
+
+Workspace Service stores research reports as Markdown plus structured title, state, timestamps, and
+an optional expiration time. A report is a reader-facing interpretation of workspace evidence, not
+a replacement for normalized job facts or the underlying platform links. Users, agents, and system
+workflows use the same report command and attribution model.
+
+Dashboard renders a deliberately bounded Markdown surface: prose, lists, links, tables, quotes, and
+code remain presentation content. It treats raw HTML as text, does not render Markdown images, and
+does not provide embedded pages, browser controls, or executable agent UI. An expired report is no
+longer returned to readers. A completed report may remain available without requiring the
+conversation or producer that created it.
+
 ## Dashboard surface
 
 The Dashboard currently includes:
@@ -180,13 +194,15 @@ The Dashboard currently includes:
 - user-editable personal details and selectable job-search intents with platform recommendation
   pages;
 - a dedicated, paginated job-library workspace for normalized job facts and merged platform
-  sources.
+  sources;
+- a report library and Markdown reader for available conclusions, comparisons, uncertainty, and
+  recommended next steps.
 
 As the product grows, it should also include:
 
 - other research intents;
 - research runs, partial progress, and interruptions;
-- broader comparisons and explanations across the job library.
+- further report formats and exports when Markdown is no longer sufficient.
 
 Future additions do not change the control boundary: browser interaction and user handoff happen
 through the agent conversation and the visible platform window, not through Dashboard controls.

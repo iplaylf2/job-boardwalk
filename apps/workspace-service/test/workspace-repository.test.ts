@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- Repository behavior remains visible in one boundary-level suite.
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -247,6 +248,67 @@ test("keeps partial cross-platform cards separate", async () => {
         query: "后端",
       }).total,
     ).toBe(twoJobs);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+// eslint-disable-next-line max-lines-per-function -- One report lifecycle keeps all persistence outcomes together.
+test("creates, updates, expires, and deletes research reports", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    const created = repository.saveResearchReport({
+      expiresAt: "2999-07-20T00:00:00.000Z",
+      initiatedBy: "agent",
+      markdown: "## 初步判断",
+      reason: "test",
+      state: "draft",
+      title: "岗位推荐",
+    });
+    expect(created).toMatchObject({ id: expect.any(Number), state: "draft" });
+    if (!created) {
+      throw new Error("test report was not created");
+    }
+
+    expect(repository.listResearchReports()).toEqual([
+      expect.objectContaining({ id: created.id, title: "岗位推荐" }),
+    ]);
+    expect(
+      repository.saveResearchReport({
+        id: created.id,
+        initiatedBy: "agent",
+        markdown: "## 最终判断",
+        reason: "test",
+        state: "complete",
+        title: "岗位推荐",
+      }),
+    ).toMatchObject({ markdown: "## 最终判断", state: "complete" });
+    expect(repository.readResearchReport(created.id)).toMatchObject({ state: "complete" });
+    expect(
+      repository.deleteResearchReport({ id: created.id, initiatedBy: "user", reason: "test" }),
+    ).toBe(true);
+    expect(repository.readResearchReport(created.id)).toBeNull();
+
+    const expired = repository.saveResearchReport({
+      expiresAt: "2000-07-18T00:00:00.000Z",
+      initiatedBy: "system",
+      markdown: "已过期",
+      reason: "test",
+      state: "complete",
+      title: "旧报告",
+    });
+    expect(expired).toMatchObject({ id: expect.any(Number) });
+    if (!expired) {
+      throw new Error("test expired report was not created");
+    }
+    expect(repository.listResearchReports()).toEqual([]);
+    expect(repository.readResearchReport(expired.id)).toBeNull();
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

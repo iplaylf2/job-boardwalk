@@ -1,5 +1,12 @@
-import { JobPostingPage, WorkspaceOverview } from "@job-boardwalk/contracts";
+import {
+  JobPostingPage,
+  ResearchReport,
+  ResearchReportList,
+  WorkspaceOverview,
+} from "@job-boardwalk/contracts";
 import type { RecommendationPageReference } from "@job-boardwalk/contracts";
+
+const notFoundStatus = 404;
 
 async function requestWorkspaceChange(path: string, init: RequestInit): Promise<void> {
   const response = await fetch(path, {
@@ -38,6 +45,26 @@ export async function readJobPostingPage(input: {
     throw new Error("无法读取岗位库。请确认工作区服务已经启动。");
   }
   return JobPostingPage.assert(await response.json());
+}
+
+export async function listResearchReports(): Promise<ResearchReportList> {
+  const response = await fetch("/api/reports");
+  if (!response.ok) {
+    throw new Error("无法读取研究报告。请确认工作区服务已经启动。");
+  }
+  return ResearchReportList.assert(await response.json());
+}
+
+export async function readResearchReport(id: number): Promise<ResearchReport> {
+  const response = await fetch(`/api/reports/${String(id)}`);
+  if (!response.ok) {
+    throw new Error(
+      response.status === notFoundStatus
+        ? "这份研究报告不存在或已经过期。"
+        : "无法读取研究报告。请确认工作区服务已经启动。",
+    );
+  }
+  return ResearchReport.assert(await response.json());
 }
 
 export function saveProfileFact(input: { key: string; value: string }): Promise<void> {

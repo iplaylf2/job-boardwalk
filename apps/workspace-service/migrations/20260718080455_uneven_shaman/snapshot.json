@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d7b56a0e-d2ec-4356-9ebe-8f372ad17564",
+  "id": "a0b0100c-4842-4acb-8981-2852633a0986",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -26,6 +26,10 @@
     },
     {
       "name": "profile_facts",
+      "entityType": "tables"
+    },
+    {
+      "name": "research_reports",
       "entityType": "tables"
     },
     {
@@ -563,6 +567,76 @@
       "table": "profile_facts"
     },
     {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "markdown",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "state",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
       "type": "integer",
       "notNull": false,
       "autoincrement": true,
@@ -684,6 +758,13 @@
       "nameExplicit": false,
       "name": "profile_facts_pk",
       "table": "profile_facts",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "research_reports_pk",
+      "table": "research_reports",
       "entityType": "pks"
     },
     {

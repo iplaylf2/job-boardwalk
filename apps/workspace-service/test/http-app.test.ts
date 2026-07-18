@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 // oxlint-disable max-lines -- This suite keeps the complete public HTTP boundary visible together.
-import { JobPostingPage, WorkspaceOverview } from "@job-boardwalk/contracts";
+import {
+  JobPostingPage,
+  ResearchReport,
+  ResearchReportList,
+  WorkspaceOverview,
+} from "@job-boardwalk/contracts";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -521,6 +526,128 @@ test("serves MCP from the same workspace state", async () => {
   }
 });
 
+test("writes and lists research reports through MCP", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const saveResponse = await mcpRequest(httpApp, {
+      id: 1,
+      method: "tools/call",
+      params: {
+        arguments: {
+          initiatedBy: "agent",
+          markdown: "## 推荐\n\n优先核验星海科技。",
+          reason: "test",
+          state: "complete",
+          title: "岗位推荐",
+        },
+        name: "save_research_report",
+      },
+    });
+    expect(await saveResponse.json()).toMatchObject({
+      result: {
+        structuredContent: {
+          id: expect.any(Number),
+          markdown: expect.stringContaining("星海科技"),
+          title: "岗位推荐",
+        },
+      },
+    });
+    const listResponse = await mcpRequest(httpApp, {
+      id: 2,
+      method: "tools/call",
+      params: { arguments: {}, name: "list_research_reports" },
+    });
+    expect(await listResponse.json()).toMatchObject({
+      result: { structuredContent: { reports: [{ title: "岗位推荐" }] } },
+    });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("rejects an invalid report expiration through MCP", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const response = await mcpRequest(httpApp, {
+      id: 1,
+      method: "tools/call",
+      params: {
+        arguments: {
+          expiresAt: "not-a-time",
+          initiatedBy: "agent",
+          markdown: "## 推荐",
+          reason: "test",
+          state: "complete",
+          title: "无效报告",
+        },
+        name: "save_research_report",
+      },
+    });
+    expect(await response.json()).toMatchObject({
+      result: { isError: true },
+    });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("creates and reads research reports through HTTP", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const createResponse = await httpApp.request("/api/reports", {
+      body: JSON.stringify({
+        initiatedBy: "agent",
+        markdown: "## 首选\n\n优先核验 Node.js 岗位。",
+        reason: "test",
+        state: "complete",
+        title: "阶段推荐",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(createResponse.status).toBe(createdStatus);
+    const created = ResearchReport.assert(await createResponse.json());
+
+    const listResponse = await httpApp.request("/api/reports");
+    expect(ResearchReportList.assert(await listResponse.json())).toMatchObject({
+      reports: [{ id: created.id, title: "阶段推荐" }],
+    });
+    const detailResponse = await httpApp.request(`/api/reports/${String(created.id)}`);
+    expect(ResearchReport.assert(await detailResponse.json())).toMatchObject({
+      markdown: expect.stringContaining("Node.js"),
+    });
+    const invalidResponse = await httpApp.request("/api/reports", {
+      body: JSON.stringify({
+        initiatedBy: "agent",
+        markdown: " ",
+        reason: "test",
+        state: "complete",
+        title: "无效报告",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(invalidResponse.status).toBe(badRequestStatus);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
 test("advertises job-library filters by public tool name", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
@@ -547,6 +674,18 @@ test("advertises job-library filters by public tool name", async () => {
         },
       },
     );
+    expect(
+      toolsPayload.result.tools.find(({ name }) => name === "save_research_report"),
+    ).toMatchObject({
+      inputSchema: {
+        properties: {
+          markdown: { type: "string" },
+          state: { enum: ["complete", "draft"] },
+          title: { type: "string" },
+        },
+        required: expect.arrayContaining(["markdown", "state", "title"]),
+      },
+    });
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -611,7 +750,7 @@ test("contains unexpected MCP read failures without exposing repository details"
     });
     expect(await response.json()).toMatchObject({
       result: {
-        content: [{ text: "Workspace Service 无法完成工作区读取。", type: "text" }],
+        content: [{ text: "Workspace Service 无法完成工作区请求。", type: "text" }],
         isError: true,
       },
     });

@@ -16,9 +16,9 @@ durable facts:
   visible persistent Patchright browser and exposes project-owned browser tools to the agent.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP. It also tracks leased Browser Session presence for readers.
-- [Dashboard](apps/dashboard/) reads the workspace overview and lets the user maintain personal
-  context and select the job-search intent that guides recruiting research. It never controls
-  the browser.
+- [Dashboard](apps/dashboard/) presents workspace data and research reports, and lets the user
+  maintain personal context and select the job-search intent that guides recruiting research. It
+  never controls the browser.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -38,12 +38,14 @@ Available now:
   and submits recognizable cards from every open supported-platform tab without replacing or
   refreshing other tabs.
 - Workspace Service stores platform-access observations and interruptions, along with personal
-  context, job-search intents, and normalized job facts discovered during research. It skips
+  context, job-search intents, normalized job facts, and Markdown research reports. It skips
   unchanged observations and merges confident cross-platform matches while preserving every
   platform link.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
   lets the user maintain and select job-search intents. Its separate paginated job-library page
-  supports focused browsing while preserving the original recruiting-platform sources.
+  supports focused browsing while preserving the original recruiting-platform sources, and its
+  report reader makes saved conclusions available independently of the agent conversation that
+  produced them.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.

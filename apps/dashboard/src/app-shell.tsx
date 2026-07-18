@@ -1,7 +1,7 @@
 import type { JSX } from "@solidjs/web";
 
 export function AppShell(props: {
-  active: "jobs" | "overview";
+  active: "jobs" | "overview" | "reports";
   children: JSX.Element;
   jobCount?: number;
   lede: string;
@@ -22,6 +22,12 @@ export function AppShell(props: {
           <a href="/jobs" {...(props.active === "jobs" ? { "aria-current": "page" as const } : {})}>
             岗位库
             {typeof props.jobCount === "number" ? <span>{String(props.jobCount)}</span> : null}
+          </a>
+          <a
+            href="/reports"
+            {...(props.active === "reports" ? { "aria-current": "page" as const } : {})}
+          >
+            研究报告
           </a>
         </nav>
       </header>

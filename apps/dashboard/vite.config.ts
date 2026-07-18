@@ -1,5 +1,5 @@
 import solid from "vite-plugin-solid";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 const workspaceServiceProxy = {
   "/api": "http://127.0.0.1:54310",
@@ -17,5 +17,8 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 54_311,
     proxy: workspaceServiceProxy,
+  },
+  test: {
+    environment: "node",
   },
 });

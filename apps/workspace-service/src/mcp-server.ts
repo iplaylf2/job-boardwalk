@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- This module keeps the complete public MCP surface visible together.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   CallToolRequestSchema,
@@ -11,10 +12,16 @@ import { CanceledError, InterruptedError, ScopeError } from "@shajara/host";
 import type { Scope } from "@shajara/host";
 import { defaultJobPageSize, firstJobPage } from "#/job-posting/library-query.js";
 import {
+  ListResearchReportsInput,
+  parseListResearchReportsInput,
   parseJobLibraryInput,
+  parseReadResearchReportInput,
+  parseSaveResearchReportInput,
   parseWorkspaceOverviewInput,
+  ReadResearchReportInput,
   ReadJobLibraryInput,
   ReadWorkspaceOverviewInput,
+  SaveResearchReportInput,
 } from "#/mcp/tool-input.js";
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
@@ -22,15 +29,25 @@ import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
 const jobLibraryUri = "job-boardwalk://jobs";
+const researchReportsUri = "job-boardwalk://reports";
 const workspaceOverviewDescription =
   "读取本机工作区概览：由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人情况，以及带平台推荐页关联和当前选择状态的求职方向。";
 const jobLibraryResourceDescription =
   "读取岗位库第一页；其中岗位在研究过程中从招聘平台页面发现，经规范化和跨平台合并，每个来源都带岗位原始链接和发现页面。结果包含分页元数据。";
 const jobLibraryToolDescription =
   "读取岗位库；其中岗位在研究过程中从招聘平台页面发现，经规范化和跨平台合并。可分页、搜索或按平台筛选；每个来源都包含岗位原始链接和发现页面，便于回到平台核对。";
+const researchReportListDescription =
+  "读取未过期的研究报告目录。报告可由用户、agent 或系统写入，以 Markdown 保存，并包含草稿或完成状态与更新时间。";
+const researchReportDetailDescription =
+  "按 ID 读取一份未过期的研究报告，包括标题、Markdown 正文、状态、创建和更新时间，以及可选的过期时间。";
+const saveResearchReportDescription =
+  "保存一份 Markdown 研究报告。省略 id 时创建；提供 id 时完整更新对应报告。可设置过期时间。";
 const toolNames = {
+  listResearchReports: "list_research_reports",
   readJobLibrary: "read_job_library",
+  readResearchReport: "read_research_report",
   readWorkspaceOverview: "read_workspace_overview",
+  saveResearchReport: "save_research_report",
 } as const;
 
 function structuredToolResult(value: object) {
@@ -49,7 +66,7 @@ function toolErrorResult(error: unknown): CallToolResult {
     throw error;
   }
   const message =
-    error instanceof TypeError ? error.message : "Workspace Service 无法完成工作区读取。";
+    error instanceof TypeError ? error.message : "Workspace Service 无法完成工作区请求。";
   return {
     content: [{ text: message, type: "text" }],
     isError: true,
@@ -69,6 +86,9 @@ function readResourceValue(
       page: firstJobPage,
       pageSize: defaultJobPageSize,
     });
+  }
+  if (uri === researchReportsUri) {
+    return { reports: repository.listResearchReports() };
   }
   return null;
 }
@@ -141,6 +161,13 @@ function registerResourceHandlers(
           title: "Job Boardwalk 岗位库",
           uri: jobLibraryUri,
         },
+        {
+          description: researchReportListDescription,
+          mimeType: "application/json",
+          name: "research-reports",
+          title: "Job Boardwalk 研究报告",
+          uri: researchReportsUri,
+        },
       ],
     }),
   );
@@ -166,10 +193,32 @@ function createToolListResult() {
         name: toolNames.readJobLibrary,
         title: "读取 Job Boardwalk 岗位库",
       },
+      {
+        annotations: { readOnlyHint: true },
+        description: researchReportListDescription,
+        inputSchema: ListResearchReportsInput.toJsonSchema(),
+        name: toolNames.listResearchReports,
+        title: "列出 Job Boardwalk 研究报告",
+      },
+      {
+        annotations: { readOnlyHint: true },
+        description: researchReportDetailDescription,
+        inputSchema: ReadResearchReportInput.toJsonSchema(),
+        name: toolNames.readResearchReport,
+        title: "读取 Job Boardwalk 研究报告",
+      },
+      {
+        annotations: { destructiveHint: true, readOnlyHint: false },
+        description: saveResearchReportDescription,
+        inputSchema: SaveResearchReportInput.toJsonSchema(),
+        name: toolNames.saveResearchReport,
+        title: "保存 Job Boardwalk 研究报告",
+      },
     ],
   };
 }
 
+// eslint-disable-next-line max-lines-per-function -- The handler keeps dispatch for the small public tool set together.
 function registerToolHandlers(
   mcpServer: McpServer,
   repository: WorkspaceRepository,
@@ -179,6 +228,7 @@ function registerToolHandlers(
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
     Promise.resolve(createToolListResult()),
   );
+  // eslint-disable-next-line max-lines-per-function -- One dispatcher contains errors consistently for every tool.
   mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => {
     if (request.params.name === toolNames.readWorkspaceOverview) {
       return serviceScope.run(function* readWorkspaceTool() {
@@ -199,6 +249,47 @@ function registerToolHandlers(
           return structuredToolResult(
             repository.listJobPostingPage(parseJobLibraryInput(request.params.arguments ?? {})),
           );
+        } catch (error) {
+          return toolErrorResult(error);
+        }
+      });
+    }
+    if (request.params.name === toolNames.listResearchReports) {
+      return serviceScope.run(function* listResearchReports() {
+        try {
+          yield* [];
+          parseListResearchReportsInput(request.params.arguments ?? {});
+          return structuredToolResult({ reports: repository.listResearchReports() });
+        } catch (error) {
+          return toolErrorResult(error);
+        }
+      });
+    }
+    if (request.params.name === toolNames.readResearchReport) {
+      return serviceScope.run(function* readResearchReport() {
+        try {
+          yield* [];
+          const { id } = parseReadResearchReportInput(request.params.arguments ?? {});
+          const report = repository.readResearchReport(id);
+          if (!report) {
+            throw new TypeError(`找不到研究报告：${String(id)}`);
+          }
+          return structuredToolResult(report);
+        } catch (error) {
+          return toolErrorResult(error);
+        }
+      });
+    }
+    if (request.params.name === toolNames.saveResearchReport) {
+      return serviceScope.run(function* saveResearchReport() {
+        try {
+          yield* [];
+          const input = parseSaveResearchReportInput(request.params.arguments ?? {});
+          const report = repository.saveResearchReport(input);
+          if (!report) {
+            throw new TypeError(`找不到研究报告：${String(input.id)}`);
+          }
+          return structuredToolResult(report);
         } catch (error) {
           return toolErrorResult(error);
         }

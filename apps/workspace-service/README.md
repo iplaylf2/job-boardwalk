@@ -5,21 +5,21 @@ sole owner of SQLite persistence. Its loopback HTTP server exposes `/api` to Das
 to MCP clients; it does not serve Dashboard assets or own a browser process.
 
 The repository's [product design](../../docs/product-design.md) defines the intended delegation and
-browser-collaboration model. The current service preserves platform-access observations and exposes
-read and write operations for profile facts, job-search intents, normalized jobs, and their
-platform sources. Each intent owns a target position, city, selection state, and per-platform
-recommendation-page references. It does not store recruiting pages or historical page
-snapshots.
+browser-collaboration model. The current service preserves platform-access observations, profile
+facts, job-search intents, normalized jobs and their platform sources, and research reports. Each
+intent owns a target position, city, selection state, and per-platform recommendation-page
+references. The service does not store recruiting pages or historical page snapshots. It stores
+research reports as Markdown with structured lifecycle metadata and optional expiration.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent Patchright browser. The agent coordinates that live browser work
 with the durable workspace exposed by this service.
 
 Browser Session also sends status reports directly to Workspace Service. An in-memory presence
-tracker renews a short lease for each report and makes the result available to Dashboard and MCP
-readers. The same report may carry authentication observations derived from real platform
-navigation responses or bounded page reads; the service validates, deduplicates, and persists them.
-An expired lease is shown as offline rather than current browser state.
+tracker renews a short lease for each accepted status report and makes the result available to
+Dashboard and MCP readers. A status report may also carry authentication observations derived from
+real platform navigation responses or bounded page reads; the service validates, deduplicates, and
+persists them. An expired lease is shown as offline rather than current browser state.
 
 ## Run Workspace Service
 
@@ -51,7 +51,11 @@ The MCP surface provides:
 - `read_workspace_overview`, which reads the same workspace state;
 - `job-boardwalk://jobs`, which exposes the first page of the current job library;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`, and
-  `platformId` filters.
+  `platformId` filters;
+- `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
+  research reports;
+- `read_research_report`, which reads one unexpired research report by ID;
+- `save_research_report`, which creates a report or replaces one identified by ID.
 
 ## HTTP API
 
@@ -68,6 +72,11 @@ The loopback HTTP surface currently exposes:
 - `DELETE /api/search-intents/:id`
 - `GET /api/jobs`
 - `POST /api/jobs`
+- `GET /api/reports`
+- `GET /api/reports/:id`
+- `POST /api/reports`
+- `PUT /api/reports/:id`
+- `DELETE /api/reports/:id`
 
 Shared request and response types live in
 [`@job-boardwalk/contracts`](../../packages/contracts/).
@@ -87,11 +96,11 @@ Browser Session renews its presence lease with a bounded status report:
 }
 ```
 
-Workspace Service assigns `receivedAt` when it accepts the report. A current lease appears as
-`online`; an expired lease appears as `offline`; before the first report, presence is `unknown`.
-This presence state remains in memory and resets to `unknown` when Workspace Service restarts.
-Platform-access observations carried in the report are durable and are appended only when the
-latest state for that platform changes.
+Workspace Service assigns `receivedAt` when it accepts the status report. A current lease appears
+as `online`; an expired lease appears as `offline`; before the first status report, presence is
+`unknown`. This presence state remains in memory and resets to `unknown` when Workspace Service
+restarts. Platform-access observations carried in the status report are durable and are appended
+only when the latest state for that platform changes.
 
 ### Platform-access observations
 
@@ -189,6 +198,17 @@ Salary normalization preserves the platform's original `salaryText` and adds a C
 with its source period. Monthly salary carries a month count only when the source explicitly says
 something such as `13薪`. No annual package is calculated from monthly, daily, or hourly rates;
 annual values are shown only when the source itself uses an annual salary period.
+
+### Research reports
+
+A report contains a title, Markdown body, `draft` or `complete` state, creation and update times,
+and an optional expiration time. List and detail reads omit expired reports. Creating, replacing,
+and deleting a report records a workspace change with its user, agent, or system attribution.
+
+Markdown is stored as authored. Workspace Service validates the report contract but does not turn
+the document into HTML; each presentation boundary owns its rendering policy. Report authors should
+keep supporting evidence and uncertainty beside their conclusions and link back to durable
+workspace facts or original sources when available.
 
 ## Persistence
 

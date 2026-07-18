@@ -51,6 +51,16 @@ export const profileFacts = sqliteTable("profile_facts", {
   value: text().notNull(),
 });
 
+export const researchReports = sqliteTable("research_reports", {
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at"),
+  id: integer().primaryKey({ autoIncrement: true }),
+  markdown: text().notNull(),
+  state: text({ enum: ["draft", "complete"] }).notNull(),
+  title: text().notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const jobSearchIntents = sqliteTable(
   "job_search_intents",
   {

@@ -76,6 +76,16 @@ CREATE TABLE `profile_facts` (
 	`value` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `research_reports` (
+	`created_at` text NOT NULL,
+	`expires_at` text,
+	`id` integer PRIMARY KEY AUTOINCREMENT,
+	`markdown` text NOT NULL,
+	`state` text NOT NULL,
+	`title` text NOT NULL,
+	`updated_at` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `workspace_changes` (
 	`id` integer PRIMARY KEY AUTOINCREMENT,
 	`initiated_by` text NOT NULL,

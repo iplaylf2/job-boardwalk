@@ -1,24 +1,25 @@
 # Dashboard
 
-Dashboard is Job Boardwalk's local interface. It shows durable Workspace Service data and lets the
-user maintain personal context and job-search intents. Each intent combines a target position,
-city, and per-platform recommendation-page associations. At most one is selected as the current
-research direction, enabling passive collection while selected. Dashboard remains useful without
-an active agent conversation and never controls the browser.
+Dashboard is Job Boardwalk's local interface. It presents durable Workspace Service data and
+research reports, and lets the user maintain personal context and job-search intents. Each intent
+combines a target position, city, and per-platform recommendation-page associations. At most one is
+selected as the current research direction, enabling passive collection while selected. Dashboard
+remains useful without an active agent conversation and never controls the browser.
 
-The interface has two primary destinations:
+The interface has three primary destinations:
 
 - `/` centers the selected search direction and its personal context, with browser and access
   health kept in a secondary status rail;
 - `/jobs` is the job-library workspace for search, platform filtering, source links, and paginated
-  browsing.
+  browsing;
+- `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
 The header is the only cross-page navigation. Its job-library link includes the current job count,
 so the overview does not repeat the same destination in a summary card.
 
 ## What Dashboard does
 
-The page:
+Dashboard:
 
 - shows leased Browser Session presence and browser availability;
 - shows each platform's latest definite authentication observation and any later unresolved
@@ -28,7 +29,8 @@ The page:
 - lets the user add, update, and remove other personal details;
 - provides a searchable library of jobs discovered during directed platform research, with a
   platform filter and server-backed pagination;
-- displays confident cross-platform matches as one job while retaining each recruiting-site link.
+- displays confident cross-platform matches as one job while retaining each recruiting-site link;
+- lists unexpired research reports and renders them within a bounded Markdown surface.
 
 Observation times remain visible because saved platform observations are historical; they do not
 guarantee the platform's current authentication state. Browser Session presence is separate,
@@ -42,8 +44,13 @@ does not open or control that window.
 
 Dashboard rereads the workspace overview every five seconds and refreshes it after a user edit.
 The job-library page requests at most 24 jobs at a time and refreshes the current result every 30
-seconds. These reads affect only the local Workspace Service API; they never refresh a recruiting
-page.
+seconds. Research-report pages refresh every five seconds to reflect edits to open drafts and
+completed reports. These reads affect only the local Workspace Service API; they never refresh a
+recruiting page.
+
+Dashboard treats raw HTML as text and does not turn Markdown image syntax into loaded images. The
+renderer supports ordinary document structure, tables, code, section anchors, local Dashboard
+links, and HTTPS source links. It is a document reader, not an agent UI or browser-control surface.
 
 ## Run Dashboard
 

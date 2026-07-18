@@ -1,6 +1,11 @@
 import { contract } from "./internal/contract.ts";
-import { minimumNonEmptyArrayLength, trimmedNonEmptyString } from "./internal/contract-fields.ts";
+import {
+  minimumNonEmptyArrayLength,
+  normalizedTimestamp,
+  trimmedNonEmptyString,
+} from "./internal/contract-fields.ts";
 import { JobPostingObservation } from "./job-posting.ts";
+import { ResearchReportMarkdown, ResearchReportState } from "./research-report.ts";
 import { RecommendationPageReference } from "./search-intent.ts";
 
 export const WorkspaceChangeAttribution = contract({
@@ -32,3 +37,11 @@ export const SaveJobPostingObservationCommand = JobPostingObservation.merge(
   WorkspaceChangeAttribution,
 );
 export type SaveJobPostingObservationCommand = typeof SaveJobPostingObservationCommand.infer;
+
+export const SaveResearchReportCommand = WorkspaceChangeAttribution.merge({
+  "expiresAt?": normalizedTimestamp,
+  markdown: ResearchReportMarkdown,
+  state: ResearchReportState,
+  title: trimmedNonEmptyString,
+});
+export type SaveResearchReportCommand = typeof SaveResearchReportCommand.infer;
