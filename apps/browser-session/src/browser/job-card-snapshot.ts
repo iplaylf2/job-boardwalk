@@ -38,22 +38,42 @@ export function captureJobCardMetadata(input: {
   const { document } = globalThis;
   const startIndex = 0;
   const increment = 1;
+  const maximumContainerAncestorDepth = 6;
   // Object methods retain their names without tsx injecting the Node-side `__name` helper.
   // Patchright serializes this entire callback, so every helper must exist in the page realm.
   const helpers = {
     closestContainer(link: HTMLAnchorElement): Element | null {
+      let firstCandidate: Element | null = null;
       for (const selector of input.config.containerSelectors) {
         const container = link.closest(selector);
-        if (container) {
+        if (!container) {
+          continue;
+        }
+        firstCandidate ??= container;
+        if (helpers.containsCompany(container)) {
           return container;
         }
       }
-      return input.config.requireContainerMatch ? null : link;
+      let ancestor: Element | null = link.parentElement;
+      let depth = startIndex;
+      while (ancestor && depth < maximumContainerAncestorDepth) {
+        if (helpers.containsCompany(ancestor)) {
+          return ancestor;
+        }
+        ancestor = ancestor.parentElement;
+        depth += increment;
+      }
+      return firstCandidate ?? (input.config.requireContainerMatch ? null : link);
+    },
+    containsCompany(container: Element): boolean {
+      return input.config.companySelectors.some((selector) =>
+        Boolean(container.querySelector(selector)),
+      );
     },
     firstLine(value: string): string {
       return (
         value
-        .split(/\r?\n/u)
+          .split(/\r?\n/u)
           .map((line) => helpers.normalized(line, input.maximumFieldCharacters))
           .find(Boolean) ?? ""
       );
@@ -112,18 +132,12 @@ export function captureJobCardMetadata(input: {
     // InnerText preserves the rendered block boundaries that separate Yupao card fields.
     // eslint-disable-next-line unicorn/prefer-dom-node-text-content
     const renderedLinkText = (link as HTMLElement).innerText || link.textContent || "";
-    const text = helpers.normalized(
-      container.textContent ?? "",
-      input.maximumCardTextCharacters,
-    );
+    const text = helpers.normalized(container.textContent ?? "", input.maximumCardTextCharacters);
     const selectorTitle = helpers.firstText(container, input.config.titleSelectors);
     const fallbackTitle = input.config.titleFromFirstLine
       ? helpers.firstLine(renderedLinkText)
       : helpers.normalized(link.textContent ?? "", input.maximumFieldCharacters);
-    const titleBoundary = helpers.firstPattern(
-      fallbackTitle,
-      input.config.titleBoundaryPattern,
-    );
+    const titleBoundary = helpers.firstPattern(fallbackTitle, input.config.titleBoundaryPattern);
     const title =
       selectorTitle ??
       helpers.normalized(
@@ -150,15 +164,14 @@ export function captureJobCardMetadata(input: {
         ),
     );
     const company = helpers.firstText(container, input.config.companySelectors);
-    const location = helpers.firstText(container, input.config.locationSelectors);
-    const educationRequirement = helpers.firstPattern(
-      text,
-      input.config.educationTextPattern,
-    );
-    const experienceRequirement = helpers.firstPattern(
-      text,
-      input.config.experienceTextPattern,
-    );
+    const companyOffset = company ? text.lastIndexOf(company) + company.length : startIndex;
+    const location =
+      helpers.firstText(container, input.config.locationSelectors) ??
+      (company && companyOffset >= company.length
+        ? helpers.normalized(text.slice(companyOffset), input.maximumFieldCharacters) || null
+        : null);
+    const educationRequirement = helpers.firstPattern(text, input.config.educationTextPattern);
+    const experienceRequirement = helpers.firstPattern(text, input.config.experienceTextPattern);
     const salary =
       helpers.firstText(container, input.config.salarySelectors) ??
       helpers.firstPattern(text, input.config.salaryTextPattern);

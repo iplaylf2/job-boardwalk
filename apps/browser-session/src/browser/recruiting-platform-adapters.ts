@@ -145,13 +145,24 @@ function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlat
 }
 
 const bossJobCardExtraction = {
-  companySelectors: [".company-name"],
+  companySelectors: [
+    "a[href*='/gongsi/']",
+    ".company-name",
+    "[class*='company-name']",
+    "[class*='companyName']",
+  ],
   containerSelectors: [".job-card-wrapper", ".job-card-box", ".job-list-box li"],
   detailsSelectors: [".tag-list li", ".job-card-footer li"],
   educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
   experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
   jobLinkPathPattern: String.raw`^/job_detail/[^/]+\.html$`,
-  locationSelectors: [".job-area", ".job-location"],
+  locationSelectors: [
+    ".job-area",
+    ".job-location",
+    "[class*='job-area']",
+    "[class*='jobArea']",
+    "[class*='location']",
+  ],
   requireContainerMatch: true,
   salarySelectors: [".salary"],
   salaryTextPattern: String.raw`\d+(?:-\d+)?K(?:·\d+薪)?|\d+(?:-\d+)?元/(?:天|小时)|面议`,
@@ -161,7 +172,12 @@ const bossJobCardExtraction = {
 
 const yupaoSnapshotSettleMilliseconds = 1000;
 const yupaoJobCardExtraction = {
-  companySelectors: [".company-name", "[class*='company-name']"],
+  companySelectors: [
+    "a[href*='/qiye/']",
+    ".company-name",
+    "[class*='company-name']",
+    "[class*='companyName']",
+  ],
   containerSelectors: [
     ".job-card",
     ".job-item",
@@ -175,10 +191,17 @@ const yupaoJobCardExtraction = {
   excludedTitlePattern: String.raw`^查看更多(?:信息)?$`,
   experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
   jobLinkPathPattern: String.raw`^/zhaogong/\d+(?:/[^/]+)?\.html$`,
-  locationSelectors: [".job-area", ".job-location", ".address", "[class*='address']"],
+  locationSelectors: [
+    ".job-area",
+    ".job-location",
+    ".address",
+    "[class*='address']",
+    "[class*='area']",
+    "[class*='location']",
+  ],
   salarySelectors: [".salary", "[class*='salary']"],
-  salaryTextPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议`,
-  titleBoundaryPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:天|小时)|薪资面议|面议|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
+  salaryTextPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:月|天|小时)|薪资面议|面议`,
+  titleBoundaryPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:月|天|小时)|薪资面议|面议|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
   titleFromFirstLine: true,
   titleSelectors: [".job-name", ".job-title", "[class*='job-name']", "[class*='job-title']"],
 } as const satisfies JobCardExtractionConfig;

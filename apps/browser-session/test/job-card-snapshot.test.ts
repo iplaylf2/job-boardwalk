@@ -20,10 +20,10 @@ function jobCardContainer(fields: Record<string, string>, details: string[]): El
 function bossJobCardLinks(): HTMLAnchorElement[] {
   const firstContainer = jobCardContainer(
     {
-      ".company-name": "星海科技",
-      ".job-area": "上海",
       ".job-name": "后端工程师",
       ".salary": "-K",
+      "[class*='location']": "上海",
+      "a[href*='/gongsi/']": "星海科技",
     },
     ["3-5年", "本科"],
   );
@@ -58,12 +58,24 @@ function jobCardLink(href: string, title: string, container: Element): HTMLAncho
 }
 
 function yupaoJobCardLinks(): HTMLAnchorElement[] {
-  const jobContainer = jobCardContainer({}, []);
+  const linkOnlyContainer = jobCardContainer({}, []);
+  const jobContainer = jobCardContainer(
+    {
+      "a[href*='/qiye/']": "鲮鲤科技",
+    },
+    [],
+  );
   const moreContainer = jobCardContainer({}, []);
-  jobContainer.textContent = "Java开发工程师 1.5-2万元/月 Java 3-5年 本科";
+  jobContainer.textContent = "Java开发工程师 4000-5000元/月 Java 3-5年 本科 鲮鲤科技 海淀区·牡丹园";
   moreContainer.textContent = "查看更多信息";
   return [
-    jobCardLink("https://www.yupao.com/zhaogong/123456789.html", "Java开发工程师", jobContainer),
+    {
+      closest: () => linkOnlyContainer,
+      href: "https://www.yupao.com/zhaogong/123456789.html",
+      innerText: "Java开发工程师",
+      parentElement: jobContainer,
+      textContent: "Java开发工程师",
+    } as unknown as HTMLAnchorElement,
     jobCardLink("https://www.yupao.com/zhaogong/987654321.html", "查看更多信息", moreContainer),
   ];
 }
@@ -150,9 +162,11 @@ test("excludes Yupao's more-information entry from job evidence", () => {
 
   expect(metadata.cards).toMatchObject([
     {
+      company: "鲮鲤科技",
       educationRequirement: "本科",
       experienceRequirement: "3-5年",
-      salary: "1.5-2万元/月",
+      location: "海淀区·牡丹园",
+      salary: "4000-5000元/月",
       title: "Java开发工程师",
     },
   ]);

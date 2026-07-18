@@ -89,8 +89,8 @@
 }
 
 .job-card {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 13px;
   min-width: 0;
   border: 1px solid var(--line);
@@ -152,17 +152,6 @@
   font-size: 13px;
 }
 
-.job-summary {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: 12px;
-  line-height: 1.65;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
 .job-details,
 .job-sources {
   display: flex;
@@ -182,7 +171,7 @@
 .job-card footer {
   align-items: end;
   border-top: 1px solid var(--line);
-  margin-top: 2px;
+  margin-top: auto;
   padding-top: 12px;
   color: var(--ink-subtle);
   font-size: 9px;

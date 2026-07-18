@@ -31,56 +31,31 @@ function formattedSalary(source: JobPosting["sources"][number]): string | null {
     : base;
 }
 
-function displaySalary(job: JobPosting): string {
+function displaySalary(job: JobPosting): string | null {
   for (const source of job.sources) {
     const salary = formattedSalary(source);
     if (salary) {
       return salary;
     }
   }
-  return "薪资待补充";
-}
-
-function displaySummary(job: JobPosting): string | null {
-  let summary = job.summary.trim();
-  const removablePrefixes = [
-    job.title,
-    ...job.sources.flatMap((source) => [
-      source.title,
-      source.salaryText ?? "",
-      source.experienceRequirement ?? "",
-      source.educationRequirement ?? "",
-      ...source.details,
-    ]),
-  ].filter(Boolean);
-
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const prefix of removablePrefixes) {
-      if (summary.startsWith(prefix)) {
-        summary = summary.slice(prefix.length).trim();
-        changed = true;
-      }
-    }
-  }
-
-  return summary.length > emptyCollectionLength && summary !== job.title ? summary : null;
+  return null;
 }
 
 export function JobCard(props: { job: JobPosting }): JSX.Element {
-  const summary = displaySummary(props.job);
+  const salary = displaySalary(props.job);
 
   return (
     <article class="job-card">
       <header>
         <div>
-          <span class="job-company">{props.job.company ?? "公司信息待补充"}</span>
+          <Show when={props.job.company}>
+            {(company) => <span class="job-company">{company()}</span>}
+          </Show>
           <h3>{props.job.title}</h3>
         </div>
       </header>
       <div class="job-primary-facts">
-        <strong class="job-salary">{displaySalary(props.job)}</strong>
+        <Show when={salary}>{(value) => <strong class="job-salary">{value()}</strong>}</Show>
         <Show when={props.job.location}>{(location) => <span>{location()}</span>}</Show>
         <Show when={props.job.experienceRequirement}>
           {(experience) => <span>{experience()}</span>}
@@ -89,7 +64,6 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
           {(education) => <span>{education()}</span>}
         </Show>
       </div>
-      <Show when={summary}>{(text) => <p class="job-summary">{text()}</p>}</Show>
       <Show when={props.job.details.length !== emptyCollectionLength}>
         <div class="job-details">
           <For each={props.job.details}>{(detail) => <span>{detail}</span>}</For>
@@ -101,7 +75,6 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
             {(source) => (
               <a href={source.jobUrl} target="_blank" rel="noreferrer">
                 {source.platformId === "boss" ? "BOSS直聘" : "鱼泡直聘"}
-                {formattedSalary(source) ? ` · ${formattedSalary(source)}` : ""}
               </a>
             )}
           </For>
