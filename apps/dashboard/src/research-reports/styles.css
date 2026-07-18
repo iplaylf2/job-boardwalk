@@ -16,8 +16,9 @@
 
 .research-report-list-item h2 {
   margin: 9px 0 0;
-  font-family: "Noto Serif SC", serif;
-  font-size: 21px;
+  font-family: var(--font-serif);
+  font-size: 1.375rem;
+  line-height: 1.4;
 }
 
 .research-report-list-item h2 a {
@@ -36,7 +37,7 @@
   flex: none;
   gap: 4px;
   color: var(--ink-subtle);
-  font-size: 10px;
+  font-size: var(--text-meta);
   text-align: right;
 }
 
@@ -44,7 +45,7 @@
   display: inline-flex;
   border-radius: 999px;
   padding: 4px 8px;
-  font-size: 10px;
+  font-size: var(--text-meta);
   font-weight: 700;
 }
 
@@ -59,7 +60,7 @@
 }
 
 .research-report-document {
-  width: min(900px, 100%);
+  width: min(58rem, 100%);
   margin: 0 auto;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -76,8 +77,8 @@
 
 .research-report-heading h2 {
   margin: 12px 0 8px;
-  font-family: "Noto Serif SC", serif;
-  font-size: clamp(28px, 4vw, 42px);
+  font-family: var(--font-serif);
+  font-size: clamp(1.875rem, 4vw, 2.625rem);
   line-height: 1.2;
   letter-spacing: -0.035em;
 }
@@ -85,36 +86,36 @@
 .research-report-heading p,
 .research-report-empty {
   color: var(--ink-subtle);
-  font-size: 11px;
+  font-size: var(--text-meta);
 }
 
 .research-report-markdown {
   color: var(--ink);
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: var(--text-body-large);
+  line-height: 1.75;
 }
 
 .research-report-markdown h1,
 .research-report-markdown h2,
 .research-report-markdown h3 {
   scroll-margin-top: 24px;
-  font-family: "Noto Serif SC", serif;
+  font-family: var(--font-serif);
   letter-spacing: -0.025em;
 }
 
 .research-report-markdown h1 {
   margin: 0 0 18px;
-  font-size: 30px;
+  font-size: 1.875rem;
 }
 
 .research-report-markdown h2 {
   margin: 40px 0 14px;
-  font-size: 25px;
+  font-size: 1.625rem;
 }
 
 .research-report-markdown h3 {
   margin: 27px 0 10px;
-  font-size: 18px;
+  font-size: 1.25rem;
 }
 
 .research-report-markdown p,
@@ -143,7 +144,7 @@
   width: 100%;
   border-collapse: collapse;
   margin: 20px 0 26px;
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
 
 .research-report-markdown th,
@@ -156,7 +157,7 @@
 
 .research-report-markdown th {
   color: var(--ink-muted);
-  font-size: 10px;
+  font-size: var(--text-meta);
   letter-spacing: 0.04em;
 }
 
@@ -196,11 +197,16 @@
   }
 
   .research-report-markdown {
-    font-size: 14px;
+    font-size: var(--text-body);
   }
 
   .research-report-markdown table {
     display: block;
     overflow-x: auto;
+  }
+
+  .research-report-markdown th,
+  .research-report-markdown td {
+    min-width: 7.5rem;
   }
 }

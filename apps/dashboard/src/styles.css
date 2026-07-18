@@ -3,8 +3,29 @@
 :root {
   color: #252820;
   background: #f4f1e8;
-  font-family: "DM Sans", system-ui, sans-serif;
+  font-family:
+    "DM Sans",
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans SC",
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+  font-size: 100%;
+  line-height: 1.5;
   font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --font-sans:
+    "DM Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-serif: "Noto Serif SC", "Songti SC", "STSong", ui-serif, serif;
+  --text-caption: 0.75rem;
+  --text-meta: 0.8125rem;
+  --text-ui: 0.875rem;
+  --text-body: 1rem;
+  --text-body-large: 1.0625rem;
   --canvas: #f4f1e8;
   --surface: #fbfaf5;
   --surface-strong: #ffffff;
@@ -90,9 +111,9 @@ main {
 .eyebrow,
 .section-kicker {
   color: var(--brand);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -103,18 +124,18 @@ main {
 
 h1 {
   margin: 0;
-  font-family: "Noto Serif SC", serif;
-  font-size: clamp(36px, 4vw, 52px);
-  line-height: 1;
-  letter-spacing: -0.045em;
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
 }
 
 .lede {
-  max-width: 560px;
+  max-width: 46ch;
   margin: 0;
   color: var(--ink-muted);
-  font-size: 13px;
-  line-height: 1.65;
+  font-size: var(--text-body);
+  line-height: 1.6;
 }
 
 .primary-navigation {
@@ -129,14 +150,14 @@ h1 {
   border-bottom: 2px solid transparent;
   padding: 8px 0 6px;
   color: var(--ink-subtle);
-  font-size: 12px;
+  font-size: var(--text-ui);
   font-weight: 600;
   text-decoration: none;
 }
 
 .primary-navigation a span {
   color: var(--ink-subtle);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -179,16 +200,17 @@ h1 {
 
 .profile-heading h2 {
   margin: 0;
-  font-family: "Noto Serif SC", serif;
-  font-size: clamp(27px, 3vw, 38px);
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 3vw, 2.375rem);
   letter-spacing: -0.03em;
 }
 
 .profile-heading-copy {
-  max-width: 540px;
+  max-width: 48ch;
   margin: 9px 0 0;
   color: var(--ink-muted);
-  font-size: 12px;
+  font-size: var(--text-ui);
+  line-height: 1.55;
 }
 
 .profile-heading-actions {
@@ -224,8 +246,9 @@ h1 {
 
 .status-panel-heading h2 {
   margin: 0;
-  font-family: "Noto Serif SC", serif;
-  font-size: 20px;
+  font-family: var(--font-serif);
+  font-size: 1.375rem;
+  line-height: 1.3;
 }
 
 .status-panel-signal {
@@ -233,7 +256,7 @@ h1 {
   padding: 5px 8px;
   color: var(--attention);
   background: var(--attention-soft);
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -256,7 +279,7 @@ h1 {
   display: block;
   margin-bottom: 7px;
   color: var(--ink-muted);
-  font-size: 10px;
+  font-size: var(--text-meta);
   font-weight: 600;
 }
 
@@ -270,7 +293,7 @@ h1 {
   display: inline-flex;
   border-radius: 999px;
   padding: 5px 9px;
-  font-size: 10px;
+  font-size: var(--text-meta);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -278,7 +301,7 @@ h1 {
 .status-meta {
   overflow: hidden;
   color: var(--ink-subtle);
-  font-size: 10px;
+  font-size: var(--text-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
