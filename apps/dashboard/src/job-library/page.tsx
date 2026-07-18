@@ -3,12 +3,11 @@ import type { JSX } from "@solidjs/web";
 import type { JobPostingPage } from "@job-boardwalk/contracts";
 
 import { AppShell } from "#/app-shell.js";
+import { SectionKicker } from "#/ui/section-kicker.js";
 import { readJobPostingPage } from "#/workspace-service-client.js";
 
 import { JobCard } from "./card.js";
-
-// oxlint-disable-next-line import/no-unassigned-import -- The page owns its feature styles.
-import "./styles.css";
+import styles from "./page.module.css";
 
 const allPlatforms = "all";
 const emptyCollectionLength = 0;
@@ -34,7 +33,7 @@ function JobLibraryFilters(props: {
 }): JSX.Element {
   return (
     <form
-      class="job-library-filters"
+      class={styles["filters"]}
       onSubmit={(event) => {
         event.preventDefault();
         props.onSubmitted();
@@ -71,22 +70,22 @@ function JobResults(props: {
 }): JSX.Element {
   return (
     <>
-      <div class="job-library-heading">
+      <div class={styles["heading"]}>
         <div>
-          <p class="section-kicker">已整理岗位</p>
+          <SectionKicker>已整理岗位</SectionKicker>
           <h2 id="job-results-heading">岗位列表</h2>
         </div>
-        <span class="job-library-count">{String(props.result.total)} 个岗位</span>
+        <span class={styles["count"]}>{String(props.result.total)} 个岗位</span>
       </div>
       <Show
         when={props.result.jobs.length !== emptyCollectionLength}
-        fallback={<p class="job-library-empty">没有找到符合条件的岗位。可以调整关键词或平台。</p>}
+        fallback={<p class={styles["empty"]}>没有找到符合条件的岗位。可以调整关键词或平台。</p>}
       >
-        <div class="job-grid">
+        <div class={styles["grid"]}>
           <For each={props.result.jobs}>{(job) => <JobCard job={job} />}</For>
         </div>
       </Show>
-      <nav class="pagination" aria-label="岗位页码">
+      <nav class={styles["pagination"]} aria-label="岗位页码">
         <button
           type="button"
           disabled={props.result.page === firstPage}
@@ -132,7 +131,7 @@ export function JobLibraryPage(): JSX.Element {
       title="岗位库"
       lede="查看研究过程中发现并整理的岗位，通过原始链接回到招聘平台核对。"
     >
-      <section class="job-library" aria-labelledby="job-results-heading">
+      <section class={styles["library"]} aria-labelledby="job-results-heading">
         <JobLibraryFilters
           draftQuery={draftQuery()}
           platform={platform()}
@@ -146,7 +145,7 @@ export function JobLibraryPage(): JSX.Element {
             setQuery(draftQuery().trim());
           }}
         />
-        <Loading fallback={<p class="job-library-empty">正在读取岗位…</p>}>
+        <Loading fallback={<p class={styles["empty"]}>正在读取岗位…</p>}>
           <Show when={jobPage()}>
             {(result) => <JobResults result={result()} onPageChanged={setPage} />}
           </Show>

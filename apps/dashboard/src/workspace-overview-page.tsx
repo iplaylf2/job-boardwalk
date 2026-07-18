@@ -6,6 +6,7 @@ import { AppShell } from "./app-shell.js";
 import { PersonalContextPanel } from "./personal-context/panel.js";
 import { WorkspaceStatusPanel } from "./workspace-status-panel.js";
 import { readJobPostingPage, readWorkspaceOverview } from "./workspace-service-client.js";
+import styles from "./workspace-overview-page.module.css";
 
 const initialRefreshCount = 0;
 const refreshIncrement = 1;
@@ -18,7 +19,7 @@ function WorkspaceOverviewView(props: {
   overview: WorkspaceOverview;
 }): JSX.Element {
   return (
-    <div class="workspace-layout">
+    <div class={styles["layout"]}>
       <PersonalContextPanel
         facts={props.overview.profileFacts}
         intents={props.overview.jobSearchIntents}
@@ -57,7 +58,7 @@ export function WorkspaceOverviewPage(): JSX.Element {
       title="Job Boardwalk"
       lede="围绕当前求职方向，持续整理研究中发现且可回查的岗位。"
     >
-      <Loading fallback={<p class="loading">正在读取本机工作区…</p>}>
+      <Loading fallback={<p class={styles["loading"]}>正在读取本机工作区…</p>}>
         <Show when={workspaceOverview() && jobSummary()}>
           <WorkspaceOverviewView
             overview={workspaceOverview()}

@@ -2,6 +2,8 @@ import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobPosting, NormalizedSalary } from "@job-boardwalk/contracts";
 
+import styles from "./card.module.css";
+
 const emptyCollectionLength = 0;
 
 function formattedDate(value: string): string {
@@ -45,17 +47,17 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
   const salary = displaySalary(props.job);
 
   return (
-    <article class="job-card">
+    <article class={styles["card"]}>
       <header>
         <div>
           <Show when={props.job.company}>
-            {(company) => <span class="job-company">{company()}</span>}
+            {(company) => <span class={styles["company"]}>{company()}</span>}
           </Show>
           <h3>{props.job.title}</h3>
         </div>
       </header>
-      <div class="job-primary-facts">
-        <Show when={salary}>{(value) => <strong class="job-salary">{value()}</strong>}</Show>
+      <div class={styles["primaryFacts"]}>
+        <Show when={salary}>{(value) => <strong class={styles["salary"]}>{value()}</strong>}</Show>
         <Show when={props.job.location}>{(location) => <span>{location()}</span>}</Show>
         <Show when={props.job.experienceRequirement}>
           {(experience) => <span>{experience()}</span>}
@@ -65,12 +67,12 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
         </Show>
       </div>
       <Show when={props.job.details.length !== emptyCollectionLength}>
-        <div class="job-details">
+        <div class={styles["details"]}>
           <For each={props.job.details}>{(detail) => <span>{detail}</span>}</For>
         </div>
       </Show>
       <footer>
-        <div class="job-sources">
+        <div class={styles["sources"]}>
           <For each={props.job.sources}>
             {(source) => (
               <a href={source.jobUrl} target="_blank" rel="noreferrer">

@@ -9,6 +9,11 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
+  css: {
+    modules: {
+      localsConvention: "camelCaseOnly",
+    },
+  },
   plugins: [solid()],
   preview: {
     proxy: workspaceServiceProxy,

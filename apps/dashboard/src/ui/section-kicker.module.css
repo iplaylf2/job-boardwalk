@@ -1,0 +1,8 @@
+.kicker {
+  margin: 0;
+  color: var(--brand);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

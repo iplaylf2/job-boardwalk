@@ -2,8 +2,11 @@ import { onSettled } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobSearchIntent, ProfileFact } from "@job-boardwalk/contracts";
 
+import { SectionKicker } from "#/ui/section-kicker.js";
+
 import { JobSearchIntentsSection } from "./job-search-intents-section.js";
 import { ProfileFactsSection } from "./profile-facts-section.js";
+import styles from "./manager.module.css";
 
 function installModalBehavior(manager: HTMLElement | null, onClose: () => void): () => void {
   const previousOverflow = document.body.style.overflow;
@@ -33,7 +36,7 @@ export function PersonalContextManager(props: {
 
   return (
     <div
-      class="context-manager-backdrop"
+      class={styles["backdrop"]}
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -47,21 +50,25 @@ export function PersonalContextManager(props: {
         }}
         aria-labelledby="context-manager-heading"
         aria-modal="true"
-        class="context-manager"
+        class={styles["dialog"]}
         role="dialog"
         tabindex="-1"
       >
-        <header class="context-manager-heading">
+        <header class={styles["heading"]}>
           <div>
-            <p class="section-kicker">当前设置</p>
+            <SectionKicker>当前设置</SectionKicker>
             <h2 id="context-manager-heading">管理研究依据</h2>
             <p>维护当前求职方向和个人条件；不再适用的内容可以移除。</p>
           </div>
-          <button class="button mode-button" type="button" onClick={props.onClose}>
+          <button
+            class={`${styles["button"]} ${styles["quietButton"]}`}
+            type="button"
+            onClick={props.onClose}
+          >
             完成
           </button>
         </header>
-        <div class="context-manager-sections">
+        <div class={styles["sections"]}>
           <JobSearchIntentsSection intents={props.intents} onChanged={props.onChanged} />
           <ProfileFactsSection facts={props.facts} onChanged={props.onChanged} />
         </div>

@@ -9,6 +9,8 @@ import {
   selectJobSearchIntent,
 } from "#/workspace-service-client.js";
 
+import styles from "./manager.module.css";
+
 const emptyCollectionLength = 0;
 type PlatformId = RecommendationPageReference["platformId"];
 const platformLabels: Record<PlatformId, string> = {
@@ -121,37 +123,47 @@ export function JobSearchIntentsSection(props: {
   }
 
   return (
-    <section class="intent-section">
-      <div class="panel-introduction">
+    <section class={styles["intentSection"]}>
+      <div class={styles["sectionIntroduction"]}>
         <div>
           <h3>求职方向</h3>
           <p>
             系统会围绕当前方向自动整理岗位。平台页面是研究起点，其他已打开的相关页面也可纳入整理。
           </p>
         </div>
-        <button class="button button-primary" type="button" onClick={() => loadEditor(null)}>
+        <button
+          class={`${styles["button"]} ${styles["primaryButton"]}`}
+          type="button"
+          onClick={() => loadEditor(null)}
+        >
           添加方向
         </button>
       </div>
       <Show
         when={props.intents.length !== emptyCollectionLength}
         fallback={
-          <p class="empty">尚未添加求职方向。添加后，系统会从关联的平台页面开始整理岗位。</p>
+          <p class={styles["empty"]}>
+            尚未添加求职方向。添加后，系统会从关联的平台页面开始整理岗位。
+          </p>
         }
       >
-        <div class="intent-list">
+        <div class={styles["intentList"]}>
           <For each={props.intents}>
             {(intent) => (
-              <article class={`intent-card ${intent.selected ? "intent-card-selected" : ""}`}>
-                <div class="intent-card-heading">
+              <article
+                class={`${styles["intentCard"]} ${intent.selected ? styles["intentCardSelected"] : ""}`}
+              >
+                <div class={styles["intentCardHeading"]}>
                   <div>
-                    <span class="item-label">{intent.selected ? "当前方向" : "其他方向"}</span>
+                    <span class={styles["itemLabel"]}>
+                      {intent.selected ? "当前方向" : "其他方向"}
+                    </span>
                     <h4>{intent.name}</h4>
                   </div>
-                  <div class="intent-card-actions">
+                  <div class={styles["intentCardActions"]}>
                     <Show when={!intent.selected}>
                       <button
-                        class="edit-link"
+                        class={styles["editLink"]}
                         type="button"
                         disabled={saving()}
                         onClick={() => select(intent)}
@@ -159,11 +171,15 @@ export function JobSearchIntentsSection(props: {
                         设为当前
                       </button>
                     </Show>
-                    <button class="edit-link" type="button" onClick={() => loadEditor(intent)}>
+                    <button
+                      class={styles["editLink"]}
+                      type="button"
+                      onClick={() => loadEditor(intent)}
+                    >
                       修改
                     </button>
                     <button
-                      class="edit-link danger-link"
+                      class={`${styles["editLink"]} ${styles["dangerLink"]}`}
                       type="button"
                       onClick={() => {
                         setEditingId(null);
@@ -175,10 +191,10 @@ export function JobSearchIntentsSection(props: {
                     </button>
                   </div>
                 </div>
-                <p class="intent-target">
+                <p class={styles["intentTarget"]}>
                   {intent.position} · {intent.city}
                 </p>
-                <div class="intent-sources">
+                <div class={styles["intentSources"]}>
                   <For each={intent.recommendationPages}>
                     {(page) => (
                       <span>
@@ -188,14 +204,14 @@ export function JobSearchIntentsSection(props: {
                   </For>
                 </div>
                 <Show when={removingId() === intent.id}>
-                  <div class="remove-confirmation">
+                  <div class={styles["removal"]}>
                     <span>
                       {intent.selected
                         ? "移除当前方向后，岗位整理会暂停，直到你选择另一个方向。"
                         : "移除后，这个方向及其平台研究起点将不再保留。"}
                     </span>
                     <button
-                      class="button button-danger"
+                      class={`${styles["button"]} ${styles["dangerButton"]}`}
                       type="button"
                       disabled={saving()}
                       onClick={() => remove(intent)}
@@ -203,7 +219,7 @@ export function JobSearchIntentsSection(props: {
                       {saving() ? "移除中…" : "确认移除"}
                     </button>
                     <button
-                      class="button button-quiet"
+                      class={styles["button"]}
                       type="button"
                       onClick={() => setRemovingId(null)}
                     >
@@ -217,8 +233,8 @@ export function JobSearchIntentsSection(props: {
         </div>
       </Show>
       <Show when={editingId() !== null}>
-        <form class="editor intent-editor" onSubmit={submit}>
-          <div class="editor-heading">
+        <form class={`${styles["editor"]} ${styles["intentEditor"]}`} onSubmit={submit}>
+          <div class={styles["editorHeading"]}>
             <strong>{editingId() === "new" ? "添加求职方向" : `编辑“${name()}”`}</strong>
             <span>添加适合作为研究起点的招聘平台页面。</span>
           </div>
@@ -257,7 +273,7 @@ export function JobSearchIntentsSection(props: {
               onInput={(event) => setBossLabel(event.currentTarget.value)}
             />
           </label>
-          <label class="editor-wide">
+          <label class={styles["wideField"]}>
             BOSS直聘页面网址
             <input
               type="url"
@@ -274,7 +290,7 @@ export function JobSearchIntentsSection(props: {
               onInput={(event) => setYupaoLabel(event.currentTarget.value)}
             />
           </label>
-          <label class="editor-wide">
+          <label class={styles["wideField"]}>
             鱼泡直聘页面网址
             <input
               type="url"
@@ -284,22 +300,26 @@ export function JobSearchIntentsSection(props: {
             />
           </label>
           <Show when={error()}>
-            <p class="form-error" role="alert">
+            <p class={styles["formError"]} role="alert">
               {error()}
             </p>
           </Show>
-          <div class="form-actions">
-            <button class="button button-primary" type="submit" disabled={saving()}>
+          <div class={styles["formActions"]}>
+            <button
+              class={`${styles["button"]} ${styles["primaryButton"]}`}
+              type="submit"
+              disabled={saving()}
+            >
               {saving() ? "保存中…" : "保存"}
             </button>
-            <button class="button button-quiet" type="button" onClick={() => setEditingId(null)}>
+            <button class={styles["button"]} type="button" onClick={() => setEditingId(null)}>
               取消
             </button>
           </div>
         </form>
       </Show>
       <Show when={error() && editingId() === null}>
-        <p class="form-error collection-error" role="alert">
+        <p class={`${styles["formError"]} ${styles["sectionError"]}`} role="alert">
           {error()}
         </p>
       </Show>

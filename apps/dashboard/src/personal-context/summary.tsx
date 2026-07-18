@@ -2,6 +2,8 @@ import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobSearchIntent, ProfileFact } from "@job-boardwalk/contracts";
 
+import styles from "./summary.module.css";
+
 const emptyCollectionLength = 0;
 const maximumVisibleFacts = 4;
 
@@ -15,21 +17,21 @@ function DirectionSummary(props: { intents: JobSearchIntent[] }): JSX.Element {
     return props.intents.find((intent) => intent.selected);
   }
   return (
-    <section class="direction-summary" aria-labelledby="direction-summary-heading">
-      <p class="summary-label" id="direction-summary-heading">
+    <section class={styles["direction"]} aria-labelledby="direction-summary-heading">
+      <p class={styles["label"]} id="direction-summary-heading">
         当前求职方向
       </p>
       <Show
         when={selectedIntent()}
-        fallback={<p class="summary-empty">尚未选择求职方向，当前不会自动整理岗位。</p>}
+        fallback={<p class={styles["empty"]}>尚未选择求职方向，当前不会自动整理岗位。</p>}
       >
         {(intent) => (
           <>
             <h3>{intent().name}</h3>
-            <p class="direction-target">
+            <p class={styles["target"]}>
               {intent().position} · {intent().city}
             </p>
-            <p class="direction-source-count">
+            <p class={styles["sourceCount"]}>
               {String(intent().recommendationPages.length)} 个研究起点
             </p>
           </>
@@ -49,19 +51,19 @@ function FactsSummary(props: { facts: ProfileFact[] }): JSX.Element {
     return Math.max(emptyCollectionLength, props.facts.length - maximumVisibleFacts);
   }
   return (
-    <section class="facts-summary" aria-labelledby="facts-summary-heading">
-      <div class="facts-summary-heading">
+    <section class={styles["facts"]} aria-labelledby="facts-summary-heading">
+      <div class={styles["factsHeading"]}>
         <div>
-          <p class="summary-label" id="facts-summary-heading">
+          <p class={styles["label"]} id="facts-summary-heading">
             解释岗位时会考虑
           </p>
-          <p class="summary-count">共 {String(props.facts.length)} 项个人条件</p>
+          <p class={styles["count"]}>共 {String(props.facts.length)} 项个人条件</p>
         </div>
         <Show when={hiddenFactCount() > emptyCollectionLength}>
           <button
             aria-controls="profile-fact-summary-list"
             aria-expanded={expanded() ? "true" : "false"}
-            class="summary-disclosure"
+            class={styles["disclosure"]}
             type="button"
             onClick={() => setExpanded((value) => !value)}
           >
@@ -71,15 +73,15 @@ function FactsSummary(props: { facts: ProfileFact[] }): JSX.Element {
       </div>
       <Show
         when={props.facts.length > emptyCollectionLength}
-        fallback={<p class="summary-empty">尚未添加个人条件。这不会影响岗位整理。</p>}
+        fallback={<p class={styles["empty"]}>尚未添加个人条件。这不会影响岗位整理。</p>}
       >
         <dl
-          class={`fact-preview-list ${expanded() ? "fact-preview-list-expanded" : ""}`}
+          class={`${styles["factList"]} ${expanded() ? styles["factListExpanded"] : ""}`}
           id="profile-fact-summary-list"
         >
           <For each={visibleFacts()}>
             {(fact) => (
-              <div class="fact-preview">
+              <div class={styles["fact"]}>
                 <dt>{fact.key}</dt>
                 <dd>{fact.value}</dd>
               </div>
@@ -93,7 +95,7 @@ function FactsSummary(props: { facts: ProfileFact[] }): JSX.Element {
 
 export function PersonalContextSummary(props: PersonalContextSummaryProps): JSX.Element {
   return (
-    <div class="context-summary">
+    <div class={styles["summary"]}>
       <DirectionSummary intents={props.intents} />
       <FactsSummary facts={props.facts} />
     </div>

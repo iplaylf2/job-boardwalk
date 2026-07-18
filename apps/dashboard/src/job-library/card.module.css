@@ -1,0 +1,101 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-inline-size: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  background: rgb(251 250 245 / 82%);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.card:hover {
+  border-color: #b6be99;
+  box-shadow: 0 14px 36px rgb(50 53 40 / 8%);
+  transform: translateY(-1px);
+}
+
+.card header,
+.card footer {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.company {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+  font-weight: 600;
+}
+
+.card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.25rem;
+  line-height: 1.4;
+  letter-spacing: -0.012em;
+}
+
+.primary-facts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.primary-facts > span {
+  border-left: 1px solid var(--line-strong);
+  padding-left: 8px;
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+}
+
+.salary {
+  color: var(--brand-dark);
+  font-size: var(--text-body);
+}
+
+.details,
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.details span {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--neutral-soft);
+  color: #596056;
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.card footer {
+  align-items: end;
+  border-top: 1px solid var(--line);
+  margin-top: auto;
+  padding-top: 12px;
+  color: var(--ink-subtle);
+  font-size: var(--text-caption);
+}
+
+.sources a {
+  color: var(--brand);
+  font-size: var(--text-meta);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sources a:hover {
+  color: var(--brand-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

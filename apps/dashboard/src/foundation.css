@@ -1,0 +1,116 @@
+@layer reset, tokens, base;
+
+@layer tokens {
+  :root {
+    color-scheme: light;
+    color: #252820;
+    background: #f4f1e8;
+    font-family:
+      "DM Sans",
+      ui-sans-serif,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "Noto Sans SC",
+      "PingFang SC",
+      "Microsoft YaHei",
+      sans-serif;
+    font-size: 100%;
+    line-height: 1.5;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    --font-sans:
+      "DM Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+      "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-serif: "Noto Serif SC", "Songti SC", "STSong", ui-serif, serif;
+    --text-caption: 0.75rem;
+    --text-meta: 0.8125rem;
+    --text-ui: 0.875rem;
+    --text-body: 1rem;
+    --text-body-large: 1.0625rem;
+    --canvas: #f4f1e8;
+    --surface: #fbfaf5;
+    --surface-strong: #ffffff;
+    --ink: #252820;
+    --ink-muted: #60665b;
+    --ink-subtle: #747a70;
+    --line: #d0d1c7;
+    --line-strong: #afb3a6;
+    --brand: #667b24;
+    --brand-dark: #34420b;
+    --brand-soft: #e3ecc6;
+    --success: #3f641e;
+    --success-soft: #dfedc8;
+    --attention: #8a5319;
+    --attention-soft: #f4dfc5;
+    --danger: #8a3925;
+    --danger-soft: #f1d6cd;
+    --neutral-soft: #e5e4dc;
+    --focus-ring: color-mix(in oklab, var(--brand) 28%, transparent);
+    --shadow: 0 18px 50px rgb(50 53 40 / 7%);
+  }
+}
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  :where(body, h1, h2, h3, p) {
+    margin-block-start: 0;
+  }
+
+  :where(button, input, select, textarea) {
+    font: inherit;
+  }
+}
+
+@layer base {
+  body {
+    min-inline-size: 20rem;
+    min-block-size: 100vh;
+    margin: 0;
+  }
+
+  body::before {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(rgb(255 255 255 / 20%), transparent),
+      radial-gradient(#44503d 0.55px, transparent 0.55px);
+    background-size:
+      auto,
+      22px 22px;
+    opacity: 0.13;
+    content: "";
+  }
+
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 3px;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @layer base {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}

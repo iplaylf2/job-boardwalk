@@ -5,6 +5,8 @@ import type { ProfileFact } from "@job-boardwalk/contracts";
 // oxlint-disable max-lines-per-function -- The editor state stays next to the section it controls.
 import { deleteProfileFact, saveProfileFact } from "#/workspace-service-client.js";
 
+import styles from "./manager.module.css";
+
 const emptyCollectionLength = 0;
 
 function formatSource(fact: ProfileFact): string {
@@ -79,8 +81,8 @@ export function ProfileFactsSection(props: {
   }
 
   return (
-    <div class="context-primary">
-      <div class="panel-introduction">
+    <div class={styles["factsSection"]}>
+      <div class={styles["sectionIntroduction"]}>
         <div>
           <h3>个人条件</h3>
           <p>
@@ -89,13 +91,17 @@ export function ProfileFactsSection(props: {
               : `共 ${String(props.facts.length)} 项个人条件`}
           </p>
         </div>
-        <button class="button button-primary" type="button" onClick={beginCreate}>
+        <button
+          class={`${styles["button"]} ${styles["primaryButton"]}`}
+          type="button"
+          onClick={beginCreate}
+        >
           添加条件
         </button>
       </div>
       <Show when={editingId() !== null}>
-        <form class="editor" onSubmit={submit}>
-          <div class="editor-heading">
+        <form class={styles["editor"]} onSubmit={submit}>
+          <div class={styles["editorHeading"]}>
             <strong>{editingId() === "new" ? "添加个人条件" : `编辑“${key()}”`}</strong>
             <span>说明助手比较和解释岗位时应考虑的经验、偏好或限制。</span>
           </div>
@@ -119,22 +125,26 @@ export function ProfileFactsSection(props: {
             />
           </label>
           <Show when={error()}>
-            <p class="form-error" role="alert">
+            <p class={styles["formError"]} role="alert">
               {error()}
             </p>
           </Show>
-          <div class="form-actions">
-            <button class="button button-primary" type="submit" disabled={saving()}>
+          <div class={styles["formActions"]}>
+            <button
+              class={`${styles["button"]} ${styles["primaryButton"]}`}
+              type="submit"
+              disabled={saving()}
+            >
               {saving() ? "保存中…" : "保存"}
             </button>
-            <button class="button button-quiet" type="button" onClick={() => setEditingId(null)}>
+            <button class={styles["button"]} type="button" onClick={() => setEditingId(null)}>
               取消
             </button>
           </div>
         </form>
       </Show>
       <Show when={error() && editingId() === null}>
-        <p class="form-error collection-error" role="alert">
+        <p class={`${styles["formError"]} ${styles["sectionError"]}`} role="alert">
           {error()}
         </p>
       </Show>
@@ -142,20 +152,20 @@ export function ProfileFactsSection(props: {
         when={props.facts.length !== emptyCollectionLength}
         fallback={
           <Show when={editingId() !== "new"}>
-            <p class="empty">可添加希望助手在比较岗位时考虑的经验、偏好或限制。</p>
+            <p class={styles["empty"]}>可添加希望助手在比较岗位时考虑的经验、偏好或限制。</p>
           </Show>
         }
       >
-        <div class="editable-list">
+        <div class={styles["factList"]}>
           <For each={props.facts}>
             {(fact) => (
-              <article class="editable-row">
-                <div class="editable-row-heading">
-                  <span class="item-label">{fact.key}</span>
-                  <div class="editable-row-actions">
+              <article class={styles["factRow"]}>
+                <div class={styles["factHeading"]}>
+                  <span class={styles["itemLabel"]}>{fact.key}</span>
+                  <div class={styles["factActions"]}>
                     <button
                       aria-label={`编辑个人条件：${fact.key}`}
-                      class="edit-link"
+                      class={styles["editLink"]}
                       type="button"
                       onClick={() => beginEdit(fact)}
                     >
@@ -163,7 +173,7 @@ export function ProfileFactsSection(props: {
                     </button>
                     <button
                       aria-label={`移除个人条件：${fact.key}`}
-                      class="edit-link danger-link"
+                      class={`${styles["editLink"]} ${styles["dangerLink"]}`}
                       type="button"
                       onClick={() => {
                         setEditingId(null);
@@ -175,15 +185,15 @@ export function ProfileFactsSection(props: {
                     </button>
                   </div>
                 </div>
-                <div class="editable-row-body">
-                  <p class="item-value">{fact.value}</p>
-                  <span class="item-meta">{formatSource(fact)}</span>
+                <div class={styles["factBody"]}>
+                  <p class={styles["factValue"]}>{fact.value}</p>
+                  <span class={styles["factMeta"]}>{formatSource(fact)}</span>
                 </div>
                 <Show when={removingId() === fact.id}>
-                  <div class="remove-confirmation">
+                  <div class={styles["removal"]}>
                     <span>移除后，助手将不再在比较和解释岗位时考虑这项条件。</span>
                     <button
-                      class="button button-danger"
+                      class={`${styles["button"]} ${styles["dangerButton"]}`}
                       type="button"
                       disabled={saving()}
                       onClick={() => remove(fact)}
@@ -191,7 +201,7 @@ export function ProfileFactsSection(props: {
                       {saving() ? "移除中…" : "确认移除"}
                     </button>
                     <button
-                      class="button button-quiet"
+                      class={styles["button"]}
                       type="button"
                       onClick={() => setRemovingId(null)}
                     >

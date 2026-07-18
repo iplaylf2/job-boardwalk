@@ -1,5 +1,7 @@
 import type { JSX } from "@solidjs/web";
 
+import styles from "./app-shell.module.css";
+
 export function AppShell(props: {
   active: "jobs" | "overview" | "reports";
   children: JSX.Element;
@@ -8,14 +10,14 @@ export function AppShell(props: {
   title: string;
 }): JSX.Element {
   return (
-    <main>
-      <header class="masthead">
-        <div class="masthead-copy">
-          <p class="eyebrow">本地 AI 求职秘书</p>
+    <main class={styles["shell"]}>
+      <header class={styles["masthead"]}>
+        <div class={styles["mastheadCopy"]}>
+          <p class={styles["eyebrow"]}>本地 AI 求职秘书</p>
           <h1>{props.title}</h1>
-          <p class="lede">{props.lede}</p>
+          <p class={styles["lede"]}>{props.lede}</p>
         </div>
-        <nav class="primary-navigation" aria-label="主要导航">
+        <nav class={styles["primaryNavigation"]} aria-label="主要导航">
           <a href="/" {...(props.active === "overview" ? { "aria-current": "page" as const } : {})}>
             工作区
           </a>

@@ -1,0 +1,125 @@
+.library {
+  container: job-library / inline-size;
+  min-inline-size: 0;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.5fr) auto;
+  align-items: end;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  margin-bottom: 30px;
+  padding: 18px 20px;
+  background: rgb(251 250 245 / 78%);
+}
+
+.filters label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.filters input,
+.filters select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--ink);
+  background: var(--surface-strong);
+  font-size: var(--text-ui);
+}
+
+.filters input:focus-visible,
+.filters select:focus-visible {
+  border-color: var(--brand);
+  outline-color: var(--focus-ring);
+}
+
+.filters button,
+.pagination button {
+  min-height: 40px;
+  border: 1px solid var(--brand);
+  border-radius: 999px;
+  padding: 9px 17px;
+  color: #fff;
+  background: var(--brand);
+  font-size: var(--text-ui);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filters button:hover,
+.pagination button:hover:not(:disabled) {
+  background: #56691d;
+}
+
+.heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.heading > div {
+  display: grid;
+  gap: 5px;
+}
+
+.heading h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+}
+
+.count {
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.empty {
+  margin: 4px 0 0;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 26px;
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+@container job-library (max-width: 47.5rem) {
+  .filters,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters button {
+    justify-self: start;
+  }
+}
