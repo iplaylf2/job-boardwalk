@@ -89,6 +89,17 @@ test.each([
   expect(deriveNavigationAccessObservation(response)).toBeNull();
 });
 
+test("ignores an early navigation response whose frame does not exist yet", () => {
+  const response = {
+    ...fakeResponse({ finalUrl: "https://www.zhipin.com/web/geek/jobs" }),
+    frame: () => {
+      throw new Error("Frame for this navigation request is not available");
+    },
+  } as Response;
+
+  expect(deriveNavigationAccessObservation(response)).toBeNull();
+});
+
 test("observes authenticated BOSS account navigation in a bounded page snapshot", () => {
   expect(
     derivePageAccessObservation(

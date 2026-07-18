@@ -38,47 +38,51 @@ export function captureJobCardMetadata(input: {
   const { document } = globalThis;
   const startIndex = 0;
   const increment = 1;
-  function normalized(value: string, maximumCharacters: number): string {
-    const decoded = [...value]
-      .map((character) => input.config.textReplacements?.[character] ?? character)
-      .join("");
-    return decoded.replaceAll(/\s+/gu, " ").trim().slice(startIndex, maximumCharacters);
-  }
-  function firstText(container: Element, selectors: readonly string[]): string | null {
-    for (const selector of selectors) {
-      const text = normalized(
-        container.querySelector(selector)?.textContent ?? "",
-        input.maximumFieldCharacters,
-      );
-      if (text) {
-        return text;
+  // Object methods retain their names without tsx injecting the Node-side `__name` helper.
+  // Patchright serializes this entire callback, so every helper must exist in the page realm.
+  const helpers = {
+    closestContainer(link: HTMLAnchorElement): Element | null {
+      for (const selector of input.config.containerSelectors) {
+        const container = link.closest(selector);
+        if (container) {
+          return container;
+        }
       }
-    }
-    return null;
-  }
-  function firstLine(value: string): string {
-    return (
-      value
+      return input.config.requireContainerMatch ? null : link;
+    },
+    firstLine(value: string): string {
+      return (
+        value
         .split(/\r?\n/u)
-        .map((line) => normalized(line, input.maximumFieldCharacters))
-        .find(Boolean) ?? ""
-    );
-  }
-  function firstPattern(value: string, pattern: string | undefined): string | null {
-    if (!pattern) {
-      return null;
-    }
-    return new RegExp(pattern, "u").exec(value)?.at(startIndex) ?? null;
-  }
-  function closestContainer(link: HTMLAnchorElement): Element | null {
-    for (const selector of input.config.containerSelectors) {
-      const container = link.closest(selector);
-      if (container) {
-        return container;
+          .map((line) => helpers.normalized(line, input.maximumFieldCharacters))
+          .find(Boolean) ?? ""
+      );
+    },
+    firstPattern(value: string, pattern: string | undefined): string | null {
+      if (!pattern) {
+        return null;
       }
-    }
-    return input.config.requireContainerMatch ? null : link;
-  }
+      return new RegExp(pattern, "u").exec(value)?.at(startIndex) ?? null;
+    },
+    firstText(container: Element, selectors: readonly string[]): string | null {
+      for (const selector of selectors) {
+        const text = helpers.normalized(
+          container.querySelector(selector)?.textContent ?? "",
+          input.maximumFieldCharacters,
+        );
+        if (text) {
+          return text;
+        }
+      }
+      return null;
+    },
+    normalized(value: string, maximumCharacters: number): string {
+      const decoded = [...value]
+        .map((character) => input.config.textReplacements?.[character] ?? character)
+        .join("");
+      return decoded.replaceAll(/\s+/gu, " ").trim().slice(startIndex, maximumCharacters);
+    },
+  };
   const linkPathPattern = new RegExp(input.config.jobLinkPathPattern, "u");
   const excludedTitlePattern = input.config.excludedTitlePattern
     ? new RegExp(input.config.excludedTitlePattern, "u")
@@ -101,22 +105,28 @@ export function captureJobCardMetadata(input: {
     ) {
       continue;
     }
-    const container = closestContainer(link);
+    const container = helpers.closestContainer(link);
     if (!container) {
       continue;
     }
     // InnerText preserves the rendered block boundaries that separate Yupao card fields.
     // eslint-disable-next-line unicorn/prefer-dom-node-text-content
     const renderedLinkText = (link as HTMLElement).innerText || link.textContent || "";
-    const text = normalized(container.textContent ?? "", input.maximumCardTextCharacters);
-    const selectorTitle = firstText(container, input.config.titleSelectors);
+    const text = helpers.normalized(
+      container.textContent ?? "",
+      input.maximumCardTextCharacters,
+    );
+    const selectorTitle = helpers.firstText(container, input.config.titleSelectors);
     const fallbackTitle = input.config.titleFromFirstLine
-      ? firstLine(renderedLinkText)
-      : normalized(link.textContent ?? "", input.maximumFieldCharacters);
-    const titleBoundary = firstPattern(fallbackTitle, input.config.titleBoundaryPattern);
+      ? helpers.firstLine(renderedLinkText)
+      : helpers.normalized(link.textContent ?? "", input.maximumFieldCharacters);
+    const titleBoundary = helpers.firstPattern(
+      fallbackTitle,
+      input.config.titleBoundaryPattern,
+    );
     const title =
       selectorTitle ??
-      normalized(
+      helpers.normalized(
         titleBoundary
           ? fallbackTitle.slice(startIndex, fallbackTitle.indexOf(titleBoundary))
           : fallbackTitle,
@@ -132,18 +142,26 @@ export function captureJobCardMetadata(input: {
     }
     const details = input.config.detailsSelectors.flatMap((selector) =>
       [...container.querySelectorAll(selector)]
-        .map((element) => normalized(element.textContent ?? "", input.maximumFieldCharacters))
+        .map((element) =>
+          helpers.normalized(element.textContent ?? "", input.maximumFieldCharacters),
+        )
         .filter(
           (value, index, values) => value.length > startIndex && values.indexOf(value) === index,
         ),
     );
-    const company = firstText(container, input.config.companySelectors);
-    const location = firstText(container, input.config.locationSelectors);
-    const educationRequirement = firstPattern(text, input.config.educationTextPattern);
-    const experienceRequirement = firstPattern(text, input.config.experienceTextPattern);
+    const company = helpers.firstText(container, input.config.companySelectors);
+    const location = helpers.firstText(container, input.config.locationSelectors);
+    const educationRequirement = helpers.firstPattern(
+      text,
+      input.config.educationTextPattern,
+    );
+    const experienceRequirement = helpers.firstPattern(
+      text,
+      input.config.experienceTextPattern,
+    );
     const salary =
-      firstText(container, input.config.salarySelectors) ??
-      firstPattern(text, input.config.salaryTextPattern);
+      helpers.firstText(container, input.config.salarySelectors) ??
+      helpers.firstPattern(text, input.config.salaryTextPattern);
     cards.push({
       ...(company ? { company } : {}),
       details: details.filter(

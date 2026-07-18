@@ -124,6 +124,10 @@ test("extracts bounded, deduplicated evidence only from same-origin job cards", 
   });
 });
 
+test("keeps the serialized page callback independent from Node-side transform helpers", () => {
+  expect(captureJobCardMetadata.toString()).not.toMatch(/\b__name\(/u);
+});
+
 test("excludes Yupao's more-information entry from job evidence", () => {
   vi.stubGlobal("document", {
     body: { innerText: "消息\n简历\n测试用户\n推荐" },

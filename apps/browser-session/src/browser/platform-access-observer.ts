@@ -22,7 +22,16 @@ export function deriveNavigationAccessObservation(
   now: () => number = Date.now,
 ): PlatformAccessObservation | null {
   const request = response.request();
-  if (!request.isNavigationRequest() || response.frame().parentFrame()) {
+  if (!request.isNavigationRequest()) {
+    return null;
+  }
+  try {
+    if (response.frame().parentFrame()) {
+      return null;
+    }
+  } catch {
+    // Patchright can emit an early navigation response before its frame exists.
+    // Without a frame, the response cannot prove that it belongs to a top-level navigation.
     return null;
   }
 
