@@ -206,8 +206,8 @@ settings:
 catalogs:
   default:
     '@hono/node-server':
-      specifier: 2.0.9
-      version: 2.0.9
+      specifier: 2.0.10
+      version: 2.0.10
     '@modelcontextprotocol/sdk':
       specifier: ^1.29.0
       version: 1.29.0
@@ -233,8 +233,8 @@ catalogs:
       specifier: ^7.0.2
       version: 7.0.2
     vite:
-      specifier: ^8.1.4
-      version: 8.1.4
+      specifier: ^8.1.5
+      version: 8.1.5
     vitest:
       specifier: ^4.1.10
       version: 4.1.10
@@ -255,8 +255,8 @@ importers:
         specifier: ^18.1.0
         version: 18.1.0
       knip:
-        specifier: ^6.26.0
-        version: 6.26.0
+        specifier: ^6.27.0
+        version: 6.27.0
       node:
         specifier: runtime:26.5.0
         version: runtime:26.5.0
@@ -274,7 +274,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: 'catalog:'
-        version: 2.0.9(hono@4.12.30)
+        version: 2.0.10(hono@4.12.30)
       '@job-boardwalk/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -314,10 +314,10 @@ importers:
         version: 7.0.2
       vite:
         specifier: 'catalog:'
-        version: 8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 4.1.10(@types/node@26.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
 
   apps/dashboard:
     dependencies:
@@ -325,11 +325,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/contracts
       '@solidjs/web':
-        specifier: 2.0.0-beta.18
-        version: 2.0.0-beta.18(solid-js@2.0.0-beta.18)
+        specifier: 2.0.0-beta.19
+        version: 2.0.0-beta.19(solid-js@2.0.0-beta.19)
       solid-js:
-        specifier: 2.0.0-beta.18
-        version: 2.0.0-beta.18
+        specifier: 2.0.0-beta.19
+        version: 2.0.0-beta.19
     devDependencies:
       '@job-boardwalk/presets':
         specifier: workspace:*
@@ -345,16 +345,16 @@ importers:
         version: 7.0.2
       vite:
         specifier: 'catalog:'
-        version: 8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
       vite-plugin-solid:
-        specifier: 3.0.0-next.8
-        version: 3.0.0-next.8(@solidjs/web@2.0.0-beta.18(solid-js@2.0.0-beta.18))(solid-js@2.0.0-beta.18)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+        specifier: 3.0.0-next.12
+        version: 3.0.0-next.12(@solidjs/web@2.0.0-beta.19(solid-js@2.0.0-beta.19))(solid-js@2.0.0-beta.19)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
 
   apps/workspace-service:
     dependencies:
       '@hono/node-server':
         specifier: 'catalog:'
-        version: 2.0.9(hono@4.12.30)
+        version: 2.0.10(hono@4.12.30)
       '@job-boardwalk/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -397,10 +397,10 @@ importers:
         version: 7.0.2
       vite:
         specifier: 'catalog:'
-        version: 8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+        version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
-        version: 4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 4.1.10(@types/node@26.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
 
   internal/presets:
     devDependencies:
@@ -531,44 +531,44 @@ packages:
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
-  '@dom-expressions/babel-plugin-jsx@0.50.0-next.21':
-    resolution: {integrity: sha512-35ABf8MD70NmzbaLN9sLk4Bt6rTU/tRVT6VaX11yo8AN7fkcqsJkzBPVYIT18MTHA8aWIEPRSbL5l32L8W5XHQ==}
+  '@dom-expressions/babel-plugin-jsx@0.50.0-next.22':
+    resolution: {integrity: sha512-WooCWvVHd0b6uxNFHyd5Rq7Xab/fSYLoPlWpH4UzPSibV+tOEK5ZU3QUmwE+kIqCdyTNAf+15+i0sBj6D57tkA==}
     peerDependencies:
       '@babel/core': ^7.20.12
 
-  '@dom-expressions/jsx-compiler-darwin-arm64@0.50.0-next.21':
-    resolution: {integrity: sha512-M9CX3u0WsXX6eH1y0pkOHzv0PgO67oVypNfWfRMrqnkGIOYb+JZ4hZ6LoDv3yhw0ippnb78ccYDzGji+pWqggA==}
+  '@dom-expressions/compiler-darwin-arm64@0.50.0-next.22':
+    resolution: {integrity: sha512-SbglyDnIucK6Ze6cdDPpom2FkeWmoUePeGlVBNVK0a63RLQfO6PIvR5Jn0oTvgQOZrd0ZrPrB4lsdtC9cXTSnA==}
     cpu: [arm64]
     os: [darwin]
 
-  '@dom-expressions/jsx-compiler-darwin-x64@0.50.0-next.21':
-    resolution: {integrity: sha512-U8PcgnCT+t8F8WXNtwbJSeVibqRBu3zQiXXPhML0nkPHFXCZQWtdP7q9rkRYhoCQKvp/PA4Auk3S/wcz7UMZUA==}
+  '@dom-expressions/compiler-darwin-x64@0.50.0-next.22':
+    resolution: {integrity: sha512-fm4GS05MGY8vkYhsli2CD9Aw0lIR4aRPRpSIjZOrQIgtwxj+r/L+doe40ff602ODqpEVS48TlrfMAGVu+05CnA==}
     cpu: [x64]
     os: [darwin]
 
-  '@dom-expressions/jsx-compiler-linux-arm64-gnu@0.50.0-next.21':
-    resolution: {integrity: sha512-sA9TyzIgLKupISV7dyPCBsDnuIjhxVL1VzKGkDdQ/X4a9cLz8YewdkZGFXsF4KA9ob/wUyPHHm73Nj9n/KB3Pw==}
+  '@dom-expressions/compiler-linux-arm64-gnu@0.50.0-next.22':
+    resolution: {integrity: sha512-thPbJAHn5cDXB4CJ7bKRBDoZSWW9Vw7rpAsVieWDffixg1d1RIFy5JMS5jVQRudWhX2AepN+YusFsXXLPCpLfw==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@dom-expressions/jsx-compiler-linux-x64-gnu@0.50.0-next.21':
-    resolution: {integrity: sha512-maqwwtwPDElDjtjl1Rkyo/ZmZWFDnuK77+1kfQ930kbyIYQWlSiG+7mLZg4dPx26ja/NJgbUtxpPvb0bhGA43Q==}
+  '@dom-expressions/compiler-linux-x64-gnu@0.50.0-next.22':
+    resolution: {integrity: sha512-PJD5gLJxNpqW0aGVdinRSQ7mjO69q/SxnFjXGo2nD/4jdplYp/bKEkhnPM7etPLz9Y1eAHlof5Z9Kgdy0lWPvQ==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@dom-expressions/jsx-compiler-wasm32-wasi@0.50.0-next.21':
-    resolution: {integrity: sha512-/iVxKB4ulVVOsZJYw0fWjcVG4eSUtKlkUCcSoooNpR552DsBIe6r8nUmvgM/lM03J57Ht/RTvVnSosixfSQ5MA==}
+  '@dom-expressions/compiler-wasm32-wasi@0.50.0-next.22':
+    resolution: {integrity: sha512-/zJzm6QVbn5xZ6FS3Mq6n+I/MwWegtDHqoa5Xv2sbfwos89MexsHLbbxwXjQogOkDjsz/+YB961reiFDAyk4ng==}
     engines: {node: '>=14.0.0'}
 
-  '@dom-expressions/jsx-compiler-win32-x64-msvc@0.50.0-next.21':
-    resolution: {integrity: sha512-uZiuGaO6AbKjLLjtrgfqHfhvnr09o+791oTRcoMVtTBi5A+fyb3SPTnabz4cyqAxLKbE6gt3D0D2w2tNxvUlNw==}
+  '@dom-expressions/compiler-win32-x64-msvc@0.50.0-next.22':
+    resolution: {integrity: sha512-YKIGc/I40ZKSTh927LVAWWbcgsVFPRiMtaGVf8b11fDN9ktRJTIXVbXQD+uBcUpPuP9ZsSHlVCki2hrOGjXlsA==}
     cpu: [x64]
     os: [win32]
 
-  '@dom-expressions/jsx-compiler@0.50.0-next.21':
-    resolution: {integrity: sha512-gWtZKZhqcPTeGHk1u6Emc6ree/wTNRpyMPwdtwDlFgzMDGkLNrkR8gLN6aqas0UxBHjVoVImjIVxbo/5DVLRRg==}
+  '@dom-expressions/compiler@0.50.0-next.22':
+    resolution: {integrity: sha512-KsMu97ksUrCnAhn+r4CCtifA/WyBKHnS2PJVFYroRL0rqqtMlXsQ4YQUYo0fL84Nc8xvOQWIje3kYMluVEvFrw==}
 
   '@drizzle-team/brocli@0.12.0':
     resolution: {integrity: sha512-mlUE+rZ8CatQekLhnaiN91Iemdd+e2gFKooGlnRB3oPTL3VghLfX24dx7HrzMNeC1JrIB/0kpsfyty3f5HNfxQ==}
@@ -912,8 +912,8 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@hono/node-server@2.0.9':
-    resolution: {integrity: sha512-cNMw3ziCdDcx0+ldta60zvUL5XO0OLt521n2hjPp0PB0ugczDCEczXsf33qQbkKIXWGFQ03f0LC85u6YK8pCLA==}
+  '@hono/node-server@2.0.10':
+    resolution: {integrity: sha512-ZcnNVhKTmyDJeg0UlnZjvM73JBsTAuhrH/J4fjwGOw59PwOW51r4J+p6CsKZWXdKSme4MFqU62CZMOsdDrU4CA==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4
@@ -1538,13 +1538,13 @@ packages:
   '@shajara/kernel@0.11.0':
     resolution: {integrity: sha512-6fWkPLHzhjmmxkUAnFBsIeIZF//S7JNlIWfYH8K9el0R8vCQrsv20kiQRAZDZ2cht8K0HAGJQ5VcJkOt8uMZTw==}
 
-  '@solidjs/signals@2.0.0-beta.18':
-    resolution: {integrity: sha512-xcTT5ObgN5iFlfxPuKdWvGqOPTdhO9MkONnm/LMHhnUht6hAtpvfSduwDSsVL0Hq4Z0I1fAWLGJoq0QBn2m0cw==}
+  '@solidjs/signals@2.0.0-beta.19':
+    resolution: {integrity: sha512-ZPyJF9CJLwMZIsi45RwkXDJD0cHASjIgnjHvkQLwqA8aIJSmgilCCQksk2U/bonu6jFkP8qppfHt35NycJ5zLg==}
 
-  '@solidjs/web@2.0.0-beta.18':
-    resolution: {integrity: sha512-SSgm25ZoJTUzxPwMW/uEhXyq3xJhpgFGs63p/YXevjBTE9Dv6YWbujTXdDU7QI9mMAfDDsyK90jbO5TvDa1yag==}
+  '@solidjs/web@2.0.0-beta.19':
+    resolution: {integrity: sha512-fBrK40aLCg6kXQrSldN3ak0dgmcJ+NzoD3u2ubVOugEcFYSa2t0YSSHcaW/bPtwSrO5PLGUq1OmPsEOfhmHkJw==}
     peerDependencies:
-      solid-js: ^2.0.0-beta.18
+      solid-js: ^2.0.0-beta.19
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -1775,11 +1775,11 @@ packages:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
 
-  babel-preset-solid@2.0.0-beta.18:
-    resolution: {integrity: sha512-R6RcRMglRBqn8EDfeZJhgqQoJZ6b458TOL8LJl9l34GVc6EVKr2Iou6OFXVaEVq+QfKINN57RZvdXwmbqt1Vag==}
+  babel-preset-solid@2.0.0-beta.19:
+    resolution: {integrity: sha512-pqBJcZWgB8JsKAgeHRmVidmPrZw3965bCz54TctMeVDUcd2V66VWRISjq5NSLcg/BpHwcj45lIGRgGof634t3w==}
     peerDependencies:
       '@babel/core': ^7.0.0
-      solid-js: ^2.0.0-beta.18
+      solid-js: ^2.0.0-beta.19
     peerDependenciesMeta:
       solid-js:
         optional: true
@@ -2307,8 +2307,8 @@ packages:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
 
-  knip@6.26.0:
-    resolution: {integrity: sha512-e9eELEEpBpGTd4H4HB7818/DYj9dMzMyUqAddfYwUN/EbSkgIjOuWEF96W/xHsmV0SDrsdXjIM+oZ2xpPzPsBA==}
+  knip@6.27.0:
+    resolution: {integrity: sha512-CngYEYrD0n20N06FXA8n3u/0Wnnugoa+B9k14OP+iKIgkCHuzvIdsP3nfwjhByoc1WfogpxfiriMboAXFETDUw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
@@ -2649,8 +2649,8 @@ packages:
     resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
     engines: {node: '>=16.20.0'}
 
-  postcss@8.5.16:
-    resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
+  postcss@8.5.19:
+    resolution: {integrity: sha512-Mz8SaolMd8nB+G13WkORcxQKHZ/NE4xXevtkJHVuG+guo9/wYKlIMTKAqGdEmYOXR2ijPjTYNHssizdaVSUNdQ==}
     engines: {node: ^10 || ^12 || >=14}
 
   prompts@2.4.2:
@@ -2772,8 +2772,8 @@ packages:
     resolution: {integrity: sha512-aqVvWoyO21L23mb+drl4RmMXbf6N7FdHjAhTRA9ZBL7apWBgfWC16KjrASI+1p9GAroljyMHj6fK67i0UiTNvQ==}
     engines: {node: '>= 18'}
 
-  solid-js@2.0.0-beta.18:
-    resolution: {integrity: sha512-RPCq953c9r/rsDTdYqFG/iGnJ4hBZYNB0nTGZ9YmJivTmJHfepj8g+c9Ka3jzatB+8myxaMGzJ6L3t+wdbPMrw==}
+  solid-js@2.0.0-beta.19:
+    resolution: {integrity: sha512-5tXzw0dIHlILGpERt7ALSveALvKwyRrJPYwZuv2TVWKCMTI2p/P1LkdaW7bfa9pIF//F+Y9XG/75h/1HpIxxXA==}
 
   solid-refresh@0.8.0-next.7:
     resolution: {integrity: sha512-fqkPRAeiE0tqfo2ZljeQBIXwfYssU2w1FmaWFrXmnV33B/CfGfez7BjtOF0Y1/orUNRXI/DZcJlJThHllcCMsA==}
@@ -2891,19 +2891,19 @@ packages:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
 
-  vite-plugin-solid@3.0.0-next.8:
-    resolution: {integrity: sha512-gkXLzMYsTBInWlizcCce9ehtNVf3f1Bw4sIZWB1WkJd17S6uS4MWPZaXPMljJQOfYnWFVrw9hbYgIS674+bM7Q==}
+  vite-plugin-solid@3.0.0-next.12:
+    resolution: {integrity: sha512-fFnej1o5RICGA3JYc3zzrfrdxore4VfdHxib91uGFPt7QnI1xLdYD6OvQoGv2ZyG0CKKi0mSYBiC/YLYj0BH2w==}
     peerDependencies:
-      '@solidjs/web': '>=2.0.0-beta.18 <2.0.0-experimental.0'
+      '@solidjs/web': '>=2.0.0-beta.19 <2.0.0-experimental.0'
       '@testing-library/jest-dom': ^5.16.6 || ^5.17.0 || ^6.*
-      solid-js: '>=2.0.0-beta.18 <2.0.0-experimental.0'
+      solid-js: '>=2.0.0-beta.19 <2.0.0-experimental.0'
       vite: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@testing-library/jest-dom':
         optional: true
 
-  vite@8.1.4:
-    resolution: {integrity: sha512-bTT9PsdWO+MQMNG9ZXIP/qM9wGh37DFxTV/sPq9cFpHr3w4jkgef032PkAL9jAqhk3Nz8NQw3O8n6/xFkqO4QQ==}
+  vite@8.1.5:
+    resolution: {integrity: sha512-7ULLwsCdYx/nRyrpiEwvqb5TFHrMVZyBt+rg/OAXT7rgj/z+DtTDyKFeLAdDkubDVDKD8jOsndmy7m55XcfUsw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -3151,7 +3151,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@dom-expressions/babel-plugin-jsx@0.50.0-next.21(@babel/core@7.29.7)':
+  '@dom-expressions/babel-plugin-jsx@0.50.0-next.22(@babel/core@7.29.7)':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/helper-module-imports': 7.18.6
@@ -3161,36 +3161,36 @@ snapshots:
       parse5: 7.3.0
       validate-html-nesting: 1.2.4
 
-  '@dom-expressions/jsx-compiler-darwin-arm64@0.50.0-next.21':
+  '@dom-expressions/compiler-darwin-arm64@0.50.0-next.22':
     optional: true
 
-  '@dom-expressions/jsx-compiler-darwin-x64@0.50.0-next.21':
+  '@dom-expressions/compiler-darwin-x64@0.50.0-next.22':
     optional: true
 
-  '@dom-expressions/jsx-compiler-linux-arm64-gnu@0.50.0-next.21':
+  '@dom-expressions/compiler-linux-arm64-gnu@0.50.0-next.22':
     optional: true
 
-  '@dom-expressions/jsx-compiler-linux-x64-gnu@0.50.0-next.21':
+  '@dom-expressions/compiler-linux-x64-gnu@0.50.0-next.22':
     optional: true
 
-  '@dom-expressions/jsx-compiler-wasm32-wasi@0.50.0-next.21':
+  '@dom-expressions/compiler-wasm32-wasi@0.50.0-next.22':
     dependencies:
       '@emnapi/core': 1.11.2
       '@emnapi/runtime': 1.11.2
       '@napi-rs/wasm-runtime': 1.1.6(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)
     optional: true
 
-  '@dom-expressions/jsx-compiler-win32-x64-msvc@0.50.0-next.21':
+  '@dom-expressions/compiler-win32-x64-msvc@0.50.0-next.22':
     optional: true
 
-  '@dom-expressions/jsx-compiler@0.50.0-next.21':
+  '@dom-expressions/compiler@0.50.0-next.22':
     optionalDependencies:
-      '@dom-expressions/jsx-compiler-darwin-arm64': 0.50.0-next.21
-      '@dom-expressions/jsx-compiler-darwin-x64': 0.50.0-next.21
-      '@dom-expressions/jsx-compiler-linux-arm64-gnu': 0.50.0-next.21
-      '@dom-expressions/jsx-compiler-linux-x64-gnu': 0.50.0-next.21
-      '@dom-expressions/jsx-compiler-wasm32-wasi': 0.50.0-next.21
-      '@dom-expressions/jsx-compiler-win32-x64-msvc': 0.50.0-next.21
+      '@dom-expressions/compiler-darwin-arm64': 0.50.0-next.22
+      '@dom-expressions/compiler-darwin-x64': 0.50.0-next.22
+      '@dom-expressions/compiler-linux-arm64-gnu': 0.50.0-next.22
+      '@dom-expressions/compiler-linux-x64-gnu': 0.50.0-next.22
+      '@dom-expressions/compiler-wasm32-wasi': 0.50.0-next.22
+      '@dom-expressions/compiler-win32-x64-msvc': 0.50.0-next.22
 
   '@drizzle-team/brocli@0.12.0': {}
 
@@ -3392,7 +3392,7 @@ snapshots:
     dependencies:
       hono: 4.12.30
 
-  '@hono/node-server@2.0.9(hono@4.12.30)':
+  '@hono/node-server@2.0.10(hono@4.12.30)':
     dependencies:
       hono: 4.12.30
 
@@ -3764,13 +3764,13 @@ snapshots:
     dependencies:
       fp-ts: 2.16.11
 
-  '@solidjs/signals@2.0.0-beta.18': {}
+  '@solidjs/signals@2.0.0-beta.19': {}
 
-  '@solidjs/web@2.0.0-beta.18(solid-js@2.0.0-beta.18)':
+  '@solidjs/web@2.0.0-beta.19(solid-js@2.0.0-beta.19)':
     dependencies:
       seroval: 1.5.5
       seroval-plugins: 1.5.5(seroval@1.5.5)
-      solid-js: 2.0.0-beta.18
+      solid-js: 2.0.0-beta.19
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -3882,13 +3882,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.10(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))':
+  '@vitest/mocker@4.1.10(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.10
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
 
   '@vitest/pretty-format@4.1.10':
     dependencies:
@@ -3962,12 +3962,12 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
-  babel-preset-solid@2.0.0-beta.18(@babel/core@7.29.7)(solid-js@2.0.0-beta.18):
+  babel-preset-solid@2.0.0-beta.19(@babel/core@7.29.7)(solid-js@2.0.0-beta.19):
     dependencies:
       '@babel/core': 7.29.7
-      '@dom-expressions/babel-plugin-jsx': 0.50.0-next.21(@babel/core@7.29.7)
+      '@dom-expressions/babel-plugin-jsx': 0.50.0-next.22(@babel/core@7.29.7)
     optionalDependencies:
-      solid-js: 2.0.0-beta.18
+      solid-js: 2.0.0-beta.19
 
   baseline-browser-mapping@2.10.42: {}
 
@@ -4382,7 +4382,7 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  knip@6.26.0:
+  knip@6.27.0:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.5)
       formatly: 0.3.0
@@ -4618,7 +4618,7 @@ snapshots:
 
   pkce-challenge@5.0.1: {}
 
-  postcss@8.5.16:
+  postcss@8.5.19:
     dependencies:
       nanoid: 3.3.15
       picocolors: 1.1.1
@@ -4779,18 +4779,18 @@ snapshots:
 
   smol-toml@1.7.0: {}
 
-  solid-js@2.0.0-beta.18:
+  solid-js@2.0.0-beta.19:
     dependencies:
-      '@solidjs/signals': 2.0.0-beta.18
+      '@solidjs/signals': 2.0.0-beta.19
       csstype: 3.2.3
       seroval: 1.5.5
       seroval-plugins: 1.5.5(seroval@1.5.5)
 
-  solid-refresh@0.8.0-next.7(solid-js@2.0.0-beta.18):
+  solid-refresh@0.8.0-next.7(solid-js@2.0.0-beta.19):
     dependencies:
       '@babel/generator': 7.29.7
       '@babel/types': 7.29.7
-      solid-js: 2.0.0-beta.18
+      solid-js: 2.0.0-beta.19
 
   source-map-js@1.2.1: {}
 
@@ -4896,26 +4896,26 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite-plugin-solid@3.0.0-next.8(@solidjs/web@2.0.0-beta.18(solid-js@2.0.0-beta.18))(solid-js@2.0.0-beta.18)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)):
+  vite-plugin-solid@3.0.0-next.12(@solidjs/web@2.0.0-beta.19(solid-js@2.0.0-beta.19))(solid-js@2.0.0-beta.19)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)):
     dependencies:
       '@babel/core': 7.29.7
-      '@dom-expressions/jsx-compiler': 0.50.0-next.21
-      '@solidjs/web': 2.0.0-beta.18(solid-js@2.0.0-beta.18)
+      '@dom-expressions/compiler': 0.50.0-next.22
+      '@solidjs/web': 2.0.0-beta.19(solid-js@2.0.0-beta.19)
       '@types/babel__core': 7.20.5
-      babel-preset-solid: 2.0.0-beta.18(@babel/core@7.29.7)(solid-js@2.0.0-beta.18)
+      babel-preset-solid: 2.0.0-beta.19(@babel/core@7.29.7)(solid-js@2.0.0-beta.19)
       merge-anything: 5.1.7
-      solid-js: 2.0.0-beta.18
-      solid-refresh: 0.8.0-next.7(solid-js@2.0.0-beta.18)
-      vite: 8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
-      vitefu: 1.1.3(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+      solid-js: 2.0.0-beta.19
+      solid-refresh: 0.8.0-next.7(solid-js@2.0.0-beta.19)
+      vite: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vitefu: 1.1.3(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
     transitivePeerDependencies:
       - supports-color
 
-  vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0):
+  vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.5
-      postcss: 8.5.16
+      postcss: 8.5.19
       rolldown: 1.1.5
       tinyglobby: 0.2.17
     optionalDependencies:
@@ -4926,14 +4926,14 @@ snapshots:
       tsx: 4.23.1
       yaml: 2.9.0
 
-  vitefu@1.1.3(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)):
+  vitefu@1.1.3(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)):
     optionalDependencies:
-      vite: 8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
 
-  vitest@4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)):
+  vitest@4.1.10(@types/node@26.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
+      '@vitest/mocker': 4.1.10(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.10
       '@vitest/runner': 4.1.10
       '@vitest/snapshot': 4.1.10
@@ -4950,7 +4950,7 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
-      vite: 8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
+      vite: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.1.1

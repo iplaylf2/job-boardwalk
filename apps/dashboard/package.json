@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@job-boardwalk/contracts": "workspace:*",
-    "@solidjs/web": "2.0.0-beta.18",
-    "solid-js": "2.0.0-beta.18"
+    "@solidjs/web": "2.0.0-beta.19",
+    "solid-js": "2.0.0-beta.19"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
@@ -24,6 +24,6 @@
     "oxlint": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "3.0.0-next.8"
+    "vite-plugin-solid": "3.0.0-next.12"
   }
 }

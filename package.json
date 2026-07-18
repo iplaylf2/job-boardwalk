@@ -19,7 +19,7 @@
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",
     "dependency-cruiser": "^18.1.0",
-    "knip": "^6.26.0",
+    "knip": "^6.27.0",
     "oxfmt": "^0.59.0",
     "oxlint": "catalog:",
     "typescript": "catalog:"
