@@ -1,8 +1,8 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobSearchIntent, RecommendationPageReference } from "@job-boardwalk/contracts";
 
-// oxlint-disable max-lines-per-function -- The editor state stays next to the intent collection it controls.
+// oxlint-disable max-lines, max-lines-per-function -- The editor state stays next to the intent collection it controls.
 import {
   deleteJobSearchIntent,
   saveJobSearchIntent,
@@ -21,14 +21,11 @@ function recommendationPageFor(intent: JobSearchIntent | null, platformId: Platf
 }
 
 export function JobSearchIntentsSection(props: {
-  editing: boolean;
   intents: JobSearchIntent[];
   onChanged: () => void;
 }): JSX.Element {
-  const visibleIntents = createMemo(() =>
-    props.editing ? props.intents : props.intents.filter((intent) => intent.selected),
-  );
   const [editingId, setEditingId] = createSignal<number | "new" | null>(null);
+  const [removingId, setRemovingId] = createSignal<number | null>(null);
   const [name, setName] = createSignal("");
   const [position, setPosition] = createSignal("");
   const [city, setCity] = createSignal("");
@@ -39,15 +36,6 @@ export function JobSearchIntentsSection(props: {
   const [error, setError] = createSignal("");
   const [saving, setSaving] = createSignal(false);
 
-  createEffect(
-    () => props.editing,
-    (editing) => {
-      if (!editing) {
-        setEditingId(null);
-      }
-    },
-  );
-
   function loadEditor(intent: JobSearchIntent | null): void {
     setName(intent?.name ?? "");
     setPosition(intent?.position ?? "");
@@ -57,6 +45,7 @@ export function JobSearchIntentsSection(props: {
     setYupaoLabel(recommendationPageFor(intent, "yupao")?.label ?? "");
     setYupaoUrl(recommendationPageFor(intent, "yupao")?.url ?? "");
     setError("");
+    setRemovingId(null);
     setEditingId(intent?.id ?? "new");
   }
 
@@ -67,7 +56,7 @@ export function JobSearchIntentsSection(props: {
     ];
     for (const page of candidates) {
       if (Boolean(page.label) !== Boolean(page.url)) {
-        throw new Error(`${platformLabels[page.platformId]}的显示标签和推荐页 URL 需要同时填写。`);
+        throw new Error(`${platformLabels[page.platformId]} 的页面名称和网址需要同时填写。`);
       }
     }
     const recommendationPages = candidates.filter(
@@ -75,7 +64,7 @@ export function JobSearchIntentsSection(props: {
         label.length > emptyCollectionLength && url.length > emptyCollectionLength,
     );
     if (recommendationPages.length === emptyCollectionLength) {
-      throw new Error("至少关联一个招聘平台的职位推荐页。");
+      throw new Error("至少添加一个招聘平台页面作为研究起点。");
     }
     return recommendationPages;
   }
@@ -110,7 +99,7 @@ export function JobSearchIntentsSection(props: {
       await selectJobSearchIntent(intent.id);
       props.onChanged();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "无法选中求职方向。");
+      setError(caughtError instanceof Error ? caughtError.message : "无法设为当前求职方向。");
     } finally {
       setSaving(false);
     }
@@ -121,10 +110,11 @@ export function JobSearchIntentsSection(props: {
     setError("");
     try {
       await deleteJobSearchIntent(intent.id);
+      setRemovingId(null);
       setEditingId(null);
       props.onChanged();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "无法删除求职方向。");
+      setError(caughtError instanceof Error ? caughtError.message : "无法移除求职方向。");
     } finally {
       setSaving(false);
     }
@@ -134,25 +124,23 @@ export function JobSearchIntentsSection(props: {
     <section class="intent-section">
       <div class="panel-introduction">
         <div>
-          <h3>{props.editing ? "管理方向" : "正在关注"}</h3>
+          <h3>求职方向</h3>
           <p>
-            {props.editing
-              ? "当前方向启用自动整理；推荐页用于开始研究，不会限制从其他已打开的平台页面整理岗位。"
-              : "系统会从这个方向的推荐页和其他已打开的平台页面整理岗位。"}
+            系统会围绕当前方向自动整理岗位。平台页面是研究起点，其他已打开的相关页面也可纳入整理。
           </p>
         </div>
-        <Show when={props.editing}>
-          <button class="button button-primary" type="button" onClick={() => loadEditor(null)}>
-            添加方向
-          </button>
-        </Show>
+        <button class="button button-primary" type="button" onClick={() => loadEditor(null)}>
+          添加方向
+        </button>
       </div>
       <Show
         when={props.intents.length !== emptyCollectionLength}
-        fallback={<p class="empty">还没有求职方向。添加后，系统会从关联推荐页开始自动整理岗位。</p>}
+        fallback={
+          <p class="empty">尚未添加求职方向。添加后，系统会从关联的平台页面开始整理岗位。</p>
+        }
       >
         <div class="intent-list">
-          <For each={visibleIntents()}>
+          <For each={props.intents}>
             {(intent) => (
               <article class={`intent-card ${intent.selected ? "intent-card-selected" : ""}`}>
                 <div class="intent-card-heading">
@@ -171,11 +159,20 @@ export function JobSearchIntentsSection(props: {
                         设为当前
                       </button>
                     </Show>
-                    <Show when={props.editing}>
-                      <button class="edit-link" type="button" onClick={() => loadEditor(intent)}>
-                        修改
-                      </button>
-                    </Show>
+                    <button class="edit-link" type="button" onClick={() => loadEditor(intent)}>
+                      修改
+                    </button>
+                    <button
+                      class="edit-link danger-link"
+                      type="button"
+                      onClick={() => {
+                        setEditingId(null);
+                        setError("");
+                        setRemovingId(intent.id);
+                      }}
+                    >
+                      移除
+                    </button>
                   </div>
                 </div>
                 <p class="intent-target">
@@ -190,6 +187,30 @@ export function JobSearchIntentsSection(props: {
                     )}
                   </For>
                 </div>
+                <Show when={removingId() === intent.id}>
+                  <div class="remove-confirmation">
+                    <span>
+                      {intent.selected
+                        ? "移除当前方向后，岗位整理会暂停，直到你选择另一个方向。"
+                        : "移除后，这个方向及其平台研究起点将不再保留。"}
+                    </span>
+                    <button
+                      class="button button-danger"
+                      type="button"
+                      disabled={saving()}
+                      onClick={() => remove(intent)}
+                    >
+                      {saving() ? "移除中…" : "确认移除"}
+                    </button>
+                    <button
+                      class="button button-quiet"
+                      type="button"
+                      onClick={() => setRemovingId(null)}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </Show>
               </article>
             )}
           </For>
@@ -198,8 +219,8 @@ export function JobSearchIntentsSection(props: {
       <Show when={editingId() !== null}>
         <form class="editor intent-editor" onSubmit={submit}>
           <div class="editor-heading">
-            <strong>{editingId() === "new" ? "添加求职方向" : `编辑${name()}`}</strong>
-            <span>关联各平台中适合作为研究起点的职位推荐页。</span>
+            <strong>{editingId() === "new" ? "添加求职方向" : `编辑“${name()}”`}</strong>
+            <span>添加适合作为研究起点的招聘平台页面。</span>
           </div>
           <label>
             方向名称
@@ -229,7 +250,7 @@ export function JobSearchIntentsSection(props: {
             />
           </label>
           <label>
-            BOSS直聘显示标签
+            BOSS直聘页面名称
             <input
               value={bossLabel()}
               placeholder="例如：Node.js(北京)"
@@ -237,7 +258,7 @@ export function JobSearchIntentsSection(props: {
             />
           </label>
           <label class="editor-wide">
-            BOSS直聘推荐页 URL
+            BOSS直聘页面网址
             <input
               type="url"
               value={bossUrl()}
@@ -246,7 +267,7 @@ export function JobSearchIntentsSection(props: {
             />
           </label>
           <label>
-            鱼泡直聘显示标签
+            鱼泡直聘页面名称
             <input
               value={yupaoLabel()}
               placeholder="例如：北京后端开发"
@@ -254,7 +275,7 @@ export function JobSearchIntentsSection(props: {
             />
           </label>
           <label class="editor-wide">
-            鱼泡直聘推荐页 URL
+            鱼泡直聘页面网址
             <input
               type="url"
               value={yupaoUrl()}
@@ -274,21 +295,13 @@ export function JobSearchIntentsSection(props: {
             <button class="button button-quiet" type="button" onClick={() => setEditingId(null)}>
               取消
             </button>
-            <Show when={typeof editingId() === "number"}>
-              <button
-                class="button button-danger"
-                type="button"
-                disabled={saving()}
-                onClick={() => {
-                  const intent = props.intents.find((candidate) => candidate.id === editingId());
-                  return intent ? remove(intent) : Promise.resolve();
-                }}
-              >
-                删除
-              </button>
-            </Show>
           </div>
         </form>
+      </Show>
+      <Show when={error() && editingId() === null}>
+        <p class="form-error collection-error" role="alert">
+          {error()}
+        </p>
       </Show>
     </section>
   );

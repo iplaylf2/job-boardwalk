@@ -67,25 +67,28 @@ export async function readResearchReport(id: number): Promise<ResearchReport> {
   return ResearchReport.assert(await response.json());
 }
 
-export function saveProfileFact(input: { key: string; value: string }): Promise<void> {
-  return requestWorkspaceChange("/api/profile/facts", {
-    body: JSON.stringify({
-      confirmed: true,
-      initiatedBy: "user",
-      key: input.key,
-      reason: "用户在 Dashboard 中编辑个人情况",
-      source: "user",
-      value: input.value,
-    }),
-    method: "POST",
-  });
+export function saveProfileFact(input: { id?: number; key: string; value: string }): Promise<void> {
+  return requestWorkspaceChange(
+    typeof input.id === "number" ? `/api/profile/facts/${String(input.id)}` : "/api/profile/facts",
+    {
+      body: JSON.stringify({
+        confirmed: true,
+        initiatedBy: "user",
+        key: input.key,
+        reason: "用户在 Dashboard 中维护个人条件",
+        source: "user",
+        value: input.value,
+      }),
+      method: typeof input.id === "number" ? "PUT" : "POST",
+    },
+  );
 }
 
 export function deleteProfileFact(id: number): Promise<void> {
   return requestWorkspaceChange(`/api/profile/facts/${id}`, {
     body: JSON.stringify({
       initiatedBy: "user",
-      reason: "用户在 Dashboard 中删除个人情况",
+      reason: "用户在 Dashboard 中移除个人条件",
     }),
     method: "DELETE",
   });
@@ -104,7 +107,7 @@ export function saveJobSearchIntent(input: {
     body: JSON.stringify({
       ...intent,
       initiatedBy: "user",
-      reason: "用户在 Dashboard 中编辑求职方向",
+      reason: "用户在 Dashboard 中维护求职方向",
     }),
     method: id ? "PUT" : "POST",
   });
@@ -114,7 +117,7 @@ export function selectJobSearchIntent(id: number): Promise<void> {
   return requestWorkspaceChange(`/api/search-intents/${id}/select`, {
     body: JSON.stringify({
       initiatedBy: "user",
-      reason: "用户在 Dashboard 中选中当前求职方向",
+      reason: "用户在 Dashboard 中将求职方向设为当前",
     }),
     method: "POST",
   });
@@ -124,7 +127,7 @@ export function deleteJobSearchIntent(id: number): Promise<void> {
   return requestWorkspaceChange(`/api/search-intents/${id}`, {
     body: JSON.stringify({
       initiatedBy: "user",
-      reason: "用户在 Dashboard 中删除求职方向",
+      reason: "用户在 Dashboard 中移除求职方向",
     }),
     method: "DELETE",
   });

@@ -1,5 +1,9 @@
 import type { Hono } from "hono";
-import { SaveProfileFactCommand, WorkspaceChangeAttribution } from "@job-boardwalk/contracts";
+import {
+  CreateProfileFactCommand,
+  UpdateProfileFactCommand,
+  WorkspaceChangeAttribution,
+} from "@job-boardwalk/contracts";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
@@ -16,9 +20,25 @@ export function registerProfileFactRoute(
   app.post("/api/profile/facts", (context) =>
     serviceScope.run(function* setProfileFact() {
       try {
-        const input = yield* readRequestBody(context, SaveProfileFactCommand);
-        repository.setProfileFact(input);
-        return context.json({ ok: true }, createdStatus);
+        const input = yield* readRequestBody(context, CreateProfileFactCommand);
+        return context.json(repository.createProfileFact(input), createdStatus);
+      } catch (error) {
+        return requestErrorResponse(error, context);
+      }
+    }),
+  );
+  app.put("/api/profile/facts/:id", (context) =>
+    serviceScope.run(function* updateProfileFact() {
+      try {
+        const input = yield* readRequestBody(context, UpdateProfileFactCommand);
+        const updated = repository.updateProfileFact({
+          id: readPositiveInteger(context.req.param("id"), "id"),
+          ...input,
+        });
+        if (!updated) {
+          throw new Error(`找不到个人资料：${context.req.param("id")}`);
+        }
+        return context.json(updated);
       } catch (error) {
         return requestErrorResponse(error, context);
       }

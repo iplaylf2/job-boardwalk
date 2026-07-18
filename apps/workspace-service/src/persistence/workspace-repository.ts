@@ -670,17 +670,17 @@ export class WorkspaceRepository {
     return { job, outcome: result.outcome };
   }
 
-  public setProfileFact(input: {
+  public createProfileFact(input: {
     confirmed: boolean;
     initiatedBy: "agent" | "system" | "user";
     key: string;
     reason: string;
     source: string;
     value: string;
-  }): void {
+  }): ProfileFact {
     const now = new Date().toISOString();
-    this.#database.transaction((transaction) => {
-      transaction
+    return this.#database.transaction((transaction) => {
+      const created = transaction
         .insert(profileFacts)
         .values({
           confirmed: input.confirmed,
@@ -689,26 +689,59 @@ export class WorkspaceRepository {
           updatedAt: now,
           value: input.value,
         })
-        .onConflictDoUpdate({
-          set: {
-            confirmed: input.confirmed,
-            source: input.source,
-            updatedAt: now,
-            value: input.value,
-          },
-          target: profileFacts.key,
-        })
-        .run();
+        .returning()
+        .get();
       transaction
         .insert(workspaceChanges)
         .values({
           initiatedBy: input.initiatedBy,
           occurredAt: now,
-          operation: "set-profile-fact",
+          operation: "create-profile-fact",
           reason: input.reason,
           subject: input.key,
         })
         .run();
+      return created;
+    });
+  }
+
+  public updateProfileFact(input: {
+    confirmed: boolean;
+    id: number;
+    initiatedBy: "agent" | "system" | "user";
+    key: string;
+    reason: string;
+    source: string;
+    value: string;
+  }): ProfileFact | null {
+    const now = new Date().toISOString();
+    return this.#database.transaction((transaction) => {
+      const updated = transaction
+        .update(profileFacts)
+        .set({
+          confirmed: input.confirmed,
+          key: input.key,
+          source: input.source,
+          updatedAt: now,
+          value: input.value,
+        })
+        .where(eq(profileFacts.id, input.id))
+        .returning()
+        .get();
+      if (!updated) {
+        return null;
+      }
+      transaction
+        .insert(workspaceChanges)
+        .values({
+          initiatedBy: input.initiatedBy,
+          occurredAt: now,
+          operation: "update-profile-fact",
+          reason: input.reason,
+          subject: input.key,
+        })
+        .run();
+      return updated;
     });
   }
 

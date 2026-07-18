@@ -187,16 +187,27 @@ conversation or producer that created it.
 
 ## Dashboard surface
 
-The Dashboard currently includes:
+Dashboard has three reader paths:
 
-- leased Browser Session presence;
-- platform-access observations and unresolved interruptions;
-- user-editable personal details and selectable job-search intents with platform recommendation
-  pages;
-- a dedicated, paginated job-library workspace for normalized job facts and merged platform
-  sources;
-- a report library and Markdown reader for available conclusions, comparisons, uncertainty, and
-  recommended next steps.
+- the workspace overview for the current job-search intent, personal context, leased Browser
+  Session presence, and platform-access observations;
+- a paginated job library for normalized job facts and merged platform sources;
+- a report library and Markdown reader for conclusions, comparisons, uncertainty, and recommended
+  next steps.
+
+### Workspace overview
+
+The overview follows task relevance rather than the order in which capabilities were added. The
+selected job-search intent and current personal context form the primary research basis. Browser
+and platform status appears in a compact secondary rail and gains visual emphasis only for an
+interruption or unavailable runtime. Counts already present in global navigation are not repeated
+as overview sections.
+
+Personal context is current research input, not immutable history. The overview initially shows a
+bounded read-only summary, and the user can expand every current personal fact in place. A separate
+management surface owns creating, revising, selecting, and removing job-search intents and personal
+facts. Removing a fact stops it from influencing future interpretation; Workspace Service retains
+change attribution separately.
 
 As the product grows, it should also include:
 

@@ -31,7 +31,7 @@ function BrowserStatus(props: { presence: BrowserSessionPresence }): JSX.Element
     return (
       <>
         <span class="status status-unknown">状态未知</span>
-        <span class="status-meta">等待浏览器会话</span>
+        <span class="status-meta">尚未收到会话状态</span>
       </>
     );
   }
@@ -39,7 +39,7 @@ function BrowserStatus(props: { presence: BrowserSessionPresence }): JSX.Element
     return (
       <>
         <span class="status status-warning">会话离线</span>
-        <span class="status-meta">{formatTimestamp(props.presence.lastReceivedAt)} 更新</span>
+        <span class="status-meta">最后更新于 {formatTimestamp(props.presence.lastReceivedAt)}</span>
       </>
     );
   }
@@ -55,7 +55,7 @@ function BrowserStatus(props: { presence: BrowserSessionPresence }): JSX.Element
       <span class="status-meta">
         {props.presence.browserStatus.available
           ? `${String(props.presence.browserStatus.tabCount)} 个标签页`
-          : `${formatTimestamp(props.presence.receivedAt)} 更新`}
+          : `记录于 ${formatTimestamp(props.presence.receivedAt)}`}
       </span>
     </>
   );
@@ -86,7 +86,7 @@ function PlatformStatus(props: { platform: PlatformAccessSummary }): JSX.Element
             fallback={
               <>
                 <span class="status status-unknown">登录状态未确认</span>
-                <span class="status-meta">等待页面证据</span>
+                <span class="status-meta">尚无明确页面证据</span>
               </>
             }
           >
@@ -110,31 +110,37 @@ function PlatformStatus(props: { platform: PlatformAccessSummary }): JSX.Element
   );
 }
 
+function needsAttention(
+  presence: BrowserSessionPresence,
+  platforms: PlatformAccessSummary[],
+): boolean {
+  const browserNeedsAttention =
+    presence.state === "offline" ||
+    (presence.state === "online" && !presence.browserStatus.available);
+  return browserNeedsAttention || platforms.some((platform) => platform.unresolvedInterruption);
+}
+
 export function WorkspaceStatusPanel(props: {
-  jobCount: number;
   presence: BrowserSessionPresence;
   platforms: PlatformAccessSummary[];
 }): JSX.Element {
   return (
-    <section class="status-panel" aria-labelledby="workspace-status-heading">
+    <aside
+      class={`status-panel ${
+        needsAttention(props.presence, props.platforms) ? "status-panel-attention" : ""
+      }`}
+      aria-labelledby="workspace-status-heading"
+    >
       <div class="status-panel-heading">
         <div>
-          <p class="section-kicker">研究概况</p>
-          <h2 id="workspace-status-heading">工作区正在记录什么</h2>
+          <p class="section-kicker">运行状态</p>
+          <h2 id="workspace-status-heading">浏览器与平台</h2>
         </div>
-        <a class="status-library-link" href="/jobs">
-          查看全部岗位
-          <span>{String(props.jobCount)}</span>
-        </a>
+        <Show when={needsAttention(props.presence, props.platforms)}>
+          <span class="status-panel-signal">需要处理</span>
+        </Show>
       </div>
       <div class="status-items">
-        <article class="status-item status-item-count">
-          <span class="status-item-name">已整理岗位</span>
-          <div class="status-count-value">
-            <strong>{String(props.jobCount)}</strong>
-            <span>个可回查岗位</span>
-          </div>
-        </article>
         <article class="status-item">
           <span class="status-item-name">浏览器会话</span>
           <div class="status-item-value">
@@ -152,6 +158,6 @@ export function WorkspaceStatusPanel(props: {
           )}
         </For>
       </div>
-    </section>
+    </aside>
   );
 }

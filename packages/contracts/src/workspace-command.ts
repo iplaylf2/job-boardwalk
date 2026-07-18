@@ -14,13 +14,18 @@ export const WorkspaceChangeAttribution = contract({
 });
 export type WorkspaceChangeAttribution = typeof WorkspaceChangeAttribution.infer;
 
-export const SaveProfileFactCommand = WorkspaceChangeAttribution.merge({
+const ProfileFactChange = contract({
   confirmed: "boolean",
   key: trimmedNonEmptyString,
   source: trimmedNonEmptyString,
   value: trimmedNonEmptyString,
 });
-export type SaveProfileFactCommand = typeof SaveProfileFactCommand.infer;
+
+export const CreateProfileFactCommand = WorkspaceChangeAttribution.merge(ProfileFactChange);
+export type CreateProfileFactCommand = typeof CreateProfileFactCommand.infer;
+
+export const UpdateProfileFactCommand = WorkspaceChangeAttribution.merge(ProfileFactChange);
+export type UpdateProfileFactCommand = typeof UpdateProfileFactCommand.infer;
 
 export const SaveJobSearchIntentCommand = WorkspaceChangeAttribution.merge({
   city: trimmedNonEmptyString,

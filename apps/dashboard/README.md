@@ -1,56 +1,52 @@
 # Dashboard
 
-Dashboard is Job Boardwalk's local interface. It presents durable Workspace Service data and
-research reports, and lets the user maintain personal context and job-search intents. Each intent
-combines a target position, city, and per-platform recommendation-page associations. At most one is
-selected as the current research direction, enabling passive collection while selected. Dashboard
-remains useful without an active agent conversation and never controls the browser.
+Dashboard is Job Boardwalk's local reading and maintenance surface for durable workspace data. It
+organizes the current research basis, normalized job library, and research reports, while showing
+leased Browser Session presence and timestamped platform-access evidence. It remains useful without
+an active agent conversation and never controls the browser.
+
+## Reader path
 
 The interface has three primary destinations:
 
-- `/` centers the selected search direction and its personal context, with browser and access
-  health kept in a secondary status rail;
-- `/jobs` is the job-library workspace for search, platform filtering, source links, and paginated
-  browsing;
+- `/` presents the selected job-search intent and personal context. Personal facts are read-only by
+  default and can all be expanded in place; a separate management surface owns creating, revising,
+  selecting, and removing intents and facts. Browser and platform status remains a compact
+  secondary rail unless it needs attention.
+- `/jobs` provides search, platform filtering, original source links, and server-backed pagination
+  for normalized job facts.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
 The header is the only cross-page navigation. Its job-library link includes the current job count,
-so the overview does not repeat the same destination in a summary card.
+so the overview does not repeat that count as a separate section.
 
-## What Dashboard does
+## Data ownership and freshness
 
-Dashboard:
+Workspace Service owns durable personal context, job-search intents, job facts, platform-access
+observations, and reports. Browser Session owns browser runtime status. Dashboard reads both
+projections from Workspace Service; it does not access SQLite, Patchright, the browser profile, or
+either service's lifecycle.
 
-- shows leased Browser Session presence and browser availability;
-- shows each platform's latest definite authentication observation and any later unresolved
-  interruption;
-- lets the user add, update, select, and remove job-search intents and their BOSS直聘/鱼泡直聘
-  recommendation-page associations;
-- lets the user add, update, and remove other personal details;
-- provides a searchable library of jobs discovered during directed platform research, with a
-  platform filter and server-backed pagination;
-- displays confident cross-platform matches as one job while retaining each recruiting-site link;
-- lists unexpired research reports and renders them within a bounded Markdown surface.
-
-Observation times remain visible because saved platform observations are historical; they do not
-guarantee the platform's current authentication state. Browser Session presence is separate,
-short-lived runtime state. Workspace Service owns the durable data and Browser Session owns the
-runtime status. Dashboard owns neither source: it does not access SQLite, Patchright, the browser
-profile, or either service's lifecycle.
+Saved platform observations are historical evidence rather than a guarantee of current access, so
+their observation times remain visible. Browser Session presence is a separate short-lived lease.
+Dashboard gives visual priority to an unavailable browser or an unresolved platform interruption
+without opening or checking a recruiting page.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. Dashboard
 does not open or control that window.
 
-Dashboard rereads the workspace overview every five seconds and refreshes it after a user edit.
+Dashboard rereads the workspace overview every five seconds and refreshes it after a user change.
 The job-library page requests at most 24 jobs at a time and refreshes the current result every 30
-seconds. Research-report pages refresh every five seconds to reflect edits to open drafts and
-completed reports. These reads affect only the local Workspace Service API; they never refresh a
-recruiting page.
+seconds. Research-report pages refresh every five seconds to reflect updates to drafts and completed
+reports. These reads affect only the local Workspace Service API; they never refresh a recruiting
+page.
 
-Dashboard treats raw HTML as text and does not turn Markdown image syntax into loaded images. The
-renderer supports ordinary document structure, tables, code, section anchors, local Dashboard
-links, and HTTPS source links. It is a document reader, not an agent UI or browser-control surface.
+## Report rendering
+
+Dashboard treats raw HTML as text and does not load Markdown images. The renderer supports prose,
+headings, lists, links, tables, quotes, code, section anchors, local Dashboard links, and HTTPS
+source links. It is a document reader, not an agent UI or browser-control surface.
 
 ## Run Dashboard
 
@@ -81,5 +77,6 @@ Run the Dashboard checks with:
 ```sh
 pnpm --filter @job-boardwalk/dashboard lint
 pnpm --filter @job-boardwalk/dashboard typecheck
+pnpm --filter @job-boardwalk/dashboard test
 pnpm --filter @job-boardwalk/dashboard build
 ```

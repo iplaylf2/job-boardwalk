@@ -79,7 +79,7 @@ function mcpRequest(
 }
 
 function seedMcpWorkspace(repository: WorkspaceRepository): void {
-  repository.setProfileFact({
+  repository.createProfileFact({
     confirmed: true,
     initiatedBy: "agent",
     key: "target-role",
@@ -268,8 +268,23 @@ test("updates profile and selected job-search intent through the public HTTP bou
   try {
     const initialProfileResponse = await postProfileFact(httpApp, "后端工程师");
     expect(initialProfileResponse.status).toBe(createdStatus);
-    const updatedProfileResponse = await postProfileFact(httpApp, "平台工程师");
-    expect(updatedProfileResponse.status).toBe(createdStatus);
+    const initialProfile = (await initialProfileResponse.json()) as { id: number };
+    const updatedProfileResponse = await httpApp.request(
+      `/api/profile/facts/${String(initialProfile.id)}`,
+      {
+        body: JSON.stringify({
+          confirmed: true,
+          initiatedBy: "user",
+          key: "target-position",
+          reason: "test",
+          source: "dashboard",
+          value: "平台工程师",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+      },
+    );
+    expect(updatedProfileResponse.status).toBe(successfulStatus);
     const intentResponse = await httpApp.request("/api/search-intents", {
       body: JSON.stringify({
         city: "上海",
@@ -311,8 +326,8 @@ test("updates profile and selected job-search intent through the public HTTP bou
       profileFacts: [
         {
           confirmed: true,
-          key: "target-role",
-          source: "conversation",
+          key: "target-position",
+          source: "dashboard",
           value: "平台工程师",
         },
       ],

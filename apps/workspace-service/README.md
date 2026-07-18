@@ -65,6 +65,7 @@ The loopback HTTP surface currently exposes:
 - `PUT /api/browser-session/status`
 - `POST /api/platform-access/observations`
 - `POST /api/profile/facts`
+- `PUT /api/profile/facts/:id`
 - `DELETE /api/profile/facts/:id`
 - `POST /api/search-intents`
 - `PUT /api/search-intents/:id`
@@ -131,7 +132,8 @@ projects the latest definite authentication result and only an interruption newe
 
 ### Personal context and search intent
 
-Profile facts represent the user's personal context. The endpoint accepts:
+Profile facts represent the user's current personal context. Creating a fact with
+`POST /api/profile/facts` and replacing one with `PUT /api/profile/facts/:id` use the same body:
 
 ```json
 {
@@ -170,10 +172,10 @@ The job-search-intent endpoint accepts:
 ```
 
 Dashboard and agents use the same write boundary. `initiatedBy` records whether a change came from
-`user`, `agent`, or `system`. The schema guarantees at most one selected intent. Individual facts
-and intents can be removed with `DELETE /api/profile/facts/:id` and
-`DELETE /api/search-intents/:id`; mutations accept a JSON body containing `initiatedBy` and
-`reason`.
+`user`, `agent`, or `system`. The schema guarantees unique profile-fact keys and at most one
+selected intent. Individual facts and intents can be removed with
+`DELETE /api/profile/facts/:id` and `DELETE /api/search-intents/:id`; mutations accept a JSON body
+containing `initiatedBy` and `reason`.
 
 ### Job library
 

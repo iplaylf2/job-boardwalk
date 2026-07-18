@@ -4,7 +4,7 @@
 - [`workspace-service`](workspace-service/) owns durable local state, Markdown research reports,
   and recruiting-domain APIs.
 - [`dashboard`](dashboard/) presents workspace state and research reports, and lets the user
-  maintain personal context.
+  maintain personal context and job-search intents.
 
 Browser Session launches Patchright Chromium with a dedicated local profile and owns that process
 for its service lifetime. The agent host connects directly to Browser Session. Workspace Service
