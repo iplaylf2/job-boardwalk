@@ -18,8 +18,9 @@ export function PersonalContextPanel(props: {
     <section class="profile-panel" aria-labelledby="profile-heading">
       <header class="profile-heading">
         <div>
-          <p class="section-kicker">当前上下文</p>
-          <h2 id="profile-heading">求职方向</h2>
+          <p class="section-kicker">研究依据</p>
+          <h2 id="profile-heading">方向与个人条件</h2>
+          <p class="profile-heading-copy">这些信息决定助手关注什么，以及如何解释岗位。</p>
         </div>
         <div class="profile-heading-actions">
           <button

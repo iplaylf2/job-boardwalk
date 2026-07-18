@@ -31,28 +31,65 @@ function formattedSalary(source: JobPosting["sources"][number]): string | null {
     : base;
 }
 
+function displaySalary(job: JobPosting): string {
+  for (const source of job.sources) {
+    const salary = formattedSalary(source);
+    if (salary) {
+      return salary;
+    }
+  }
+  return "薪资待补充";
+}
+
+function displaySummary(job: JobPosting): string | null {
+  let summary = job.summary.trim();
+  const removablePrefixes = [
+    job.title,
+    ...job.sources.flatMap((source) => [
+      source.title,
+      source.salaryText ?? "",
+      source.experienceRequirement ?? "",
+      source.educationRequirement ?? "",
+      ...source.details,
+    ]),
+  ].filter(Boolean);
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of removablePrefixes) {
+      if (summary.startsWith(prefix)) {
+        summary = summary.slice(prefix.length).trim();
+        changed = true;
+      }
+    }
+  }
+
+  return summary.length > emptyCollectionLength && summary !== job.title ? summary : null;
+}
+
 export function JobCard(props: { job: JobPosting }): JSX.Element {
+  const summary = displaySummary(props.job);
+
   return (
     <article class="job-card">
       <header>
         <div>
-          <Show when={props.job.company}>
-            {(company) => <span class="job-company">{company()}</span>}
-          </Show>
+          <span class="job-company">{props.job.company ?? "公司信息待补充"}</span>
           <h3>{props.job.title}</h3>
         </div>
       </header>
-      <Show when={props.job.location}>
-        {(location) => <p class="job-location">{location()}</p>}
-      </Show>
-      <Show when={props.job.experienceRequirement || props.job.educationRequirement}>
-        <p class="job-requirements">
-          {[props.job.experienceRequirement, props.job.educationRequirement]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-      </Show>
-      <p class="job-summary">{props.job.summary}</p>
+      <div class="job-primary-facts">
+        <strong class="job-salary">{displaySalary(props.job)}</strong>
+        <Show when={props.job.location}>{(location) => <span>{location()}</span>}</Show>
+        <Show when={props.job.experienceRequirement}>
+          {(experience) => <span>{experience()}</span>}
+        </Show>
+        <Show when={props.job.educationRequirement}>
+          {(education) => <span>{education()}</span>}
+        </Show>
+      </div>
+      <Show when={summary}>{(text) => <p class="job-summary">{text()}</p>}</Show>
       <Show when={props.job.details.length !== emptyCollectionLength}>
         <div class="job-details">
           <For each={props.job.details}>{(detail) => <span>{detail}</span>}</For>

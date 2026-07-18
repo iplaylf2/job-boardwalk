@@ -111,16 +111,30 @@ function PlatformStatus(props: { platform: PlatformAccessSummary }): JSX.Element
 }
 
 export function WorkspaceStatusPanel(props: {
+  jobCount: number;
   presence: BrowserSessionPresence;
   platforms: PlatformAccessSummary[];
 }): JSX.Element {
   return (
     <section class="status-panel" aria-labelledby="workspace-status-heading">
       <div class="status-panel-heading">
-        <p class="section-kicker">运行状态</p>
-        <h2 id="workspace-status-heading">浏览器与登录</h2>
+        <div>
+          <p class="section-kicker">研究概况</p>
+          <h2 id="workspace-status-heading">工作区正在记录什么</h2>
+        </div>
+        <a class="status-library-link" href="/jobs">
+          查看全部岗位
+          <span>{String(props.jobCount)}</span>
+        </a>
       </div>
       <div class="status-items">
+        <article class="status-item status-item-count">
+          <span class="status-item-name">已整理岗位</span>
+          <div class="status-count-value">
+            <strong>{String(props.jobCount)}</strong>
+            <span>个可回查岗位</span>
+          </div>
+        </article>
         <article class="status-item">
           <span class="status-item-name">浏览器会话</span>
           <div class="status-item-value">
