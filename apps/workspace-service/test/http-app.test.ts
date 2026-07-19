@@ -422,6 +422,22 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     });
     expect(invalidSourceResponse.status).toBe(badRequestStatus);
 
+    const missingJobUrlResponse = await httpApp.request("/api/jobs", {
+      body: JSON.stringify({
+        collectedAt: "2026-07-17T10:00:00.000Z",
+        details: [],
+        discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
+        initiatedBy: "system",
+        platformId: "boss",
+        reason: "test",
+        summary: "负责后端服务开发。",
+        title: "后端开发",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(missingJobUrlResponse.status).toBe(badRequestStatus);
+
     const libraryResponse = await httpApp.request("/api/jobs?page=1&pageSize=1&platform=boss");
     const library = JobPostingPage.assert(await libraryResponse.json());
     expect(library).toMatchObject({
@@ -681,6 +697,7 @@ test("advertises job-library filters by public tool name", async () => {
       {
         inputSchema: {
           properties: {
+            interestedOnly: { type: "boolean" },
             page: { minimum: 1, type: "integer" },
             pageSize: { maximum: 48, minimum: 1, type: "integer" },
             platformId: { enum: ["boss", "yupao"] },
@@ -701,6 +718,71 @@ test("advertises job-library filters by public tool name", async () => {
         required: expect.arrayContaining(["markdown", "state", "title"]),
       },
     });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+// eslint-disable-next-line max-lines-per-function -- One boundary flow covers accepted data, reads, and URL rejection.
+test("synchronizes job interests and reads the interested slice through HTTP", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const response = await httpApp.request("/api/job-interests", {
+      body: JSON.stringify({
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        initiatedBy: "system",
+        jobs: [
+          {
+            company: "360集团",
+            details: ["Node.js"],
+            externalJobId: "agent",
+            jobUrl: "https://www.zhipin.com/job_detail/agent.html",
+            summary: "Agent 全栈",
+            title: "高级全栈工程师",
+          },
+        ],
+        platformId: "boss",
+        reason: "test",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        total: 1,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(response.status).toBe(successfulStatus);
+    expect(await response.json()).toMatchObject({ observed: 1, platformId: "boss" });
+    const listResponse = await httpApp.request("/api/jobs?interested=true");
+    expect(JobPostingPage.assert(await listResponse.json())).toMatchObject({
+      jobs: [
+        {
+          company: "360集团",
+          sources: [{ interest: { position: 1 }, platformId: "boss" }],
+        },
+      ],
+      total: 1,
+    });
+
+    const invalidResponse = await httpApp.request("/api/job-interests", {
+      body: JSON.stringify({
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        initiatedBy: "system",
+        jobs: [],
+        platformId: "boss",
+        reason: "test",
+        sourceUrl: "https://example.invalid/interested",
+        total: 0,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(invalidResponse.status).toBe(badRequestStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

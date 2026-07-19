@@ -5,6 +5,7 @@ import type { JobPosting, NormalizedSalary } from "@job-boardwalk/contracts";
 import styles from "./card.module.css";
 
 const emptyCollectionLength = 0;
+const lastCollectionIndex = -1;
 
 function formattedDate(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -43,8 +44,33 @@ function displaySalary(job: JobPosting): string | null {
   return null;
 }
 
+function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
+  return (
+    <div class={styles["sources"]}>
+      <For each={props.job.sources}>
+        {(source) => {
+          const label = `${source.platformId === "boss" ? "BOSS直聘" : "鱼泡直聘"}${
+            source.interest ? " · 感兴趣" : ""
+          }`;
+          return source.jobUrl ? (
+            <a href={source.jobUrl} target="_blank" rel="noreferrer">
+              {label}
+            </a>
+          ) : (
+            <span>{label}</span>
+          );
+        }}
+      </For>
+    </div>
+  );
+}
+
 export function JobCard(props: { job: JobPosting }): JSX.Element {
   const salary = displaySalary(props.job);
+  const latestInterestAt = props.job.sources
+    .flatMap((source) => (source.interest ? [source.interest.lastObservedAt] : []))
+    .toSorted()
+    .at(lastCollectionIndex);
 
   return (
     <article class={styles["card"]}>
@@ -72,16 +98,12 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
         </div>
       </Show>
       <footer>
-        <div class={styles["sources"]}>
-          <For each={props.job.sources}>
-            {(source) => (
-              <a href={source.jobUrl} target="_blank" rel="noreferrer">
-                {source.platformId === "boss" ? "BOSS直聘" : "鱼泡直聘"}
-              </a>
-            )}
-          </For>
-        </div>
-        <span>更新于 {formattedDate(props.job.updatedAt)}</span>
+        <JobSourceLinks job={props.job} />
+        <span>
+          {latestInterestAt
+            ? `感兴趣状态同步于 ${formattedDate(latestInterestAt)}`
+            : `更新于 ${formattedDate(props.job.updatedAt)}`}
+        </span>
       </footer>
     </article>
   );

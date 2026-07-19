@@ -5,6 +5,7 @@ export const defaultJobPageSize = 24;
 export const maximumJobPageSize = 48;
 
 export interface JobLibraryQuery {
+  interestedOnly?: boolean;
   page: number;
   pageSize: number;
   platformId?: PlatformId;

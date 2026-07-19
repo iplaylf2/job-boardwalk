@@ -7,8 +7,9 @@ CREATE TABLE `job_posting_sources` (
 	`experience_requirement` text,
 	`external_job_id` text,
 	`id` integer PRIMARY KEY AUTOINCREMENT,
+	`identity_key` text NOT NULL,
 	`job_id` integer NOT NULL,
-	`job_url` text NOT NULL,
+	`job_url` text,
 	`last_checked_at` text NOT NULL,
 	`location` text,
 	`normalized_salary` text,
@@ -54,6 +55,15 @@ CREATE TABLE `job_search_intents` (
 	CONSTRAINT "job_search_intents_selected" CHECK("selected" in (0, 1))
 );
 --> statement-breakpoint
+CREATE TABLE `job_source_interests` (
+	`first_observed_at` text NOT NULL,
+	`last_observed_at` text NOT NULL,
+	`position` integer NOT NULL,
+	`source_id` integer PRIMARY KEY,
+	CONSTRAINT `fk_job_source_interests_source_id_job_posting_sources_id_fk` FOREIGN KEY (`source_id`) REFERENCES `job_posting_sources`(`id`) ON DELETE CASCADE,
+	CONSTRAINT "job_source_interests_position" CHECK("position" >= 1)
+);
+--> statement-breakpoint
 CREATE TABLE `platform_access_observations` (
 	`authentication_state` text,
 	`evidence` text NOT NULL,
@@ -96,7 +106,6 @@ CREATE TABLE `workspace_changes` (
 	CONSTRAINT "workspace_changes_initiated_by" CHECK("initiated_by" in ('agent', 'user', 'system'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `job_posting_sources_platform_external_id` ON `job_posting_sources` (`platform_id`,`external_job_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `job_posting_sources_platform_url` ON `job_posting_sources` (`platform_id`,`job_url`);--> statement-breakpoint
+CREATE UNIQUE INDEX `job_posting_sources_platform_identity` ON `job_posting_sources` (`platform_id`,`identity_key`);--> statement-breakpoint
 CREATE UNIQUE INDEX `job_search_intent_recommendation_pages_intent_platform` ON `job_search_intent_recommendation_pages` (`intent_id`,`platform_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `job_search_intents_single_selected` ON `job_search_intents` (`selected`) WHERE "job_search_intents"."selected" = 1;

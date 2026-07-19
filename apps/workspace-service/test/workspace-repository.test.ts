@@ -314,3 +314,146 @@ test("creates, updates, expires, and deletes research reports", async () => {
     await rm(directory, { recursive: true });
   }
 });
+
+// eslint-disable-next-line max-lines-per-function -- One lifecycle proves relation replacement without deleting job facts.
+test("replaces a platform's interest relations without removing jobs from the library", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    const first = repository.synchronizeJobInterests({
+      initiatedBy: "system",
+      reason: "test",
+      snapshot: {
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        jobs: [
+          {
+            company: "360集团",
+            details: ["Node.js"],
+            externalJobId: "agent",
+            jobUrl: "https://www.zhipin.com/job_detail/agent.html",
+            summary: "Agent 全栈",
+            title: "高级全栈工程师",
+          },
+          {
+            company: "博趣互动",
+            details: ["C#"],
+            externalJobId: "server",
+            jobUrl: "https://www.zhipin.com/job_detail/server.html",
+            summary: "服务器开发",
+            title: "高级服务器开发工程师",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        total: 2,
+      },
+    });
+    expect(first).toMatchObject({ complete: true, observed: 2, removed: 0 });
+    const agentInterest = expect.objectContaining({
+      externalJobId: "agent",
+      interest: expect.objectContaining({
+        firstObservedAt: "2026-07-19T10:00:00.000Z",
+        position: 1,
+      }),
+    });
+    const serverInterest = expect.objectContaining({
+      externalJobId: "server",
+      interest: expect.objectContaining({ position: 2 }),
+    });
+    const interestedPage = repository.listJobPostingPage({
+      interestedOnly: true,
+      page: firstPage,
+      pageSize: filterPageSize,
+    });
+    expect(interestedPage).toMatchObject({
+      jobs: expect.arrayContaining([
+        expect.objectContaining({ sources: [agentInterest] }),
+        expect.objectContaining({ sources: [serverInterest] }),
+      ]),
+      total: twoJobs,
+    });
+
+    const second = repository.synchronizeJobInterests({
+      initiatedBy: "system",
+      reason: "test",
+      snapshot: {
+        capturedAt: "2026-07-19T11:00:00.000Z",
+        complete: false,
+        jobs: [
+          {
+            company: "博趣互动",
+            details: ["C#", "MySQL"],
+            externalJobId: "server",
+            jobUrl: "https://www.zhipin.com/job_detail/server.html",
+            summary: "服务器开发",
+            title: "高级服务器开发工程师",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        total: 1,
+      },
+    });
+    expect(second).toMatchObject({ complete: false, observed: 1, removed: 0 });
+    expect(
+      repository.listJobPostingPage({ interestedOnly: true, page: 1, pageSize: 10 }),
+    ).toMatchObject({ total: twoJobs });
+
+    const third = repository.synchronizeJobInterests({
+      initiatedBy: "system",
+      reason: "test",
+      snapshot: {
+        capturedAt: "2026-07-19T12:00:00.000Z",
+        complete: true,
+        jobs: [
+          {
+            company: "博趣互动",
+            details: ["C#", "MySQL"],
+            externalJobId: "server",
+            jobUrl: "https://www.zhipin.com/job_detail/server.html",
+            summary: "服务器开发",
+            title: "高级服务器开发工程师",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        total: 1,
+      },
+    });
+    expect(third).toMatchObject({ complete: true, observed: 1, removed: 1 });
+    expect(
+      repository.listJobPostingPage({ interestedOnly: true, page: 1, pageSize: 10 }),
+    ).toMatchObject({
+      jobs: [
+        {
+          sources: [
+            {
+              externalJobId: "server",
+              interest: {
+                firstObservedAt: "2026-07-19T10:00:00.000Z",
+                lastObservedAt: "2026-07-19T12:00:00.000Z",
+                position: 1,
+              },
+            },
+          ],
+        },
+      ],
+      total: 1,
+    });
+    const completeLibrary = repository.listJobPostingPage({ page: 1, pageSize: 10 });
+    expect(completeLibrary.total).toBe(twoJobs);
+    expect(
+      completeLibrary.jobs
+        .flatMap(({ sources }) => sources)
+        .find(({ externalJobId }) => externalJobId === "agent"),
+    ).not.toHaveProperty("interest");
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});

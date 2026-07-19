@@ -7,6 +7,7 @@ import {
   positiveInteger,
   trimmedNonEmptyString,
 } from "./internal/contract-fields.ts";
+import { JobSourceInterest } from "./job-interest.ts";
 
 export const JobPostingObservation = contract({
   collectedAt: normalizedTimestamp,
@@ -16,7 +17,7 @@ export const JobPostingObservation = contract({
   "educationRequirement?": trimmedNonEmptyString,
   "experienceRequirement?": trimmedNonEmptyString,
   "externalJobId?": trimmedNonEmptyString,
-  jobUrl: trimmedNonEmptyString,
+  "jobUrl?": trimmedNonEmptyString,
   "location?": trimmedNonEmptyString,
   platformId,
   "salaryText?": trimmedNonEmptyString,
@@ -36,6 +37,7 @@ export type NormalizedSalary = typeof NormalizedSalary.infer;
 
 export const JobPostingSource = JobPostingObservation.merge({
   id: positiveInteger,
+  "interest?": JobSourceInterest,
   jobId: positiveInteger,
   lastCheckedAt: normalizedTimestamp,
   "normalizedSalary?": NormalizedSalary,

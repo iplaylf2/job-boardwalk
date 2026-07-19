@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "a0b0100c-4842-4acb-8981-2852633a0986",
+  "id": "9a7a3e51-119b-4edb-a67d-e8cd3649c813",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -18,6 +18,10 @@
     },
     {
       "name": "job_search_intents",
+      "entityType": "tables"
+    },
+    {
+      "name": "job_source_interests",
       "entityType": "tables"
     },
     {
@@ -117,6 +121,16 @@
       "table": "job_posting_sources"
     },
     {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identity_key",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
       "type": "integer",
       "notNull": true,
       "autoincrement": false,
@@ -128,7 +142,7 @@
     },
     {
       "type": "text",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -448,6 +462,46 @@
     },
     {
       "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "first_observed_at",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_observed_at",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "position",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_id",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -719,6 +773,17 @@
       "table": "job_search_intent_recommendation_pages"
     },
     {
+      "columns": ["source_id"],
+      "tableTo": "job_posting_sources",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_job_source_interests_source_id_job_posting_sources_id_fk",
+      "entityType": "fks",
+      "table": "job_source_interests"
+    },
+    {
       "columns": ["id"],
       "nameExplicit": false,
       "name": "job_posting_sources_pk",
@@ -744,6 +809,13 @@
       "nameExplicit": false,
       "name": "job_search_intents_pk",
       "table": "job_search_intents",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["source_id"],
+      "nameExplicit": false,
+      "name": "job_source_interests_pk",
+      "table": "job_source_interests",
       "entityType": "pks"
     },
     {
@@ -781,32 +853,14 @@
           "isExpression": false
         },
         {
-          "value": "external_job_id",
+          "value": "identity_key",
           "isExpression": false
         }
       ],
       "isUnique": true,
       "where": null,
       "origin": "manual",
-      "name": "job_posting_sources_platform_external_id",
-      "entityType": "indexes",
-      "table": "job_posting_sources"
-    },
-    {
-      "columns": [
-        {
-          "value": "platform_id",
-          "isExpression": false
-        },
-        {
-          "value": "job_url",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "origin": "manual",
-      "name": "job_posting_sources_platform_url",
+      "name": "job_posting_sources_platform_identity",
       "entityType": "indexes",
       "table": "job_posting_sources"
     },
@@ -868,6 +922,12 @@
       "name": "job_search_intents_selected",
       "entityType": "checks",
       "table": "job_search_intents"
+    },
+    {
+      "value": "\"position\" >= 1",
+      "name": "job_source_interests_position",
+      "entityType": "checks",
+      "table": "job_source_interests"
     },
     {
       "value": "\"authentication_state\" is null or \"authentication_state\" in ('authenticated', 'unauthenticated')",

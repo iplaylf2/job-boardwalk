@@ -94,6 +94,12 @@
   text-decoration: none;
 }
 
+.sources span {
+  color: var(--brand-dark);
+  font-size: var(--text-meta);
+  font-weight: 700;
+}
+
 .sources a:hover {
   color: var(--brand-dark);
   text-decoration: underline;

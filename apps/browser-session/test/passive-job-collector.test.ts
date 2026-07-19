@@ -10,7 +10,6 @@ import {
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
-const noPageReads = 0;
 const onePageRead = 1;
 
 function jobPage(url: string, title: string): Page {
@@ -153,8 +152,9 @@ test("collects recognizable cards from non-seed platform tabs during the selecte
   ]);
 });
 
-test("does not inspect platform tabs without a selected intent", async () => {
+test("continues collecting open platform tabs without seeding pages when no intent is selected", async () => {
   let pageReadCount = 0;
+  let writeCount = 0;
   const context = {
     pages: () => {
       pageReadCount += onePageRead;
@@ -170,7 +170,7 @@ test("does not inspect platform tabs without a selected intent", async () => {
   const writer = {
     *write() {
       yield* [];
-      expect.unreachable("没有选中的求职方向时不应写入岗位");
+      writeCount += onePageRead;
     },
   } satisfies JobPostingWriter;
   const collector = new PassiveJobCollector(context, reader, writer, () => null);
@@ -178,7 +178,8 @@ test("does not inspect platform tabs without a selected intent", async () => {
 
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
 
-  expect(pageReadCount).toBe(noPageReads);
+  expect(pageReadCount).toBe(onePageRead);
+  expect(writeCount).toBe(onePageRead);
 });
 
 test("reports one unstable page and preserves jobs from later healthy pages", async () => {

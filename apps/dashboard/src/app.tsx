@@ -7,7 +7,10 @@ import { WorkspaceOverviewPage } from "./workspace-overview-page.js";
 export function App(): JSX.Element {
   const path = globalThis.location.pathname;
   if (path === "/jobs") {
-    return <JobLibraryPage />;
+    return <JobLibraryPage slice="all" />;
+  }
+  if (path === "/jobs/interested") {
+    return <JobLibraryPage slice="interested" />;
   }
   if (path === "/reports") {
     return <ResearchReportListPage />;

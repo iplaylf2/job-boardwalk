@@ -26,6 +26,11 @@ function readJobLibraryQuery(context: Context) {
   }
   const query = context.req.query("query")?.trim();
   const platform = context.req.query("platform");
+  const interested = context.req.query("interested");
+  if (interested && interested !== "true" && interested !== "false") {
+    throw new InvalidRequestError("interested 只接受 true 或 false");
+  }
+  const interestFilter = interested === "true" ? { interestedOnly: true } : {};
   if (platform) {
     if (!isPlatformId(platform)) {
       throw new InvalidRequestError("platform 不是受支持的招聘平台");
@@ -34,12 +39,14 @@ function readJobLibraryQuery(context: Context) {
       page,
       pageSize,
       platformId: platform,
+      ...interestFilter,
       ...(query ? { query } : {}),
     };
   }
   return {
     page,
     pageSize,
+    ...interestFilter,
     ...(query ? { query } : {}),
   };
 }

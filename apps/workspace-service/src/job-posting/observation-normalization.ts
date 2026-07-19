@@ -28,6 +28,8 @@ export function normalizeJobPostingObservation(
     ...observation,
     details: [...new Set(observation.details)],
     discoveryUrl: normalizePlatformUrl(observation.discoveryUrl, observation.platformId),
-    jobUrl: normalizePlatformUrl(observation.jobUrl, observation.platformId),
+    ...(observation.jobUrl
+      ? { jobUrl: normalizePlatformUrl(observation.jobUrl, observation.platformId) }
+      : {}),
   };
 }

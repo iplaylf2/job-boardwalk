@@ -36,16 +36,18 @@ Available now:
   bounded, structured snapshot of job cards already loaded on any supported-platform page. While a
   job-search intent is selected, a passive collector keeps its recommendation seed pages available
   and submits recognizable cards from every open supported-platform tab without replacing or
-  refreshing other tabs.
+  refreshing other tabs. Without a selected intent, it still observes supported tabs that are
+  already open. A separate collector observes each platform's “感兴趣” list without changing
+  account state.
 - Workspace Service stores platform-access observations and interruptions, along with personal
-  context, job-search intents, normalized job facts, and Markdown research reports. It skips
-  unchanged observations and merges confident cross-platform matches while preserving every
-  platform link.
+  context, job-search intents, normalized job facts, source-level interest relations, and Markdown
+  research reports. It skips unchanged observations and merges confident cross-platform matches
+  while preserving every available platform link.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
-  lets the user maintain and select job-search intents. Its separate paginated job-library page
-  supports focused browsing while preserving the original recruiting-platform sources, and its
-  report reader makes saved conclusions available independently of the agent conversation that
-  produced them.
+  lets the user maintain and select job-search intents. Its paginated job library supports search,
+  platform filtering, and an “感兴趣” view while preserving the original recruiting-platform
+  sources. Its report reader makes saved conclusions available independently of the agent
+  conversation that produced them.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.

@@ -3,8 +3,9 @@ import type { JSX } from "@solidjs/web";
 import styles from "./app-shell.module.css";
 
 export function AppShell(props: {
-  active: "jobs" | "overview" | "reports";
+  active: "interested-jobs" | "jobs" | "overview" | "reports";
   children: JSX.Element;
+  interestedJobCount?: number;
   jobCount?: number;
   lede: string;
   title: string;
@@ -24,6 +25,15 @@ export function AppShell(props: {
           <a href="/jobs" {...(props.active === "jobs" ? { "aria-current": "page" as const } : {})}>
             岗位库
             {typeof props.jobCount === "number" ? <span>{String(props.jobCount)}</span> : null}
+          </a>
+          <a
+            href="/jobs/interested"
+            {...(props.active === "interested-jobs" ? { "aria-current": "page" as const } : {})}
+          >
+            感兴趣
+            {typeof props.interestedJobCount === "number" ? (
+              <span>{String(props.interestedJobCount)}</span>
+            ) : null}
           </a>
           <a
             href="/reports"

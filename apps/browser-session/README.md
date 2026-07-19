@@ -33,13 +33,29 @@ documents to Workspace Service without scrolling, clicking, or opening details. 
 related search results and other discovery surfaces reached during directed research instead of
 treating the recommendation feed as the storage boundary.
 
-Without a selected intent, passive collection is disabled. The selected intent controls whether and
-for how long collection runs; its recommendation pages seed research but do not limit which open
-platform tabs can contribute cards. Repeated observations let Workspace Service skip unchanged
-records and update facts when visible cards change; no agent call is required. A page that closes
-or navigates during its bounded read is reported and skipped without discarding jobs collected from
-other tabs. A Workspace Service write failure stops the current pass and is retried on the next
-pass. The same bounded DOM pass refreshes any conclusive platform-access evidence.
+Without a selected intent, passive collection still observes supported platform tabs that are
+already open, but it does not open recommendation seed pages. A selected intent supplies those
+seeds; it does not limit which open platform tabs can contribute cards. Repeated observations let
+Workspace Service skip unchanged records and update facts when visible cards change; no agent call
+is required. A page that closes or navigates during its bounded read is reported and skipped
+without discarding jobs collected from other tabs. A Workspace Service write failure stops the
+current pass and is retried on the next pass. The same bounded DOM pass refreshes any conclusive
+platform-access evidence.
+
+## Job-interest synchronization
+
+Browser Session independently observes the jobs the user has marked “感兴趣” on each platform. It
+reuses or opens the platform's interest-list page, reads at most 200 visible entries, and submits a
+bounded snapshot to Workspace Service every 30 seconds. Workspace Service merges the visible facts
+into the job library and updates the interest relations on their platform sources. This collector
+does not depend on a selected search intent.
+
+BOSS直聘 exposes ordinary job-detail links on this page. 鱼泡直聘 currently renders the account
+cards without ordinary links, so its records retain the visible job facts while omitting `jobUrl`.
+Only a non-truncated read whose extracted-card count matches a visible platform total is complete.
+A complete snapshot replaces absent relations; a partial snapshot only adds or refreshes the
+relations it observed. The collector never marks or unmarks a job, and removing a relation does not
+remove the job from the library.
 
 ## Run Browser Session
 

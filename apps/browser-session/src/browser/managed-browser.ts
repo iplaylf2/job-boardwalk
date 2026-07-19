@@ -7,7 +7,9 @@ import { race, wait } from "@shajara/host/primitives";
 
 import type { BrowserControl } from "./browser-control.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
+import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
+import { JobInterestCollector } from "./job-interest-collector.js";
 import { PassiveJobCollector } from "./passive-job-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
@@ -44,6 +46,7 @@ function launchPersistentContext(profilePath: string): Promise<BrowserContext> {
 export class ManagedBrowser implements BrowserControl {
   readonly #launchContext: PersistentContextLauncher;
   readonly #profilePath: string;
+  readonly #jobInterestWriter: JobInterestWriter;
   readonly #jobPostingWriter: JobPostingWriter;
   readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   #context: BrowserContext | null = null;
@@ -53,13 +56,17 @@ export class ManagedBrowser implements BrowserControl {
 
   public constructor(
     profilePath: string,
-    selectedIntentReader: SelectedJobSearchIntentReader,
-    jobPostingWriter: JobPostingWriter,
+    dependencies: {
+      jobInterestWriter: JobInterestWriter;
+      jobPostingWriter: JobPostingWriter;
+      selectedIntentReader: SelectedJobSearchIntentReader;
+    },
     launchContext: PersistentContextLauncher = launchPersistentContext,
   ) {
     this.#profilePath = profilePath;
-    this.#selectedIntentReader = selectedIntentReader;
-    this.#jobPostingWriter = jobPostingWriter;
+    this.#selectedIntentReader = dependencies.selectedIntentReader;
+    this.#jobPostingWriter = dependencies.jobPostingWriter;
+    this.#jobInterestWriter = dependencies.jobInterestWriter;
     this.#launchContext = launchContext;
   }
 
@@ -95,6 +102,9 @@ export class ManagedBrowser implements BrowserControl {
     while (true) {
       try {
         const closed = yield* this.#launchOnce(reportError);
+        if (!closed) {
+          throw new CanceledError();
+        }
         failureCount = this.#recordFailure(closed, initialFailureCount, reportError);
       } catch (error) {
         if (error instanceof CanceledError || error instanceof ScopeError) {
@@ -119,17 +129,24 @@ export class ManagedBrowser implements BrowserControl {
       this.#jobPostingWriter,
       (page) => platformAccessObserver.observePage(page),
     );
+    const jobInterestCollector = new JobInterestCollector(
+      context,
+      this.#jobInterestWriter,
+      (page) => platformAccessObserver.observePage(page),
+    );
     this.#platformAccessObserver = platformAccessObserver;
     this.#toolExecutor = new BrowserToolExecutor(context, (page) =>
       platformAccessObserver.observePage(page),
     );
     this.#hasFailed = false;
     try {
-      return yield* race([
+      const result = yield* race([
         () => platformAccessObserver.run(),
         () => passiveJobCollector.run(reportError),
+        () => jobInterestCollector.run(reportError),
         () => wait(closed.future),
       ]);
+      return result;
     } finally {
       this.#context = null;
       this.#platformAccessObserver = null;

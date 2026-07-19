@@ -7,25 +7,27 @@ an active agent conversation and never controls the browser.
 
 ## Reader path
 
-The interface has three primary destinations:
+The interface has three primary reader paths:
 
 - `/` presents the selected job-search intent and personal context. Personal facts are read-only by
   default and can all be expanded in place; a separate management surface owns creating, revising,
   selecting, and removing intents and facts. Browser and platform status remains a compact
   secondary rail unless it needs attention.
-- `/jobs` provides search, platform filtering, original source links, and server-backed pagination
-  for normalized job facts.
+- The job library uses `/jobs` for all normalized jobs and `/jobs/interested` for the same library
+  filtered to jobs with at least one platform source marked “感兴趣”. Both views provide search,
+  platform filtering, available original source links, and server-backed pagination. The filtered
+  view also shows when the interest state was last observed.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
-The header is the only cross-page navigation. Its job-library link includes the current job count,
-so the overview does not repeat that count as a separate section.
+The header is the only cross-page navigation. The job-library and “感兴趣” links show their current
+counts, so the overview does not repeat those counts as separate sections.
 
 ## Data ownership and freshness
 
-Workspace Service owns durable personal context, job-search intents, job facts, platform-access
-observations, and reports. Browser Session owns browser runtime status. Dashboard reads both
-projections from Workspace Service; it does not access SQLite, Patchright, the browser profile, or
-either service's lifecycle.
+Workspace Service owns durable personal context, job-search intents, job facts and source
+relations, platform-access observations, and reports. Browser Session owns browser runtime status.
+Dashboard reads those models from Workspace Service; it does not access SQLite, Patchright, the
+browser profile, or either service's lifecycle.
 
 Saved platform observations are historical evidence rather than a guarantee of current access, so
 their observation times remain visible. Browser Session presence is a separate short-lived lease.
@@ -37,10 +39,10 @@ Browser interaction and login handoff happen between the agent, the
 does not open or control that window.
 
 Dashboard rereads the workspace overview every five seconds and refreshes it after a user change.
-The job-library page requests at most 24 jobs at a time and refreshes the current result every 30
-seconds. Research-report pages refresh every five seconds to reflect updates to drafts and completed
-reports. These reads affect only the local Workspace Service API; they never refresh a recruiting
-page.
+The job-library page and its interested slice request at most 24 jobs at a time and refresh the
+current result every 30 seconds. Research-report pages refresh every five seconds to reflect
+updates to drafts and completed reports. These reads affect only the local Workspace Service API;
+they never refresh a recruiting page.
 
 ## Report rendering
 

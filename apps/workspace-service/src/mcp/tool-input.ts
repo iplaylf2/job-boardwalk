@@ -19,6 +19,7 @@ export const ReadResearchReportInput = toolInput({
 });
 
 export const ReadJobLibraryInput = toolInput({
+  "interestedOnly?": "boolean",
   page: `number.integer >= ${firstJobPage} = ${firstJobPage}`,
   pageSize: `${firstJobPage} <= number.integer <= ${maximumJobPageSize} = ${defaultJobPageSize}`,
   "platformId?": PlatformId,

@@ -29,6 +29,7 @@ export async function readWorkspaceOverview(): Promise<WorkspaceOverview> {
 }
 
 export async function readJobPostingPage(input: {
+  interestedOnly?: boolean;
   page: number;
   pageSize: number;
   platform?: string;
@@ -37,6 +38,7 @@ export async function readJobPostingPage(input: {
   const search = new URLSearchParams({
     page: String(input.page),
     pageSize: String(input.pageSize),
+    ...(input.interestedOnly ? { interested: "true" } : {}),
     ...(input.platform ? { platform: input.platform } : {}),
     ...(input.query ? { query: input.query } : {}),
   });

@@ -13,8 +13,7 @@ import {
   BrowserSessionStatusReporter,
   resolveWorkspaceServiceUrl,
 } from "./workspace-service/status-reporter.js";
-import { WorkspaceJobPostingWriter } from "./workspace-service/job-posting-writer.js";
-import { WorkspaceSelectedJobSearchIntentReader } from "./workspace-service/selected-job-search-intent-reader.js";
+import { createWorkspaceServiceClients } from "./workspace-service/dependencies.js";
 
 const browserSessionPort = 54_312;
 
@@ -39,12 +38,16 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
   };
 }
 
+function errorDetail(error: Error): string {
+  return error.stack || error.message || error.name;
+}
+
 function reportBrowserError(error: Error): void {
-  process.stderr.write(`[Browser Session] ${error.stack ?? error.message}\n`);
+  process.stderr.write(`[Browser Session] ${errorDetail(error)}\n`);
 }
 
 function reportWorkspaceStatusError(error: Error): void {
-  process.stderr.write(`[Browser Session → Workspace Service] ${error.stack ?? error.message}\n`);
+  process.stderr.write(`[Browser Session → Workspace Service] ${errorDetail(error)}\n`);
 }
 
 function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
@@ -52,8 +55,7 @@ function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
   const workspaceServiceUrl = resolveWorkspaceServiceUrl();
   const browserControl = new ManagedBrowser(
     profilePath,
-    new WorkspaceSelectedJobSearchIntentReader(workspaceServiceUrl),
-    new WorkspaceJobPostingWriter(workspaceServiceUrl),
+    createWorkspaceServiceClients(workspaceServiceUrl),
   );
   const statusReporter = new BrowserSessionStatusReporter(
     workspaceServiceUrl,

@@ -50,8 +50,8 @@ The MCP surface provides:
   platform-access summaries, profile facts, and job-search intents;
 - `read_workspace_overview`, which reads the same workspace state;
 - `job-boardwalk://jobs`, which exposes the first page of the current job library;
-- `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`, and
-  `platformId` filters;
+- `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
+  `platformId`, and `interestedOnly` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
   research reports;
 - `read_research_report`, which reads one unexpired research report by ID;
@@ -71,8 +71,9 @@ The loopback HTTP surface currently exposes:
 - `PUT /api/search-intents/:id`
 - `POST /api/search-intents/:id/select`
 - `DELETE /api/search-intents/:id`
-- `GET /api/jobs`
+- `GET /api/jobs` (use `interested=true` for the interested slice)
 - `POST /api/jobs`
+- `PUT /api/job-interests`
 - `GET /api/reports`
 - `GET /api/reports/:id`
 - `POST /api/reports`
@@ -181,10 +182,10 @@ containing `initiatedBy` and `reason`.
 
 Browser Session submits the facts exposed by job cards that are already present in a supported
 recruiting-platform page: title, company, location, salary text, detail tags, bounded card text, and
-the original links. A selected job-search intent enables passive collection and its recommendation
-pages seed the research. They do not limit collection to those pages: observations may come from
-any other supported-platform tab open while researching that direction. `POST /api/jobs` is the
-service-to-service write boundary.
+the original links. A selected job-search intent supplies recommendation pages that seed passive
+collection. They do not limit collection to those pages: observations may come from any other open
+supported-platform tab, and already-open tabs remain observable without a selected intent.
+`POST /api/jobs` is the service-to-service write boundary.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, optional `query`, and optional `platform`
 parameters. Workspace Service applies those constraints in SQLite and returns the current page,
@@ -200,6 +201,17 @@ Salary normalization preserves the platform's original `salaryText` and adds a C
 with its source period. Monthly salary carries a month count only when the source explicitly says
 something such as `13薪`. No annual package is calculated from monthly, daily, or hourly rates;
 annual values are shown only when the source itself uses an annual salary period.
+
+#### Platform interest relations
+
+`PUT /api/job-interests` synchronizes a snapshot of one platform's current “感兴趣” list. Workspace
+Service stores the state as a relation on the matching platform source rather than as a second job
+collection. A complete snapshot replaces relations that are no longer present; a partial snapshot
+only adds or refreshes observed relations. Removing a relation never removes the job or its other
+platform sources from the library.
+
+`GET /api/jobs?interested=true` returns jobs with at least one interested source. Each relation
+records when it was first and most recently observed and its position in the latest snapshot.
 
 ### Research reports
 

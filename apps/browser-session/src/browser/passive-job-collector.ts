@@ -79,10 +79,9 @@ export class PassiveJobCollector {
 
   public *collect(reportError: (error: Error) => void): RiteCoroutine<void> {
     const selectedIntent = yield* this.#selectedIntentReader.read();
-    if (!selectedIntent) {
-      return;
+    if (selectedIntent) {
+      yield* this.#ensureRecommendationPages(selectedIntent.recommendationPages);
     }
-    yield* this.#ensureRecommendationPages(selectedIntent.recommendationPages);
     for (const page of this.#context.pages()) {
       if (!findRecruitingPlatformAdapter(page.url())) {
         continue;
@@ -121,11 +120,8 @@ export class PassiveJobCollector {
       pages.map((page) => page.url()),
     );
     for (const recommendationPage of missingPages) {
-      const blankPage = pages.find((page) => page.url() === "about:blank");
-      const page = blankPage ?? (yield* until(() => this.#context.newPage()));
-      if (!blankPage) {
-        pages.push(page);
-      }
+      const page = yield* until(() => this.#context.newPage());
+      pages.push(page);
       yield* until(() => page.goto(recommendationPage.url));
     }
     if (missingPages.length > emptyCollectionLength) {

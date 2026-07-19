@@ -17,6 +17,29 @@ const pageSize = 24;
 const refreshIncrement = 1;
 const refreshIntervalMilliseconds = 30_000;
 
+type JobLibrarySlice = "all" | "interested";
+
+const jobLibraryPageCopy = {
+  all: {
+    active: "jobs",
+    empty: "没有找到符合条件的岗位。可以调整关键词或平台。",
+    kicker: "已整理岗位",
+    lede: "查看研究过程中发现并整理的岗位，通过原始链接回到招聘平台核对。",
+    title: "岗位库",
+  },
+  interested: {
+    active: "interested-jobs",
+    empty: "没有找到符合当前筛选条件的“感兴趣”岗位。可以调整筛选，或在招聘平台标记岗位后等待同步。",
+    kicker: "平台标记",
+    lede: "查看已在招聘平台标记为“感兴趣”的岗位；这些岗位仍属于同一个岗位库。",
+    title: "感兴趣",
+  },
+} as const;
+
+function isInterestedSlice(slice: JobLibrarySlice): boolean {
+  return slice === "interested";
+}
+
 function usePeriodicRefresh(onRefresh: () => void): void {
   onSettled(() => {
     const interval = setInterval(onRefresh, refreshIntervalMilliseconds);
@@ -67,19 +90,21 @@ function JobLibraryFilters(props: {
 function JobResults(props: {
   onPageChanged: (page: number) => void;
   result: JobPostingPage;
+  slice: JobLibrarySlice;
 }): JSX.Element {
+  const copy = jobLibraryPageCopy[props.slice];
   return (
     <>
       <div class={styles["heading"]}>
         <div>
-          <SectionKicker>已整理岗位</SectionKicker>
+          <SectionKicker>{copy.kicker}</SectionKicker>
           <h2 id="job-results-heading">岗位列表</h2>
         </div>
         <span class={styles["count"]}>{String(props.result.total)} 个岗位</span>
       </div>
       <Show
         when={props.result.jobs.length !== emptyCollectionLength}
-        fallback={<p class={styles["empty"]}>没有找到符合条件的岗位。可以调整关键词或平台。</p>}
+        fallback={<p class={styles["empty"]}>{copy.empty}</p>}
       >
         <div class={styles["grid"]}>
           <For each={props.result.jobs}>{(job) => <JobCard job={job} />}</For>
@@ -108,7 +133,9 @@ function JobResults(props: {
   );
 }
 
-export function JobLibraryPage(): JSX.Element {
+export function JobLibraryPage(props: { slice: JobLibrarySlice }): JSX.Element {
+  const pageCopy = jobLibraryPageCopy[props.slice];
+  const interestedOnly = isInterestedSlice(props.slice);
   const [draftQuery, setDraftQuery] = createSignal("");
   const [query, setQuery] = createSignal("");
   const [platform, setPlatform] = createSignal(allPlatforms);
@@ -117,6 +144,7 @@ export function JobLibraryPage(): JSX.Element {
   const jobPage = createMemo(() => {
     refreshCount();
     return readJobPostingPage({
+      ...(interestedOnly ? { interestedOnly: true } : {}),
       page: page(),
       pageSize,
       ...(platform() === allPlatforms ? {} : { platform: platform() }),
@@ -124,30 +152,30 @@ export function JobLibraryPage(): JSX.Element {
     });
   });
   usePeriodicRefresh(() => setRefreshCount((value) => value + refreshIncrement));
+  function changePlatform(value: string): void {
+    setPage(firstPage);
+    setPlatform(value);
+  }
+  function submitQuery(): void {
+    setPage(firstPage);
+    setQuery(draftQuery().trim());
+  }
 
   return (
-    <AppShell
-      active="jobs"
-      title="岗位库"
-      lede="查看研究过程中发现并整理的岗位，通过原始链接回到招聘平台核对。"
-    >
+    <AppShell active={pageCopy.active} title={pageCopy.title} lede={pageCopy.lede}>
       <section class={styles["library"]} aria-labelledby="job-results-heading">
         <JobLibraryFilters
           draftQuery={draftQuery()}
           platform={platform()}
-          onPlatformChanged={(value) => {
-            setPage(firstPage);
-            setPlatform(value);
-          }}
+          onPlatformChanged={changePlatform}
           onQueryChanged={setDraftQuery}
-          onSubmitted={() => {
-            setPage(firstPage);
-            setQuery(draftQuery().trim());
-          }}
+          onSubmitted={submitQuery}
         />
         <Loading fallback={<p class={styles["empty"]}>正在读取岗位…</p>}>
           <Show when={jobPage()}>
-            {(result) => <JobResults result={result()} onPageChanged={setPage} />}
+            {(result) => (
+              <JobResults result={result()} slice={props.slice} onPageChanged={setPage} />
+            )}
           </Show>
         </Loading>
       </section>

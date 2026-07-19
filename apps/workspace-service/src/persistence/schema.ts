@@ -124,10 +124,11 @@ export const jobPostingSources = sqliteTable(
     experienceRequirement: text("experience_requirement"),
     externalJobId: text("external_job_id"),
     id: integer().primaryKey({ autoIncrement: true }),
+    identityKey: text("identity_key").notNull(),
     jobId: integer("job_id")
       .notNull()
       .references(() => jobPostings.id, { onDelete: "cascade" }),
-    jobUrl: text("job_url").notNull(),
+    jobUrl: text("job_url"),
     lastCheckedAt: text("last_checked_at").notNull(),
     location: text(),
     normalizedSalary: text("normalized_salary", { mode: "json" }).$type<NormalizedSalary>(),
@@ -138,12 +139,21 @@ export const jobPostingSources = sqliteTable(
     title: text().notNull(),
   },
   (table) => [
-    uniqueIndex("job_posting_sources_platform_external_id").on(
-      table.platformId,
-      table.externalJobId,
-    ),
-    uniqueIndex("job_posting_sources_platform_url").on(table.platformId, table.jobUrl),
+    uniqueIndex("job_posting_sources_platform_identity").on(table.platformId, table.identityKey),
   ],
+);
+
+export const jobSourceInterests = sqliteTable(
+  "job_source_interests",
+  {
+    firstObservedAt: text("first_observed_at").notNull(),
+    lastObservedAt: text("last_observed_at").notNull(),
+    position: integer().notNull(),
+    sourceId: integer("source_id")
+      .primaryKey()
+      .references(() => jobPostingSources.id, { onDelete: "cascade" }),
+  },
+  (table) => [check("job_source_interests_position", sql`${table.position} >= 1`)],
 );
 
 export const workspaceChanges = sqliteTable(

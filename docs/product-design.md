@@ -49,9 +49,9 @@ browser profiles, authentication cookies, or desktop windows.
 
 The **Dashboard** is an independent view of durable workspace data and leased Browser Session
 presence. It also lets the user maintain personal context and a collection of job-search intents.
-At most one intent is selected as the current research direction, which enables passive
-collection; each intent associates a target position and city with its corresponding platform
-recommendation pages. It also presents unexpired research reports as workspace documents. Dashboard
+At most one intent is selected as the current research direction; it supplies platform
+recommendation seed pages to passive collection. Each intent associates a target position and city
+with those pages. Dashboard also presents unexpired research reports as workspace documents. It
 neither controls the browser nor requires an active agent conversation.
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
@@ -73,7 +73,7 @@ is unknown; after a lease expires, presence is offline. Reporting failure never 
 Session from operating. Status reports contain no cookies, credentials, storage contents, or
 unrestricted page text.
 
-## Job discovery and library
+## Job discovery, library, and platform interest
 
 Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It
 extracts already-loaded job cards from any page inside a supported recruiting platform's
@@ -81,18 +81,29 @@ navigation boundary without navigating, scrolling, opening details, or persistin
 Session owns this page read, but it does not own the selected intent, semantic relevance judgments,
 or durable job observations.
 
-A selected job-search intent enables passive collection and bounds how long it runs. The intent's
-recommendation pages are seed pages that Browser Session keeps available; they are not a whitelist
-of pages eligible for collection. During that period, recognizable job cards from every open
-supported-platform tab may be submitted, including related search results and other discovery
-surfaces reached during research. A failure to read one tab is reported for that tab and does not
-discard observations from other tabs.
+Passive collection observes recognizable job cards from every open supported-platform tab. A
+selected job-search intent supplies recommendation seed pages that Browser Session keeps available;
+those pages are not a whitelist of pages eligible for collection. Without a selected intent, the
+collector opens no seed pages but continues to observe tabs that are already open. Related search
+results and other discovery surfaces reached during research may therefore contribute jobs. A
+failure to read one tab is reported for that tab and does not discard observations from other tabs.
+
+Each recruiting platform may also expose a list of jobs the user has marked “感兴趣”. Browser
+Session may read that list independently of the selected search intent, but marking or unmarking a
+job remains a user-controlled account action. Workspace Service treats a complete snapshot as the
+platform's current set of interest relations. A partial snapshot may add or refresh observed
+relations but never removes a relation that the page may have omitted.
 
 Workspace Service turns submitted observations into a durable job library rather than a page
 archive. Each platform source keeps its job and discovery links plus normalized fields; no HTML or
 historical page snapshot is stored. Workspace Service merges sources when their normalized company,
 title, and location identify the same job. An observation fingerprint skips unchanged records.
 Partial cards without that identity remain separate.
+
+Platform interest is a relation on one of those sources, not a second collection of jobs. Removing
+the relation leaves the normalized job and its other sources in the library. Dashboard presents
+jobs with at least one interested source as a filtered job-library view and shows when that state
+was last observed; it does not infer when the user originally marked the job.
 
 ## Browser handoff
 
@@ -191,7 +202,8 @@ Dashboard has three reader paths:
 
 - the workspace overview for the current job-search intent, personal context, leased Browser
   Session presence, and platform-access observations;
-- a paginated job library for normalized job facts and merged platform sources;
+- a paginated job library for normalized job facts and merged platform sources, including a view
+  filtered to jobs with at least one source marked “感兴趣”;
 - a report library and Markdown reader for conclusions, comparisons, uncertainty, and recommended
   next steps.
 

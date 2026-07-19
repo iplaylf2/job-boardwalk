@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 
 // oxlint-disable max-lines -- This class is the cohesive persistence boundary for workspace state.
-import { and, asc, count, desc, eq, gt, inArray, isNull, like, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, like, notInArray, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-sqlite";
 import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
@@ -12,6 +12,7 @@ import type {
   JobPostingObservation,
   JobPostingPage,
   JobPostingSource,
+  JobSourceInterest,
   JobSearchIntent,
   RecommendationPageReference,
   PlatformAccessObservation,
@@ -20,6 +21,8 @@ import type {
   ResearchReportSummary,
   RecordedPlatformAccessObservation,
   SaveJobPostingObservationResult,
+  JobInterestSnapshot,
+  SynchronizeJobInterestsResult,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
@@ -29,6 +32,7 @@ import type { JobLibraryQuery } from "#/job-posting/library-query.js";
 import {
   jobPostings,
   jobPostingSources,
+  jobSourceInterests,
   jobSearchIntents,
   jobSearchIntentRecommendationPages,
   platformAccessObservations,
@@ -40,6 +44,7 @@ import {
 type PlatformAccessObservationRow = typeof platformAccessObservations.$inferSelect;
 type JobPostingRow = typeof jobPostings.$inferSelect;
 type JobPostingSourceRow = typeof jobPostingSources.$inferSelect;
+type JobSourceInterestRow = typeof jobSourceInterests.$inferSelect;
 type ResearchReportRow = typeof researchReports.$inferSelect;
 type NonEmptyJobPostingObservations = [JobPostingObservation, ...JobPostingObservation[]];
 const emptyCollectionLength = 0;
@@ -63,7 +68,7 @@ function normalizedCompanyIdentity(value: string): string {
 
 function jobPostingIdentityKey(observation: JobPostingObservation): string {
   if (!observation.company || !observation.location) {
-    return hashValue([observation.platformId, observation.externalJobId ?? observation.jobUrl]);
+    return jobPostingSourceIdentityKey(observation);
   }
   return hashValue([
     normalizedCompanyIdentity(observation.company),
@@ -85,10 +90,58 @@ function observationFingerprint(observation: JobPostingObservation): string {
   });
 }
 
-function toJobPostingSource(row: JobPostingSourceRow): JobPostingSource {
+function jobPostingSourceIdentityKey(observation: JobPostingObservation): string {
+  if (observation.externalJobId) {
+    return hashValue([observation.platformId, observation.externalJobId]);
+  }
+  if (observation.jobUrl) {
+    return hashValue([observation.platformId, new URL(observation.jobUrl).pathname]);
+  }
+  return hashValue([
+    observation.platformId,
+    normalizedIdentityPart(observation.company ?? ""),
+    normalizedIdentityPart(observation.title),
+    normalizedIdentityPart(observation.location ?? ""),
+  ]);
+}
+
+function toJobSourceInterest(row: JobSourceInterestRow): JobSourceInterest {
+  return {
+    firstObservedAt: row.firstObservedAt,
+    lastObservedAt: row.lastObservedAt,
+    position: row.position,
+  };
+}
+
+function jobPostingObservationFromInterest(
+  snapshot: JobInterestSnapshot,
+  job: JobInterestSnapshot["jobs"][number],
+): JobPostingObservation {
+  return {
+    collectedAt: snapshot.capturedAt,
+    ...(job.company ? { company: job.company } : {}),
+    details: job.details,
+    discoveryUrl: snapshot.sourceUrl,
+    ...(job.educationRequirement ? { educationRequirement: job.educationRequirement } : {}),
+    ...(job.experienceRequirement ? { experienceRequirement: job.experienceRequirement } : {}),
+    ...(job.externalJobId ? { externalJobId: job.externalJobId } : {}),
+    ...(job.jobUrl ? { jobUrl: job.jobUrl } : {}),
+    ...(job.location ? { location: job.location } : {}),
+    platformId: snapshot.platformId,
+    ...(job.salaryText ? { salaryText: job.salaryText } : {}),
+    summary: job.summary,
+    title: job.title,
+  };
+}
+
+function toJobPostingSource(
+  row: JobPostingSourceRow,
+  interestRows: JobSourceInterestRow[],
+): JobPostingSource {
   if (!isPlatformId(row.platformId)) {
     throw new Error(`数据库中存在未知招聘平台：${row.platformId}`);
   }
+  const interestRow = interestRows.find(({ sourceId }) => sourceId === row.id);
   return {
     collectedAt: row.collectedAt,
     ...(row.company ? { company: row.company } : {}),
@@ -98,8 +151,9 @@ function toJobPostingSource(row: JobPostingSourceRow): JobPostingSource {
     ...(row.experienceRequirement ? { experienceRequirement: row.experienceRequirement } : {}),
     ...(row.externalJobId ? { externalJobId: row.externalJobId } : {}),
     id: row.id,
+    ...(interestRow ? { interest: toJobSourceInterest(interestRow) } : {}),
     jobId: row.jobId,
-    jobUrl: row.jobUrl,
+    ...(row.jobUrl ? { jobUrl: row.jobUrl } : {}),
     lastCheckedAt: row.lastCheckedAt,
     ...(row.location ? { location: row.location } : {}),
     ...(row.normalizedSalary ? { normalizedSalary: row.normalizedSalary } : {}),
@@ -142,8 +196,9 @@ function jobPostingSourceValues(
     educationRequirement: observation.educationRequirement ?? null,
     experienceRequirement: observation.experienceRequirement ?? null,
     externalJobId: observation.externalJobId ?? null,
+    identityKey: jobPostingSourceIdentityKey(observation),
     jobId,
-    jobUrl: observation.jobUrl,
+    jobUrl: observation.jobUrl ?? null,
     lastCheckedAt: observation.collectedAt,
     location: observation.location ?? null,
     normalizedSalary: normalizeJobPostingSalary(observation.salaryText),
@@ -155,7 +210,11 @@ function jobPostingSourceValues(
   };
 }
 
-function toJobPosting(job: JobPostingRow, sourceRows: JobPostingSourceRow[]): JobPosting {
+function toJobPosting(
+  job: JobPostingRow,
+  sourceRows: JobPostingSourceRow[],
+  interestRows: JobSourceInterestRow[],
+): JobPosting {
   return {
     ...(job.company ? { company: job.company } : {}),
     createdAt: job.createdAt,
@@ -164,7 +223,9 @@ function toJobPosting(job: JobPostingRow, sourceRows: JobPostingSourceRow[]): Jo
     ...(job.experienceRequirement ? { experienceRequirement: job.experienceRequirement } : {}),
     id: job.id,
     ...(job.location ? { location: job.location } : {}),
-    sources: sourceRows.filter((source) => source.jobId === job.id).map(toJobPostingSource),
+    sources: sourceRows
+      .filter((source) => source.jobId === job.id)
+      .map((source) => toJobPostingSource(source, interestRows)),
     summary: job.summary,
     title: job.title,
     updatedAt: job.updatedAt,
@@ -464,12 +525,135 @@ export class WorkspaceRepository {
       .from(jobPostingSources)
       .orderBy(asc(jobPostingSources.platformId), asc(jobPostingSources.jobUrl))
       .all();
+    const interestRows = this.#listJobSourceInterests(sourceRows.map(({ id }) => id));
     return this.#database
       .select()
       .from(jobPostings)
       .orderBy(desc(jobPostings.updatedAt), asc(jobPostings.title))
       .all()
-      .map((job) => toJobPosting(job, sourceRows));
+      .map((job) => toJobPosting(job, sourceRows, interestRows));
+  }
+
+  public synchronizeJobInterests(input: {
+    initiatedBy: "agent" | "system" | "user";
+    reason: string;
+    snapshot: JobInterestSnapshot;
+  }): SynchronizeJobInterestsResult {
+    return this.#replaceInterestRelations(input, this.#saveJobInterestSources(input));
+  }
+
+  #saveJobInterestSources(input: {
+    initiatedBy: "agent" | "system" | "user";
+    reason: string;
+    snapshot: JobInterestSnapshot;
+  }): number[] {
+    const { snapshot } = input;
+    const sourceIds: number[] = [];
+    for (const job of snapshot.jobs) {
+      const observation = jobPostingObservationFromInterest(snapshot, job);
+      this.saveJobPostingObservation({
+        initiatedBy: input.initiatedBy,
+        observation,
+        reason: input.reason,
+      });
+      const identityKey = jobPostingSourceIdentityKey(observation);
+      const source = this.#database
+        .select({ id: jobPostingSources.id })
+        .from(jobPostingSources)
+        .where(
+          and(
+            eq(jobPostingSources.platformId, snapshot.platformId),
+            eq(jobPostingSources.identityKey, identityKey),
+          ),
+        )
+        .get();
+      if (!source) {
+        throw new Error(`找不到刚保存的岗位来源：${job.title}`);
+      }
+      sourceIds.push(source.id);
+    }
+    return sourceIds;
+  }
+
+  // eslint-disable-next-line max-lines-per-function -- One private boundary keeps the atomic relation replacement visible.
+  #replaceInterestRelations(
+    input: {
+      initiatedBy: "agent" | "system" | "user";
+      reason: string;
+      snapshot: JobInterestSnapshot;
+    },
+    sourceIds: number[],
+  ): SynchronizeJobInterestsResult {
+    const { snapshot } = input;
+    // eslint-disable-next-line max-lines-per-function -- One transaction owns relation replacement and attribution.
+    return this.#database.transaction((transaction) => {
+      const platformSourceIds = transaction
+        .select({ id: jobPostingSources.id })
+        .from(jobPostingSources)
+        .where(eq(jobPostingSources.platformId, snapshot.platformId));
+      const existingRows = transaction
+        .select()
+        .from(jobSourceInterests)
+        .where(inArray(jobSourceInterests.sourceId, platformSourceIds))
+        .all();
+      let created = false;
+      for (const [index, sourceId] of sourceIds.entries()) {
+        const existing = existingRows.find((row) => row.sourceId === sourceId);
+        created ||= !existing;
+        transaction
+          .insert(jobSourceInterests)
+          .values({
+            firstObservedAt: existing?.firstObservedAt ?? snapshot.capturedAt,
+            lastObservedAt: snapshot.capturedAt,
+            position: index + firstPage,
+            sourceId,
+          })
+          .onConflictDoUpdate({
+            set: {
+              lastObservedAt: snapshot.capturedAt,
+              position: index + firstPage,
+            },
+            target: jobSourceInterests.sourceId,
+          })
+          .run();
+      }
+      let removed = emptyCount;
+      if (snapshot.complete) {
+        const removalCondition =
+          sourceIds.length === emptyCollectionLength
+            ? inArray(jobSourceInterests.sourceId, platformSourceIds)
+            : and(
+                inArray(jobSourceInterests.sourceId, platformSourceIds),
+                notInArray(jobSourceInterests.sourceId, sourceIds),
+              );
+        removed =
+          transaction
+            .select({ value: count() })
+            .from(jobSourceInterests)
+            .where(removalCondition)
+            .get()?.value ?? emptyCount;
+        transaction.delete(jobSourceInterests).where(removalCondition).run();
+      }
+      if (created || removed > emptyCount) {
+        transaction
+          .insert(workspaceChanges)
+          .values({
+            initiatedBy: input.initiatedBy,
+            occurredAt: snapshot.capturedAt,
+            operation: "synchronize-job-interests",
+            reason: input.reason,
+            subject: snapshot.platformId,
+          })
+          .run();
+      }
+      return {
+        complete: snapshot.complete,
+        observed: snapshot.jobs.length,
+        platformId: snapshot.platformId,
+        removed,
+        synchronizedAt: snapshot.capturedAt,
+      };
+    });
   }
 
   public listJobPostingPage(input: JobLibraryQuery): JobPostingPage {
@@ -487,8 +671,9 @@ export class WorkspaceRepository {
       .offset((input.page - firstPage) * input.pageSize)
       .all();
     const sourceRows = this.#listJobPostingSources(rows.map(({ id }) => id));
+    const interestRows = this.#listJobSourceInterests(sourceRows.map(({ id }) => id));
     return {
-      jobs: rows.map((job) => toJobPosting(job, sourceRows)),
+      jobs: rows.map((job) => toJobPosting(job, sourceRows, interestRows)),
       page: input.page,
       pageCount,
       pageSize: input.pageSize,
@@ -496,7 +681,7 @@ export class WorkspaceRepository {
     };
   }
 
-  #jobPageCondition(input: { platformId?: "boss" | "yupao"; query?: string }) {
+  #jobPageCondition(input: JobLibraryQuery) {
     const conditions = [];
     if (input.query) {
       const pattern = `%${input.query}%`;
@@ -517,6 +702,16 @@ export class WorkspaceRepository {
         .where(eq(jobPostingSources.platformId, input.platformId));
       conditions.push(inArray(jobPostings.id, platformJobIds));
     }
+    if (input.interestedOnly) {
+      const interestedSourceIds = this.#database
+        .select({ sourceId: jobSourceInterests.sourceId })
+        .from(jobSourceInterests);
+      const jobIdsWithInterest = this.#database
+        .select({ jobId: jobPostingSources.jobId })
+        .from(jobPostingSources)
+        .where(inArray(jobPostingSources.id, interestedSourceIds));
+      conditions.push(inArray(jobPostings.id, jobIdsWithInterest));
+    }
     return and(...conditions);
   }
 
@@ -532,9 +727,28 @@ export class WorkspaceRepository {
       .all();
   }
 
+  #listJobSourceInterests(sourceIds: number[]): JobSourceInterestRow[] {
+    if (sourceIds.length === emptyCollectionLength) {
+      return [];
+    }
+    return this.#database
+      .select()
+      .from(jobSourceInterests)
+      .where(inArray(jobSourceInterests.sourceId, sourceIds))
+      .all();
+  }
+
   #readJobPosting(jobId: number): JobPosting | null {
     const job = this.#database.select().from(jobPostings).where(eq(jobPostings.id, jobId)).get();
-    return job ? toJobPosting(job, this.#listJobPostingSources([jobId])) : null;
+    if (!job) {
+      return null;
+    }
+    const sourceRows = this.#listJobPostingSources([jobId]);
+    return toJobPosting(
+      job,
+      sourceRows,
+      this.#listJobSourceInterests(sourceRows.map(({ id }) => id)),
+    );
   }
 
   // eslint-disable-next-line max-lines-per-function -- One transaction owns source deduplication and canonical aggregation.
@@ -545,26 +759,17 @@ export class WorkspaceRepository {
   }): SaveJobPostingObservationResult {
     const { observation } = input;
     const fingerprint = observationFingerprint(observation);
-    const identityKey = jobPostingIdentityKey(observation);
-    const sourceIdentity = observation.externalJobId
-      ? or(
-          and(
-            eq(jobPostingSources.platformId, observation.platformId),
-            eq(jobPostingSources.externalJobId, observation.externalJobId),
-          ),
-          and(
-            eq(jobPostingSources.platformId, observation.platformId),
-            eq(jobPostingSources.jobUrl, observation.jobUrl),
-          ),
-        )
-      : and(
-          eq(jobPostingSources.platformId, observation.platformId),
-          eq(jobPostingSources.jobUrl, observation.jobUrl),
-        );
+    const jobIdentityKey = jobPostingIdentityKey(observation);
+    const sourceIdentityKey = jobPostingSourceIdentityKey(observation);
     const existingSource = this.#database
       .select()
       .from(jobPostingSources)
-      .where(sourceIdentity)
+      .where(
+        and(
+          eq(jobPostingSources.platformId, observation.platformId),
+          eq(jobPostingSources.identityKey, sourceIdentityKey),
+        ),
+      )
       .get();
     if (existingSource?.sourceFingerprint === fingerprint) {
       this.#database
@@ -572,7 +777,7 @@ export class WorkspaceRepository {
         .set({
           discoveryUrl: observation.discoveryUrl,
           externalJobId: observation.externalJobId ?? null,
-          jobUrl: observation.jobUrl,
+          jobUrl: observation.jobUrl ?? null,
           lastCheckedAt: observation.collectedAt,
         })
         .where(eq(jobPostingSources.id, existingSource.id))
@@ -594,7 +799,7 @@ export class WorkspaceRepository {
           .where(eq(jobPostingSources.jobId, existingSource.jobId))
           .all()
           .filter(({ id }) => id !== existingSource.id)
-          .map(toJobPostingSource);
+          .map((source) => toJobPostingSource(source, []));
         const canonical = canonicalJobPostingValues([observation, ...siblingSources]);
         transaction
           .update(jobPostingSources)
@@ -612,7 +817,7 @@ export class WorkspaceRepository {
       const existingJob = transaction
         .select()
         .from(jobPostings)
-        .where(eq(jobPostings.identityKey, identityKey))
+        .where(eq(jobPostings.identityKey, jobIdentityKey))
         .get();
       if (existingJob) {
         const siblingSources = transaction
@@ -620,7 +825,7 @@ export class WorkspaceRepository {
           .from(jobPostingSources)
           .where(eq(jobPostingSources.jobId, existingJob.id))
           .all()
-          .map(toJobPostingSource);
+          .map((source) => toJobPostingSource(source, []));
         transaction
           .insert(jobPostingSources)
           .values(jobPostingSourceValues(existingJob.id, observation, fingerprint))
@@ -642,7 +847,7 @@ export class WorkspaceRepository {
         .values({
           ...canonical,
           createdAt: now,
-          identityKey,
+          identityKey: jobIdentityKey,
           updatedAt: now,
         })
         .returning({ id: jobPostings.id })

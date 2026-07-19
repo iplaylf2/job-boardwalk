@@ -1,7 +1,7 @@
 export const platformIds = ["boss", "yupao"] as const;
 
 export type PlatformId = (typeof platformIds)[number];
-export type PlatformWebDestination = "entry" | "login";
+export type PlatformWebDestination = "entry" | "interestList" | "login";
 type PlatformWebOrigin = `https://${string}`;
 type PlatformWebPath = `/${string}`;
 
@@ -18,7 +18,11 @@ export const platformCatalog = {
   boss: {
     label: "BOSS直聘",
     web: {
-      destinations: { entry: "/", login: "/web/user/" },
+      destinations: {
+        entry: "/",
+        interestList: "/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        login: "/web/user/",
+      },
       navigationDomain: "zhipin.com",
       origin: "https://www.zhipin.com",
     },
@@ -26,7 +30,11 @@ export const platformCatalog = {
   yupao: {
     label: "鱼泡直聘",
     web: {
-      destinations: { entry: "/", login: "/web/login/" },
+      destinations: {
+        entry: "/",
+        interestList: "/user/resume-info/?tab=4&subTab=1&mode=1",
+        login: "/web/login/",
+      },
       navigationDomain: "yupao.com",
       origin: "https://www.yupao.com",
     },
