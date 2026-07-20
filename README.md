@@ -95,6 +95,19 @@ See [Deployment](docs/deployment.md) for lifecycle, persistence, health, logs, b
 development workflow. The root `.env.example` is the environment-variable reference; project
 entrypoints do not load `.env` automatically.
 
+## Repository checks
+
+Non-draft pull requests targeting `master` run the repository checks automatically. To reproduce
+them locally, install the locked dependencies and run the root check:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm check
+```
+
+The root check covers formatting, unused code, dependency boundaries, linting, type checking,
+tests, and production builds.
+
 ## Repository map
 
 - [`apps/`](apps/README.md) contains the product applications.
