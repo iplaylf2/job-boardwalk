@@ -2,11 +2,7 @@ import type { BrowserContext, Page } from "patchright";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
-import {
-  PassiveJobCollector,
-  jobPostingObservations,
-  recommendationPagesWithoutOpenTab,
-} from "#/browser/passive-job-collector.js";
+import { PassiveJobCollector, jobPostingObservations } from "#/browser/passive-job-collector.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
@@ -30,6 +26,33 @@ function jobPage(url: string, title: string): Page {
         truncated: false,
         url,
       }),
+    url: () => url,
+  } as unknown as Page;
+}
+
+function redirectingJobPage(destinationUrl: string): Page {
+  let url = "about:blank";
+  return {
+    evaluate: () =>
+      Promise.resolve({
+        accessElements: [],
+        accessText: "",
+        cards: [
+          {
+            details: [],
+            href: "https://www.zhipin.com/job_detail/redirect-card.html",
+            text: "重定向页面上的职位卡片",
+            title: "后端开发",
+          },
+        ],
+        title: "登录",
+        truncated: false,
+        url,
+      }),
+    goto: () => {
+      url = destinationUrl;
+      return Promise.resolve(null);
+    },
     url: () => url,
   } as unknown as Page;
 }
@@ -92,34 +115,42 @@ test("converts job-card evidence from any supported discovery page into posting 
   ]);
 });
 
-test("opens each selected recommendation page that is not already present", () => {
-  expect(
-    recommendationPagesWithoutOpenTab(
-      [
-        {
-          label: "Node.js(北京)",
-          platformId: "boss",
-          url: "https://www.zhipin.com/web/geek/jobs",
-        },
-        {
-          label: "北京后端开发",
-          platformId: "yupao",
-          url: "https://www.yupao.com/topic/a2c1488/",
-        },
-      ],
-      ["about:blank", "https://www.zhipin.com/job_detail/abc123.html"],
-    ),
-  ).toEqual([
-    {
-      label: "Node.js(北京)",
-      platformId: "boss",
-      url: "https://www.zhipin.com/web/geek/jobs",
+test("reuses a managed recommendation page after redirect without suppressing its cards", async () => {
+  const seedUrl = "https://www.zhipin.com/web/geek/job-recommend";
+  const loginUrl = "https://www.zhipin.com/web/user/";
+  const pages: Page[] = [];
+  let newPageCount = 0;
+  const observations: { discoveryUrl: string }[] = [];
+  const context = {
+    newPage: () => {
+      newPageCount += onePageRead;
+      const page = redirectingJobPage(loginUrl);
+      pages.push(page);
+      return Promise.resolve(page);
     },
-    {
-      label: "北京后端开发",
-      platformId: "yupao",
-      url: "https://www.yupao.com/topic/a2c1488/",
+    pages: () => [...pages],
+  } as unknown as BrowserContext;
+  const writer = {
+    *write(observation) {
+      yield* [];
+      observations.push(observation);
     },
+  } satisfies JobPostingWriter;
+  const collector = new PassiveJobCollector(
+    context,
+    selectedIntentReader(seedUrl),
+    writer,
+    () => null,
+  );
+  await using scope = createScope();
+
+  await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
+  await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
+
+  expect(newPageCount).toBe(onePageRead);
+  expect(observations).toEqual([
+    expect.objectContaining({ discoveryUrl: loginUrl }),
+    expect.objectContaining({ discoveryUrl: loginUrl }),
   ]);
 });
 

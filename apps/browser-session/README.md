@@ -31,12 +31,18 @@ Workspace Service owns the selected intent and its platform recommendation seed 
 compares that context with live page evidence when judging relevance.
 
 A passive collector reuses this bounded reader. It reads the selected job-search intent from
-Workspace Service and opens an associated recommendation seed page when that exact page is not
-already open, leaving other tabs untouched. It then observes every open supported-platform tab
-immediately and every 30 seconds and submits recognizable cards currently loaded in those
-documents to Workspace Service without scrolling, clicking, or opening details. This captures
-related search results and other discovery surfaces reached during directed research instead of
-treating the recommendation feed as the storage boundary.
+Workspace Service and maintains an associated tab for each recommendation seed. It first adopts an
+already-open exact URL or creates a tab for the seed. While that tab remains open, the association
+survives login, verification, and canonical redirects, so later passes do not repeatedly open the
+requested URL or replace the redirected page. Other tabs remain untouched.
+
+The collector then observes every open supported-platform tab immediately and every 30 seconds and
+submits every recognizable card currently loaded in those documents to Workspace Service without
+scrolling, clicking, or opening details. The tab's association, current route, apparent purpose,
+and semantic relevance do not suppress recognizable cards. A document with no recognizable cards
+produces no job observations. This captures related search results and other discovery surfaces
+reached during directed research instead of treating the recommendation feed as the storage
+boundary.
 
 Without a selected intent, passive collection still observes supported platform tabs that are
 already open, but it does not open recommendation seed pages. A selected intent supplies those
@@ -50,10 +56,13 @@ platform-access evidence.
 ## Job-interest synchronization
 
 Browser Session independently observes the jobs the user has marked “感兴趣” on each platform. It
-reuses or opens the platform's interest-list page, reads at most 200 visible entries, and submits a
-bounded snapshot to Workspace Service every 30 seconds. Workspace Service merges the visible facts
-into the job library and updates the interest relations on their platform sources. This collector
-does not depend on a selected search intent.
+maintains one tab per platform, reusing an already-open interest list or opening it when necessary.
+The tab association survives a redirect, preventing each collection pass from opening another
+login or verification tab. Only the corresponding interest-list document produces a bounded
+snapshot; a redirected document remains eligible for the general job-card collector but is not
+treated as evidence that the user marked its cards “感兴趣”. Workspace Service merges snapshots of
+at most 200 visible entries into the job library and updates the interest relations on their
+platform sources every 30 seconds. This collector does not depend on a selected search intent.
 
 BOSS直聘 exposes ordinary job-detail links on this page. 鱼泡直聘 currently renders the account
 cards without ordinary links, so its records retain the visible job facts while omitting `jobUrl`.

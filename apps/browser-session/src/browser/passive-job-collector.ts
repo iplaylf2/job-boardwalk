@@ -15,7 +15,6 @@ import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 
 const collectionIntervalMilliseconds = 30_000;
-const emptyCollectionLength = 0;
 const initialPageSettleMilliseconds = 1000;
 const maximumCardsPerPage = 100;
 
@@ -51,17 +50,10 @@ function comparablePageUrl(value: string): string {
   return url.href;
 }
 
-export function recommendationPagesWithoutOpenTab(
-  recommendationPages: RecommendationPageReference[],
-  pageUrls: string[],
-): RecommendationPageReference[] {
-  const openPageUrls = new Set(pageUrls.map(comparablePageUrl));
-  return recommendationPages.filter(({ url }) => !openPageUrls.has(comparablePageUrl(url)));
-}
-
 export class PassiveJobCollector {
   readonly #context: BrowserContext;
   readonly #observePageAccess: (page: PageAccessFacts) => void;
+  readonly #recommendationPages = new Map<string, Page>();
   readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   readonly #writer: JobPostingWriter;
 
@@ -111,20 +103,37 @@ export class PassiveJobCollector {
     }
   }
 
+  #findRecommendationPage(comparableUrl: string, pages: Page[]): Page | null {
+    const managedPage = this.#recommendationPages.get(comparableUrl);
+    if (managedPage && pages.includes(managedPage)) {
+      return managedPage;
+    }
+    this.#recommendationPages.delete(comparableUrl);
+    const existingPage =
+      pages.find((page) => comparablePageUrl(page.url()) === comparableUrl) ?? null;
+    if (existingPage) {
+      this.#recommendationPages.set(comparableUrl, existingPage);
+    }
+    return existingPage;
+  }
+
   *#ensureRecommendationPages(
     recommendationPages: RecommendationPageReference[],
   ): RiteCoroutine<void> {
     const pages = this.#context.pages();
-    const missingPages = recommendationPagesWithoutOpenTab(
-      recommendationPages,
-      pages.map((page) => page.url()),
-    );
-    for (const recommendationPage of missingPages) {
+    let openedPage = false;
+    for (const recommendationPage of recommendationPages) {
+      const comparableUrl = comparablePageUrl(recommendationPage.url);
+      if (this.#findRecommendationPage(comparableUrl, pages)) {
+        continue;
+      }
       const page = yield* until(() => this.#context.newPage());
       pages.push(page);
+      this.#recommendationPages.set(comparableUrl, page);
       yield* until(() => page.goto(recommendationPage.url));
+      openedPage = true;
     }
-    if (missingPages.length > emptyCollectionLength) {
+    if (openedPage) {
       yield* sleep(initialPageSettleMilliseconds);
     }
   }

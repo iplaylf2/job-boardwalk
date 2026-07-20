@@ -89,17 +89,28 @@ Session owns this page read, but it does not own the selected intent, semantic r
 or durable job observations.
 
 Passive collection observes recognizable job cards from every open supported-platform tab. A
-selected job-search intent supplies recommendation seed pages that Browser Session keeps available;
-those pages are not a whitelist of pages eligible for collection. Without a selected intent, the
-collector opens no seed pages but continues to observe tabs that are already open. Related search
-results and other discovery surfaces reached during research may therefore contribute jobs. A
-failure to read one tab is reported for that tab and does not discard observations from other tabs.
+selected job-search intent supplies recommendation seeds for which Browser Session maintains
+associated tabs. If a seed navigation redirects, the association remains with that tab so the
+collector does not repeatedly open the requested URL or replace what the user can see. Seed
+associations control tab provisioning; they are not a whitelist of pages eligible for collection.
+Without a selected intent, the collector opens no seed tabs but continues to observe tabs that are
+already open.
+
+Every recognizable card contributes an observation regardless of which seed, search path, or other
+research action led to its page. A page with no recognizable cards contributes no job observations;
+the collector does not suppress cards based on the page's apparent purpose or make semantic
+relevance judgments. A failure to read one tab is reported for that tab and does not discard
+observations from other tabs.
 
 Each recruiting platform may also expose a list of jobs the user has marked “感兴趣”. Browser
 Session may read that list independently of the selected search intent, but marking or unmarking a
-job remains a user-controlled account action. Workspace Service treats a complete snapshot as the
-platform's current set of interest relations. A partial snapshot may add or refresh observed
-relations but never removes a relation that the page may have omitted.
+job remains a user-controlled account action. This separate collector maintains one interest-list
+tab per platform and submits a relation snapshot only while that tab displays the corresponding
+list. If its navigation redirects, the collector retains the tab instead of opening another one;
+the redirected document is still available to general passive job-card collection but does not
+become an interest-list snapshot. Workspace Service treats a complete snapshot as the platform's
+current set of interest relations. A partial snapshot may add or refresh observed relations but
+never removes a relation that the page may have omitted.
 
 Workspace Service turns submitted observations into a durable job library rather than a page
 archive. Each platform source keeps its job and discovery links plus normalized fields; no HTML or

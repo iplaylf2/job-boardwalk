@@ -1,9 +1,46 @@
 import type { BrowserContext, Page } from "patchright";
+import { platformIds } from "@job-boardwalk/platform-catalog";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { JobInterestCollector } from "#/browser/job-interest-collector.js";
 import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
+
+const onePage = 1;
+
+test("does not replace managed interest pages after their targets redirect to login", async () => {
+  const pages: Page[] = [];
+  let newPageCount = 0;
+  const context = {
+    newPage: () => {
+      newPageCount += onePage;
+      let url = "about:blank";
+      const page = {
+        goto: () => {
+          url = "https://www.zhipin.com/web/user/";
+          return Promise.resolve(null);
+        },
+        url: () => url,
+      } as unknown as Page;
+      pages.push(page);
+      return Promise.resolve(page);
+    },
+    pages: () => [...pages],
+  } as unknown as BrowserContext;
+  const writer = {
+    *write() {
+      yield* [];
+      expect.unreachable("非“感兴趣”列表页不应调用关系写入器");
+    },
+  } satisfies JobInterestWriter;
+  const collector = new JobInterestCollector(context, writer, () => null);
+  await using scope = createScope();
+
+  await scope.run(() => collector.collect(() => null));
+  await scope.run(() => collector.collect(() => null));
+
+  expect(newPageCount).toBe(platformIds.length);
+});
 
 test("contains a page-opening failure and keeps supervision alive", async () => {
   const navigationError = new Error("navigation aborted");

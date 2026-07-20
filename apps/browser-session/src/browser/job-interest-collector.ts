@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from "patchright";
 import { platformIds } from "@job-boardwalk/platform-catalog";
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { CanceledError, ScopeError, sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -14,6 +15,7 @@ const initialPageSettleMilliseconds = 1000;
 
 export class JobInterestCollector {
   readonly #context: BrowserContext;
+  readonly #interestListPages = new Map<PlatformId, Page>();
   readonly #observePageAccess: (page: PageAccessFacts) => void;
   readonly #writer: JobInterestWriter;
 
@@ -42,18 +44,32 @@ export class JobInterestCollector {
     }
   }
 
+  #findInterestListPage(platformId: PlatformId, pages: Page[]): Page | null {
+    const managedPage = this.#interestListPages.get(platformId);
+    if (managedPage && pages.includes(managedPage)) {
+      return managedPage;
+    }
+    this.#interestListPages.delete(platformId);
+    const existingPage = pages.find((page) => isInterestListPage(platformId, page.url())) ?? null;
+    if (existingPage) {
+      this.#interestListPages.set(platformId, existingPage);
+    }
+    return existingPage;
+  }
+
   *#ensureInterestListPages(): RiteCoroutine<Page[]> {
     const pages = this.#context.pages();
     const interestListPages: Page[] = [];
     let openedPage = false;
     for (const platformId of platformIds) {
-      const existingPage = pages.find((page) => isInterestListPage(platformId, page.url()));
+      const existingPage = this.#findInterestListPage(platformId, pages);
       if (existingPage) {
         interestListPages.push(existingPage);
         continue;
       }
       const page = yield* until(() => this.#context.newPage());
       pages.push(page);
+      this.#interestListPages.set(platformId, page);
       yield* until(() =>
         page.goto(interestListPageUrl(platformId), { waitUntil: "domcontentloaded" }),
       );
