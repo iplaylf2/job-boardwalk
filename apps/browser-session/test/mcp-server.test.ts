@@ -39,7 +39,11 @@ function* unavailableBrowserCall() {
 
 function browserToolExecutorControl(): BrowserControl {
   const context = { on: () => context, pages: () => [] } as unknown as BrowserContext;
-  const executor = new BrowserToolExecutor(context, () => null);
+  const executor = new BrowserToolExecutor(
+    context,
+    () => null,
+    () => null,
+  );
   return {
     executeTool: (toolName, input) => executor.execute(toolName, input),
     status: { available: true, tabCount: 0 },
@@ -98,6 +102,10 @@ test("always exposes the project-owned Patchright browser tools", async () => {
     destructiveHint: false,
     readOnlyHint: false,
   });
+  expect(snapshotTool?.inputSchema.properties?.["userReturnedControl"]).toMatchObject({
+    type: "boolean",
+  });
+  expect(snapshotTool?.inputSchema.required).toBeUndefined();
 
   const result = CallToolResultSchema.parse(
     await client.callTool({ arguments: { action: "list" }, name: "browser_tabs" }),
@@ -222,6 +230,12 @@ const invalidBrowserToolCalls = [
     expectedField: /ignored/u,
     name: "browser_snapshot",
     title: "an undeclared argument",
+  },
+  {
+    arguments: { userReturnedControl: "yes" },
+    expectedField: /userReturnedControl/u,
+    name: "browser_snapshot",
+    title: "a non-boolean returned-control declaration",
   },
 ] as const;
 

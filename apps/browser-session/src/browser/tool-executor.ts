@@ -1,5 +1,6 @@
 import type { BrowserContext, Locator } from "patchright";
 import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -35,13 +36,16 @@ function* waitForRequestedInterval(params: Record<string, unknown>): RiteCorouti
 export class BrowserToolExecutor {
   readonly #elementReferences = new Map<string, ElementReference>();
   readonly #observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null;
+  readonly #recordReturnedControl: (platformId: PlatformId) => void;
   readonly #tabs: BrowserTabs;
 
   public constructor(
     context: BrowserContext,
     observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null,
+    recordReturnedControl: (platformId: PlatformId) => void,
   ) {
     this.#observePageAccess = observePageAccess;
+    this.#recordReturnedControl = recordReturnedControl;
     this.#tabs = new BrowserTabs(context);
   }
 
@@ -235,6 +239,10 @@ export class BrowserToolExecutor {
       yield* sleep(settleMilliseconds);
     }
     const snapshot = yield* capturePageSnapshot(page, textLimit);
+    const adapter = findRecruitingPlatformAdapter(snapshot.url);
+    if (adapter && params["userReturnedControl"] === true) {
+      this.#recordReturnedControl(adapter.platformId);
+    }
     const platformAccessObservation = this.#observePageAccess(snapshot);
     for (const { href, locator, ref, signature } of snapshot.elements) {
       this.#elementReferences.set(ref, {

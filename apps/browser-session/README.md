@@ -60,9 +60,13 @@ maintains one tab per platform, reusing an already-open interest list or opening
 The tab association survives a redirect, preventing each collection pass from opening another
 login or verification tab. Only the corresponding interest-list document produces a bounded
 snapshot; a redirected document remains eligible for the general job-card collector but is not
-treated as evidence that the user marked its cards “感兴趣”. Workspace Service merges snapshots of
-at most 200 visible entries into the job library and updates the interest relations on their
-platform sources every 30 seconds. This collector does not depend on a selected search intent.
+treated as evidence that the user marked its cards “感兴趣”. During a user handoff the collector
+leaves that page unchanged. After the user returns control and the agent completes the post-handoff
+snapshot described under [Agent responsibility and handoff](#agent-responsibility-and-handoff), the
+collector may reuse the same tab to retry the interest-list navigation. Workspace Service merges
+snapshots of at most 200 visible entries into the job library and updates the interest relations on
+their platform sources every 30 seconds. This collector does not depend on a selected search
+intent.
 
 BOSS直聘 exposes ordinary job-detail links on this page. 鱼泡直聘 currently renders the account
 cards without ordinary links, so its records retain the visible job facts while omitting `jobUrl`.
@@ -192,7 +196,10 @@ same window to the user.
 The agent paces actions and interprets snapshot meaning not classified by an adapter. Entering
 credentials, scanning a login QR code, completing verification, submitting the login form, applying
 for jobs, sending messages, and changing an account remain under user control. The agent resumes
-only after the user explicitly returns control and the live page is observed again.
+only after the user explicitly returns control. Its first live-page observation then calls
+`browser_snapshot` with `userReturnedControl=true`; earlier and ordinary snapshots omit the flag.
+The flag authorizes only same-platform interest-list recovery and does not assert that login
+succeeded.
 
 ## Maintenance constraints
 

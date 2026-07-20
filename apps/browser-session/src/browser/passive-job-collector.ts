@@ -11,6 +11,7 @@ import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
 import { captureJobCardSnapshot } from "./job-card-snapshot.js";
+import { ManagedPageTargets } from "./managed-page-targets.js";
 import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 
@@ -53,7 +54,9 @@ function comparablePageUrl(value: string): string {
 export class PassiveJobCollector {
   readonly #context: BrowserContext;
   readonly #observePageAccess: (page: PageAccessFacts) => void;
-  readonly #recommendationPages = new Map<string, Page>();
+  readonly #recommendationPages = new ManagedPageTargets<string>(
+    (targetUrl, pageUrl) => comparablePageUrl(pageUrl) === targetUrl,
+  );
   readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   readonly #writer: JobPostingWriter;
 
@@ -103,37 +106,30 @@ export class PassiveJobCollector {
     }
   }
 
-  #findRecommendationPage(comparableUrl: string, pages: Page[]): Page | null {
-    const managedPage = this.#recommendationPages.get(comparableUrl);
-    if (managedPage && pages.includes(managedPage)) {
-      return managedPage;
-    }
-    this.#recommendationPages.delete(comparableUrl);
-    const existingPage =
-      pages.find((page) => comparablePageUrl(page.url()) === comparableUrl) ?? null;
-    if (existingPage) {
-      this.#recommendationPages.set(comparableUrl, existingPage);
-    }
-    return existingPage;
-  }
-
   *#ensureRecommendationPages(
     recommendationPages: RecommendationPageReference[],
   ): RiteCoroutine<void> {
     const pages = this.#context.pages();
-    let openedPage = false;
+    let navigatedPage = false;
     for (const recommendationPage of recommendationPages) {
       const comparableUrl = comparablePageUrl(recommendationPage.url);
-      if (this.#findRecommendationPage(comparableUrl, pages)) {
+      const resolution = this.#recommendationPages.resolve(comparableUrl, pages);
+      if (resolution.state === "ready" || resolution.state === "waiting") {
         continue;
       }
-      const page = yield* until(() => this.#context.newPage());
-      pages.push(page);
-      this.#recommendationPages.set(comparableUrl, page);
+      const page =
+        resolution.state === "navigate"
+          ? resolution.page
+          : yield* until(() => this.#context.newPage());
+      if (resolution.state === "open") {
+        pages.push(page);
+      }
+      this.#recommendationPages.claim(comparableUrl, page);
       yield* until(() => page.goto(recommendationPage.url));
-      openedPage = true;
+      this.#recommendationPages.observe(comparableUrl, page);
+      navigatedPage = true;
     }
-    if (openedPage) {
+    if (navigatedPage) {
       yield* sleep(initialPageSettleMilliseconds);
     }
   }

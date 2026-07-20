@@ -107,10 +107,12 @@ Session may read that list independently of the selected search intent, but mark
 job remains a user-controlled account action. This separate collector maintains one interest-list
 tab per platform and submits a relation snapshot only while that tab displays the corresponding
 list. If its navigation redirects, the collector retains the tab instead of opening another one;
-the redirected document is still available to general passive job-card collection but does not
-become an interest-list snapshot. Workspace Service treats a complete snapshot as the platform's
-current set of interest relations. A partial snapshot may add or refresh observed relations but
-never removes a relation that the page may have omitted.
+the collector leaves it unchanged during user handoff. Once the user returns control and the agent
+authorizes recovery through the [browser handoff](#browser-handoff), the collector may reuse that
+tab to retry the list navigation. The redirected document remains available to general passive
+job-card collection but does not become an interest-list snapshot. Workspace Service treats a
+complete snapshot as the platform's current set of interest relations. A partial snapshot may add
+or refresh observed relations but never removes a relation that the page may have omitted.
 
 Workspace Service turns submitted observations into a durable job library rather than a page
 archive. Each platform source keeps its job and discovery links plus normalized fields; no HTML or
@@ -134,15 +136,18 @@ session used for research:
 2. Once the login interface is visibly ready, the agent stops browser actions and asks the user to
    take over that window. Opening the interface prepares the handoff; it does not authorize the
    agent to enter or submit credentials or verification input.
-3. The user completes the login or verification and returns control to the agent.
-4. The agent resumes read-only research in the same browser profile and records results through the
-   Workspace Service.
+3. The user completes or stops the login or verification attempt and explicitly returns control to
+   the agent.
+4. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
+   resumes read-only research in the same browser profile and records results through Workspace
+   Service. The flag records returned control and does not assert that authentication succeeded.
 5. A later verification request or user-controlled action pauses research and returns control to the
    user again.
 
 Only one actor drives a browser session at a time. Human takeover pauses agent input. Agent control
-resumes after the user explicitly returns control; the agent then observes the live page again
-before continuing.
+resumes only after the user explicitly returns control. `userReturnedControl` is a platform-scoped
+signal from the agent to Browser Session: it authorizes recovery of a paused interest-list
+navigation, but it neither asserts authentication nor grants authority for account actions.
 
 Browser Session keeps a dedicated persistent browser profile, stored by default in its
 operating-system user-data directory, so cookies and ordinary client state survive between service

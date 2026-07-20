@@ -27,6 +27,7 @@ const BrowserNavigateInput = toolInput({
 const BrowserSnapshotInput = toolInput({
   maxTextCharacters: "1000 <= number <= 40000 = 40000",
   "tabId?": OptionalTabId,
+  "userReturnedControl?": "boolean",
 });
 
 const BrowserJobCardSnapshotInput = toolInput({

@@ -44,7 +44,9 @@
   user's observation agree. A backend URL, page title, tool response, or other backend signal must
   not override the user's report that a different page or window is visible.
 - Resume browser input only after the user says the handoff is complete. Re-observe the live page
-  before continuing, and report any remaining login or verification barrier.
+  with `browser_snapshot` and `userReturnedControl=true` before continuing, and report any
+  remaining login or verification barrier. Set this flag only on that first post-handoff snapshot;
+  it records returned control, not successful authentication.
 - Reuse an existing platform session before requesting login. While the user has control of the
   browser for login or verification, do not open extra pages, refresh, or send browser input until
   the user explicitly returns control. This pause does not restrict ordinary navigation, paging,

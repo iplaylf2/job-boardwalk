@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from "patchright";
 import { platformIds } from "@job-boardwalk/platform-catalog";
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -7,17 +8,24 @@ import { JobInterestCollector } from "#/browser/job-interest-collector.js";
 import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
 
 const onePage = 1;
+const initialAndRecoveryNavigationCount = 2;
+const initialRecoveryRevision = 0;
 
 test("does not replace managed interest pages after their targets redirect to login", async () => {
   const pages: Page[] = [];
+  const recoveryRevisions = new Map<PlatformId, number>();
+  let navigationCount = 0;
   let newPageCount = 0;
   const context = {
     newPage: () => {
       newPageCount += onePage;
       let url = "about:blank";
       const page = {
-        goto: () => {
-          url = "https://www.zhipin.com/web/user/";
+        goto: (targetUrl: string) => {
+          navigationCount += onePage;
+          url = targetUrl.includes("zhipin.com")
+            ? "https://www.zhipin.com/web/user/"
+            : "https://www.yupao.com/web/login/";
           return Promise.resolve(null);
         },
         url: () => url,
@@ -33,13 +41,31 @@ test("does not replace managed interest pages after their targets redirect to lo
       expect.unreachable("非“感兴趣”列表页不应调用关系写入器");
     },
   } satisfies JobInterestWriter;
-  const collector = new JobInterestCollector(context, writer, () => null);
+  const collector = new JobInterestCollector(
+    context,
+    writer,
+    () => null,
+    (platformId) => recoveryRevisions.get(platformId) ?? initialRecoveryRevision,
+  );
   await using scope = createScope();
 
   await scope.run(() => collector.collect(() => null));
   await scope.run(() => collector.collect(() => null));
 
   expect(newPageCount).toBe(platformIds.length);
+  expect(navigationCount).toBe(platformIds.length);
+
+  recoveryRevisions.set("boss", onePage);
+  await scope.run(() => collector.collect(() => null));
+
+  expect(newPageCount).toBe(platformIds.length);
+  expect(navigationCount).toBe(platformIds.length + onePage);
+
+  recoveryRevisions.set("yupao", onePage);
+  await scope.run(() => collector.collect(() => null));
+
+  expect(newPageCount).toBe(platformIds.length);
+  expect(navigationCount).toBe(platformIds.length * initialAndRecoveryNavigationCount);
 });
 
 test("contains a page-opening failure and keeps supervision alive", async () => {
@@ -58,7 +84,12 @@ test("contains a page-opening failure and keeps supervision alive", async () => 
       expect.unreachable("导航失败时不应写入快照");
     },
   } satisfies JobInterestWriter;
-  const collector = new JobInterestCollector(context, writer, () => null);
+  const collector = new JobInterestCollector(
+    context,
+    writer,
+    () => null,
+    () => initialRecoveryRevision,
+  );
   const errors: Error[] = [];
   const scope = createScope();
   const supervision = scope.run(() => collector.run((error) => errors.push(error)));

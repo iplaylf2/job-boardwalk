@@ -1,6 +1,7 @@
 import { chromium } from "patchright";
 import type { BrowserContext } from "patchright";
 import type { BrowserRuntimeStatus, PlatformAccessObservation } from "@job-boardwalk/contracts";
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { CanceledError, ScopeError, completer, sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
@@ -15,7 +16,9 @@ import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
 const initialFailureCount = 0;
+const initialReturnedControlRevision = 0;
 const firstFailureCount = 1;
+const nextReturnedControl = 1;
 const minimumRetryExponent = 0;
 const retryDelayBaseMilliseconds = 1000;
 const retryDelayMaximumMilliseconds = 30_000;
@@ -50,6 +53,7 @@ export class ManagedBrowser implements BrowserControl {
   readonly #jobPostingWriter: JobPostingWriter;
   readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   #context: BrowserContext | null = null;
+  readonly #returnedControlRevisions = new Map<PlatformId, number>();
   #platformAccessObserver: PlatformAccessObserver | null = null;
   #toolExecutor: BrowserToolExecutor | null = null;
   #hasFailed = false;
@@ -119,6 +123,7 @@ export class ManagedBrowser implements BrowserControl {
 
   *#launchOnce(reportError: (error: Error) => void): RiteCoroutine<Error> {
     const context = yield* until(() => this.#launchContext(this.#profilePath));
+    this.#returnedControlRevisions.clear();
     const closed = yield* completer<Error>();
     context.once("close", () => closed.resolve(new Error("浏览器窗口已经关闭。")));
     this.#context = context;
@@ -133,10 +138,18 @@ export class ManagedBrowser implements BrowserControl {
       context,
       this.#jobInterestWriter,
       (page) => platformAccessObserver.observePage(page),
+      (platformId) =>
+        this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision,
     );
     this.#platformAccessObserver = platformAccessObserver;
-    this.#toolExecutor = new BrowserToolExecutor(context, (page) =>
-      platformAccessObserver.observePage(page),
+    this.#toolExecutor = new BrowserToolExecutor(
+      context,
+      (page) => platformAccessObserver.observePage(page),
+      (platformId) => {
+        const currentRevision =
+          this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision;
+        this.#returnedControlRevisions.set(platformId, currentRevision + nextReturnedControl);
+      },
     );
     this.#hasFailed = false;
     try {

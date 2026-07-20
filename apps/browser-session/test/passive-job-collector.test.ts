@@ -30,9 +30,14 @@ function jobPage(url: string, title: string): Page {
   } as unknown as Page;
 }
 
-function redirectingJobPage(destinationUrl: string): Page {
+function redirectingJobPage(destinationUrl: string): {
+  moveTo: (url: string) => void;
+  navigationCount: () => number;
+  page: Page;
+} {
   let url = "about:blank";
-  return {
+  let navigationCount = 0;
+  const page = {
     evaluate: () =>
       Promise.resolve({
         accessElements: [],
@@ -50,11 +55,19 @@ function redirectingJobPage(destinationUrl: string): Page {
         url,
       }),
     goto: () => {
+      navigationCount += onePageRead;
       url = destinationUrl;
       return Promise.resolve(null);
     },
     url: () => url,
   } as unknown as Page;
+  return {
+    moveTo(newUrl) {
+      url = newUrl;
+    },
+    navigationCount: () => navigationCount,
+    page,
+  };
 }
 
 function selectedIntentReader(seedUrl: string): SelectedJobSearchIntentReader {
@@ -121,12 +134,12 @@ test("reuses a managed recommendation page after redirect without suppressing it
   const pages: Page[] = [];
   let newPageCount = 0;
   const observations: { discoveryUrl: string }[] = [];
+  const redirectedPage = redirectingJobPage(loginUrl);
   const context = {
     newPage: () => {
       newPageCount += onePageRead;
-      const page = redirectingJobPage(loginUrl);
-      pages.push(page);
-      return Promise.resolve(page);
+      pages.push(redirectedPage.page);
+      return Promise.resolve(redirectedPage.page);
     },
     pages: () => [...pages],
   } as unknown as BrowserContext;
@@ -147,11 +160,21 @@ test("reuses a managed recommendation page after redirect without suppressing it
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
 
-  expect(newPageCount).toBe(onePageRead);
+  expect(redirectedPage.navigationCount()).toBe(onePageRead);
   expect(observations).toEqual([
     expect.objectContaining({ discoveryUrl: loginUrl }),
     expect.objectContaining({ discoveryUrl: loginUrl }),
   ]);
+
+  const laterPageUrl = "https://www.zhipin.com/web/geek/jobs";
+  redirectedPage.moveTo(laterPageUrl);
+  await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
+
+  expect(newPageCount).toBe(onePageRead);
+  expect(redirectedPage.navigationCount()).toBe(onePageRead);
+  expect(observations.at(-onePageRead)).toEqual(
+    expect.objectContaining({ discoveryUrl: laterPageUrl }),
+  );
 });
 
 test("collects recognizable cards from non-seed platform tabs during the selected intent", async () => {
