@@ -11,7 +11,6 @@ import { registerMcpEndpoint } from "./mcp-endpoint.js";
 
 const badRequestStatus = 400;
 const forbiddenStatus = 403;
-const internalServerErrorStatus = 500;
 
 function parseOrigin(value: string): URL | null {
   try {
@@ -51,9 +50,7 @@ export function createWorkspaceServiceHttpApp(
 ): Hono {
   const app = new Hono();
 
-  app.onError((error, context) =>
-    context.json({ error: error.message }, internalServerErrorStatus),
-  );
+  app.get("/health", (context) => context.json({ status: "ok" }));
   registerLocalOriginGuard(app);
   registerApiRoutes(
     app,

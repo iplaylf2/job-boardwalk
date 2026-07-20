@@ -6,7 +6,6 @@
     color: #252820;
     background: #f4f1e8;
     font-family:
-      "DM Sans",
       ui-sans-serif,
       -apple-system,
       BlinkMacSystemFont,
@@ -20,8 +19,8 @@
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     --font-sans:
-      "DM Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
-      "PingFang SC", "Microsoft YaHei", sans-serif;
+      ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC",
+      "Microsoft YaHei", sans-serif;
     --font-serif: "Noto Serif SC", "Songti SC", "STSong", ui-serif, serif;
     --text-caption: 0.75rem;
     --text-meta: 0.8125rem;

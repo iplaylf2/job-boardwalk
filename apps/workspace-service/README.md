@@ -1,8 +1,10 @@
 # Workspace Service
 
-Workspace Service owns Job Boardwalk's durable local workspace and workspace read model. It is the
-sole owner of SQLite persistence. Its loopback HTTP server exposes `/api` to Dashboard and `/mcp`
-to MCP clients; it does not serve Dashboard assets or own a browser process.
+Workspace Service owns Job Boardwalk's durable local state and workspace read model. It is the sole
+owner of SQLite persistence. Its HTTP server exposes `/api` to Dashboard and `/mcp` to MCP clients;
+it does not serve Dashboard assets or own a browser process. The production container listens on
+its private network while Compose publishes the same service to host loopback for Browser Session
+and the agent.
 
 The repository's [product design](../../docs/product-design.md) defines the intended delegation and
 browser-collaboration model. The current service preserves platform-access observations, profile
@@ -23,25 +25,31 @@ persists them. An expired lease is shown as offline rather than current browser 
 
 ## Run Workspace Service
 
-For development:
+Workspace Service's production runtime is the root Compose deployment:
+
+```sh
+docker compose -f compose.yaml -f deploy/compose.build.yaml up --build --detach workspace-service
+```
+
+Its SQLite database lives in the `workspace-data` named volume. Compose publishes
+<http://127.0.0.1:54310> without exposing the service on LAN interfaces.
+The application build produces a self-contained `dist/` artifact with
+`workspace-service.mjs` and the Drizzle baseline under `migrations/`. The application-owned
+`Dockerfile` copies only that directory into the runtime image; source files, workspace manifests,
+build dependencies, pnpm, and `node_modules` are absent.
+
+For source development:
 
 ```sh
 pnpm --filter @job-boardwalk/workspace-service dev
 ```
 
-The Workspace Service listens on <http://127.0.0.1:54310>.
-
-For a production-style run:
-
-```sh
-pnpm --filter @job-boardwalk/workspace-service build
-pnpm --filter @job-boardwalk/workspace-service start
-```
+The development process listens on <http://127.0.0.1:54310> by default.
 
 ## Connect an MCP host
 
 Configure the MCP host to use the Streamable HTTP endpoint at
-<http://127.0.0.1:54310/mcp>. MCP requests share the service process, workspace repository, and
+<http://127.0.0.1:54310/mcp>. MCP requests share the service process, persistence layer, and
 top-level shajara scope with the HTTP API.
 
 The MCP surface provides:
@@ -59,8 +67,9 @@ The MCP surface provides:
 
 ## HTTP API
 
-The loopback HTTP surface currently exposes:
+The HTTP surface currently exposes:
 
+- `GET /health`
 - `GET /api/workspace/overview`
 - `PUT /api/browser-session/status`
 - `POST /api/platform-access/observations`
@@ -226,14 +235,20 @@ workspace facts or original sources when available.
 
 ## Persistence
 
-The SQLite database lives under the operating system's user data directory by default. Set
-`JOB_BOARDWALK_WORKSPACE_DATABASE_PATH` to choose the exact database path. Relative values resolve
-from the current working directory. Workspace Service neither knows nor shares Browser Session's
-profile location.
+The Compose deployment stores SQLite at `/var/lib/job-boardwalk/workspace.sqlite` in the
+`workspace-data` named volume. The database therefore survives container replacement and
+`docker compose down`; deleting the named volume explicitly deletes the workspace.
+
+For source development, the database lives under the operating system's user data directory by
+default. Set `JOB_BOARDWALK_WORKSPACE_DATABASE_PATH` to choose the exact database path. Relative
+values resolve from the current working directory. Workspace Service neither knows nor shares
+Browser Session's profile location.
 
 The Drizzle schema lives in `src/persistence/schema.ts`. The `migrations/` directory contains
 exactly one complete baseline for the current model, not an upgrade chain. Existing databases from
 earlier exploratory models are unsupported and must be deleted before starting this version.
+The Vite build emits this directory as runtime assets under `dist/migrations`; the source directory
+remains the schema generation target and source of truth.
 
 During exploration, a schema change replaces both the database and the baseline. Remove the local
 database and current migration directory, then generate one new baseline from the complete schema.
@@ -245,10 +260,17 @@ pnpm --filter @job-boardwalk/workspace-service db:generate
 
 ## Local security boundary
 
-Workspace Service binds only to `127.0.0.1`. Non-GET API and MCP requests carrying a non-local
-browser origin are rejected. The service has no access to authentication cookies or browser profile
-contents. Origin filtering is not authentication; local processes are inside the service trust
+The source-development listener binds to `127.0.0.1`. In Compose, the process binds to `0.0.0.0`
+inside its isolated network so Dashboard can reach it, but Docker publishes port 54310 only on host
+loopback. Non-GET API and MCP requests carrying a non-local browser origin are rejected. The service
+has no access to authentication cookies or browser profile contents. Origin filtering is not
+authentication; local processes and the private Compose network are inside the service trust
 boundary. Local state is created with owner-only permissions on systems that support POSIX modes.
+
+`JOB_BOARDWALK_WORKSPACE_SERVICE_HOST` accepts a Node.js listener hostname and defaults to
+`127.0.0.1`.
+`JOB_BOARDWALK_WORKSPACE_SERVICE_PORT` accepts a TCP port and defaults to `54310`. Compose owns both
+production values; users do not need to set them.
 
 ## Concurrency model
 

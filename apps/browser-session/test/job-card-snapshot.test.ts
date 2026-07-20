@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { runInNewContext } from "node:vm";
 
 import { captureJobCardMetadata } from "#/browser/job-card-snapshot.js";
 import { requireJobCardExtraction } from "#/browser/recruiting-platform-adapters.js";
@@ -136,8 +137,34 @@ test("extracts bounded, deduplicated evidence only from same-origin job cards", 
   });
 });
 
-test("keeps the serialized page callback independent from Node-side transform helpers", () => {
-  expect(captureJobCardMetadata.toString()).not.toMatch(/\b__name\(/u);
+test("executes the serialized page callback without Node-side helpers", () => {
+  const input = {
+    accessTextCharacters: 5000,
+    config: requireJobCardExtraction("https://www.zhipin.com/web/geek/job-recommend").extraction,
+    maximumAccessElements: 300,
+    maximumCardTextCharacters: 1500,
+    maximumCards: 50,
+    maximumFieldCharacters: 300,
+  };
+  const result = runInNewContext(`(${captureJobCardMetadata.toString()})(input)`, {
+    URL,
+    document: {
+      body: { innerText: "推荐职位" },
+      querySelectorAll: () => [],
+      title: "推荐职位 - BOSS直聘",
+    },
+    input,
+    location: {
+      href: "https://www.zhipin.com/web/geek/job-recommend",
+      origin: "https://www.zhipin.com",
+    },
+  }) as { cards: unknown[]; title: string; url: string };
+
+  expect(result).toMatchObject({
+    cards: [],
+    title: "推荐职位 - BOSS直聘",
+    url: "https://www.zhipin.com/web/geek/job-recommend",
+  });
 });
 
 test("excludes Yupao's more-information entry from job evidence", () => {

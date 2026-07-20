@@ -52,25 +52,26 @@ source links. It is a document reader, not an agent UI or browser-control surfac
 
 ## Run Dashboard
 
-Start the Workspace Service first, then run:
+Dashboard's production runtime is the root Compose deployment:
 
 ```sh
+docker compose -f compose.yaml -f deploy/compose.build.yaml up --build --detach
+```
+
+Its production image uses Caddy to serve the built client, apply a restrictive browser security
+policy, provide SPA route fallback, and proxy `/api` to Workspace Service over the private Compose
+network. The application-owned `Dockerfile` builds only Dashboard and its workspace dependencies;
+its runtime stage receives only the static `dist/` artifact. Open <http://127.0.0.1:54311>.
+
+For source development, run Workspace Service and Dashboard in separate terminals:
+
+```sh
+pnpm --filter @job-boardwalk/workspace-service dev
 pnpm --filter @job-boardwalk/dashboard dev
 ```
 
 Open <http://127.0.0.1:54311>. Vite proxies `/api` requests to the Workspace Service at
 <http://127.0.0.1:54310>.
-
-## Production-style preview
-
-Build and preview the static client:
-
-```sh
-pnpm --filter @job-boardwalk/dashboard build
-pnpm --filter @job-boardwalk/dashboard start
-```
-
-The preview still requires a separately running Workspace Service.
 
 ## Development
 

@@ -1,0 +1,27 @@
+# This image builds from the repository root but owns only this workspace dependency closure.
+**
+
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+
+!apps/
+!apps/dashboard/
+!apps/dashboard/**
+
+!internal/
+!internal/presets/
+!internal/presets/**
+
+!packages/
+!packages/contracts/
+!packages/contracts/**
+!packages/platform-catalog/
+!packages/platform-catalog/**
+
+# Never let local secrets or generated trees back into an included workspace.
+**/.env
+**/.env.*
+**/coverage
+**/dist
+**/node_modules

@@ -77,14 +77,20 @@
   Server entry points do not load `.env` automatically; the user or agent host decides how to
   supply its values. Inspect the local file before asking the user to repeat host addresses, but
   never print or commit its contents.
-- Workspace Service runs at `http://127.0.0.1:54310` and owns durable observations. Browser Session
-  may automatically submit a platform authentication change when an adapter finds a conclusive
-  result in a top-level navigation response already received by the visible browser or in a bounded
-  snapshot requested by the agent. When `browser_snapshot` returns a non-null
+- Run Workspace Service and Dashboard as the root Compose deployment. They are separate containers;
+  Workspace Service owns the `workspace-data` volume, while Dashboard reaches it only through the
+  private Compose network. Compose publishes Workspace Service at `http://127.0.0.1:54310` for the
+  host Browser Session and agent, and Dashboard at `http://127.0.0.1:54311` for the user. Do not put
+  Browser Session into Compose or introduce a virtual or remote desktop transport.
+- Keep each containerized application responsible for its own Dockerfile and complete `dist/`
+  deployment artifact. Builder stages may use the root workspace context for internal package
+  resolution; runtime stages copy only the owning application's artifact and do not contain pnpm,
+  `node_modules`, workspace manifests, or another application's sources.
+- Browser Session may automatically submit a platform authentication change when an adapter finds
+  a conclusive result in a top-level navigation response already received by the visible browser or
+  in a bounded snapshot requested by the agent. When `browser_snapshot` returns a non-null
   `platformAccessObservation`, it is already queued for automatic reporting and the agent must not
   submit it again. Evidence not classified by an adapter remains agent-owned.
-- Dashboard is the read-only view at `http://127.0.0.1:54311`; it shows durable workspace data and
-  leased Browser Session presence, but does not establish or control the browser session.
 - Browser Session launches a visible persistent Patchright Chromium process and owns its dedicated
   profile path. Workspace Service independently owns its database path; the services do not share a
   filesystem state root. Browser Session reports runtime status to Workspace Service, which derives

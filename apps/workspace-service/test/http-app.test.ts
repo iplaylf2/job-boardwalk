@@ -105,6 +105,22 @@ function seedMcpWorkspace(repository: WorkspaceRepository): void {
   });
 }
 
+test("exposes the public health response", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-health-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const response = await httpApp.request("/health");
+    expect(response.status).toBe(successfulStatus);
+    await expect(response.json()).resolves.toEqual({ status: "ok" });
+  } finally {
+    repository.close();
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
 // oxlint-disable-next-line max-lines-per-function, max-statements -- Representative validation failures share one lifecycle assertion.
 test("keeps request errors inside the long-lived service scope", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));

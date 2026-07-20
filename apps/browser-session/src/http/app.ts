@@ -7,7 +7,6 @@ import type { Scope } from "@shajara/host";
 
 const badRequestStatus = 400;
 const forbiddenStatus = 403;
-const internalServerErrorStatus = 500;
 
 export interface BrowserSessionHttpDependencies {
   browserControl: BrowserControl;
@@ -39,9 +38,6 @@ function localOriginGuard(context: Context, next: Next) {
 export function createBrowserSessionHttpApp(dependencies: BrowserSessionHttpDependencies): Hono {
   const app = new Hono();
 
-  app.onError((error, requestContext) =>
-    requestContext.json({ error: error.message }, internalServerErrorStatus),
-  );
   app.get("/health", (requestContext) =>
     requestContext.json({
       browser: dependencies.browserControl.status,

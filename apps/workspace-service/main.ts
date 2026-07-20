@@ -7,13 +7,14 @@ import { completer, createScope, until } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
 
-import { createWorkspaceServiceHttpApp } from "./http/app.js";
-import { prepareWorkspaceDatabasePath } from "./persistence/database-path.js";
-import { WorkspaceRepository } from "./persistence/workspace-repository.js";
-import { BrowserSessionPresenceTracker } from "./runtime/browser-session-presence.js";
+import { createWorkspaceServiceHttpApp } from "./src/http/app.js";
+import { prepareWorkspaceDatabasePath } from "./src/persistence/database-path.js";
+import { WorkspaceRepository } from "./src/persistence/workspace-repository.js";
+import { BrowserSessionPresenceTracker } from "./src/runtime/browser-session-presence.js";
+import { resolveHttpServerAddress } from "./src/runtime/http-server-address.js";
 
 const privateFileCreationMask = 0o077;
-const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
+const migrationsDirectory = path.resolve(import.meta.dirname, "migrations");
 process.umask(privateFileCreationMask);
 
 function closeHttpServer(httpServer: ServerType): Promise<void> {
@@ -38,6 +39,7 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
 }
 
 function* runWorkspaceService(serviceScope: Scope): RiteCoroutine<void> {
+  const httpServerAddress = resolveHttpServerAddress();
   const databasePath = yield* prepareWorkspaceDatabasePath();
   const repository = new WorkspaceRepository({ databasePath, migrationsDirectory });
   const browserSessionPresenceTracker = new BrowserSessionPresenceTracker();
@@ -46,12 +48,9 @@ function* runWorkspaceService(serviceScope: Scope): RiteCoroutine<void> {
     repository,
     serviceScope,
   });
-  const httpServer = serve(
-    { fetch: httpApp.fetch, hostname: "127.0.0.1", port: 54_310 },
-    (info) => {
-      process.stdout.write(`Workspace Service: http://${info.address}:${info.port}\n`);
-    },
-  );
+  const httpServer = serve({ fetch: httpApp.fetch, ...httpServerAddress }, (info) => {
+    process.stdout.write(`Workspace Service: http://${info.address}:${info.port}\n`);
+  });
   const shutdown = yield* completer<true>();
   const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
   try {

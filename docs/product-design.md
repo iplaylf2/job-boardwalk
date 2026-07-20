@@ -61,6 +61,13 @@ authentication assessment from a real top-level navigation response or a bounded
 when it has a conclusive platform-specific rule. The agent interprets evidence not covered by an
 adapter.
 
+The runtime topology follows those ownership boundaries. Browser Session is a host companion in the
+user's graphical session. Workspace Service and Dashboard are separate container workloads;
+Workspace Service publishes its HTTP boundary only to host loopback so Browser Session and the
+agent can reach it, while Dashboard uses the private container network. A virtual desktop or remote
+desktop transport is not part of the product: a host without a user-observable graphical session
+cannot run Browser Session.
+
 ## Runtime presence and reporting
 
 Browser Session sends bounded status reports directly to Workspace Service. Each status report

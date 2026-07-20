@@ -8,10 +8,9 @@
   },
   "scripts": {
     "build": "vite build",
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsx watch main.ts",
     "db:generate": "drizzle-kit generate",
     "lint": "oxlint --config oxlint.config.ts .",
-    "start": "node dist/workspace-service.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },

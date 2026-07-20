@@ -6,6 +6,11 @@ coordinates tabs and page actions, and derives authentication observations from 
 navigation responses and bounded snapshots when a platform adapter has a conclusive rule. Page
 meaning not covered by an adapter remains with the agent.
 
+Browser Session is a host companion by design. It runs in the same graphical session the user can
+observe and take over; it is not part of the Compose deployment. Workspace Service and Dashboard
+run in containers, while Workspace Service's loopback-published port preserves the existing local
+HTTP relationship without giving either container access to the browser profile or desktop.
+
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
 bounded page evidence lets the agent reconcile automation results with the window the user can see.
@@ -60,7 +65,8 @@ remove the job from the library.
 ## Run Browser Session
 
 Browser Session requires a graphical desktop session and Patchright's Chromium binary. It does not
-require a particular operating system, shell, VM, container, or editor.
+require a particular operating system, shell, VM, or editor, but it must not run in the headless
+service containers because the visible host window is the user-handoff boundary.
 
 Install the browser once:
 
@@ -78,7 +84,7 @@ For a built run:
 
 ```sh
 pnpm --filter @job-boardwalk/browser-session build
-node apps/browser-session/dist/browser-session.js
+pnpm --filter @job-boardwalk/browser-session start
 ```
 
 By default, the dedicated browser profile is stored under the operating system's user data
