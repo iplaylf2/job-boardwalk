@@ -105,7 +105,7 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
   const resumeLineOffset = 2;
   const identityLineOffset = 3;
   const loginLabelFragments = ["登录", "注册"] as const;
-  const accountContextLabels = new Set(["推荐", "添加求职期望"]);
+  const accountContextLabels = new Set(["搜索", "推荐", "添加求职期望"]);
   const headerLines = page.text
     .split(/\r?\n/u)
     .map((line) => line.trim())
@@ -122,10 +122,12 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
   }
   const identity = headerLines[messageLineIndex + resumeLineOffset];
   const accountContext = headerLines[messageLineIndex + identityLineOffset];
+  const isPersonalCenter =
+    parsePlatformWebUrl("yupao", page.url)?.pathname === "/user/resume-info/";
   const hasAccountIdentity =
     Boolean(identity) &&
     !loginLabelFragments.some((fragment) => identity?.includes(fragment)) &&
-    accountContextLabels.has(accountContext ?? "");
+    (isPersonalCenter || accountContextLabels.has(accountContext ?? ""));
   return hasAccountIdentity
     ? { authenticationState: "authenticated", evidence: "authenticated-page" }
     : null;
