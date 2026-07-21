@@ -3,6 +3,7 @@ import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
+import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { PlatformAccessObserver } from "#/browser/platform-access-observer.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 
@@ -126,6 +127,7 @@ test("returns and queues an adapter-owned access observation with a bounded snap
   const executor = new BrowserToolExecutor(
     context,
     (page) => observer.observePage(page),
+    new BackgroundCollectionControl(),
     () => null,
   );
   await using scope = createScope();
@@ -149,12 +151,13 @@ test("returns and queues an adapter-owned access observation with a bounded snap
   expect(JSON.stringify(observer.observations)).not.toMatch(/消息|简历|个人中心|\/web\/geek\//u);
 });
 
-test("records returned control only when a snapshot explicitly declares it", async () => {
+test("ignores returned-control declarations when no user handoff is active", async () => {
   const context = fakeContext(fakeAuthenticatedBossPage());
   const returnedControlPlatforms: PlatformId[] = [];
   const executor = new BrowserToolExecutor(
     context,
     () => null,
+    new BackgroundCollectionControl(),
     (platformId) => returnedControlPlatforms.push(platformId),
   );
   await using scope = createScope();
@@ -163,7 +166,7 @@ test("records returned control only when a snapshot explicitly declares it", asy
   expect(returnedControlPlatforms).toEqual([]);
 
   await scope.run(() => executor.execute("browser_snapshot", { userReturnedControl: true }));
-  expect(returnedControlPlatforms).toEqual(["boss"]);
+  expect(returnedControlPlatforms).toEqual([]);
 });
 
 test("refreshes platform access evidence while reading job cards", async () => {
@@ -172,6 +175,7 @@ test("refreshes platform access evidence while reading job cards", async () => {
   const executor = new BrowserToolExecutor(
     context,
     (page) => observer.observePage(page),
+    new BackgroundCollectionControl(),
     () => null,
   );
   await using scope = createScope();
@@ -196,6 +200,7 @@ test("clicks a same-platform link through its captured element", async () => {
   const executor = new BrowserToolExecutor(
     fakeContext(fake.page),
     () => null,
+    new BackgroundCollectionControl(),
     () => null,
   );
   await using scope = createScope();
@@ -214,6 +219,7 @@ test("fills a captured text control without classifying its business purpose", a
   const executor = new BrowserToolExecutor(
     fakeContext(input.page),
     () => null,
+    new BackgroundCollectionControl(),
     () => null,
   );
   await using scope = createScope();
@@ -230,6 +236,7 @@ test("clicks a captured page button without classifying its business purpose", a
   const executor = new BrowserToolExecutor(
     fakeContext(button.page),
     () => null,
+    new BackgroundCollectionControl(),
     () => null,
   );
   await using scope = createScope();
@@ -246,6 +253,7 @@ test("selects an option in a captured selection control", async () => {
   const executor = new BrowserToolExecutor(
     fakeContext(select.page),
     () => null,
+    new BackgroundCollectionControl(),
     () => null,
   );
   await using scope = createScope();

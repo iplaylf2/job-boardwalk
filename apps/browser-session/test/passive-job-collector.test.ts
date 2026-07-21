@@ -2,6 +2,7 @@ import type { BrowserContext, Page } from "patchright";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
+import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { PassiveJobCollector, jobPostingObservations } from "#/browser/passive-job-collector.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
@@ -85,6 +86,17 @@ function selectedIntentReader(seedUrl: string): SelectedJobSearchIntentReader {
       };
     },
   };
+}
+
+function passiveJobCollector(
+  context: BrowserContext,
+  reader: SelectedJobSearchIntentReader,
+  writer: JobPostingWriter,
+): PassiveJobCollector {
+  return new PassiveJobCollector(context, reader, writer, {
+    collectionControl: new BackgroundCollectionControl(),
+    observePageAccess: () => null,
+  });
 }
 
 test("converts job-card evidence from any supported discovery page into posting observations", () => {
@@ -175,12 +187,7 @@ test("reuses a managed recommendation page after redirect without suppressing it
       observations.push(observation);
     },
   } satisfies JobPostingWriter;
-  const collector = new PassiveJobCollector(
-    context,
-    selectedIntentReader(seedUrl),
-    writer,
-    () => null,
-  );
+  const collector = passiveJobCollector(context, selectedIntentReader(seedUrl), writer);
   await using scope = createScope();
 
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
@@ -221,7 +228,7 @@ test("collects recognizable cards from non-seed platform tabs during the selecte
       observations.push(observation);
     },
   } satisfies JobPostingWriter;
-  const collector = new PassiveJobCollector(context, reader, writer, () => null);
+  const collector = passiveJobCollector(context, reader, writer);
   await using scope = createScope();
 
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
@@ -253,7 +260,7 @@ test("continues collecting open platform tabs without seeding pages when no inte
       writeCount += onePageRead;
     },
   } satisfies JobPostingWriter;
-  const collector = new PassiveJobCollector(context, reader, writer, () => null);
+  const collector = passiveJobCollector(context, reader, writer);
   await using scope = createScope();
 
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
@@ -279,12 +286,7 @@ test("reports one unstable page and preserves jobs from later healthy pages", as
       observations.push(observation);
     },
   } satisfies JobPostingWriter;
-  const collector = new PassiveJobCollector(
-    context,
-    selectedIntentReader(seedUrl),
-    writer,
-    () => null,
-  );
+  const collector = passiveJobCollector(context, selectedIntentReader(seedUrl), writer);
   const errors: Error[] = [];
   await using scope = createScope();
 

@@ -61,12 +61,11 @@ The tab association survives a redirect, preventing each collection pass from op
 login or verification tab. Only the corresponding interest-list document produces a bounded
 snapshot; a redirected document remains eligible for the general job-card collector but is not
 treated as evidence that the user marked its cards “感兴趣”. During a user handoff the collector
-leaves that page unchanged. After the user returns control and the agent completes the post-handoff
-snapshot described under [Agent responsibility and handoff](#agent-responsibility-and-handoff), the
-collector may reuse the same tab to retry the interest-list navigation. Workspace Service merges
-snapshots of at most 200 visible entries into the job library and updates the interest relations on
-their platform sources every 30 seconds. This collector does not depend on a selected search
-intent.
+leaves that page unchanged. After the user returns control and the agent completes the
+[post-handoff snapshot](#browser-handoff), the collector may reuse the same tab to retry the
+interest-list navigation. Workspace Service merges snapshots of at most 200 visible entries into
+the job library and updates the interest relations on their platform sources every 30 seconds. This
+collector does not depend on a selected search intent.
 
 BOSS直聘 exposes ordinary job-detail links on this page. 鱼泡直聘 account cards may omit them; when
 a recognized detail link is present, Browser Session preserves its `jobUrl` and derives
@@ -186,22 +185,22 @@ BOSS salary digits rendered through the page's private-use character set are det
 mapped to their displayed decimal digits before the bounded card evidence is returned; this does
 not alter navigation or bypass an access decision.
 
-`browser_prepare_login` is the explicit login-handoff preparation path. When the user asks to log
-in, or visible page evidence shows that the requested workflow requires authentication and the
-current session is unauthenticated, the agent uses this tool to reuse the platform tab and open its
-catalog-defined login destination. The direct destination avoids rediscovering a page control on
-every handoff. Once the login interface is visible, the agent stops browser input and hands the
-same window to the user.
+### Browser handoff
 
-## Agent responsibility and handoff
+[Product design](../../docs/product-design.md#browser-handoff) owns the delegation boundary: login,
+verification, applications, messages, and account changes remain under user control. Browser
+Session implements the browser side of that handoff.
 
-The agent paces actions and interprets snapshot meaning not classified by an adapter. Entering
-credentials, scanning a login QR code, completing verification, submitting the login form, applying
-for jobs, sending messages, and changing an account remain under user control. The agent resumes
-only after the user explicitly returns control. Its first live-page observation then calls
-`browser_snapshot` with `userReturnedControl=true`; earlier and ordinary snapshots omit the flag.
-The flag authorizes only same-platform interest-list recovery and does not assert that login
-succeeded.
+Before navigating, `browser_prepare_login` blocks new background page work and waits for in-flight
+page work to finish. It then reuses the platform tab and opens its catalog-defined login
+destination. Once the login interface is visible, the agent stops browser input and hands the same
+window to the user. Workspace Service writes already started from previously captured evidence may
+finish during the handoff because they do not drive the browser.
+
+After the user explicitly returns control, the agent calls `browser_snapshot` with
+`userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit
+the flag. The flag resumes background page collection and authorizes interest-list recovery for the
+observed platform. It records returned control, not successful authentication.
 
 ## Maintenance constraints
 

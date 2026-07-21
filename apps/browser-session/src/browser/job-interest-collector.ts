@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from "patchright";
+import type { JobInterestSnapshot } from "@job-boardwalk/contracts";
 import { platformIds } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { CanceledError, ScopeError, sleep, until } from "@shajara/host";
@@ -6,6 +7,7 @@ import type { RiteCoroutine } from "@shajara/host";
 
 import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
 
+import type { BackgroundCollectionControl } from "./background-collection-control.js";
 import { captureJobInterestSnapshot } from "./job-interest-snapshot.js";
 import { ManagedPageTargets } from "./managed-page-targets.js";
 import { interestListPageUrl, isInterestListPage } from "./recruiting-platform-adapters.js";
@@ -19,7 +21,13 @@ interface EnsuredInterestListPage {
   readonly page: Page | null;
 }
 
+interface JobInterestCollectionCoordination {
+  readonly collectionControl: BackgroundCollectionControl;
+  readonly observePageAccess: (page: PageAccessFacts) => void;
+}
+
 export class JobInterestCollector {
+  readonly #collectionControl: BackgroundCollectionControl;
   readonly #context: BrowserContext;
   readonly #interestListPages: ManagedPageTargets<PlatformId>;
   readonly #observePageAccess: (page: PageAccessFacts) => void;
@@ -28,12 +36,13 @@ export class JobInterestCollector {
   public constructor(
     context: BrowserContext,
     writer: JobInterestWriter,
-    observePageAccess: (page: PageAccessFacts) => void,
     recoveryRevision: (platformId: PlatformId) => number,
+    coordination: JobInterestCollectionCoordination,
   ) {
+    this.#collectionControl = coordination.collectionControl;
     this.#context = context;
     this.#writer = writer;
-    this.#observePageAccess = observePageAccess;
+    this.#observePageAccess = coordination.observePageAccess;
     this.#interestListPages = new ManagedPageTargets<PlatformId>(
       isInterestListPage,
       recoveryRevision,
@@ -41,10 +50,14 @@ export class JobInterestCollector {
   }
 
   public *collect(reportError: (error: Error) => void): RiteCoroutine<void> {
-    const pages = yield* this.#ensureInterestListPages();
-    for (const page of pages) {
+    const collection = yield* this.#collectionControl.runCollection(() =>
+      this.#captureSnapshots(reportError),
+    );
+    if (!collection.started) {
+      return;
+    }
+    for (const snapshot of collection.value) {
       try {
-        const snapshot = yield* captureJobInterestSnapshot(page, this.#observePageAccess);
         yield* this.#writer.write(snapshot);
       } catch (error) {
         if (error instanceof CanceledError || error instanceof ScopeError) {
@@ -53,6 +66,22 @@ export class JobInterestCollector {
         reportError(error instanceof Error ? error : new Error(String(error)));
       }
     }
+  }
+
+  *#captureSnapshots(reportError: (error: Error) => void): RiteCoroutine<JobInterestSnapshot[]> {
+    const snapshots: JobInterestSnapshot[] = [];
+    const pages = yield* this.#ensureInterestListPages();
+    for (const page of pages) {
+      try {
+        snapshots.push(yield* captureJobInterestSnapshot(page, this.#observePageAccess));
+      } catch (error) {
+        if (error instanceof CanceledError || error instanceof ScopeError) {
+          throw error;
+        }
+        reportError(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+    return snapshots;
   }
 
   *#ensureInterestListPages(): RiteCoroutine<Page[]> {

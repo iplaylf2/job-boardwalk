@@ -8,6 +8,7 @@ import { expect, test } from "vitest";
 
 import type { BrowserControl } from "#/browser/browser-control.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
+import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { createBrowserSessionMcpServer } from "#/mcp-server.js";
 
 const firstContentIndex = 0;
@@ -42,6 +43,7 @@ function browserToolExecutorControl(): BrowserControl {
   const executor = new BrowserToolExecutor(
     context,
     () => null,
+    new BackgroundCollectionControl(),
     () => null,
   );
   return {

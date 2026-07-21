@@ -141,9 +141,10 @@ session used for research:
 1. When the user requests login, or visible page evidence shows that the requested workflow
    requires authentication and the current session is unauthenticated, the agent asks Browser
    Session to reuse the platform tab and open its login interface.
-2. Once the login interface is visibly ready, the agent stops browser actions and asks the user to
-   take over that window. Opening the interface prepares the handoff; it does not authorize the
-   agent to enter or submit credentials or verification input.
+2. Browser Session pauses background page collection before opening the login interface. Once the
+   interface is visibly ready, the agent stops browser actions and asks the user to take over that
+   window. Opening the interface prepares the handoff; it does not authorize the agent to enter or
+   submit credentials or verification input.
 3. The user completes or stops the login or verification attempt and explicitly returns control to
    the agent.
 4. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
@@ -153,9 +154,12 @@ session used for research:
    user again.
 
 Only one actor drives a browser session at a time. Human takeover pauses agent input. Agent control
-resumes only after the user explicitly returns control. `userReturnedControl` is a platform-scoped
-signal from the agent to Browser Session: it authorizes recovery of a paused interest-list
-navigation, but it neither asserts authentication nor grants authority for account actions.
+resumes only after the user explicitly returns control. On that first post-handoff snapshot,
+`userReturnedControl` resumes background page collection across the browser context and authorizes
+recovery of a paused interest-list navigation for the observed platform. It neither asserts
+authentication nor grants authority for account actions. The handoff governs browser activity;
+Workspace Service writes already started from previously captured evidence may finish while the
+user has browser control.
 
 Browser Session keeps a dedicated persistent browser profile, stored by default in its
 operating-system user-data directory, so cookies and ordinary client state survive between service

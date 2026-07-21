@@ -10,6 +10,7 @@ import type { RiteCoroutine } from "@shajara/host";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
+import type { BackgroundCollectionControl } from "./background-collection-control.js";
 import { captureJobCardSnapshot } from "./job-card-snapshot.js";
 import { ManagedPageTargets } from "./managed-page-targets.js";
 import { extractExternalJobId } from "./platform-job-links.js";
@@ -19,6 +20,12 @@ import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 const collectionIntervalMilliseconds = 30_000;
 const initialPageSettleMilliseconds = 1000;
 const maximumCardsPerPage = 100;
+const noRecommendationPages = 0;
+
+interface PassiveJobCollectionCoordination {
+  readonly collectionControl: BackgroundCollectionControl;
+  readonly observePageAccess: (page: PageAccessFacts) => void;
+}
 
 export function jobPostingObservations(snapshot: JobCardSnapshot): JobPostingObservation[] {
   return snapshot.cards.map((card) => {
@@ -49,6 +56,7 @@ function comparablePageUrl(value: string): string {
 
 export class PassiveJobCollector {
   readonly #context: BrowserContext;
+  readonly #collectionControl: BackgroundCollectionControl;
   readonly #observePageAccess: (page: PageAccessFacts) => void;
   readonly #recommendationPages = new ManagedPageTargets<string>(
     (targetUrl, pageUrl) => comparablePageUrl(pageUrl) === targetUrl,
@@ -60,19 +68,38 @@ export class PassiveJobCollector {
     context: BrowserContext,
     selectedIntentReader: SelectedJobSearchIntentReader,
     writer: JobPostingWriter,
-    observePageAccess: (page: PageAccessFacts) => void,
+    coordination: PassiveJobCollectionCoordination,
   ) {
+    this.#collectionControl = coordination.collectionControl;
     this.#context = context;
-    this.#observePageAccess = observePageAccess;
+    this.#observePageAccess = coordination.observePageAccess;
     this.#selectedIntentReader = selectedIntentReader;
     this.#writer = writer;
   }
 
   public *collect(reportError: (error: Error) => void): RiteCoroutine<void> {
     const selectedIntent = yield* this.#selectedIntentReader.read();
-    if (selectedIntent) {
-      yield* this.#ensureRecommendationPages(selectedIntent.recommendationPages);
+    const collection = yield* this.#collectionControl.runCollection(() =>
+      this.#captureSnapshots(selectedIntent?.recommendationPages ?? [], reportError),
+    );
+    if (!collection.started) {
+      return;
     }
+    for (const snapshot of collection.value) {
+      for (const observation of jobPostingObservations(snapshot)) {
+        yield* this.#writer.write(observation);
+      }
+    }
+  }
+
+  *#captureSnapshots(
+    recommendationPages: RecommendationPageReference[],
+    reportError: (error: Error) => void,
+  ): RiteCoroutine<JobCardSnapshot[]> {
+    if (recommendationPages.length > noRecommendationPages) {
+      yield* this.#ensureRecommendationPages(recommendationPages);
+    }
+    const snapshots: JobCardSnapshot[] = [];
     for (const page of this.#context.pages()) {
       if (!findRecruitingPlatformAdapter(page.url())) {
         continue;
@@ -81,10 +108,9 @@ export class PassiveJobCollector {
       if (!snapshot) {
         continue;
       }
-      for (const observation of jobPostingObservations(snapshot)) {
-        yield* this.#writer.write(observation);
-      }
+      snapshots.push(snapshot);
     }
+    return snapshots;
   }
 
   *#capturePage(

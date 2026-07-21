@@ -49,8 +49,9 @@
   it records returned control, not successful authentication.
 - Reuse an existing platform session before requesting login. While the user has control of the
   browser for login or verification, do not open extra pages, refresh, or send browser input until
-  the user explicitly returns control. This pause does not restrict ordinary navigation, paging,
-  retries, or necessary refreshes during agent-controlled research.
+  the user explicitly returns control. This restriction applies only while the user has control; it
+  does not prohibit ordinary navigation, paging, retries, or necessary refreshes during
+  agent-controlled research.
 - Keep Browser Session and its controlled tab open while handing control between user and agent.
   Its dedicated profile persists at the configured Browser Session profile path; tools never read
   or return its cookies or storage contents.

@@ -4,12 +4,24 @@ import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
+import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { JobInterestCollector } from "#/browser/job-interest-collector.js";
 import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
 
 const onePage = 1;
 const initialAndRecoveryNavigationCount = 2;
 const initialRecoveryRevision = 0;
+
+function jobInterestCollector(
+  context: BrowserContext,
+  writer: JobInterestWriter,
+  recoveryRevision: (platformId: PlatformId) => number,
+): JobInterestCollector {
+  return new JobInterestCollector(context, writer, recoveryRevision, {
+    collectionControl: new BackgroundCollectionControl(),
+    observePageAccess: () => null,
+  });
+}
 
 test("does not replace managed interest pages after their targets redirect to login", async () => {
   const pages: Page[] = [];
@@ -41,10 +53,9 @@ test("does not replace managed interest pages after their targets redirect to lo
       expect.unreachable("非“感兴趣”列表页不应调用关系写入器");
     },
   } satisfies JobInterestWriter;
-  const collector = new JobInterestCollector(
+  const collector = jobInterestCollector(
     context,
     writer,
-    () => null,
     (platformId) => recoveryRevisions.get(platformId) ?? initialRecoveryRevision,
   );
   await using scope = createScope();
@@ -84,12 +95,7 @@ test("contains a page-opening failure and keeps supervision alive", async () => 
       expect.unreachable("导航失败时不应写入快照");
     },
   } satisfies JobInterestWriter;
-  const collector = new JobInterestCollector(
-    context,
-    writer,
-    () => null,
-    () => initialRecoveryRevision,
-  );
+  const collector = jobInterestCollector(context, writer, () => initialRecoveryRevision);
   const errors: Error[] = [];
   const scope = createScope();
   const supervision = scope.run(() => collector.run((error) => errors.push(error)));

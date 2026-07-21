@@ -4,6 +4,7 @@ import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
+import type { BackgroundCollectionControl } from "./background-collection-control.js";
 import { BrowserTabs, parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
 import {
   assertPlatformNavigationLink,
@@ -35,6 +36,7 @@ function* waitForRequestedInterval(params: Record<string, unknown>): RiteCorouti
 
 export class BrowserToolExecutor {
   readonly #elementReferences = new Map<string, ElementReference>();
+  readonly #collectionControl: BackgroundCollectionControl;
   readonly #observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null;
   readonly #recordReturnedControl: (platformId: PlatformId) => void;
   readonly #tabs: BrowserTabs;
@@ -42,8 +44,10 @@ export class BrowserToolExecutor {
   public constructor(
     context: BrowserContext,
     observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null,
+    collectionControl: BackgroundCollectionControl,
     recordReturnedControl: (platformId: PlatformId) => void,
   ) {
+    this.#collectionControl = collectionControl;
     this.#observePageAccess = observePageAccess;
     this.#recordReturnedControl = recordReturnedControl;
     this.#tabs = new BrowserTabs(context);
@@ -111,8 +115,14 @@ export class BrowserToolExecutor {
   }
 
   *#prepareLogin(params: Record<string, unknown>): RiteCoroutine<unknown> {
+    yield* this.#collectionControl.pauseForUserHandoff();
     try {
-      return yield* this.#tabs.prepareLogin(params);
+      const result = yield* this.#tabs.prepareLogin(params);
+      this.#collectionControl.completeUserHandoff();
+      return result;
+    } catch (error) {
+      this.#collectionControl.cancelUserHandoff();
+      throw error;
     } finally {
       this.#clearElementReferences();
     }
@@ -240,7 +250,11 @@ export class BrowserToolExecutor {
     }
     const snapshot = yield* capturePageSnapshot(page, textLimit);
     const adapter = findRecruitingPlatformAdapter(snapshot.url);
-    if (adapter && params["userReturnedControl"] === true) {
+    if (
+      adapter &&
+      params["userReturnedControl"] === true &&
+      this.#collectionControl.returnControl()
+    ) {
       this.#recordReturnedControl(adapter.platformId);
     }
     const platformAccessObservation = this.#observePageAccess(snapshot);

@@ -21,7 +21,7 @@ const browserServerInstructions = [
   `Browser Session 管理可见的 Patchright 浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
   "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
   "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
-  "用户交接：需要登录、验证或其他用户操作时，使用 browser_prepare_login 准备登录界面后立即停止浏览器输入。只有用户明确交回控制权后才能继续；随后第一次 browser_snapshot 设置 userReturnedControl=true，允许同平台暂停的“感兴趣”列表导航恢复，普通快照省略该字段。",
+  "用户交接：需要登录、验证或其他用户操作时，使用 browser_prepare_login 准备登录界面；界面打开后立即停止浏览器输入，后台页面采集也会保持暂停。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
   "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
 ].join("\n\n");
 
@@ -49,7 +49,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并提交登录。",
+      "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，先暂停后台页面采集，再复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并决定是否提交。",
     name: "browser_prepare_login",
   }),
   defineBrowserTool({
@@ -60,7 +60,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。只有用户明确交回浏览器控制权后的第一次快照才设置 userReturnedControl=true；该字段不表示登录成功，只允许同平台暂停的“感兴趣”列表在后续采集周期复用原标签页重试导航。",
+      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面采集，并允许“感兴趣”列表在该快照所属平台的后续采集周期复用原标签页重试导航，但不表示登录成功。普通快照省略该字段。",
     name: "browser_snapshot",
   }),
   defineBrowserTool({

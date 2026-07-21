@@ -10,9 +10,11 @@ import type { BrowserControl } from "./browser-control.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
 import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
+import { BackgroundCollectionControl } from "./background-collection-control.js";
 import { JobInterestCollector } from "./job-interest-collector.js";
 import { PassiveJobCollector } from "./passive-job-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
+import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
 const initialFailureCount = 0;
@@ -44,6 +46,18 @@ function launchPersistentContext(profilePath: string): Promise<BrowserContext> {
     headless: false,
     viewport: null,
   });
+}
+
+function coordinateCollection(
+  collectionControl: BackgroundCollectionControl,
+  platformAccessObserver: PlatformAccessObserver,
+) {
+  return {
+    collectionControl,
+    observePageAccess(page: PageAccessFacts) {
+      return platformAccessObserver.observePage(page);
+    },
+  };
 }
 
 export class ManagedBrowser implements BrowserControl {
@@ -128,23 +142,26 @@ export class ManagedBrowser implements BrowserControl {
     context.once("close", () => closed.resolve(new Error("浏览器窗口已经关闭。")));
     this.#context = context;
     const platformAccessObserver = new PlatformAccessObserver(context);
+    const collectionControl = new BackgroundCollectionControl();
+    const coordination = coordinateCollection(collectionControl, platformAccessObserver);
     const passiveJobCollector = new PassiveJobCollector(
       context,
       this.#selectedIntentReader,
       this.#jobPostingWriter,
-      (page) => platformAccessObserver.observePage(page),
+      coordination,
     );
     const jobInterestCollector = new JobInterestCollector(
       context,
       this.#jobInterestWriter,
-      (page) => platformAccessObserver.observePage(page),
       (platformId) =>
         this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision,
+      coordination,
     );
     this.#platformAccessObserver = platformAccessObserver;
     this.#toolExecutor = new BrowserToolExecutor(
       context,
-      (page) => platformAccessObserver.observePage(page),
+      coordination.observePageAccess,
+      collectionControl,
       (platformId) => {
         const currentRevision =
           this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision;
