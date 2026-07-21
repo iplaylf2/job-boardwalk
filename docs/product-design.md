@@ -80,7 +80,7 @@ is unknown; after a lease expires, presence is offline. Reporting failure never 
 Session from operating. Status reports contain no cookies, credentials, storage contents, or
 unrestricted page text.
 
-## Job discovery, library, and platform interest
+## Job discovery and engagement tracking
 
 Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It
 extracts already-loaded job cards from any page inside a supported recruiting platform's
@@ -104,21 +104,29 @@ observations from other tabs.
 
 Browser Session recognizes job-detail links through one platform-specific path contract and uses
 the same match to derive a stable external job ID when the platform exposes one. Identifier
-segments, rather than separate human-readable trailing slugs, define that ID. This keeps card
-collection and interest-list synchronization aligned when a platform changes display text without
-changing the underlying job.
+segments, rather than separate human-readable trailing slugs, define that ID. Card collection and
+engagement collection therefore retain the same source identity when a platform changes display
+text without changing the underlying job.
 
-Each recruiting platform may also expose a list of jobs the user has marked “感兴趣”. Browser
-Session may read that list independently of the selected search intent, but marking or unmarking a
-job remains a user-controlled account action. This separate collector maintains one interest-list
-tab per platform and submits a relation snapshot only while that tab displays the corresponding
-list. If its navigation redirects, the collector retains the tab instead of opening another one;
-the collector leaves it unchanged during user handoff. Once the user returns control and the agent
-authorizes recovery through the [browser handoff](#browser-handoff), the collector may reuse that
-tab to retry the list navigation. The redirected document remains available to general passive
-job-card collection but does not become an interest-list snapshot. Workspace Service treats a
-complete snapshot as the platform's current set of interest relations. A partial snapshot may add
-or refresh observed relations but never removes a relation that the page may have omitted.
+Each recruiting platform exposes personal-center categories for interested, contacted, applied, or
+interviewed jobs. Job Boardwalk calls an observed membership in one of these categories a
+**job engagement**. Engagements are non-exclusive relations on a platform source: one source may be
+both contacted and applied, for example. They are evidence of how the platform classified the job
+when observed, not a reconstructed workflow status or a semantic interpretation of message prose.
+
+Browser Session maps the platform categories to `interested`, `contacted`, `applied`, and
+`interviewed`. It maintains one personal-center tab per platform, rotates through the categories at
+ordinary interactive pace, and accumulates paginated BOSS lists across collection passes. A
+redirected category tab remains associated with the platform instead of being replaced. During
+user handoff it remains untouched; after control returns, the collector may reuse it to retry the
+category navigation.
+
+`interested` represents a reversible current classification, so a complete snapshot may remove
+relations absent from the platform list. The other engagement kinds preserve historical evidence
+that the platform once included the source in that category; a later omission does not remove them
+because a platform may limit or age out personal-center history. Partial snapshots only add or
+refresh observed relations. No category establishes when the underlying action occurred or which
+resume artifact was sent.
 
 Workspace Service turns submitted observations into a durable job library rather than a page
 archive. Each platform source keeps its job and discovery links plus normalized fields; no HTML or
@@ -128,10 +136,10 @@ detail link is unavailable. Across platforms, Workspace Service merges sources o
 company, title, and location identify the same job. An observation fingerprint skips unchanged
 records. Partial cards without that identity remain separate.
 
-Platform interest is a relation on one of those sources, not a second collection of jobs. Removing
-the relation leaves the normalized job and its other sources in the library. Dashboard presents
-jobs with at least one interested source as a filtered job-library view and shows when that state
-was last observed; it does not infer when the user originally marked the job.
+Engagements do not create separate job collections. Removing an `interested` relation leaves the
+normalized job, its other sources, and its historical engagement evidence in the library.
+Dashboard exposes the four engagement kinds as filters within one job library and shows when the
+displayed platform records were most recently observed.
 
 ## Browser handoff
 
@@ -155,11 +163,11 @@ session used for research:
 
 Only one actor drives a browser session at a time. Human takeover pauses agent input. Agent control
 resumes only after the user explicitly returns control. On that first post-handoff snapshot,
-`userReturnedControl` resumes background page collection across the browser context and authorizes
-recovery of a paused interest-list navigation for the observed platform. It neither asserts
-authentication nor grants authority for account actions. The handoff governs browser activity;
-Workspace Service writes already started from previously captured evidence may finish while the
-user has browser control.
+`userReturnedControl` resumes background page collection across the browser context and allows the
+collector to resume navigation among the observed platform's personal-center engagement lists. It
+neither asserts authentication nor grants authority for account actions. The handoff governs browser
+activity; Workspace Service writes already started from previously captured evidence may finish
+while the user has browser control.
 
 Browser Session keeps a dedicated persistent browser profile, stored by default in its
 operating-system user-data directory, so cookies and ordinary client state survive between service
@@ -237,8 +245,8 @@ Dashboard has three reader paths:
 
 - the workspace overview for the current job-search intent, personal context, leased Browser
   Session presence, and platform-access observations;
-- a paginated job library for normalized job facts and merged platform sources, including a view
-  filtered to jobs with at least one source marked “感兴趣”;
+- a paginated job library for normalized job facts and merged platform sources, including filters
+  for interested, contacted, applied, and interviewed engagement records;
 - a report library and Markdown reader for conclusions, comparisons, uncertainty, and recommended
   next steps.
 

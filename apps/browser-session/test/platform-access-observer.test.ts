@@ -178,7 +178,40 @@ test.each([
   expect(derivePageAccessObservation({ elements, text, url })).toBeNull();
 });
 
-test("observes an authenticated Yupao account identity in the bounded header", () => {
+test.each(["搜索", "推荐", "添加求职期望"])(
+  "observes an authenticated Yupao account identity followed by %s in the bounded header",
+  (accountContext) => {
+    expect(
+      derivePageAccessObservation(
+        {
+          elements: [],
+          text: [
+            "首页",
+            "职位",
+            "公司",
+            "校园",
+            "意外险",
+            "下载APP",
+            "消息",
+            "简历",
+            "测试用户",
+            accountContext,
+            "全栈工程师",
+          ].join("\n"),
+          url: "https://www.yupao.com/topic/a2c1488/",
+        },
+        () => Date.parse(observedAt),
+      ),
+    ).toEqual({
+      authenticationState: "authenticated",
+      evidence: "authenticated-page",
+      observedAt,
+      platformId: "yupao",
+    });
+  },
+);
+
+test("observes an authenticated Yupao identity on its personal-center page", () => {
   expect(
     derivePageAccessObservation(
       {
@@ -188,15 +221,14 @@ test("observes an authenticated Yupao account identity in the bounded header", (
           "职位",
           "公司",
           "校园",
-          "意外险",
-          "下载APP",
           "消息",
           "简历",
           "测试用户",
-          "推荐",
-          "全栈工程师",
+          "测试用户",
+          "在线简历",
+          "沟通过",
         ].join("\n"),
-        url: "https://www.yupao.com/topic/a2c1488/",
+        url: "https://www.yupao.com/user/resume-info/?tab=2&subTab=1&mode=1",
       },
       () => Date.parse(observedAt),
     ),

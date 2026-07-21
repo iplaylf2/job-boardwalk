@@ -4,6 +4,8 @@ import { runInNewContext } from "node:vm";
 import { captureJobCardMetadata } from "#/browser/job-card-snapshot.js";
 import { requireJobCardExtraction } from "#/browser/recruiting-platform-adapters.js";
 
+const singleCard = 1;
+
 function textElement(textContent: string): Element {
   return { textContent } as Element;
 }
@@ -45,6 +47,11 @@ function bossJobCardLinks(): HTMLAnchorElement[] {
     } as unknown as HTMLAnchorElement,
     jobCardLink("https://www.zhipin.com/job_detail/first.html", "后端工程师", firstContainer),
     jobCardLink("https://www.zhipin.com/job_detail/first.html", "重复链接", firstContainer),
+    jobCardLink(
+      "https://www.zhipin.com/job_detail/first.html?securityId=rotating-token",
+      "带临时参数的重复链接",
+      firstContainer,
+    ),
     jobCardLink("https://outside.example/job_detail/outside.html", "站外岗位", firstContainer),
     jobCardLink("https://www.zhipin.com/job_detail/second.html", "平台工程师", secondContainer),
   ];
@@ -83,6 +90,80 @@ function yupaoJobCardLinks(): HTMLAnchorElement[] {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+test("does not promote a BOSS detail-panel link to a surrounding list container", () => {
+  const surroundingList = jobCardContainer(
+    {
+      ".job-name": "被错误借用的标题",
+      "a[href*='/gongsi/']": "被错误借用的公司",
+    },
+    [],
+  );
+  const detailLink = {
+    closest: () => null,
+    href: "https://www.zhipin.com/job_detail/detail-panel.html",
+    parentElement: surroundingList,
+    textContent: "查看更多信息",
+  } as unknown as HTMLAnchorElement;
+  vi.stubGlobal("document", {
+    body: { innerText: "推荐职位" },
+    querySelectorAll: () => [detailLink],
+    title: "推荐职位 - BOSS直聘",
+  });
+  vi.stubGlobal("location", {
+    href: "https://www.zhipin.com/web/geek/jobs",
+    origin: "https://www.zhipin.com",
+  });
+
+  const metadata = captureJobCardMetadata({
+    accessTextCharacters: 5000,
+    config: requireJobCardExtraction("https://www.zhipin.com/web/geek/jobs").extraction,
+    maximumAccessElements: 300,
+    maximumCardTextCharacters: 1500,
+    maximumCards: 50,
+    maximumFieldCharacters: 300,
+  });
+
+  expect(metadata.cards).toEqual([]);
+});
+
+test("deduplicates BOSS job links by stable external id instead of the full URL", () => {
+  const container = jobCardContainer(
+    {
+      ".job-name": "后端工程师",
+      "a[href*='/gongsi/']": "星海科技",
+    },
+    [],
+  );
+  vi.stubGlobal("document", {
+    body: { innerText: "推荐职位" },
+    querySelectorAll: () => [
+      jobCardLink("https://www.zhipin.com/job_detail/stable.html", "后端工程师", container),
+      jobCardLink(
+        "https://www.zhipin.com/job_detail/stable.html?securityId=rotating-token",
+        "后端工程师",
+        container,
+      ),
+    ],
+    title: "推荐职位 - BOSS直聘",
+  });
+  vi.stubGlobal("location", {
+    href: "https://www.zhipin.com/web/geek/jobs",
+    origin: "https://www.zhipin.com",
+  });
+
+  const metadata = captureJobCardMetadata({
+    accessTextCharacters: 5000,
+    config: requireJobCardExtraction("https://www.zhipin.com/web/geek/jobs").extraction,
+    maximumAccessElements: 300,
+    maximumCardTextCharacters: 1500,
+    maximumCards: 50,
+    maximumFieldCharacters: 300,
+  });
+
+  expect(metadata.cards).toHaveLength(singleCard);
+  expect(metadata.truncated).toBe(false);
 });
 
 test.each([

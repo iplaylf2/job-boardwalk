@@ -7,37 +7,59 @@ import { SectionKicker } from "#/ui/section-kicker.js";
 import { readJobPostingPage } from "#/workspace-service-client.js";
 
 import { JobCard } from "./card.js";
+import { jobLibraryViewLabel, jobLibraryViews, readJobLibraryView } from "./engagement.js";
+import type { JobLibraryView } from "./engagement.js";
 import styles from "./page.module.css";
 
 const allPlatforms = "all";
 const emptyCollectionLength = 0;
 const firstPage = 1;
 const initialRefreshCount = 0;
+const jobLibraryLede = "集中查看已收录岗位，并按感兴趣、沟通过、已投递等平台记录筛选。";
 const pageSize = 24;
 const refreshIncrement = 1;
 const refreshIntervalMilliseconds = 30_000;
 
-type JobLibrarySlice = "all" | "interested";
-
 const jobLibraryPageCopy = {
   all: {
-    active: "jobs",
     empty: "没有找到符合条件的岗位。可以调整关键词或平台。",
     kicker: "已整理岗位",
-    lede: "查看研究过程中发现并整理的岗位，通过原始链接回到招聘平台核对。",
-    title: "岗位库",
+  },
+  applied: {
+    empty: "尚未从招聘平台个人中心同步到“已投递”岗位。",
+    kicker: "岗位跟进",
+  },
+  contacted: {
+    empty: "尚未从招聘平台个人中心同步到“沟通过”岗位。",
+    kicker: "岗位跟进",
   },
   interested: {
-    active: "interested-jobs",
-    empty: "没有找到符合当前筛选条件的“感兴趣”岗位。可以调整筛选，或在招聘平台标记岗位后等待同步。",
-    kicker: "平台标记",
-    lede: "查看已在招聘平台标记为“感兴趣”的岗位；这些岗位仍属于同一个岗位库。",
-    title: "感兴趣",
+    empty: "尚未从招聘平台个人中心同步到“感兴趣”岗位。你可以在平台标记岗位并等待同步。",
+    kicker: "岗位跟进",
+  },
+  interviewed: {
+    empty: "尚未从招聘平台个人中心同步到面试岗位。",
+    kicker: "岗位跟进",
   },
 } as const;
 
-function isInterestedSlice(slice: JobLibrarySlice): boolean {
-  return slice === "interested";
+function engagementHref(view: JobLibraryView): string {
+  return view === "all" ? "/jobs" : `/jobs?engagement=${view}`;
+}
+
+function JobEngagementNavigation(props: { view: JobLibraryView }): JSX.Element {
+  return (
+    <nav class={styles["engagementNavigation"]} aria-label="岗位跟进筛选">
+      {jobLibraryViews.map((view) => (
+        <a
+          href={engagementHref(view)}
+          {...(props.view === view ? { "aria-current": "page" as const } : {})}
+        >
+          {jobLibraryViewLabel(view)}
+        </a>
+      ))}
+    </nav>
+  );
 }
 
 function usePeriodicRefresh(onRefresh: () => void): void {
@@ -90,9 +112,9 @@ function JobLibraryFilters(props: {
 function JobResults(props: {
   onPageChanged: (page: number) => void;
   result: JobPostingPage;
-  slice: JobLibrarySlice;
+  view: JobLibraryView;
 }): JSX.Element {
-  const copy = jobLibraryPageCopy[props.slice];
+  const copy = jobLibraryPageCopy[props.view];
   return (
     <>
       <div class={styles["heading"]}>
@@ -133,9 +155,9 @@ function JobResults(props: {
   );
 }
 
-export function JobLibraryPage(props: { slice: JobLibrarySlice }): JSX.Element {
-  const pageCopy = jobLibraryPageCopy[props.slice];
-  const interestedOnly = isInterestedSlice(props.slice);
+export function JobLibraryPage(props: { requestedEngagement: string | null }): JSX.Element {
+  const view = readJobLibraryView(props.requestedEngagement);
+  const engagement = view === "all" ? null : view;
   const [draftQuery, setDraftQuery] = createSignal("");
   const [query, setQuery] = createSignal("");
   const [platform, setPlatform] = createSignal(allPlatforms);
@@ -144,7 +166,7 @@ export function JobLibraryPage(props: { slice: JobLibrarySlice }): JSX.Element {
   const jobPage = createMemo(() => {
     refreshCount();
     return readJobPostingPage({
-      ...(interestedOnly ? { interestedOnly: true } : {}),
+      ...(engagement ? { engagement } : {}),
       page: page(),
       pageSize,
       ...(platform() === allPlatforms ? {} : { platform: platform() }),
@@ -162,8 +184,9 @@ export function JobLibraryPage(props: { slice: JobLibrarySlice }): JSX.Element {
   }
 
   return (
-    <AppShell active={pageCopy.active} title={pageCopy.title} lede={pageCopy.lede}>
+    <AppShell active="jobs" title="岗位库" lede={jobLibraryLede}>
       <section class={styles["library"]} aria-labelledby="job-results-heading">
+        <JobEngagementNavigation view={view} />
         <JobLibraryFilters
           draftQuery={draftQuery()}
           platform={platform()}
@@ -173,9 +196,7 @@ export function JobLibraryPage(props: { slice: JobLibrarySlice }): JSX.Element {
         />
         <Loading fallback={<p class={styles["empty"]}>正在读取岗位…</p>}>
           <Show when={jobPage()}>
-            {(result) => (
-              <JobResults result={result()} slice={props.slice} onPageChanged={setPage} />
-            )}
+            {(result) => <JobResults result={result()} view={view} onPageChanged={setPage} />}
           </Show>
         </Loading>
       </section>

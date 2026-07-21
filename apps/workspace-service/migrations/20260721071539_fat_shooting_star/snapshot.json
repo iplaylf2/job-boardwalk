@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "9a7a3e51-119b-4edb-a67d-e8cd3649c813",
+  "id": "b481d6c7-0341-4e47-9144-f97fbde7a073",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -21,7 +21,7 @@
       "entityType": "tables"
     },
     {
-      "name": "job_source_interests",
+      "name": "job_source_engagements",
       "entityType": "tables"
     },
     {
@@ -468,7 +468,17 @@
       "generated": null,
       "name": "first_observed_at",
       "entityType": "columns",
-      "table": "job_source_interests"
+      "table": "job_source_engagements"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "job_source_engagements"
     },
     {
       "type": "text",
@@ -478,7 +488,7 @@
       "generated": null,
       "name": "last_observed_at",
       "entityType": "columns",
-      "table": "job_source_interests"
+      "table": "job_source_engagements"
     },
     {
       "type": "integer",
@@ -486,19 +496,9 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "position",
-      "entityType": "columns",
-      "table": "job_source_interests"
-    },
-    {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
       "name": "source_id",
       "entityType": "columns",
-      "table": "job_source_interests"
+      "table": "job_source_engagements"
     },
     {
       "type": "text",
@@ -779,9 +779,16 @@
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_job_source_interests_source_id_job_posting_sources_id_fk",
+      "name": "fk_job_source_engagements_source_id_job_posting_sources_id_fk",
       "entityType": "fks",
-      "table": "job_source_interests"
+      "table": "job_source_engagements"
+    },
+    {
+      "columns": ["source_id", "kind"],
+      "nameExplicit": false,
+      "name": "job_source_engagements_pk",
+      "entityType": "pks",
+      "table": "job_source_engagements"
     },
     {
       "columns": ["id"],
@@ -809,13 +816,6 @@
       "nameExplicit": false,
       "name": "job_search_intents_pk",
       "table": "job_search_intents",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["source_id"],
-      "nameExplicit": false,
-      "name": "job_source_interests_pk",
-      "table": "job_source_interests",
       "entityType": "pks"
     },
     {
@@ -924,10 +924,10 @@
       "table": "job_search_intents"
     },
     {
-      "value": "\"position\" >= 1",
-      "name": "job_source_interests_position",
+      "value": "\"kind\" in ('contacted', 'applied', 'interviewed', 'interested')",
+      "name": "job_source_engagements_kind",
       "entityType": "checks",
-      "table": "job_source_interests"
+      "table": "job_source_engagements"
     },
     {
       "value": "\"authentication_state\" is null or \"authentication_state\" in ('authenticated', 'unauthenticated')",

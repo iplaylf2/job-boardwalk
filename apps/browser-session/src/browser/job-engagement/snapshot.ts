@@ -1,38 +1,47 @@
 import type { Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
+import { parsePlatformJobEngagementUrl } from "@job-boardwalk/platform-catalog";
 import type {
-  JobInterestEvidence,
-  JobInterestSnapshot,
   JobCardEvidence,
+  JobEngagementEvidence,
+  JobEngagementKind,
+  JobEngagementSnapshot,
 } from "@job-boardwalk/contracts";
 
-import { captureJobCardSnapshot } from "./job-card-snapshot.js";
-import { extractExternalJobId } from "./platform-job-links.js";
-import {
-  isInterestListPage,
-  requireRecruitingPlatformAdapter,
-} from "./recruiting-platform-adapters.js";
-import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import { captureJobCardSnapshot } from "#/browser/job-card-snapshot.js";
+import { extractExternalJobId } from "#/browser/platform-job-links.js";
+import { requireRecruitingPlatformAdapter } from "#/browser/recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
 
 const firstIndex = 0;
-const maximumInterestItems = 200;
+const maximumEngagementItems = 200;
 
-interface YupaoJobInterestMetadata {
-  cards: JobInterestEvidence[];
+export interface CapturedJobEngagementSnapshot extends JobEngagementSnapshot {
+  readonly completionTotal: number | null;
+}
+
+export interface YupaoJobEngagementMetadata {
+  cards: JobEngagementEvidence[];
   text: string;
   url: string;
 }
 
-function visibleInterestCount(text: string): number | null {
-  const match = /(?:^|\s)感兴趣\s*(?<total>\d+)(?:\s|$)/u.exec(text);
-  if (!match?.groups?.["total"]) {
-    return null;
-  }
-  return Number(match.groups["total"]);
+export function visibleJobEngagementCount(
+  text: string,
+  engagement: JobEngagementKind,
+): number | null {
+  const patterns = {
+    applied: /累计投递简历数量\s*(?<total>\d+)/u,
+    contacted: /累计沟通职位数量\s*(?<total>\d+)/u,
+    interested: /(?:^|\s)感兴趣\s*(?<total>\d+)(?:\s|$)/u,
+    interviewed: /(?:^|\s)面试\s*(?<total>\d+)(?:\s|$)/u,
+  } as const;
+  const match = patterns[engagement].exec(text);
+  return match?.groups?.["total"] ? Number(match.groups["total"]) : null;
 }
 
-function toBossJobInterestEvidence(card: JobCardEvidence): JobInterestEvidence {
+function toBossJobEngagementEvidence(card: JobCardEvidence): JobEngagementEvidence {
   const location = card.location?.replace(/^\[(?<location>.*)\]$/u, "$<location>");
   const bracketedLocation = location ? `[${location}]` : null;
   const title =
@@ -55,8 +64,8 @@ function toBossJobInterestEvidence(card: JobCardEvidence): JobInterestEvidence {
 }
 
 // This callback is self-contained because Patchright serializes it into the page realm.
-// eslint-disable-next-line complexity, max-lines-per-function, max-statements -- One bounded pass extracts non-link Yupao interest cards.
-export function captureYupaoJobInterestMetadata(): YupaoJobInterestMetadata {
+// eslint-disable-next-line complexity, max-lines-per-function, max-statements -- One bounded pass extracts non-link Yupao engagement cards.
+export function captureYupaoJobEngagementMetadata(): YupaoJobEngagementMetadata {
   const { document } = globalThis;
   const maximumCards = 200;
   const maximumSummaryLength = 1500;
@@ -123,7 +132,7 @@ export function captureYupaoJobInterestMetadata(): YupaoJobInterestMetadata {
           helpers.matchingSalaryCount(helpers.lines(other)) === increment,
       ),
   );
-  const cards: JobInterestEvidence[] = [];
+  const cards: JobEngagementEvidence[] = [];
   for (const candidate of uniqueCandidates.slice(startIndex, maximumCards)) {
     const lines = helpers.lines(candidate);
     const salaryIndex = lines.findIndex((line) => salaryPattern.test(line));
@@ -171,14 +180,17 @@ export function captureYupaoJobInterestMetadata(): YupaoJobInterestMetadata {
   return { cards, text, url: globalThis.location.href };
 }
 
-export function jobInterestSnapshotFromYupaoMetadata(
-  metadata: YupaoJobInterestMetadata,
+export function jobEngagementSnapshotFromYupaoMetadata(
+  metadata: YupaoJobEngagementMetadata,
   capturedAt: string,
-): JobInterestSnapshot {
-  const visibleTotal = visibleInterestCount(metadata.text);
+  engagement: JobEngagementKind,
+): CapturedJobEngagementSnapshot {
+  const visibleTotal = visibleJobEngagementCount(metadata.text, engagement);
   return {
     capturedAt,
     complete: visibleTotal !== null && metadata.cards.length === visibleTotal,
+    completionTotal: visibleTotal,
+    engagement,
     jobs: metadata.cards.map((job) => {
       const sourceId = job.jobUrl ? extractExternalJobId("yupao", job.jobUrl) : null;
       return sourceId ? { ...job, externalJobId: sourceId } : job;
@@ -189,36 +201,39 @@ export function jobInterestSnapshotFromYupaoMetadata(
   };
 }
 
-export function* captureJobInterestSnapshot(
+export function* captureJobEngagementSnapshot(
   page: Page,
   observePageAccess?: (page: PageAccessFacts) => void,
-): RiteCoroutine<JobInterestSnapshot> {
+): RiteCoroutine<CapturedJobEngagementSnapshot> {
   const initialUrl = page.url();
   const { platformId } = requireRecruitingPlatformAdapter(initialUrl);
-  if (!isInterestListPage(platformId, initialUrl)) {
-    throw new Error("当前页面不是招聘平台的“感兴趣”列表。");
+  const engagement = parsePlatformJobEngagementUrl(platformId, initialUrl);
+  if (!engagement) {
+    throw new Error("当前页面不是招聘平台个人中心的岗位跟进列表。");
   }
   if (platformId === "yupao") {
-    const metadata = yield* until(() => page.evaluate(captureYupaoJobInterestMetadata));
+    const metadata = yield* until(() => page.evaluate(captureYupaoJobEngagementMetadata));
     if (page.url() !== initialUrl || metadata.url !== initialUrl) {
-      throw new Error("招聘平台的“感兴趣”列表在读取期间发生了导航。");
+      throw new Error("个人中心岗位跟进列表在读取期间发生了导航。");
     }
     observePageAccess?.({ elements: [], text: metadata.text, url: metadata.url });
-    return jobInterestSnapshotFromYupaoMetadata(metadata, new Date().toISOString());
+    return jobEngagementSnapshotFromYupaoMetadata(metadata, new Date().toISOString(), engagement);
   }
 
-  const snapshot = yield* captureJobCardSnapshot(page, maximumInterestItems, observePageAccess);
+  const snapshot = yield* captureJobCardSnapshot(page, maximumEngagementItems, observePageAccess);
   const pageText = yield* until(() =>
     page.evaluate(
       // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Rendered lines expose the platform count.
       () => globalThis.document.body?.innerText ?? "",
     ),
   );
-  const jobs = snapshot.cards.map(toBossJobInterestEvidence);
-  const visibleTotal = visibleInterestCount(pageText);
+  const jobs = snapshot.cards.map(toBossJobEngagementEvidence);
+  const visibleTotal = visibleJobEngagementCount(pageText, engagement);
   return {
     capturedAt: snapshot.capturedAt,
     complete: visibleTotal !== null && !snapshot.truncated && jobs.length === visibleTotal,
+    completionTotal: visibleTotal !== null && !snapshot.truncated ? visibleTotal : null,
+    engagement,
     jobs,
     platformId,
     sourceUrl: snapshot.sourceUrl,

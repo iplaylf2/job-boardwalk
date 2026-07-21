@@ -129,7 +129,7 @@ export function ResearchReportDetailPage(props: { reportId: number }): JSX.Eleme
     <AppShell
       active="reports"
       title="研究报告"
-      lede="研究报告记录阶段性判断；岗位状态仍应回到招聘平台核验。"
+      lede="研究报告记录阶段性判断；岗位与跟进记录仍应回到招聘平台核验。"
     >
       <Loading fallback={<p class={styles["empty"]}>正在读取研究报告…</p>}>
         <Show when={report()}>{(result) => <ResearchReportDocument report={result()} />}</Show>

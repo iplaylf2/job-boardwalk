@@ -1,5 +1,7 @@
 # Job Boardwalk
 
+[![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/iplaylf2/job-boardwalk)
+
 Job Boardwalk is a local AI job-search secretary for delegated research. It gives an agent a
 visible browser for recruiting-platform research and a durable workspace for preserving findings,
 revisiting sources, and comparing opportunities with the user's confirmed goals.
@@ -41,16 +43,18 @@ Available now:
   and reuses that tab if its navigation redirects. Independently, it submits recognizable cards
   from every open supported-platform tab; the selected intent does not restrict which tabs may
   contribute jobs. Without a selected intent, it still observes supported tabs that are already
-  open. A separate collector observes each platform's “感兴趣” list without changing account state.
+  open. A separate collector reads each platform's personal-center categories for interested,
+  contacted, applied, and interviewed jobs. It uses platform routes and page structure rather than
+  message interpretation, and it never performs the actions represented by those categories.
 - Workspace Service stores platform-access observations and interruptions, along with personal
-  context, job-search intents, normalized job facts, source-level interest relations, and Markdown
-  research reports. It skips unchanged observations and merges confident cross-platform matches
-  while preserving every available platform link.
+  context, job-search intents, normalized job facts, platform-observed engagement records for job
+  sources, and Markdown research reports. It skips unchanged observations and merges confident
+  cross-platform matches while preserving every available platform link.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
   lets the user maintain and select job-search intents. Its paginated job library supports search,
-  platform filtering, and an “感兴趣” view while preserving the original recruiting-platform
-  sources. Its report reader makes saved conclusions available independently of the agent
-  conversation that produced them.
+  platform filtering, and in-library views for interested, contacted, applied, and interviewed
+  records while preserving the original recruiting-platform sources. Its report reader keeps saved
+  conclusions available without the agent conversation that produced them.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.

@@ -12,7 +12,7 @@ import type {
   JobPostingObservation,
   JobPostingPage,
   JobPostingSource,
-  JobSourceInterest,
+  JobSourceEngagement,
   JobSearchIntent,
   RecommendationPageReference,
   PlatformAccessObservation,
@@ -21,8 +21,8 @@ import type {
   ResearchReportSummary,
   RecordedPlatformAccessObservation,
   SaveJobPostingObservationResult,
-  JobInterestSnapshot,
-  SynchronizeJobInterestsResult,
+  JobEngagementSnapshot,
+  SynchronizeJobEngagementResult,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
@@ -32,7 +32,7 @@ import type { JobLibraryQuery } from "#/job-posting/library-query.js";
 import {
   jobPostings,
   jobPostingSources,
-  jobSourceInterests,
+  jobSourceEngagements,
   jobSearchIntents,
   jobSearchIntentRecommendationPages,
   platformAccessObservations,
@@ -44,7 +44,7 @@ import {
 type PlatformAccessObservationRow = typeof platformAccessObservations.$inferSelect;
 type JobPostingRow = typeof jobPostings.$inferSelect;
 type JobPostingSourceRow = typeof jobPostingSources.$inferSelect;
-type JobSourceInterestRow = typeof jobSourceInterests.$inferSelect;
+type JobSourceEngagementRow = typeof jobSourceEngagements.$inferSelect;
 type ResearchReportRow = typeof researchReports.$inferSelect;
 type NonEmptyJobPostingObservations = [JobPostingObservation, ...JobPostingObservation[]];
 const emptyCollectionLength = 0;
@@ -105,17 +105,17 @@ function jobPostingSourceIdentityKey(observation: JobPostingObservation): string
   ]);
 }
 
-function toJobSourceInterest(row: JobSourceInterestRow): JobSourceInterest {
+function toJobSourceEngagement(row: JobSourceEngagementRow): JobSourceEngagement {
   return {
     firstObservedAt: row.firstObservedAt,
+    kind: row.kind,
     lastObservedAt: row.lastObservedAt,
-    position: row.position,
   };
 }
 
-function jobPostingObservationFromInterest(
-  snapshot: JobInterestSnapshot,
-  job: JobInterestSnapshot["jobs"][number],
+function jobPostingObservationFromEngagement(
+  snapshot: JobEngagementSnapshot,
+  job: JobEngagementSnapshot["jobs"][number],
 ): JobPostingObservation {
   return {
     collectedAt: snapshot.capturedAt,
@@ -136,12 +136,11 @@ function jobPostingObservationFromInterest(
 
 function toJobPostingSource(
   row: JobPostingSourceRow,
-  interestRows: JobSourceInterestRow[],
+  engagementRows: JobSourceEngagementRow[],
 ): JobPostingSource {
   if (!isPlatformId(row.platformId)) {
     throw new Error(`数据库中存在未知招聘平台：${row.platformId}`);
   }
-  const interestRow = interestRows.find(({ sourceId }) => sourceId === row.id);
   return {
     collectedAt: row.collectedAt,
     ...(row.company ? { company: row.company } : {}),
@@ -150,8 +149,10 @@ function toJobPostingSource(
     ...(row.educationRequirement ? { educationRequirement: row.educationRequirement } : {}),
     ...(row.experienceRequirement ? { experienceRequirement: row.experienceRequirement } : {}),
     ...(row.externalJobId ? { externalJobId: row.externalJobId } : {}),
+    engagements: engagementRows
+      .filter(({ sourceId }) => sourceId === row.id)
+      .map(toJobSourceEngagement),
     id: row.id,
-    ...(interestRow ? { interest: toJobSourceInterest(interestRow) } : {}),
     jobId: row.jobId,
     ...(row.jobUrl ? { jobUrl: row.jobUrl } : {}),
     lastCheckedAt: row.lastCheckedAt,
@@ -213,7 +214,7 @@ function jobPostingSourceValues(
 function toJobPosting(
   job: JobPostingRow,
   sourceRows: JobPostingSourceRow[],
-  interestRows: JobSourceInterestRow[],
+  engagementRows: JobSourceEngagementRow[],
 ): JobPosting {
   return {
     ...(job.company ? { company: job.company } : {}),
@@ -225,7 +226,7 @@ function toJobPosting(
     ...(job.location ? { location: job.location } : {}),
     sources: sourceRows
       .filter((source) => source.jobId === job.id)
-      .map((source) => toJobPostingSource(source, interestRows)),
+      .map((source) => toJobPostingSource(source, engagementRows)),
     summary: job.summary,
     title: job.title,
     updatedAt: job.updatedAt,
@@ -525,32 +526,32 @@ export class WorkspaceRepository {
       .from(jobPostingSources)
       .orderBy(asc(jobPostingSources.platformId), asc(jobPostingSources.jobUrl))
       .all();
-    const interestRows = this.#listJobSourceInterests(sourceRows.map(({ id }) => id));
+    const engagementRows = this.#listJobSourceEngagements(sourceRows.map(({ id }) => id));
     return this.#database
       .select()
       .from(jobPostings)
       .orderBy(desc(jobPostings.updatedAt), asc(jobPostings.title))
       .all()
-      .map((job) => toJobPosting(job, sourceRows, interestRows));
+      .map((job) => toJobPosting(job, sourceRows, engagementRows));
   }
 
-  public synchronizeJobInterests(input: {
+  public synchronizeJobEngagement(input: {
     initiatedBy: "agent" | "system" | "user";
     reason: string;
-    snapshot: JobInterestSnapshot;
-  }): SynchronizeJobInterestsResult {
-    return this.#replaceInterestRelations(input, this.#saveJobInterestSources(input));
+    snapshot: JobEngagementSnapshot;
+  }): SynchronizeJobEngagementResult {
+    return this.#synchronizeEngagementRelations(input, this.#saveJobEngagementSources(input));
   }
 
-  #saveJobInterestSources(input: {
+  #saveJobEngagementSources(input: {
     initiatedBy: "agent" | "system" | "user";
     reason: string;
-    snapshot: JobInterestSnapshot;
+    snapshot: JobEngagementSnapshot;
   }): number[] {
     const { snapshot } = input;
     const sourceIds: number[] = [];
     for (const job of snapshot.jobs) {
-      const observation = jobPostingObservationFromInterest(snapshot, job);
+      const observation = jobPostingObservationFromEngagement(snapshot, job);
       this.saveJobPostingObservation({
         initiatedBy: input.initiatedBy,
         observation,
@@ -576,14 +577,14 @@ export class WorkspaceRepository {
   }
 
   // eslint-disable-next-line max-lines-per-function -- One private boundary keeps the atomic relation replacement visible.
-  #replaceInterestRelations(
+  #synchronizeEngagementRelations(
     input: {
       initiatedBy: "agent" | "system" | "user";
       reason: string;
-      snapshot: JobInterestSnapshot;
+      snapshot: JobEngagementSnapshot;
     },
     sourceIds: number[],
-  ): SynchronizeJobInterestsResult {
+  ): SynchronizeJobEngagementResult {
     const { snapshot } = input;
     // eslint-disable-next-line max-lines-per-function -- One transaction owns relation replacement and attribution.
     return this.#database.transaction((transaction) => {
@@ -593,46 +594,54 @@ export class WorkspaceRepository {
         .where(eq(jobPostingSources.platformId, snapshot.platformId));
       const existingRows = transaction
         .select()
-        .from(jobSourceInterests)
-        .where(inArray(jobSourceInterests.sourceId, platformSourceIds))
+        .from(jobSourceEngagements)
+        .where(
+          and(
+            inArray(jobSourceEngagements.sourceId, platformSourceIds),
+            eq(jobSourceEngagements.kind, snapshot.engagement),
+          ),
+        )
         .all();
       let created = false;
-      for (const [index, sourceId] of sourceIds.entries()) {
+      for (const sourceId of sourceIds) {
         const existing = existingRows.find((row) => row.sourceId === sourceId);
         created ||= !existing;
         transaction
-          .insert(jobSourceInterests)
+          .insert(jobSourceEngagements)
           .values({
             firstObservedAt: existing?.firstObservedAt ?? snapshot.capturedAt,
+            kind: snapshot.engagement,
             lastObservedAt: snapshot.capturedAt,
-            position: index + firstPage,
             sourceId,
           })
           .onConflictDoUpdate({
             set: {
               lastObservedAt: snapshot.capturedAt,
-              position: index + firstPage,
             },
-            target: jobSourceInterests.sourceId,
+            target: [jobSourceEngagements.sourceId, jobSourceEngagements.kind],
           })
           .run();
       }
       let removed = emptyCount;
-      if (snapshot.complete) {
+      if (snapshot.complete && snapshot.engagement === "interested") {
         const removalCondition =
           sourceIds.length === emptyCollectionLength
-            ? inArray(jobSourceInterests.sourceId, platformSourceIds)
+            ? and(
+                inArray(jobSourceEngagements.sourceId, platformSourceIds),
+                eq(jobSourceEngagements.kind, snapshot.engagement),
+              )
             : and(
-                inArray(jobSourceInterests.sourceId, platformSourceIds),
-                notInArray(jobSourceInterests.sourceId, sourceIds),
+                inArray(jobSourceEngagements.sourceId, platformSourceIds),
+                eq(jobSourceEngagements.kind, snapshot.engagement),
+                notInArray(jobSourceEngagements.sourceId, sourceIds),
               );
         removed =
           transaction
             .select({ value: count() })
-            .from(jobSourceInterests)
+            .from(jobSourceEngagements)
             .where(removalCondition)
             .get()?.value ?? emptyCount;
-        transaction.delete(jobSourceInterests).where(removalCondition).run();
+        transaction.delete(jobSourceEngagements).where(removalCondition).run();
       }
       if (created || removed > emptyCount) {
         transaction
@@ -640,14 +649,15 @@ export class WorkspaceRepository {
           .values({
             initiatedBy: input.initiatedBy,
             occurredAt: snapshot.capturedAt,
-            operation: "synchronize-job-interests",
+            operation: "synchronize-job-engagement",
             reason: input.reason,
-            subject: snapshot.platformId,
+            subject: `${snapshot.platformId}:${snapshot.engagement}`,
           })
           .run();
       }
       return {
         complete: snapshot.complete,
+        engagement: snapshot.engagement,
         observed: snapshot.jobs.length,
         platformId: snapshot.platformId,
         removed,
@@ -671,9 +681,9 @@ export class WorkspaceRepository {
       .offset((input.page - firstPage) * input.pageSize)
       .all();
     const sourceRows = this.#listJobPostingSources(rows.map(({ id }) => id));
-    const interestRows = this.#listJobSourceInterests(sourceRows.map(({ id }) => id));
+    const engagementRows = this.#listJobSourceEngagements(sourceRows.map(({ id }) => id));
     return {
-      jobs: rows.map((job) => toJobPosting(job, sourceRows, interestRows)),
+      jobs: rows.map((job) => toJobPosting(job, sourceRows, engagementRows)),
       page: input.page,
       pageCount,
       pageSize: input.pageSize,
@@ -695,22 +705,28 @@ export class WorkspaceRepository {
         ),
       );
     }
-    if (input.platformId) {
+    if (input.engagement) {
+      const sourceIdsWithEngagement = this.#database
+        .select({ sourceId: jobSourceEngagements.sourceId })
+        .from(jobSourceEngagements)
+        .where(eq(jobSourceEngagements.kind, input.engagement));
+      const sourceCondition = input.platformId
+        ? and(
+            inArray(jobPostingSources.id, sourceIdsWithEngagement),
+            eq(jobPostingSources.platformId, input.platformId),
+          )
+        : inArray(jobPostingSources.id, sourceIdsWithEngagement);
+      const jobIdsWithEngagement = this.#database
+        .select({ jobId: jobPostingSources.jobId })
+        .from(jobPostingSources)
+        .where(sourceCondition);
+      conditions.push(inArray(jobPostings.id, jobIdsWithEngagement));
+    } else if (input.platformId) {
       const platformJobIds = this.#database
         .select({ jobId: jobPostingSources.jobId })
         .from(jobPostingSources)
         .where(eq(jobPostingSources.platformId, input.platformId));
       conditions.push(inArray(jobPostings.id, platformJobIds));
-    }
-    if (input.interestedOnly) {
-      const interestedSourceIds = this.#database
-        .select({ sourceId: jobSourceInterests.sourceId })
-        .from(jobSourceInterests);
-      const jobIdsWithInterest = this.#database
-        .select({ jobId: jobPostingSources.jobId })
-        .from(jobPostingSources)
-        .where(inArray(jobPostingSources.id, interestedSourceIds));
-      conditions.push(inArray(jobPostings.id, jobIdsWithInterest));
     }
     return and(...conditions);
   }
@@ -727,14 +743,14 @@ export class WorkspaceRepository {
       .all();
   }
 
-  #listJobSourceInterests(sourceIds: number[]): JobSourceInterestRow[] {
+  #listJobSourceEngagements(sourceIds: number[]): JobSourceEngagementRow[] {
     if (sourceIds.length === emptyCollectionLength) {
       return [];
     }
     return this.#database
       .select()
-      .from(jobSourceInterests)
-      .where(inArray(jobSourceInterests.sourceId, sourceIds))
+      .from(jobSourceEngagements)
+      .where(inArray(jobSourceEngagements.sourceId, sourceIds))
       .all();
   }
 
@@ -747,7 +763,7 @@ export class WorkspaceRepository {
     return toJobPosting(
       job,
       sourceRows,
-      this.#listJobSourceInterests(sourceRows.map(({ id }) => id)),
+      this.#listJobSourceEngagements(sourceRows.map(({ id }) => id)),
     );
   }
 

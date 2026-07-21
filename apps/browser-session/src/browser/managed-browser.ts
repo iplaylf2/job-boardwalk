@@ -8,10 +8,10 @@ import { race, wait } from "@shajara/host/primitives";
 
 import type { BrowserControl } from "./browser-control.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
-import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
+import type { JobEngagementWriter } from "#/workspace-service/job-engagement-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 import { BackgroundCollectionControl } from "./background-collection-control.js";
-import { JobInterestCollector } from "./job-interest-collector.js";
+import { JobEngagementCollector } from "./job-engagement/collector.js";
 import { PassiveJobCollector } from "./passive-job-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
@@ -63,7 +63,7 @@ function coordinateCollection(
 export class ManagedBrowser implements BrowserControl {
   readonly #launchContext: PersistentContextLauncher;
   readonly #profilePath: string;
-  readonly #jobInterestWriter: JobInterestWriter;
+  readonly #jobEngagementWriter: JobEngagementWriter;
   readonly #jobPostingWriter: JobPostingWriter;
   readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   #context: BrowserContext | null = null;
@@ -75,7 +75,7 @@ export class ManagedBrowser implements BrowserControl {
   public constructor(
     profilePath: string,
     dependencies: {
-      jobInterestWriter: JobInterestWriter;
+      jobEngagementWriter: JobEngagementWriter;
       jobPostingWriter: JobPostingWriter;
       selectedIntentReader: SelectedJobSearchIntentReader;
     },
@@ -84,7 +84,7 @@ export class ManagedBrowser implements BrowserControl {
     this.#profilePath = profilePath;
     this.#selectedIntentReader = dependencies.selectedIntentReader;
     this.#jobPostingWriter = dependencies.jobPostingWriter;
-    this.#jobInterestWriter = dependencies.jobInterestWriter;
+    this.#jobEngagementWriter = dependencies.jobEngagementWriter;
     this.#launchContext = launchContext;
   }
 
@@ -150,9 +150,9 @@ export class ManagedBrowser implements BrowserControl {
       this.#jobPostingWriter,
       coordination,
     );
-    const jobInterestCollector = new JobInterestCollector(
+    const jobEngagementCollector = new JobEngagementCollector(
       context,
-      this.#jobInterestWriter,
+      this.#jobEngagementWriter,
       (platformId) =>
         this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision,
       coordination,
@@ -173,7 +173,7 @@ export class ManagedBrowser implements BrowserControl {
       const result = yield* race([
         () => platformAccessObserver.run(),
         () => passiveJobCollector.run(reportError),
-        () => jobInterestCollector.run(reportError),
+        () => jobEngagementCollector.run(reportError),
         () => wait(closed.future),
       ]);
       return result;

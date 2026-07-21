@@ -53,28 +53,23 @@ without discarding jobs collected from other tabs. A Workspace Service write fai
 current pass and is retried on the next pass. The same bounded DOM pass refreshes any conclusive
 platform-access evidence.
 
-## Job-interest synchronization
+## Personal-center engagement collection
 
-Browser Session independently observes the jobs the user has marked “感兴趣” on each platform. It
-maintains one tab per platform, reusing an already-open interest list or opening it when necessary.
-The tab association survives a redirect, preventing each collection pass from opening another
-login or verification tab. Only the corresponding interest-list document produces a bounded
-snapshot; a redirected document remains eligible for the general job-card collector but is not
-treated as evidence that the user marked its cards “感兴趣”. During a user handoff the collector
-leaves that page unchanged. After the user returns control and the agent completes the
-[post-handoff snapshot](#browser-handoff), the collector may reuse the same tab to retry the
-interest-list navigation. Workspace Service merges snapshots of at most 200 visible entries into
-the job library and updates the interest relations on their platform sources every 30 seconds. This
-collector does not depend on a selected search intent.
+Browser Session independently observes each platform's personal-center categories for interested,
+contacted, applied, and interviewed jobs. These category memberships become engagement evidence;
+the collector does not infer them from messages. One managed tab per platform rotates through the
+categories every 30 seconds. Its platform association survives redirects, preventing repeated login
+or verification tabs, and remains unchanged during user handoff. After the user returns control,
+the collector may reuse that tab to retry category navigation. This collection does not depend on a
+selected search intent and never performs the recruiting action represented by a category.
 
-BOSS直聘 exposes ordinary job-detail links on this page. 鱼泡直聘 account cards may omit them; when
-a recognized detail link is present, Browser Session preserves its `jobUrl` and derives
-`externalJobId` from the URL's numeric identifier segment rather than its trailing display slug.
-Without a recognized link, the snapshot retains the visible job facts and omits both fields. Only a
-non-truncated read whose extracted-card count matches a visible platform total is complete. A
-complete snapshot replaces absent relations; a partial snapshot only adds or refreshes the
-relations it observed. The collector never marks or unmarks a job, and removing a relation does not
-remove the job from the library.
+BOSS category lists may be paginated. The collector advances one category page per rotation,
+persists each partial page, and accumulates an in-memory scan until it can submit a complete list;
+this avoids rapid visible page churn. 鱼泡 account cards may omit job links. When a recognized link
+is present, Browser Session preserves it and derives the stable external job ID; otherwise the
+snapshot retains the visible job facts. A complete `interested` snapshot may remove relations no
+longer present. The `contacted`, `applied`, and `interviewed` relations preserve historical
+observations even when a later platform list omits them.
 
 ## Run Browser Session
 
@@ -199,8 +194,9 @@ finish during the handoff because they do not drive the browser.
 
 After the user explicitly returns control, the agent calls `browser_snapshot` with
 `userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit
-the flag. The flag resumes background page collection and authorizes interest-list recovery for the
-observed platform. It records returned control, not successful authentication.
+the flag. The flag resumes background page collection and authorizes recovery of personal-center
+engagement collection for the observed platform. It records returned control, not successful
+authentication.
 
 ## Maintenance constraints
 
@@ -210,10 +206,10 @@ platform-specific access rules belong in that adapter; interpretation that needs
 meaning remains outside Browser Session.
 
 The platform job-link boundary owns each supported job-detail path and its stable external ID
-capture. Job-card recognition, passive submission, and interest synchronization consume that same
-path contract, so a display slug or another incidental trailing segment cannot become source
-identity. Cross-application navigation origins and destinations remain in the platform catalog;
-page-specific job-link shapes remain inside Browser Session.
+capture. Job-card recognition, passive submission, and engagement collection consume that same path
+contract, so a display slug or another incidental trailing segment cannot become source identity.
+Cross-application navigation origins and destinations remain in the platform catalog; page-specific
+job-link shapes remain inside Browser Session.
 
 Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
 made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page

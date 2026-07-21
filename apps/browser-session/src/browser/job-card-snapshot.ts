@@ -54,6 +54,9 @@ export function captureJobCardMetadata(input: {
           return container;
         }
       }
+      if (input.config.requireContainerMatch) {
+        return firstCandidate;
+      }
       let ancestor: Element | null = link.parentElement;
       let depth = startIndex;
       while (ancestor && depth < maximumContainerAncestorDepth) {
@@ -63,7 +66,7 @@ export function captureJobCardMetadata(input: {
         ancestor = ancestor.parentElement;
         depth += increment;
       }
-      return firstCandidate ?? (input.config.requireContainerMatch ? null : link);
+      return firstCandidate ?? link;
     },
     containsCompany(container: Element): boolean {
       return input.config.companySelectors.some((selector) =>
@@ -107,7 +110,7 @@ export function captureJobCardMetadata(input: {
   const excludedTitlePattern = input.config.excludedTitlePattern
     ? new RegExp(input.config.excludedTitlePattern, "u")
     : null;
-  const seenUrls = new Set<string>();
+  const seenJobIds = new Set<string>();
   const cards: JobCardEvidence[] = [];
   let matchingLinkCount = 0;
   for (const link of document.querySelectorAll<HTMLAnchorElement>("a[href]")) {
@@ -118,10 +121,12 @@ export function captureJobCardMetadata(input: {
     } catch {
       continue;
     }
+    const jobLinkMatch = linkPathPattern.exec(href.pathname);
+    const stableJobId = jobLinkMatch?.groups?.["externalJobId"] ?? href.pathname;
     if (
       href.origin !== globalThis.location.origin ||
-      !linkPathPattern.test(href.pathname) ||
-      seenUrls.has(href.href)
+      !jobLinkMatch ||
+      seenJobIds.has(stableJobId)
     ) {
       continue;
     }
@@ -149,7 +154,7 @@ export function captureJobCardMetadata(input: {
     if (!title || !text || excludedTitlePattern?.test(title)) {
       continue;
     }
-    seenUrls.add(href.href);
+    seenJobIds.add(stableJobId);
     matchingLinkCount += increment;
     if (cards.length === input.maximumCards) {
       continue;

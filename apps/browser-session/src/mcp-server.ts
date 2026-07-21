@@ -60,7 +60,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面采集，并允许“感兴趣”列表在该快照所属平台的后续采集周期复用原标签页重试导航，但不表示登录成功。普通快照省略该字段。",
+      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面采集，并允许个人中心岗位跟进列表在该快照所属平台的后续采集周期复用原标签页重试导航，但不表示登录成功。普通快照省略该字段。",
     name: "browser_snapshot",
   }),
   defineBrowserTool({

@@ -13,14 +13,16 @@ The interface has three primary reader paths:
   default and can all be expanded in place; a separate management surface owns creating, revising,
   selecting, and removing intents and facts. Browser and platform status remains a compact
   secondary rail unless it needs attention.
-- The job library uses `/jobs` for all normalized jobs and `/jobs/interested` for the same library
-  filtered to jobs with at least one platform source marked “感兴趣”. Both views provide search,
-  platform filtering, available original source links, and server-backed pagination. The filtered
-  view also shows when the interest state was last observed.
+- `/jobs` is the single normalized job library. Its in-page follow-up navigation filters that
+  library by `interested`, `contacted`, `applied`, or `interviewed` through the optional
+  `engagement` query parameter; these are views of one collection, not peer pages. The library also
+  provides search, platform filtering, original source links, and server-backed pagination. Source
+  labels show every observed engagement, while each card shows when its platform records were last
+  synchronized.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
-The header is the only cross-page navigation. The job-library and “感兴趣” links show their current
-counts, so the overview does not repeat those counts as separate sections.
+The header owns only cross-resource navigation. Follow-up filters belong to the job library and do
+not appear as primary destinations.
 
 ## Data ownership and freshness
 
@@ -39,10 +41,10 @@ Browser interaction and login handoff happen between the agent, the
 does not open or control that window.
 
 Dashboard rereads the workspace overview every five seconds and refreshes it after a user change.
-The job-library page and its interested slice request at most 24 jobs at a time and refresh the
-current result every 30 seconds. Research-report pages refresh every five seconds to reflect
-updates to drafts and completed reports. These reads affect only the local Workspace Service API;
-they never refresh a recruiting page.
+The job-library page requests at most 24 jobs at a time and refreshes the selected view every 30
+seconds. Research-report pages refresh every five seconds to reflect updates to drafts and completed
+reports. These reads affect only the local Workspace Service API; they never refresh a recruiting
+page.
 
 ## Report rendering
 

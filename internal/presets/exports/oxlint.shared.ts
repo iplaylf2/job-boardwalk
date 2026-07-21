@@ -34,6 +34,7 @@ export default defineConfig({
     "import/max-dependencies": ["error", { ignoreTypeImports: true }],
     "import/no-default-export": "off",
     "import/no-named-export": "off",
+    "import/no-unassigned-import": ["error", { allow: ["**/*.css"] }],
     "import/prefer-default-export": "off",
     "oxc/no-async-await": "off",
     "oxc/no-optional-chaining": "off",

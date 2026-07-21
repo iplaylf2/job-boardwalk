@@ -105,7 +105,7 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
   const resumeLineOffset = 2;
   const identityLineOffset = 3;
   const loginLabelFragments = ["登录", "注册"] as const;
-  const accountContextLabels = new Set(["推荐", "添加求职期望"]);
+  const accountContextLabels = new Set(["搜索", "推荐", "添加求职期望"]);
   const headerLines = page.text
     .split(/\r?\n/u)
     .map((line) => line.trim())
@@ -122,10 +122,12 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
   }
   const identity = headerLines[messageLineIndex + resumeLineOffset];
   const accountContext = headerLines[messageLineIndex + identityLineOffset];
+  const isPersonalCenter =
+    parsePlatformWebUrl("yupao", page.url)?.pathname === "/user/resume-info/";
   const hasAccountIdentity =
     Boolean(identity) &&
     !loginLabelFragments.some((fragment) => identity?.includes(fragment)) &&
-    accountContextLabels.has(accountContext ?? "");
+    (isPersonalCenter || accountContextLabels.has(accountContext ?? ""));
   return hasAccountIdentity
     ? { authenticationState: "authenticated", evidence: "authenticated-page" }
     : null;
@@ -152,7 +154,7 @@ const bossJobCardExtraction = {
     "[class*='company-name']",
     "[class*='companyName']",
   ],
-  containerSelectors: [".job-card-wrapper", ".job-card-box", ".job-list-box li"],
+  containerSelectors: [".job-card-wrapper", ".job-card-box", ".job-list-box > li"],
   detailsSelectors: [".tag-list li", ".job-card-footer li"],
   educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
   experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
@@ -266,29 +268,4 @@ export function assertPlatformNavigationUrl(platformId: PlatformId, url: string)
 
 export function assertPlatformNavigationLink(platformId: PlatformId, href: string): void {
   assertPlatformNavigationUrl(platformId, href);
-}
-
-export function interestListPageUrl(platformId: PlatformId): string {
-  return resolvePlatformWebUrl(platformId, "interestList");
-}
-
-export function isInterestListPage(platformId: PlatformId, value: string): boolean {
-  const url = parsePlatformWebUrl(platformId, value);
-  if (!url) {
-    return false;
-  }
-  if (platformId === "boss") {
-    return (
-      url.pathname === "/web/geek/recommend" &&
-      url.searchParams.get("tab") === "4" &&
-      url.searchParams.get("sub") === "1" &&
-      url.searchParams.get("tag") === "4"
-    );
-  }
-  return (
-    url.pathname === "/user/resume-info/" &&
-    url.searchParams.get("tab") === "4" &&
-    url.searchParams.get("subTab") === "1" &&
-    url.searchParams.get("mode") === "1"
-  );
 }

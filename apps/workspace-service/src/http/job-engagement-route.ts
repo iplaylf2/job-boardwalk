@@ -1,8 +1,12 @@
 import type { Hono } from "hono";
 import type { Scope } from "@shajara/host";
-import { SynchronizeJobInterestsCommand } from "@job-boardwalk/contracts";
-import type { JobInterestSnapshot } from "@job-boardwalk/contracts";
-import { parsePlatformWebUrl, platformCatalog } from "@job-boardwalk/platform-catalog";
+import { SynchronizeJobEngagementCommand } from "@job-boardwalk/contracts";
+import type { JobEngagementSnapshot } from "@job-boardwalk/contracts";
+import {
+  parsePlatformJobEngagementUrl,
+  parsePlatformWebUrl,
+  platformCatalog,
+} from "@job-boardwalk/platform-catalog";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
@@ -19,10 +23,19 @@ function normalizedPlatformUrl(value: string, platformId: "boss" | "yupao", fiel
   return url.href;
 }
 
-function normalizedJobInterestSnapshot(input: SynchronizeJobInterestsCommand): JobInterestSnapshot {
+function normalizedJobEngagementSnapshot(
+  input: SynchronizeJobEngagementCommand,
+): JobEngagementSnapshot {
+  const sourceUrl = normalizedPlatformUrl(input.sourceUrl, input.platformId, "sourceUrl");
+  if (parsePlatformJobEngagementUrl(input.platformId, sourceUrl) !== input.engagement) {
+    throw new InvalidRequestError(
+      "sourceUrl 必须匹配 platformId 和 engagement 对应的岗位跟进分类页",
+    );
+  }
   return {
     capturedAt: input.capturedAt,
     complete: input.complete,
+    engagement: input.engagement,
     jobs: input.jobs.map((job, index) => ({
       ...job,
       ...(job.jobUrl
@@ -36,25 +49,25 @@ function normalizedJobInterestSnapshot(input: SynchronizeJobInterestsCommand): J
         : {}),
     })),
     platformId: input.platformId,
-    sourceUrl: normalizedPlatformUrl(input.sourceUrl, input.platformId, "sourceUrl"),
+    sourceUrl,
     total: input.total,
   };
 }
 
-export function registerJobInterestRoute(
+export function registerJobEngagementRoute(
   app: Hono,
   repository: WorkspaceRepository,
   serviceScope: Scope,
 ): void {
-  app.put("/api/job-interests", (context) =>
-    serviceScope.run(function* synchronizeJobInterests() {
+  app.put("/api/job-engagements", (context) =>
+    serviceScope.run(function* synchronizeJobEngagement() {
       try {
-        const input = yield* readRequestBody(context, SynchronizeJobInterestsCommand);
+        const input = yield* readRequestBody(context, SynchronizeJobEngagementCommand);
         return context.json(
-          repository.synchronizeJobInterests({
+          repository.synchronizeJobEngagement({
             initiatedBy: input.initiatedBy,
             reason: input.reason,
-            snapshot: normalizedJobInterestSnapshot(input),
+            snapshot: normalizedJobEngagementSnapshot(input),
           }),
         );
       } catch (error) {
