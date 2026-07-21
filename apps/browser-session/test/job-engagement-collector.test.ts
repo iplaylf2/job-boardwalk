@@ -173,3 +173,86 @@ test("does not promote a fallback observed count into a complete engagement snap
     expect.objectContaining({ complete: false, engagement: "contacted", total: 1 }),
   ]);
 });
+
+test("finishes a paginated engagement scan before rotating categories", async () => {
+  let bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
+  const navigations: string[] = [];
+  const pages: Page[] = [];
+  const bossPage = {
+    evaluate: (_callback: unknown, argument?: unknown) => {
+      if (argument) {
+        const page = new URL(bossUrl).searchParams.get("page") ?? "1";
+        return Promise.resolve({
+          accessElements: [],
+          accessText: "",
+          cards: [
+            {
+              details: [],
+              href: `https://www.zhipin.com/job_detail/contacted-${page}.html`,
+              text: `后端开发 ${page}`,
+              title: `后端开发 ${page}`,
+            },
+          ],
+          title: "BOSS直聘",
+          truncated: false,
+          url: bossUrl,
+        });
+      }
+      return Promise.resolve(
+        bossUrl.includes("tab=1") ? "累计沟通职位数量 2" : "累计投递简历数量 1",
+      );
+    },
+    goto: (targetUrl: string) => {
+      navigations.push(targetUrl);
+      bossUrl = targetUrl;
+      return Promise.resolve(null);
+    },
+    title: () => Promise.resolve("BOSS直聘"),
+    url: () => bossUrl,
+  } as unknown as Page;
+  const redirectedYupaoPage = {
+    goto: () => Promise.resolve(null),
+    url: () => "https://www.yupao.com/web/login/",
+  } as unknown as Page;
+  pages.push(bossPage);
+  const context = {
+    newPage: () => {
+      pages.push(redirectedYupaoPage);
+      return Promise.resolve(redirectedYupaoPage);
+    },
+    pages: () => [...pages],
+  } as unknown as BrowserContext;
+  const snapshots: { complete: boolean; engagement: string }[] = [];
+  const writer = {
+    *write(snapshot) {
+      snapshots.push({ complete: snapshot.complete, engagement: snapshot.engagement });
+      yield* [];
+      return {
+        complete: snapshot.complete,
+        engagement: snapshot.engagement,
+        observed: snapshot.jobs.length,
+        platformId: snapshot.platformId,
+        removed: 0,
+        synchronizedAt: snapshot.capturedAt,
+      };
+    },
+  } satisfies JobEngagementWriter;
+  const collector = jobEngagementCollector(context, writer, () => initialRecoveryRevision);
+  await using scope = createScope();
+
+  await scope.run(() => collector.collect(() => null));
+  await scope.run(() => collector.collect(() => null));
+
+  expect(snapshots).toEqual([
+    { complete: false, engagement: "contacted" },
+    { complete: true, engagement: "contacted" },
+  ]);
+  expect(navigations).toEqual([
+    "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=2&tag=4",
+  ]);
+
+  bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=2&sub=1&page=1&tag=4";
+  await scope.run(() => collector.collect(() => null));
+
+  expect(snapshots.at(-onePage)).toEqual({ complete: true, engagement: "applied" });
+});

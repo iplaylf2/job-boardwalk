@@ -157,12 +157,12 @@ export class JobEngagementCollector {
     const complete =
       captured.complete || (canContinueScan && accumulatedJobs.length >= captured.completionTotal);
     const reachedEnd = complete || captured.jobs.length === emptyCollectionLength;
-    this.#nextEngagementIndices.set(
-      platformId,
-      (engagementIndex + nextIndex) % platformJobEngagementKinds.length,
-    );
     if (reachedEnd || !canContinueScan) {
       this.#scans.delete(key);
+      this.#nextEngagementIndices.set(
+        platformId,
+        (engagementIndex + nextIndex) % platformJobEngagementKinds.length,
+      );
       return {
         ...toSnapshot(captured, accumulatedJobs, complete),
         sourceUrl: jobEngagementPageUrl(platformId, engagement),
