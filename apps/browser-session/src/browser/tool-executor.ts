@@ -6,6 +6,7 @@ import type { RiteCoroutine } from "@shajara/host";
 
 import type { BackgroundCollectionControl } from "./background-collection-control.js";
 import { BrowserTabs, parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
+import { clickAndCapturePopup } from "./click-popup.js";
 import {
   assertPlatformNavigationLink,
   findRecruitingPlatformAdapter,
@@ -97,18 +98,18 @@ export class BrowserToolExecutor {
 
   *#click(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
+    const sourcePage = this.#tabs.requireNavigationPage(reference.tabId);
     try {
       if (reference.href) {
-        const page = this.#tabs.requireNavigationPage(reference.tabId);
-        const adapter = findRecruitingPlatformAdapter(page.url());
+        const adapter = findRecruitingPlatformAdapter(sourcePage.url());
         if (!adapter) {
           throw new Error("当前页面不属于受支持招聘平台的 HTTPS 导航范围。");
         }
         assertPlatformNavigationLink(adapter.platformId, reference.href);
       }
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
-      yield* until(() => reference.locator.click());
-      return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
+      const popupPage = yield* clickAndCapturePopup(sourcePage, reference.locator);
+      return yield* readNavigationPageSummary(popupPage ?? sourcePage);
     } finally {
       this.#clearElementReferences();
     }

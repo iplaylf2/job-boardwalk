@@ -11,6 +11,7 @@ import type { WorkspaceRepository } from "#/persistence/workspace-repository.js"
 import { readPositiveInteger, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
+const notFoundStatus = 404;
 
 export function registerProfileFactRoute(
   app: Hono,
@@ -35,10 +36,9 @@ export function registerProfileFactRoute(
           id: readPositiveInteger(context.req.param("id"), "id"),
           ...input,
         });
-        if (!updated) {
-          throw new Error(`找不到个人资料：${context.req.param("id")}`);
-        }
-        return context.json(updated);
+        return updated
+          ? context.json(updated)
+          : context.json({ error: "找不到个人资料" }, notFoundStatus);
       } catch (error) {
         return requestErrorResponse(error, context);
       }

@@ -21,6 +21,7 @@ const createdStatus = 201;
 const successfulStatus = 200;
 const forbiddenStatus = 403;
 const internalServerErrorStatus = 500;
+const notFoundStatus = 404;
 const firstCollectionIndex = 0;
 const maximumPageSizePlusOne = 49;
 const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
@@ -378,6 +379,33 @@ test("updates profile and selected job-search intent through the public HTTP bou
       jobSearchIntents: [],
       profileFacts: [],
     });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("returns not found when updating a missing profile fact", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+
+  try {
+    const response = await httpApp.request("/api/profile/facts/1", {
+      body: JSON.stringify({
+        confirmed: true,
+        initiatedBy: "user",
+        key: "target-position",
+        reason: "test",
+        source: "dashboard",
+        value: "平台工程师",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+
+    expect(response.status).toBe(notFoundStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

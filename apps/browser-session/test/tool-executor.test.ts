@@ -71,6 +71,10 @@ function fakeAuthenticatedYupaoJobCardPage(): Page {
   return page;
 }
 
+function fakePageEventMethods(readPage: () => Page) {
+  return { off: () => readPage(), on: () => readPage() };
+}
+
 function fakeActionPage(element: { href?: string; name: string; role: string }) {
   const signature = `${element.role}:${element.name}:${element.href ?? ""}`;
   const state = {
@@ -114,6 +118,7 @@ function fakeActionPage(element: { href?: string; name: string; role: string }) 
       }),
     isClosed: () => false,
     locator: () => ({ nth: () => locator }),
+    ...fakePageEventMethods(() => page),
     once: () => page,
     title: () => Promise.resolve("BOSS直聘"),
     url: () => state.url,
