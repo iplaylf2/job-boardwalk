@@ -11,6 +11,7 @@ export type PlatformJobEngagementKind = (typeof platformJobEngagementKinds)[numb
 export type PlatformWebDestination = "entry" | "login";
 type PlatformWebOrigin = `https://${string}`;
 type PlatformWebPath = `/${string}`;
+const firstPage = 1;
 
 interface PlatformCatalogEntry {
   label: string;
@@ -89,6 +90,33 @@ export function parsePlatformWebUrl(platformId: PlatformId, value: string): URL 
   } catch {
     return null;
   }
+}
+
+export function parsePlatformJobEngagementUrl(
+  platformId: PlatformId,
+  value: string,
+): PlatformJobEngagementKind | null {
+  const url = parsePlatformWebUrl(platformId, value);
+  if (!url) {
+    return null;
+  }
+  for (const engagement of platformJobEngagementKinds) {
+    const expected = new URL(resolvePlatformJobEngagementUrl(platformId, engagement));
+    if (url.pathname !== expected.pathname) {
+      continue;
+    }
+    const matchesParameters = [...expected.searchParams].every(([name, expectedValue]) => {
+      if (platformId === "boss" && name === "page") {
+        const page = Number(url.searchParams.get(name));
+        return Number.isSafeInteger(page) && page >= firstPage;
+      }
+      return url.searchParams.get(name) === expectedValue;
+    });
+    if (matchesParameters) {
+      return engagement;
+    }
+  }
+  return null;
 }
 
 export function isPlatformId(value: string): value is PlatformId {

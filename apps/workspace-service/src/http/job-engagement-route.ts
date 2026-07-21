@@ -2,7 +2,11 @@ import type { Hono } from "hono";
 import type { Scope } from "@shajara/host";
 import { SynchronizeJobEngagementCommand } from "@job-boardwalk/contracts";
 import type { JobEngagementSnapshot } from "@job-boardwalk/contracts";
-import { parsePlatformWebUrl, platformCatalog } from "@job-boardwalk/platform-catalog";
+import {
+  parsePlatformJobEngagementUrl,
+  parsePlatformWebUrl,
+  platformCatalog,
+} from "@job-boardwalk/platform-catalog";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
@@ -22,6 +26,12 @@ function normalizedPlatformUrl(value: string, platformId: "boss" | "yupao", fiel
 function normalizedJobEngagementSnapshot(
   input: SynchronizeJobEngagementCommand,
 ): JobEngagementSnapshot {
+  const sourceUrl = normalizedPlatformUrl(input.sourceUrl, input.platformId, "sourceUrl");
+  if (parsePlatformJobEngagementUrl(input.platformId, sourceUrl) !== input.engagement) {
+    throw new InvalidRequestError(
+      "sourceUrl 必须匹配 platformId 和 engagement 对应的岗位跟进分类页",
+    );
+  }
   return {
     capturedAt: input.capturedAt,
     complete: input.complete,
@@ -39,7 +49,7 @@ function normalizedJobEngagementSnapshot(
         : {}),
     })),
     platformId: input.platformId,
-    sourceUrl: normalizedPlatformUrl(input.sourceUrl, input.platformId, "sourceUrl"),
+    sourceUrl,
     total: input.total,
   };
 }

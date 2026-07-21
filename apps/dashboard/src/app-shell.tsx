@@ -1,4 +1,5 @@
 import type { JSX } from "@solidjs/web";
+import { Show } from "solid-js";
 
 import styles from "./app-shell.module.css";
 
@@ -18,28 +19,22 @@ const navigationItems: { active: ActivePage; href: string; label: string }[] = [
   { active: "reports", href: "/reports", label: "研究报告" },
 ];
 
-function navigationCount(item: ActivePage, props: AppShellProps): number | null {
-  if (item === "jobs") {
-    return props.jobCount ?? null;
-  }
-  return null;
-}
-
 function PrimaryNavigation(props: AppShellProps): JSX.Element {
   return (
     <nav class={styles["primaryNavigation"]} aria-label="主要导航">
-      {navigationItems.map((item) => {
-        const count = navigationCount(item.active, props);
-        return (
-          <a
-            href={item.href}
-            {...(props.active === item.active ? { "aria-current": "page" as const } : {})}
-          >
-            {item.label}
-            {typeof count === "number" ? <span>{String(count)}</span> : null}
-          </a>
-        );
-      })}
+      {navigationItems.map((item) => (
+        <a
+          href={item.href}
+          {...(props.active === item.active ? { "aria-current": "page" as const } : {})}
+        >
+          {item.label}
+          {item.active === "jobs" ? (
+            <Show when={typeof props.jobCount === "number"}>
+              <span>{String(props.jobCount)}</span>
+            </Show>
+          ) : null}
+        </a>
+      ))}
     </nav>
   );
 }

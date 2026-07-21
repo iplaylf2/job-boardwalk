@@ -825,6 +825,23 @@ test("synchronizes job engagements and filters the library through HTTP", async 
       method: "PUT",
     });
     expect(invalidResponse.status).toBe(badRequestStatus);
+
+    const mismatchedEngagementResponse = await httpApp.request("/api/job-engagements", {
+      body: JSON.stringify({
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        engagement: "applied",
+        initiatedBy: "system",
+        jobs: [],
+        platformId: "boss",
+        reason: "test",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        total: 0,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(mismatchedEngagementResponse.status).toBe(badRequestStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

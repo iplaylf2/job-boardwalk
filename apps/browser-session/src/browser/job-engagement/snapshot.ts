@@ -1,6 +1,7 @@
 import type { Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
+import { parsePlatformJobEngagementUrl } from "@job-boardwalk/platform-catalog";
 import type {
   JobCardEvidence,
   JobEngagementEvidence,
@@ -12,8 +13,6 @@ import { captureJobCardSnapshot } from "#/browser/job-card-snapshot.js";
 import { extractExternalJobId } from "#/browser/platform-job-links.js";
 import { requireRecruitingPlatformAdapter } from "#/browser/recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
-
-import { jobEngagementFromPage } from "./pages.js";
 
 const firstIndex = 0;
 const maximumEngagementItems = 200;
@@ -208,7 +207,7 @@ export function* captureJobEngagementSnapshot(
 ): RiteCoroutine<CapturedJobEngagementSnapshot> {
   const initialUrl = page.url();
   const { platformId } = requireRecruitingPlatformAdapter(initialUrl);
-  const engagement = jobEngagementFromPage(platformId, initialUrl);
+  const engagement = parsePlatformJobEngagementUrl(platformId, initialUrl);
   if (!engagement) {
     throw new Error("当前页面不是招聘平台个人中心的岗位跟进列表。");
   }
