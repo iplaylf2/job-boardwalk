@@ -741,7 +741,7 @@ test("advertises job-library filters by public tool name", async () => {
       {
         inputSchema: {
           properties: {
-            interestedOnly: { type: "boolean" },
+            engagement: { enum: ["applied", "contacted", "interested", "interviewed"] },
             page: { minimum: 1, type: "integer" },
             pageSize: { maximum: 48, minimum: 1, type: "integer" },
             platformId: { enum: ["boss", "yupao"] },
@@ -769,17 +769,18 @@ test("advertises job-library filters by public tool name", async () => {
 });
 
 // eslint-disable-next-line max-lines-per-function -- One boundary flow covers accepted data, reads, and URL rejection.
-test("synchronizes job interests and reads the interested slice through HTTP", async () => {
+test("synchronizes job engagements and filters the library through HTTP", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
 
   try {
-    const response = await httpApp.request("/api/job-interests", {
+    const response = await httpApp.request("/api/job-engagements", {
       body: JSON.stringify({
         capturedAt: "2026-07-19T10:00:00.000Z",
         complete: true,
+        engagement: "applied",
         initiatedBy: "system",
         jobs: [
           {
@@ -793,7 +794,7 @@ test("synchronizes job interests and reads the interested slice through HTTP", a
         ],
         platformId: "boss",
         reason: "test",
-        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=2&sub=1&page=1&tag=4",
         total: 1,
       }),
       headers: { "content-type": "application/json" },
@@ -801,21 +802,22 @@ test("synchronizes job interests and reads the interested slice through HTTP", a
     });
     expect(response.status).toBe(successfulStatus);
     expect(await response.json()).toMatchObject({ observed: 1, platformId: "boss" });
-    const listResponse = await httpApp.request("/api/jobs?interested=true");
+    const listResponse = await httpApp.request("/api/jobs?engagement=applied");
     expect(JobPostingPage.assert(await listResponse.json())).toMatchObject({
       jobs: [
         {
           company: "360集团",
-          sources: [{ interest: { position: 1 }, platformId: "boss" }],
+          sources: [{ engagements: [{ kind: "applied" }], platformId: "boss" }],
         },
       ],
       total: 1,
     });
 
-    const invalidResponse = await httpApp.request("/api/job-interests", {
+    const invalidResponse = await httpApp.request("/api/job-engagements", {
       body: JSON.stringify({
         capturedAt: "2026-07-19T10:00:00.000Z",
         complete: true,
+        engagement: "interested",
         initiatedBy: "system",
         jobs: [],
         platformId: "boss",

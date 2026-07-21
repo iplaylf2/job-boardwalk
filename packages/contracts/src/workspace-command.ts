@@ -5,7 +5,7 @@ import {
   trimmedNonEmptyString,
 } from "./internal/contract-fields.ts";
 import { JobPostingObservation } from "./job-posting.ts";
-import { JobInterestSnapshot } from "./job-interest.ts";
+import { JobEngagementSnapshot } from "./job-engagement.ts";
 import { ResearchReportMarkdown, ResearchReportState } from "./research-report.ts";
 import { RecommendationPageReference } from "./search-intent.ts";
 
@@ -46,8 +46,10 @@ export const SaveJobPostingObservationCommand = JobPostingObservation.merge(
 });
 export type SaveJobPostingObservationCommand = typeof SaveJobPostingObservationCommand.infer;
 
-export const SynchronizeJobInterestsCommand = JobInterestSnapshot.merge(WorkspaceChangeAttribution);
-export type SynchronizeJobInterestsCommand = typeof SynchronizeJobInterestsCommand.infer;
+export const SynchronizeJobEngagementCommand = JobEngagementSnapshot.merge(
+  WorkspaceChangeAttribution,
+);
+export type SynchronizeJobEngagementCommand = typeof SynchronizeJobEngagementCommand.infer;
 
 export const SaveResearchReportCommand = WorkspaceChangeAttribution.merge({
   "expiresAt?": normalizedTimestamp,

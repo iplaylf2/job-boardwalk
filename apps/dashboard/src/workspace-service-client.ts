@@ -4,7 +4,7 @@ import {
   ResearchReportList,
   WorkspaceOverview,
 } from "@job-boardwalk/contracts";
-import type { RecommendationPageReference } from "@job-boardwalk/contracts";
+import type { JobEngagementKind, RecommendationPageReference } from "@job-boardwalk/contracts";
 
 const notFoundStatus = 404;
 
@@ -29,7 +29,7 @@ export async function readWorkspaceOverview(): Promise<WorkspaceOverview> {
 }
 
 export async function readJobPostingPage(input: {
-  interestedOnly?: boolean;
+  engagement?: JobEngagementKind;
   page: number;
   pageSize: number;
   platform?: string;
@@ -38,7 +38,7 @@ export async function readJobPostingPage(input: {
   const search = new URLSearchParams({
     page: String(input.page),
     pageSize: String(input.pageSize),
-    ...(input.interestedOnly ? { interested: "true" } : {}),
+    ...(input.engagement ? { engagement: input.engagement } : {}),
     ...(input.platform ? { platform: input.platform } : {}),
     ...(input.query ? { query: input.query } : {}),
   });

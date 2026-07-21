@@ -1,7 +1,9 @@
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobPosting, NormalizedSalary } from "@job-boardwalk/contracts";
+import { platformCatalog } from "@job-boardwalk/platform-catalog";
 
+import { jobEngagementLabels } from "./engagement.js";
 import styles from "./card.module.css";
 
 const emptyCollectionLength = 0;
@@ -49,8 +51,11 @@ function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
     <div class={styles["sources"]}>
       <For each={props.job.sources}>
         {(source) => {
-          const label = `${source.platformId === "boss" ? "BOSS直聘" : "鱼泡直聘"}${
-            source.interest ? " · 感兴趣" : ""
+          const engagementText = source.engagements
+            .map(({ kind }) => jobEngagementLabels[kind])
+            .join(" · ");
+          const label = `${platformCatalog[source.platformId].label}${
+            engagementText ? ` · ${engagementText}` : ""
           }`;
           return source.jobUrl ? (
             <a href={source.jobUrl} target="_blank" rel="noreferrer">
@@ -67,8 +72,8 @@ function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
 
 export function JobCard(props: { job: JobPosting }): JSX.Element {
   const salary = displaySalary(props.job);
-  const latestInterestAt = props.job.sources
-    .flatMap((source) => (source.interest ? [source.interest.lastObservedAt] : []))
+  const latestEngagementAt = props.job.sources
+    .flatMap((source) => source.engagements.map(({ lastObservedAt }) => lastObservedAt))
     .toSorted()
     .at(lastCollectionIndex);
 
@@ -100,8 +105,8 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
       <footer>
         <JobSourceLinks job={props.job} />
         <span>
-          {latestInterestAt
-            ? `感兴趣状态同步于 ${formattedDate(latestInterestAt)}`
+          {latestEngagementAt
+            ? `平台记录同步于 ${formattedDate(latestEngagementAt)}`
             : `更新于 ${formattedDate(props.job.updatedAt)}`}
         </span>
       </footer>

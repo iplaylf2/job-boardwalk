@@ -1,20 +1,24 @@
+import { platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
+
 import { contract } from "./internal/contract.ts";
 import {
   nonNegativeInteger,
   normalizedTimestamp,
   platformId,
-  positiveInteger,
   trimmedNonEmptyString,
 } from "./internal/contract-fields.ts";
 
-export const JobSourceInterest = contract({
-  firstObservedAt: normalizedTimestamp,
-  lastObservedAt: normalizedTimestamp,
-  position: positiveInteger,
-});
-export type JobSourceInterest = typeof JobSourceInterest.infer;
+export const JobEngagementKind = contract.enumerated(...platformJobEngagementKinds);
+export type JobEngagementKind = typeof JobEngagementKind.infer;
 
-export const JobInterestEvidence = contract({
+export const JobSourceEngagement = contract({
+  firstObservedAt: normalizedTimestamp,
+  kind: JobEngagementKind,
+  lastObservedAt: normalizedTimestamp,
+});
+export type JobSourceEngagement = typeof JobSourceEngagement.infer;
+
+export const JobEngagementEvidence = contract({
   "company?": trimmedNonEmptyString,
   details: trimmedNonEmptyString.array(),
   "educationRequirement?": trimmedNonEmptyString,
@@ -26,23 +30,25 @@ export const JobInterestEvidence = contract({
   summary: trimmedNonEmptyString,
   title: trimmedNonEmptyString,
 });
-export type JobInterestEvidence = typeof JobInterestEvidence.infer;
+export type JobEngagementEvidence = typeof JobEngagementEvidence.infer;
 
-export const JobInterestSnapshot = contract({
+export const JobEngagementSnapshot = contract({
   capturedAt: normalizedTimestamp,
   complete: "boolean",
-  jobs: JobInterestEvidence.array(),
+  engagement: JobEngagementKind,
+  jobs: JobEngagementEvidence.array(),
   platformId,
   sourceUrl: trimmedNonEmptyString,
   total: nonNegativeInteger,
 });
-export type JobInterestSnapshot = typeof JobInterestSnapshot.infer;
+export type JobEngagementSnapshot = typeof JobEngagementSnapshot.infer;
 
-export const SynchronizeJobInterestsResult = contract({
+export const SynchronizeJobEngagementResult = contract({
   complete: "boolean",
+  engagement: JobEngagementKind,
   observed: nonNegativeInteger,
   platformId,
   removed: nonNegativeInteger,
   synchronizedAt: normalizedTimestamp,
 });
-export type SynchronizeJobInterestsResult = typeof SynchronizeJobInterestsResult.infer;
+export type SynchronizeJobEngagementResult = typeof SynchronizeJobEngagementResult.infer;

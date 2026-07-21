@@ -2,14 +2,49 @@ import type { JSX } from "@solidjs/web";
 
 import styles from "./app-shell.module.css";
 
-export function AppShell(props: {
-  active: "interested-jobs" | "jobs" | "overview" | "reports";
+type ActivePage = "jobs" | "overview" | "reports";
+
+interface AppShellProps {
+  active: ActivePage;
   children: JSX.Element;
-  interestedJobCount?: number;
   jobCount?: number;
   lede: string;
   title: string;
-}): JSX.Element {
+}
+
+const navigationItems: { active: ActivePage; href: string; label: string }[] = [
+  { active: "overview", href: "/", label: "工作区" },
+  { active: "jobs", href: "/jobs", label: "岗位库" },
+  { active: "reports", href: "/reports", label: "研究报告" },
+];
+
+function navigationCount(item: ActivePage, props: AppShellProps): number | null {
+  if (item === "jobs") {
+    return props.jobCount ?? null;
+  }
+  return null;
+}
+
+function PrimaryNavigation(props: AppShellProps): JSX.Element {
+  return (
+    <nav class={styles["primaryNavigation"]} aria-label="主要导航">
+      {navigationItems.map((item) => {
+        const count = navigationCount(item.active, props);
+        return (
+          <a
+            href={item.href}
+            {...(props.active === item.active ? { "aria-current": "page" as const } : {})}
+          >
+            {item.label}
+            {typeof count === "number" ? <span>{String(count)}</span> : null}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function AppShell(props: AppShellProps): JSX.Element {
   return (
     <main class={styles["shell"]}>
       <header class={styles["masthead"]}>
@@ -18,30 +53,7 @@ export function AppShell(props: {
           <h1>{props.title}</h1>
           <p class={styles["lede"]}>{props.lede}</p>
         </div>
-        <nav class={styles["primaryNavigation"]} aria-label="主要导航">
-          <a href="/" {...(props.active === "overview" ? { "aria-current": "page" as const } : {})}>
-            工作区
-          </a>
-          <a href="/jobs" {...(props.active === "jobs" ? { "aria-current": "page" as const } : {})}>
-            岗位库
-            {typeof props.jobCount === "number" ? <span>{String(props.jobCount)}</span> : null}
-          </a>
-          <a
-            href="/jobs/interested"
-            {...(props.active === "interested-jobs" ? { "aria-current": "page" as const } : {})}
-          >
-            感兴趣
-            {typeof props.interestedJobCount === "number" ? (
-              <span>{String(props.interestedJobCount)}</span>
-            ) : null}
-          </a>
-          <a
-            href="/reports"
-            {...(props.active === "reports" ? { "aria-current": "page" as const } : {})}
-          >
-            研究报告
-          </a>
-        </nav>
+        <PrimaryNavigation {...props} />
       </header>
       {props.children}
     </main>

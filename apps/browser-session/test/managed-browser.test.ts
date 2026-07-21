@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 
 import { ManagedBrowser } from "#/browser/managed-browser.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
-import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
+import type { JobEngagementWriter } from "#/workspace-service/job-engagement-writer.js";
 import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
 const jobPostingWriter = {
@@ -12,18 +12,19 @@ const jobPostingWriter = {
     yield* [];
   },
 } satisfies JobPostingWriter;
-const jobInterestWriter = {
+const jobEngagementWriter = {
   *write(snapshot) {
     yield* [];
     return {
       complete: snapshot.complete,
+      engagement: snapshot.engagement,
       observed: snapshot.jobs.length,
       platformId: snapshot.platformId,
       removed: 0,
       synchronizedAt: snapshot.capturedAt,
     };
   },
-} satisfies JobInterestWriter;
+} satisfies JobEngagementWriter;
 const selectedIntentReader = {
   *read() {
     yield* [];
@@ -46,7 +47,7 @@ function fakeContext(): BrowserContext {
 test("starts unavailable without leaking profile details through status", () => {
   const browser = new ManagedBrowser(
     "/private/profile",
-    { jobInterestWriter, jobPostingWriter, selectedIntentReader },
+    { jobEngagementWriter, jobPostingWriter, selectedIntentReader },
     () => Promise.resolve(fakeContext()),
   );
 
@@ -60,7 +61,7 @@ test("contains browser launch failures as unavailable tool calls", async () => {
   );
   const browser = new ManagedBrowser(
     "/private/profile",
-    { jobInterestWriter, jobPostingWriter, selectedIntentReader },
+    { jobEngagementWriter, jobPostingWriter, selectedIntentReader },
     () => Promise.reject(launchError),
   );
   const reportedErrors: Error[] = [];

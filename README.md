@@ -41,16 +41,18 @@ Available now:
   and reuses that tab if its navigation redirects. Independently, it submits recognizable cards
   from every open supported-platform tab; the selected intent does not restrict which tabs may
   contribute jobs. Without a selected intent, it still observes supported tabs that are already
-  open. A separate collector observes each platform's “感兴趣” list without changing account state.
+  open. A separate collector reads each platform's personal-center categories for interested,
+  contacted, applied, and interviewed jobs. It uses platform routes and page structure rather than
+  message interpretation, and it never performs the actions represented by those categories.
 - Workspace Service stores platform-access observations and interruptions, along with personal
-  context, job-search intents, normalized job facts, source-level interest relations, and Markdown
-  research reports. It skips unchanged observations and merges confident cross-platform matches
-  while preserving every available platform link.
+  context, job-search intents, normalized job facts, platform-observed engagement records for job
+  sources, and Markdown research reports. It skips unchanged observations and merges confident
+  cross-platform matches while preserving every available platform link.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
   lets the user maintain and select job-search intents. Its paginated job library supports search,
-  platform filtering, and an “感兴趣” view while preserving the original recruiting-platform
-  sources. Its report reader makes saved conclusions available independently of the agent
-  conversation that produced them.
+  platform filtering, and in-library views for interested, contacted, applied, and interviewed
+  records while preserving the original recruiting-platform sources. Its report reader keeps saved
+  conclusions available without the agent conversation that produced them.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.

@@ -1,4 +1,11 @@
-import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { NormalizedSalary } from "@job-boardwalk/contracts";
 
@@ -143,17 +150,25 @@ export const jobPostingSources = sqliteTable(
   ],
 );
 
-export const jobSourceInterests = sqliteTable(
-  "job_source_interests",
+export const jobSourceEngagements = sqliteTable(
+  "job_source_engagements",
   {
     firstObservedAt: text("first_observed_at").notNull(),
+    kind: text({
+      enum: ["contacted", "applied", "interviewed", "interested"],
+    }).notNull(),
     lastObservedAt: text("last_observed_at").notNull(),
-    position: integer().notNull(),
     sourceId: integer("source_id")
-      .primaryKey()
+      .notNull()
       .references(() => jobPostingSources.id, { onDelete: "cascade" }),
   },
-  (table) => [check("job_source_interests_position", sql`${table.position} >= 1`)],
+  (table) => [
+    primaryKey({ columns: [table.sourceId, table.kind] }),
+    check(
+      "job_source_engagements_kind",
+      sql`${table.kind} in ('contacted', 'applied', 'interviewed', 'interested')`,
+    ),
+  ],
 );
 
 export const workspaceChanges = sqliteTable(

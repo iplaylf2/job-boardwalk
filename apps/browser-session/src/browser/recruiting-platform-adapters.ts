@@ -267,28 +267,3 @@ export function assertPlatformNavigationUrl(platformId: PlatformId, url: string)
 export function assertPlatformNavigationLink(platformId: PlatformId, href: string): void {
   assertPlatformNavigationUrl(platformId, href);
 }
-
-export function interestListPageUrl(platformId: PlatformId): string {
-  return resolvePlatformWebUrl(platformId, "interestList");
-}
-
-export function isInterestListPage(platformId: PlatformId, value: string): boolean {
-  const url = parsePlatformWebUrl(platformId, value);
-  if (!url) {
-    return false;
-  }
-  if (platformId === "boss") {
-    return (
-      url.pathname === "/web/geek/recommend" &&
-      url.searchParams.get("tab") === "4" &&
-      url.searchParams.get("sub") === "1" &&
-      url.searchParams.get("tag") === "4"
-    );
-  }
-  return (
-    url.pathname === "/user/resume-info/" &&
-    url.searchParams.get("tab") === "4" &&
-    url.searchParams.get("subTab") === "1" &&
-    url.searchParams.get("mode") === "1"
-  );
-}

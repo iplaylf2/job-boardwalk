@@ -33,9 +33,9 @@ const researchReportsUri = "job-boardwalk://reports";
 const workspaceOverviewDescription =
   "读取本机工作区概览：由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人情况，以及带平台推荐页关联和当前选择状态的求职方向。";
 const jobLibraryResourceDescription =
-  "读取岗位库第一页及分页元数据。岗位来自招聘平台页面，经规范化和跨平台合并；每个平台来源保留发现页面、可选的岗位原始链接，以及可选的“感兴趣”状态同步信息。";
+  "读取岗位库第一页及分页元数据。岗位来自招聘平台页面，经规范化和跨平台合并；每个平台来源保留发现页面、可选的岗位原始链接，以及个人中心观察到的感兴趣、沟通过、已投递和面试记录。";
 const jobLibraryToolDescription =
-  "分页读取岗位库，可搜索、按平台筛选，或只返回至少有一个来源标记为“感兴趣”的岗位。每个平台来源保留发现页面、可选的岗位原始链接和可选的“感兴趣”同步信息。";
+  "分页读取岗位库，可搜索并按平台或跟进记录筛选。每个平台来源保留发现页面、可选的岗位原始链接，以及个人中心观察到的感兴趣、沟通过、已投递和面试记录。";
 const researchReportListDescription =
   "读取未过期的研究报告目录。报告可由用户、agent 或系统写入，以 Markdown 保存，并包含草稿或完成状态与更新时间。";
 const researchReportDetailDescription =

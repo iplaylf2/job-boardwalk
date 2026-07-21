@@ -1,14 +1,14 @@
-import { WorkspaceJobInterestWriter } from "./job-interest-writer.js";
+import { WorkspaceJobEngagementWriter } from "./job-engagement-writer.js";
 import { WorkspaceJobPostingWriter } from "./job-posting-writer.js";
 import { WorkspaceSelectedJobSearchIntentReader } from "./selected-job-search-intent-reader.js";
 
 export function createWorkspaceServiceClients(workspaceServiceUrl: URL): {
-  jobInterestWriter: WorkspaceJobInterestWriter;
+  jobEngagementWriter: WorkspaceJobEngagementWriter;
   jobPostingWriter: WorkspaceJobPostingWriter;
   selectedIntentReader: WorkspaceSelectedJobSearchIntentReader;
 } {
   return {
-    jobInterestWriter: new WorkspaceJobInterestWriter(workspaceServiceUrl),
+    jobEngagementWriter: new WorkspaceJobEngagementWriter(workspaceServiceUrl),
     jobPostingWriter: new WorkspaceJobPostingWriter(workspaceServiceUrl),
     selectedIntentReader: new WorkspaceSelectedJobSearchIntentReader(workspaceServiceUrl),
   };

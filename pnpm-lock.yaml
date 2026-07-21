@@ -324,6 +324,9 @@ importers:
       '@job-boardwalk/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@job-boardwalk/platform-catalog':
+        specifier: workspace:*
+        version: link:../../packages/platform-catalog
       '@solidjs/web':
         specifier: 2.0.0-beta.19
         version: 2.0.0-beta.19(solid-js@2.0.0-beta.19)

@@ -4,15 +4,20 @@ import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import {
-  captureJobInterestSnapshot,
-  captureYupaoJobInterestMetadata,
-  jobInterestSnapshotFromYupaoMetadata,
-} from "#/browser/job-interest-snapshot.js";
+  captureJobEngagementSnapshot,
+  captureYupaoJobEngagementMetadata,
+  jobEngagementSnapshotFromYupaoMetadata,
+  visibleJobEngagementCount,
+} from "#/browser/job-engagement/snapshot.js";
 
 const firstEvaluation = 1;
+const appliedJobCount = 3;
+const contactedJobCount = 570;
+const interestedJobCount = 2;
+const interviewedJobCount = 0;
 
 test("keeps the serialized Yupao extractor self-contained", () => {
-  const result = runInNewContext(`(${captureYupaoJobInterestMetadata.toString()})()`, {
+  const result = runInNewContext(`(${captureYupaoJobEngagementMetadata.toString()})()`, {
     document: {
       body: { innerText: "感兴趣0" },
       querySelectorAll: () => [],
@@ -31,7 +36,7 @@ test("keeps the serialized Yupao extractor self-contained", () => {
 
 test("classifies a complete Yupao interest page without requiring job links", () => {
   expect(
-    jobInterestSnapshotFromYupaoMetadata(
+    jobEngagementSnapshotFromYupaoMetadata(
       {
         cards: [
           {
@@ -47,10 +52,12 @@ test("classifies a complete Yupao interest page without requiring job links", ()
         url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
       },
       "2026-07-19T10:00:00.000Z",
+      "interested",
     ),
   ).toEqual({
     capturedAt: "2026-07-19T10:00:00.000Z",
     complete: true,
+    engagement: "interested",
     jobs: [
       {
         company: "星海科技",
@@ -68,7 +75,7 @@ test("classifies a complete Yupao interest page without requiring job links", ()
 });
 
 test("uses Yupao's numeric path segment for linked interest jobs", () => {
-  const snapshot = jobInterestSnapshotFromYupaoMetadata(
+  const snapshot = jobEngagementSnapshotFromYupaoMetadata(
     {
       cards: [
         {
@@ -82,13 +89,14 @@ test("uses Yupao's numeric path segment for linked interest jobs", () => {
       url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
     },
     "2026-07-19T10:00:00.000Z",
+    "interested",
   );
 
   expect(snapshot.jobs).toEqual([expect.objectContaining({ externalJobId: "123456789" })]);
 });
 
 test("keeps a Yupao snapshot partial when the visible total is unavailable", () => {
-  const snapshot = jobInterestSnapshotFromYupaoMetadata(
+  const snapshot = jobEngagementSnapshotFromYupaoMetadata(
     {
       cards: [
         {
@@ -103,6 +111,7 @@ test("keeps a Yupao snapshot partial when the visible total is unavailable", () 
       url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
     },
     "2026-07-19T10:00:00.000Z",
+    "interested",
   );
 
   expect(snapshot).toMatchObject({ complete: false, total: 1 });
@@ -123,7 +132,7 @@ test("reports Yupao page access from a stable interest snapshot", async () => {
   await using scope = createScope();
 
   await scope.run(() =>
-    captureJobInterestSnapshot(page, (facts) => {
+    captureJobEngagementSnapshot(page, (facts) => {
       observedPages.push(facts);
     }),
   );
@@ -168,10 +177,11 @@ test("cleans BOSS interest-card titles and preserves the original detail link", 
   } as unknown as Page;
   await using scope = createScope();
 
-  const snapshot = await scope.run(() => captureJobInterestSnapshot(page));
+  const snapshot = await scope.run(() => captureJobEngagementSnapshot(page));
 
   expect(snapshot).toMatchObject({
     complete: true,
+    engagement: "interested",
     jobs: [
       {
         externalJobId: "agent-123",
@@ -212,7 +222,16 @@ test("keeps a BOSS snapshot partial when the visible total is unavailable", asyn
   } as unknown as Page;
   await using scope = createScope();
 
-  const snapshot = await scope.run(() => captureJobInterestSnapshot(page));
+  const snapshot = await scope.run(() => captureJobEngagementSnapshot(page));
 
   expect(snapshot).toMatchObject({ complete: false, total: 1 });
+});
+
+test("reads the platform-maintained total for every job engagement", () => {
+  const text = "沟通过\n已投递简历\n面试0\n感兴趣2\n累计沟通职位数量570\n累计投递简历数量3";
+
+  expect(visibleJobEngagementCount(text, "contacted")).toBe(contactedJobCount);
+  expect(visibleJobEngagementCount(text, "applied")).toBe(appliedJobCount);
+  expect(visibleJobEngagementCount(text, "interviewed")).toBe(interviewedJobCount);
+  expect(visibleJobEngagementCount(text, "interested")).toBe(interestedJobCount);
 });

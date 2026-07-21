@@ -55,13 +55,14 @@ CREATE TABLE `job_search_intents` (
 	CONSTRAINT "job_search_intents_selected" CHECK("selected" in (0, 1))
 );
 --> statement-breakpoint
-CREATE TABLE `job_source_interests` (
+CREATE TABLE `job_source_engagements` (
 	`first_observed_at` text NOT NULL,
+	`kind` text NOT NULL,
 	`last_observed_at` text NOT NULL,
-	`position` integer NOT NULL,
-	`source_id` integer PRIMARY KEY,
-	CONSTRAINT `fk_job_source_interests_source_id_job_posting_sources_id_fk` FOREIGN KEY (`source_id`) REFERENCES `job_posting_sources`(`id`) ON DELETE CASCADE,
-	CONSTRAINT "job_source_interests_position" CHECK("position" >= 1)
+	`source_id` integer NOT NULL,
+	CONSTRAINT `job_source_engagements_pk` PRIMARY KEY(`source_id`, `kind`),
+	CONSTRAINT `fk_job_source_engagements_source_id_job_posting_sources_id_fk` FOREIGN KEY (`source_id`) REFERENCES `job_posting_sources`(`id`) ON DELETE CASCADE,
+	CONSTRAINT "job_source_engagements_kind" CHECK("kind" in ('contacted', 'applied', 'interviewed', 'interested'))
 );
 --> statement-breakpoint
 CREATE TABLE `platform_access_observations` (

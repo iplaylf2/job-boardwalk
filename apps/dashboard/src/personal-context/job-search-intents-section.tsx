@@ -1,6 +1,7 @@
 import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobSearchIntent, RecommendationPageReference } from "@job-boardwalk/contracts";
+import { platformCatalog } from "@job-boardwalk/platform-catalog";
 
 // oxlint-disable max-lines, max-lines-per-function -- The editor state stays next to the intent collection it controls.
 import {
@@ -13,10 +14,6 @@ import styles from "./manager.module.css";
 
 const emptyCollectionLength = 0;
 type PlatformId = RecommendationPageReference["platformId"];
-const platformLabels: Record<PlatformId, string> = {
-  boss: "BOSS直聘",
-  yupao: "鱼泡直聘",
-};
 
 function recommendationPageFor(intent: JobSearchIntent | null, platformId: PlatformId) {
   return intent?.recommendationPages.find((page) => page.platformId === platformId);
@@ -58,7 +55,7 @@ export function JobSearchIntentsSection(props: {
     ];
     for (const page of candidates) {
       if (Boolean(page.label) !== Boolean(page.url)) {
-        throw new Error(`${platformLabels[page.platformId]} 的页面名称和网址需要同时填写。`);
+        throw new Error(`${platformCatalog[page.platformId].label}的页面名称和网址需要同时填写。`);
       }
     }
     const recommendationPages = candidates.filter(
@@ -198,7 +195,7 @@ export function JobSearchIntentsSection(props: {
                   <For each={intent.recommendationPages}>
                     {(page) => (
                       <span>
-                        {platformLabels[page.platformId]} · {page.label}
+                        {platformCatalog[page.platformId].label} · {page.label}
                       </span>
                     )}
                   </For>

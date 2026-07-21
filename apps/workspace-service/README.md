@@ -59,7 +59,7 @@ The MCP surface provides:
 - `read_workspace_overview`, which reads the same workspace state;
 - `job-boardwalk://jobs`, which exposes the first page of the current job library;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
-  `platformId`, and `interestedOnly` filters;
+  `platformId`, and `engagement` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
   research reports;
 - `read_research_report`, which reads one unexpired research report by ID;
@@ -80,9 +80,9 @@ The HTTP surface currently exposes:
 - `PUT /api/search-intents/:id`
 - `POST /api/search-intents/:id/select`
 - `DELETE /api/search-intents/:id`
-- `GET /api/jobs` (use `interested=true` for the interested slice)
+- `GET /api/jobs` (`engagement` accepts `interested`, `contacted`, `applied`, or `interviewed`)
 - `POST /api/jobs`
-- `PUT /api/job-interests`
+- `PUT /api/job-engagements`
 - `GET /api/reports`
 - `GET /api/reports/:id`
 - `POST /api/reports`
@@ -196,9 +196,9 @@ collection. They do not limit collection to those pages: observations may come f
 supported-platform tab, and already-open tabs remain observable without a selected intent.
 `POST /api/jobs` is the service-to-service write boundary.
 
-Dashboard reads `GET /api/jobs` with `page`, `pageSize`, optional `query`, and optional `platform`
-parameters. Workspace Service applies those constraints in SQLite and returns the current page,
-total result count, and page count. `pageSize` is capped at 48.
+Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`, and
+`engagement` parameters. Workspace Service applies those constraints in SQLite and returns the
+current page, total result count, and page count. `pageSize` is capped at 48.
 
 Within one platform, Workspace Service identifies a source by its external job ID when available,
 then by the pathname of its job URL, and finally by normalized company, title, and location when no
@@ -215,16 +215,18 @@ with its source period. Monthly salary carries a month count only when the sourc
 something such as `13薪`. No annual package is calculated from monthly, daily, or hourly rates;
 annual values are shown only when the source itself uses an annual salary period.
 
-#### Platform interest relations
+#### Job engagement synchronization
 
-`PUT /api/job-interests` synchronizes a snapshot of one platform's current “感兴趣” list. Workspace
-Service stores the state as a relation on the matching platform source rather than as a second job
-collection. A complete snapshot replaces relations that are no longer present; a partial snapshot
-only adds or refreshes observed relations. Removing a relation never removes the job or its other
-platform sources from the library.
+`PUT /api/job-engagements` synchronizes one platform-maintained personal-center category. Workspace
+Service stores `interested`, `contacted`, `applied`, and `interviewed` as non-exclusive relations on
+the matching platform source, not as separate job collections or one mutually exclusive status.
+Partial snapshots add or refresh observed relations. A complete `interested` snapshot also removes
+relations no longer present. The other engagement kinds remain durable because platforms may age
+historical jobs out of their visible lists.
 
-`GET /api/jobs?interested=true` returns jobs with at least one interested source. Each relation
-records when it was first and most recently observed and its position in the latest snapshot.
+`GET /api/jobs?engagement=applied` and the other engagement values return jobs with at least one
+matching source. Every relation records when Workspace Service first and most recently observed it;
+neither timestamp claims when the recruiting action occurred.
 
 ### Research reports
 

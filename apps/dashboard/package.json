@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@job-boardwalk/contracts": "workspace:*",
+    "@job-boardwalk/platform-catalog": "workspace:*",
     "@solidjs/web": "2.0.0-beta.19",
     "markdown-it": "14.3.0",
     "solid-js": "2.0.0-beta.19"

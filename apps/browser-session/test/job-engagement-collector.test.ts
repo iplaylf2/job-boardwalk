@@ -5,25 +5,25 @@ import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
-import { JobInterestCollector } from "#/browser/job-interest-collector.js";
-import type { JobInterestWriter } from "#/workspace-service/job-interest-writer.js";
+import { JobEngagementCollector } from "#/browser/job-engagement/collector.js";
+import type { JobEngagementWriter } from "#/workspace-service/job-engagement-writer.js";
 
 const onePage = 1;
 const initialAndRecoveryNavigationCount = 2;
 const initialRecoveryRevision = 0;
 
-function jobInterestCollector(
+function jobEngagementCollector(
   context: BrowserContext,
-  writer: JobInterestWriter,
+  writer: JobEngagementWriter,
   recoveryRevision: (platformId: PlatformId) => number,
-): JobInterestCollector {
-  return new JobInterestCollector(context, writer, recoveryRevision, {
+): JobEngagementCollector {
+  return new JobEngagementCollector(context, writer, recoveryRevision, {
     collectionControl: new BackgroundCollectionControl(),
     observePageAccess: () => null,
   });
 }
 
-test("does not replace managed interest pages after their targets redirect to login", async () => {
+test("does not replace managed engagement pages after their targets redirect to login", async () => {
   const pages: Page[] = [];
   const recoveryRevisions = new Map<PlatformId, number>();
   let navigationCount = 0;
@@ -50,10 +50,10 @@ test("does not replace managed interest pages after their targets redirect to lo
   const writer = {
     *write() {
       yield* [];
-      expect.unreachable("非“感兴趣”列表页不应调用关系写入器");
+      expect.unreachable("非岗位跟进列表页不应调用关系写入器");
     },
-  } satisfies JobInterestWriter;
-  const collector = jobInterestCollector(
+  } satisfies JobEngagementWriter;
+  const collector = jobEngagementCollector(
     context,
     writer,
     (platformId) => recoveryRevisions.get(platformId) ?? initialRecoveryRevision,
@@ -94,8 +94,8 @@ test("contains a page-opening failure and keeps supervision alive", async () => 
       yield* [];
       expect.unreachable("导航失败时不应写入快照");
     },
-  } satisfies JobInterestWriter;
-  const collector = jobInterestCollector(context, writer, () => initialRecoveryRevision);
+  } satisfies JobEngagementWriter;
+  const collector = jobEngagementCollector(context, writer, () => initialRecoveryRevision);
   const errors: Error[] = [];
   const scope = createScope();
   const supervision = scope.run(() => collector.run((error) => errors.push(error)));
@@ -106,7 +106,7 @@ test("contains a page-opening failure and keeps supervision alive", async () => 
     })
     .catch(() => null);
 
-  await expect.poll(() => errors).toEqual([navigationError]);
+  await expect.poll(() => errors).toEqual(platformIds.map(() => navigationError));
   expect(settled).toBe(false);
 
   await scope[Symbol.asyncDispose]();

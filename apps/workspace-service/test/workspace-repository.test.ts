@@ -10,6 +10,7 @@ import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
 const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 const filterPageSize = 10;
+const emptyCount = 0;
 const firstPage = 1;
 const singleJob = 1;
 const twoJobs = 2;
@@ -316,7 +317,7 @@ test("creates, updates, expires, and deletes research reports", async () => {
 });
 
 // eslint-disable-next-line max-lines-per-function -- One lifecycle proves relation replacement without deleting job facts.
-test("replaces a platform's interest relations without removing jobs from the library", async () => {
+test("replaces reversible interest engagements without removing jobs from the library", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
     databasePath: path.join(directory, "workspace.sqlite"),
@@ -324,12 +325,13 @@ test("replaces a platform's interest relations without removing jobs from the li
   });
 
   try {
-    const first = repository.synchronizeJobInterests({
+    const first = repository.synchronizeJobEngagement({
       initiatedBy: "system",
       reason: "test",
       snapshot: {
         capturedAt: "2026-07-19T10:00:00.000Z",
         complete: true,
+        engagement: "interested",
         jobs: [
           {
             company: "360集团",
@@ -355,18 +357,20 @@ test("replaces a platform's interest relations without removing jobs from the li
     });
     expect(first).toMatchObject({ complete: true, observed: 2, removed: 0 });
     const agentInterest = expect.objectContaining({
+      engagements: [
+        expect.objectContaining({
+          firstObservedAt: "2026-07-19T10:00:00.000Z",
+          kind: "interested",
+        }),
+      ],
       externalJobId: "agent",
-      interest: expect.objectContaining({
-        firstObservedAt: "2026-07-19T10:00:00.000Z",
-        position: 1,
-      }),
     });
     const serverInterest = expect.objectContaining({
+      engagements: [expect.objectContaining({ kind: "interested" })],
       externalJobId: "server",
-      interest: expect.objectContaining({ position: 2 }),
     });
     const interestedPage = repository.listJobPostingPage({
-      interestedOnly: true,
+      engagement: "interested",
       page: firstPage,
       pageSize: filterPageSize,
     });
@@ -378,12 +382,13 @@ test("replaces a platform's interest relations without removing jobs from the li
       total: twoJobs,
     });
 
-    const second = repository.synchronizeJobInterests({
+    const second = repository.synchronizeJobEngagement({
       initiatedBy: "system",
       reason: "test",
       snapshot: {
         capturedAt: "2026-07-19T11:00:00.000Z",
         complete: false,
+        engagement: "interested",
         jobs: [
           {
             company: "博趣互动",
@@ -401,15 +406,16 @@ test("replaces a platform's interest relations without removing jobs from the li
     });
     expect(second).toMatchObject({ complete: false, observed: 1, removed: 0 });
     expect(
-      repository.listJobPostingPage({ interestedOnly: true, page: 1, pageSize: 10 }),
+      repository.listJobPostingPage({ engagement: "interested", page: 1, pageSize: 10 }),
     ).toMatchObject({ total: twoJobs });
 
-    const third = repository.synchronizeJobInterests({
+    const third = repository.synchronizeJobEngagement({
       initiatedBy: "system",
       reason: "test",
       snapshot: {
         capturedAt: "2026-07-19T12:00:00.000Z",
         complete: true,
+        engagement: "interested",
         jobs: [
           {
             company: "博趣互动",
@@ -427,18 +433,20 @@ test("replaces a platform's interest relations without removing jobs from the li
     });
     expect(third).toMatchObject({ complete: true, observed: 1, removed: 1 });
     expect(
-      repository.listJobPostingPage({ interestedOnly: true, page: 1, pageSize: 10 }),
+      repository.listJobPostingPage({ engagement: "interested", page: 1, pageSize: 10 }),
     ).toMatchObject({
       jobs: [
         {
           sources: [
             {
+              engagements: [
+                {
+                  firstObservedAt: "2026-07-19T10:00:00.000Z",
+                  kind: "interested",
+                  lastObservedAt: "2026-07-19T12:00:00.000Z",
+                },
+              ],
               externalJobId: "server",
-              interest: {
-                firstObservedAt: "2026-07-19T10:00:00.000Z",
-                lastObservedAt: "2026-07-19T12:00:00.000Z",
-                position: 1,
-              },
             },
           ],
         },
@@ -451,7 +459,73 @@ test("replaces a platform's interest relations without removing jobs from the li
       completeLibrary.jobs
         .flatMap(({ sources }) => sources)
         .find(({ externalJobId }) => externalJobId === "agent"),
-    ).not.toHaveProperty("interest");
+    ).toMatchObject({ engagements: [] });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+// eslint-disable-next-line max-lines-per-function -- One lifecycle proves historical engagement retention.
+test("preserves historical job engagements when later complete lists omit them", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test",
+      snapshot: {
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        engagement: "contacted",
+        jobs: [
+          {
+            company: "星海科技",
+            details: [],
+            externalJobId: "contacted-job",
+            jobUrl: "https://www.zhipin.com/job_detail/contacted-job.html",
+            summary: "平台沟通过岗位",
+            title: "后端开发",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4",
+        total: 1,
+      },
+    });
+    const emptySnapshot = repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test",
+      snapshot: {
+        capturedAt: "2026-07-20T10:00:00.000Z",
+        complete: true,
+        engagement: "contacted",
+        jobs: [],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4",
+        total: 0,
+      },
+    });
+
+    expect(emptySnapshot.removed).toBe(emptyCount);
+    expect(
+      repository.listJobPostingPage({ engagement: "contacted", page: 1, pageSize: 10 }),
+    ).toMatchObject({
+      jobs: [
+        {
+          sources: [
+            {
+              engagements: [expect.objectContaining({ kind: "contacted" })],
+            },
+          ],
+        },
+      ],
+      total: 1,
+    });
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

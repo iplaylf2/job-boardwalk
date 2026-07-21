@@ -43,14 +43,6 @@ export function WorkspaceOverviewPage(): JSX.Element {
     refreshCount();
     return readJobPostingPage({ page: summaryPage, pageSize: summaryPageSize });
   });
-  const interestedJobs = createMemo(() => {
-    refreshCount();
-    return readJobPostingPage({
-      interestedOnly: true,
-      page: summaryPage,
-      pageSize: summaryPageSize,
-    });
-  });
   onSettled(() => {
     const interval = setInterval(
       () => setRefreshCount((value) => value + refreshIncrement),
@@ -62,13 +54,12 @@ export function WorkspaceOverviewPage(): JSX.Element {
   return (
     <AppShell
       active="overview"
-      interestedJobCount={interestedJobs()?.total}
       jobCount={jobSummary()?.total}
       title="Job Boardwalk"
       lede="围绕当前求职方向，持续整理研究中发现且可回查的岗位。"
     >
       <Loading fallback={<p class={styles["loading"]}>正在读取本机工作区…</p>}>
-        <Show when={workspaceOverview() && jobSummary() && interestedJobs()}>
+        <Show when={workspaceOverview() && jobSummary()}>
           <WorkspaceOverviewView
             overview={workspaceOverview()}
             onChanged={() => setRefreshCount((value) => value + refreshIncrement)}

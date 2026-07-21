@@ -9,11 +9,25 @@ import {
   firstJobPage,
   maximumJobPageSize,
 } from "#/job-posting/library-query.js";
-import { isPlatformId } from "@job-boardwalk/platform-catalog";
+import type { JobLibraryQuery } from "#/job-posting/library-query.js";
+import { isPlatformId, isPlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
+import type { PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 
 import { InvalidRequestError, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
+function readJobEngagement(value: string | undefined): PlatformJobEngagementKind | null {
+  if (!value) {
+    return null;
+  }
+  if (!isPlatformJobEngagementKind(value)) {
+    throw new InvalidRequestError(
+      "engagement 必须是 interested、contacted、applied 或 interviewed",
+    );
+  }
+  return value;
+}
+
 function readJobLibraryQuery(context: Context) {
   const page = readPositiveQueryInteger(context.req.query("page"), firstJobPage, "page");
   const pageSize = readPositiveQueryInteger(
@@ -26,11 +40,8 @@ function readJobLibraryQuery(context: Context) {
   }
   const query = context.req.query("query")?.trim();
   const platform = context.req.query("platform");
-  const interested = context.req.query("interested");
-  if (interested && interested !== "true" && interested !== "false") {
-    throw new InvalidRequestError("interested 只接受 true 或 false");
-  }
-  const interestFilter = interested === "true" ? { interestedOnly: true } : {};
+  const engagement = readJobEngagement(context.req.query("engagement"));
+  const engagementFilter: Pick<JobLibraryQuery, "engagement"> = engagement ? { engagement } : {};
   if (platform) {
     if (!isPlatformId(platform)) {
       throw new InvalidRequestError("platform 不是受支持的招聘平台");
@@ -39,14 +50,14 @@ function readJobLibraryQuery(context: Context) {
       page,
       pageSize,
       platformId: platform,
-      ...interestFilter,
+      ...engagementFilter,
       ...(query ? { query } : {}),
     };
   }
   return {
     page,
     pageSize,
-    ...interestFilter,
+    ...engagementFilter,
     ...(query ? { query } : {}),
   };
 }
