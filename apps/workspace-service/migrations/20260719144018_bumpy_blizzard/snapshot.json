@@ -1,0 +1,964 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "9a7a3e51-119b-4edb-a67d-e8cd3649c813",
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
+  "ddl": [
+    {
+      "name": "job_posting_sources",
+      "entityType": "tables"
+    },
+    {
+      "name": "job_postings",
+      "entityType": "tables"
+    },
+    {
+      "name": "job_search_intent_recommendation_pages",
+      "entityType": "tables"
+    },
+    {
+      "name": "job_search_intents",
+      "entityType": "tables"
+    },
+    {
+      "name": "job_source_interests",
+      "entityType": "tables"
+    },
+    {
+      "name": "platform_access_observations",
+      "entityType": "tables"
+    },
+    {
+      "name": "profile_facts",
+      "entityType": "tables"
+    },
+    {
+      "name": "research_reports",
+      "entityType": "tables"
+    },
+    {
+      "name": "workspace_changes",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "collected_at",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "company",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "details",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "discovery_url",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "education_requirement",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "experience_requirement",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "external_job_id",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identity_key",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "job_url",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_checked_at",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "location",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "normalized_salary",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "platform_id",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "salary_text",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_fingerprint",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "summary",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "job_posting_sources"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "company",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "details",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "education_requirement",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "experience_requirement",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identity_key",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "location",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "summary",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "intent_id",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "label",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "platform_id",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "url",
+      "entityType": "columns",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "city",
+      "entityType": "columns",
+      "table": "job_search_intents"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "job_search_intents"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "job_search_intents"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "position",
+      "entityType": "columns",
+      "table": "job_search_intents"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "selected",
+      "entityType": "columns",
+      "table": "job_search_intents"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "job_search_intents"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "first_observed_at",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_observed_at",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "position",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_id",
+      "entityType": "columns",
+      "table": "job_source_interests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "authentication_state",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "evidence",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "interruption",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "observed_at",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "platform_id",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "confirmed",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "key",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "value",
+      "entityType": "columns",
+      "table": "profile_facts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "markdown",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "state",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "title",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "research_reports"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "initiated_by",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "occurred_at",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "operation",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reason",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "subject",
+      "entityType": "columns",
+      "table": "workspace_changes"
+    },
+    {
+      "columns": ["job_id"],
+      "tableTo": "job_postings",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_job_posting_sources_job_id_job_postings_id_fk",
+      "entityType": "fks",
+      "table": "job_posting_sources"
+    },
+    {
+      "columns": ["intent_id"],
+      "tableTo": "job_search_intents",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_job_search_intent_recommendation_pages_intent_id_job_search_intents_id_fk",
+      "entityType": "fks",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "columns": ["source_id"],
+      "tableTo": "job_posting_sources",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_job_source_interests_source_id_job_posting_sources_id_fk",
+      "entityType": "fks",
+      "table": "job_source_interests"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "job_posting_sources_pk",
+      "table": "job_posting_sources",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "job_postings_pk",
+      "table": "job_postings",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "job_search_intent_recommendation_pages_pk",
+      "table": "job_search_intent_recommendation_pages",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "job_search_intents_pk",
+      "table": "job_search_intents",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["source_id"],
+      "nameExplicit": false,
+      "name": "job_source_interests_pk",
+      "table": "job_source_interests",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "platform_access_observations_pk",
+      "table": "platform_access_observations",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "profile_facts_pk",
+      "table": "profile_facts",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "research_reports_pk",
+      "table": "research_reports",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "workspace_changes_pk",
+      "table": "workspace_changes",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "platform_id",
+          "isExpression": false
+        },
+        {
+          "value": "identity_key",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "job_posting_sources_platform_identity",
+      "entityType": "indexes",
+      "table": "job_posting_sources"
+    },
+    {
+      "columns": [
+        {
+          "value": "intent_id",
+          "isExpression": false
+        },
+        {
+          "value": "platform_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "job_search_intent_recommendation_pages_intent_platform",
+      "entityType": "indexes",
+      "table": "job_search_intent_recommendation_pages"
+    },
+    {
+      "columns": [
+        {
+          "value": "selected",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"job_search_intents\".\"selected\" = 1",
+      "origin": "manual",
+      "name": "job_search_intents_single_selected",
+      "entityType": "indexes",
+      "table": "job_search_intents"
+    },
+    {
+      "columns": ["identity_key"],
+      "nameExplicit": false,
+      "name": "job_postings_identity_key_unique",
+      "entityType": "uniques",
+      "table": "job_postings"
+    },
+    {
+      "columns": ["name"],
+      "nameExplicit": false,
+      "name": "job_search_intents_name_unique",
+      "entityType": "uniques",
+      "table": "job_search_intents"
+    },
+    {
+      "columns": ["key"],
+      "nameExplicit": false,
+      "name": "profile_facts_key_unique",
+      "entityType": "uniques",
+      "table": "profile_facts"
+    },
+    {
+      "value": "\"selected\" in (0, 1)",
+      "name": "job_search_intents_selected",
+      "entityType": "checks",
+      "table": "job_search_intents"
+    },
+    {
+      "value": "\"position\" >= 1",
+      "name": "job_source_interests_position",
+      "entityType": "checks",
+      "table": "job_source_interests"
+    },
+    {
+      "value": "\"authentication_state\" is null or \"authentication_state\" in ('authenticated', 'unauthenticated')",
+      "name": "platform_access_observations_authentication_state",
+      "entityType": "checks",
+      "table": "platform_access_observations"
+    },
+    {
+      "value": "\"interruption\" is null or \"interruption\" in ('verification-required', 'access-denied')",
+      "name": "platform_access_observations_interruption",
+      "entityType": "checks",
+      "table": "platform_access_observations"
+    },
+    {
+      "value": "\"evidence\" in ('protected-resource', 'authenticated-page', 'login-redirect', 'verification-page', 'access-denied-page')",
+      "name": "platform_access_observations_evidence",
+      "entityType": "checks",
+      "table": "platform_access_observations"
+    },
+    {
+      "value": "(\"authentication_state\" = 'authenticated' and \"interruption\" is null and \"evidence\" in ('protected-resource', 'authenticated-page')) or (\"authentication_state\" = 'unauthenticated' and \"interruption\" is null and \"evidence\" = 'login-redirect') or (\"authentication_state\" is null and \"interruption\" = 'verification-required' and \"evidence\" = 'verification-page') or (\"authentication_state\" is null and \"interruption\" = 'access-denied' and \"evidence\" = 'access-denied-page')",
+      "name": "platform_access_observations_assessment",
+      "entityType": "checks",
+      "table": "platform_access_observations"
+    },
+    {
+      "value": "\"initiated_by\" in ('agent', 'user', 'system')",
+      "name": "workspace_changes_initiated_by",
+      "entityType": "checks",
+      "table": "workspace_changes"
+    }
+  ],
+  "renames": []
+}

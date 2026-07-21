@@ -1,0 +1,78 @@
+name: job-boardwalk
+
+x-container-runtime-policy: &container-runtime-policy
+  init: true
+  restart: unless-stopped
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  workspace-service:
+    <<: *container-runtime-policy
+    image: ${JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE:-job-boardwalk/workspace-service:local}
+    ports:
+      - name: workspace-http
+        target: 54310
+        published: "54310"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    tmpfs:
+      - /tmp:mode=1777
+    volumes:
+      - workspace-data:/var/lib/job-boardwalk
+    networks:
+      - workspace
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:54310/health').then((response)=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  dashboard:
+    <<: *container-runtime-policy
+    image: ${JOB_BOARDWALK_DASHBOARD_IMAGE:-job-boardwalk/dashboard:local}
+    depends_on:
+      workspace-service:
+        condition: service_healthy
+        restart: true
+    ports:
+      - name: dashboard-http
+        target: 8080
+        published: "54311"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    tmpfs:
+      - /tmp:mode=1777
+    networks:
+      - workspace
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:8080/health
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+networks:
+  workspace:
+    internal: true
+
+volumes:
+  workspace-data:

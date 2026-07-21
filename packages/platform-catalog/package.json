@@ -1,0 +1,18 @@
+{
+  "name": "@job-boardwalk/platform-catalog",
+  "private": true,
+  "description": "Stable recruiting-platform identifiers and web navigation metadata.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --config oxlint.config.ts .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

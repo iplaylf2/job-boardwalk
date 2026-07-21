@@ -10,6 +10,9 @@ export default defineConfig({
     style: "error",
     suspicious: "error",
   },
+  options: {
+    reportUnusedDisableDirectives: "deny",
+  },
   plugins: ["import"],
   rules: {
     "eslint/default-case": "off",
@@ -25,6 +28,7 @@ export default defineConfig({
     ],
     "eslint/no-ternary": "off",
     "eslint/no-use-before-define": "off",
+    "eslint/sort-imports": "off",
     "import/exports-last": "off",
     "import/group-exports": "off",
     "import/max-dependencies": ["error", { ignoreTypeImports: true }],

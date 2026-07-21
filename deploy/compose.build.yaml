@@ -1,0 +1,10 @@
+services:
+  workspace-service:
+    build:
+      context: .
+      dockerfile: apps/workspace-service/Dockerfile
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile

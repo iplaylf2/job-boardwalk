@@ -1,0 +1,32 @@
+{
+  "name": "@job-boardwalk/dashboard",
+  "private": true,
+  "description": "Local view and user editor for Job Boardwalk workspace data and Browser Session presence.",
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "lint": "oxlint --config oxlint.config.ts .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
+  },
+  "dependencies": {
+    "@job-boardwalk/contracts": "workspace:*",
+    "@solidjs/web": "2.0.0-beta.19",
+    "markdown-it": "14.3.0",
+    "solid-js": "2.0.0-beta.19"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "3.0.0-next.12",
+    "vitest": "catalog:"
+  }
+}

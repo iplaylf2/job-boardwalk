@@ -1,0 +1,36 @@
+{
+  "name": "@job-boardwalk/browser-session",
+  "private": true,
+  "description": "Persistent HTTP MCP service for a project-owned visible Patchright browser.",
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "tsx watch src/main.ts",
+    "lint": "oxlint --config oxlint.config.ts .",
+    "start": "node dist/browser-session.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "catalog:",
+    "@job-boardwalk/contracts": "workspace:*",
+    "@job-boardwalk/platform-catalog": "workspace:*",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@shajara/host": "catalog:",
+    "arktype": "catalog:",
+    "hono": "catalog:",
+    "patchright": "1.61.1"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

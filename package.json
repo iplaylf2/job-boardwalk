@@ -1,7 +1,7 @@
 {
   "name": "job-boardwalk",
   "private": true,
-  "description": "Exploring human-directed, agent-assisted job browsing across recruiting platforms.",
+  "description": "A local AI job-search secretary for delegated recruiting research.",
   "type": "module",
   "scripts": {
     "build": "pnpm -r --if-present build",
@@ -17,16 +17,27 @@
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
-    "@types/node": "^26.1.1",
-    "dependency-cruiser": "^18.0.0",
-    "knip": "^6.25.0",
-    "oxfmt": "^0.58.0",
+    "@types/node": "catalog:",
+    "dependency-cruiser": "^18.1.0",
+    "knip": "^6.27.0",
+    "oxfmt": "^0.59.0",
     "oxlint": "catalog:",
     "typescript": "catalog:"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.13.0",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "26.5.0",
+      "onFail": "download"
+    }
+  },
   "engines": {
     "node": ">=26.5.0",
-    "pnpm": ">=11.11.0"
-  },
-  "packageManager": "pnpm@11.11.0"
+    "pnpm": ">=11.13.0"
+  }
 }
