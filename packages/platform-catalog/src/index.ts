@@ -77,7 +77,6 @@ export function resolvePlatformJobEngagementUrl(
 
 export function parsePlatformWebUrl(platformId: PlatformId, value: string): URL | null {
   try {
-    // oxlint-disable-next-line no-undef -- URL is available in both browser and Node runtimes.
     const url = new URL(value);
     const { navigationDomain } = platformCatalog[platformId].web;
     return url.protocol === "https:" &&

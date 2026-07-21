@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./oxlint.shared.ts": "./exports/oxlint.shared.ts",
+    "./test.oxlint.shared.ts": "./exports/test.oxlint.shared.ts",
     "./tsconfig.json": "./exports/tsconfig.shared.json"
   },
   "scripts": {

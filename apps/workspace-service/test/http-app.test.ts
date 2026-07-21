@@ -122,7 +122,6 @@ test("exposes the public health response", async () => {
   }
 });
 
-// oxlint-disable-next-line max-lines-per-function, max-statements -- Representative validation failures share one lifecycle assertion.
 test("keeps request errors inside the long-lived service scope", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
@@ -275,7 +274,6 @@ test.each([
   }
 });
 
-// oxlint-disable-next-line max-lines-per-function, max-statements -- One flow verifies the complete CRUD boundary.
 test("updates profile and selected job-search intent through the public HTTP boundary", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
@@ -412,7 +410,6 @@ test("returns not found when updating a missing profile fact", async () => {
   }
 });
 
-// oxlint-disable-next-line max-lines-per-function -- One flow covers accepted, rejected, and read behavior.
 test("stores and reads collected page facts through the public HTTP boundary", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
@@ -768,7 +765,6 @@ test("advertises job-library filters by public tool name", async () => {
   }
 });
 
-// eslint-disable-next-line max-lines-per-function -- One boundary flow covers accepted data, reads, and URL rejection.
 test("synchronizes job engagements and filters the library through HTTP", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);

@@ -93,7 +93,6 @@ test("keeps authentication and interruption observations as separate history", a
   }
 });
 
-// oxlint-disable-next-line max-lines-per-function -- One aggregate flow proves source ownership and selection.
 test("keeps one selected job-search intent with recommendation pages", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
@@ -209,7 +208,6 @@ test("merges high-confidence postings and skips unchanged page observations", as
   }
 });
 
-// eslint-disable-next-line max-lines-per-function -- One cross-platform aggregate proves source-bound filtering.
 test("binds combined platform and engagement filters to the same source", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
@@ -321,7 +319,6 @@ test("keeps partial cross-platform cards separate", async () => {
   }
 });
 
-// eslint-disable-next-line max-lines-per-function -- One report lifecycle keeps all persistence outcomes together.
 test("creates, updates, expires, and deletes research reports", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
@@ -382,7 +379,6 @@ test("creates, updates, expires, and deletes research reports", async () => {
   }
 });
 
-// eslint-disable-next-line max-lines-per-function -- One lifecycle proves relation replacement without deleting job facts.
 test("replaces reversible interest engagements without removing jobs from the library", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
@@ -532,7 +528,6 @@ test("replaces reversible interest engagements without removing jobs from the li
   }
 });
 
-// eslint-disable-next-line max-lines-per-function -- One lifecycle proves historical engagement retention.
 test("preserves historical job engagements when later complete lists omit them", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({

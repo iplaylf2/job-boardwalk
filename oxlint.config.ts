@@ -1,5 +1,4 @@
 /// <reference types="node" />
-// oxlint-disable import/no-nodejs-modules
 import { defineConfig } from "oxlint";
 
 import { execFileSync } from "node:child_process";
@@ -8,8 +7,12 @@ import path from "node:path";
 import shared from "@job-boardwalk/presets/oxlint.shared.ts";
 
 export default defineConfig({
+  env: { node: true },
   extends: [shared],
   ignorePatterns: workspaceIgnorePatterns(),
+  rules: {
+    "import/no-nodejs-modules": "off",
+  },
 });
 
 function workspaceIgnorePatterns(): string[] {

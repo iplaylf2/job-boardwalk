@@ -114,7 +114,6 @@ test("contains a page-opening failure and keeps supervision alive", async () => 
   await settlement;
 });
 
-// eslint-disable-next-line max-lines-per-function -- One collector pass proves fallback totals stay partial.
 test("does not promote a fallback observed count into a complete engagement snapshot", async () => {
   let bossEvaluation = 0;
   const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
