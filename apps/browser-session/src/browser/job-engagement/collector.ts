@@ -16,6 +16,7 @@ import { ManagedPageTargets } from "#/browser/managed-page-targets.js";
 import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
 
 import { captureJobEngagementSnapshot } from "./snapshot.js";
+import type { CapturedJobEngagementSnapshot } from "./snapshot.js";
 import { isExactJobEngagementPage, isJobEngagementPage, jobEngagementPageUrl } from "./pages.js";
 
 const collectionIntervalMilliseconds = 30_000;
@@ -56,6 +57,22 @@ function mergeEvidence(
     merged.set(evidenceIdentity(job), job);
   }
   return [...merged.values()];
+}
+
+function toSnapshot(
+  captured: CapturedJobEngagementSnapshot,
+  jobs: JobEngagementEvidence[] = captured.jobs,
+  complete: boolean = captured.complete,
+): JobEngagementSnapshot {
+  return {
+    capturedAt: captured.capturedAt,
+    complete,
+    engagement: captured.engagement,
+    jobs,
+    platformId: captured.platformId,
+    sourceUrl: captured.sourceUrl,
+    total: captured.total,
+  };
 }
 
 export class JobEngagementCollector {
@@ -135,27 +152,24 @@ export class JobEngagementCollector {
     }
     const captured = yield* captureJobEngagementSnapshot(page, this.#observePageAccess);
     const accumulatedJobs = mergeEvidence(scan.jobs, captured.jobs);
-    const reachedEnd =
-      captured.complete ||
-      captured.jobs.length === emptyCollectionLength ||
-      accumulatedJobs.length >= captured.total;
     const canPaginate = platformId === "boss";
-    const complete = captured.complete || accumulatedJobs.length >= captured.total;
+    const canContinueScan = canPaginate && captured.completionTotal !== null;
+    const complete =
+      captured.complete || (canContinueScan && accumulatedJobs.length >= captured.completionTotal);
+    const reachedEnd = complete || captured.jobs.length === emptyCollectionLength;
     this.#nextEngagementIndices.set(
       platformId,
       (engagementIndex + nextIndex) % platformJobEngagementKinds.length,
     );
-    if (reachedEnd || !canPaginate) {
+    if (reachedEnd || !canContinueScan) {
       this.#scans.delete(key);
       return {
-        ...captured,
-        complete,
-        jobs: accumulatedJobs,
+        ...toSnapshot(captured, accumulatedJobs, complete),
         sourceUrl: jobEngagementPageUrl(platformId, engagement),
       };
     }
     this.#scans.set(key, { jobs: accumulatedJobs, page: scan.page + nextIndex });
-    return captured;
+    return toSnapshot(captured);
   }
 
   *#ensureEngagementPage(

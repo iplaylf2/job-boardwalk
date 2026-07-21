@@ -57,6 +57,7 @@ test("classifies a complete Yupao interest page without requiring job links", ()
   ).toEqual({
     capturedAt: "2026-07-19T10:00:00.000Z",
     complete: true,
+    completionTotal: 1,
     engagement: "interested",
     jobs: [
       {
@@ -114,7 +115,7 @@ test("keeps a Yupao snapshot partial when the visible total is unavailable", () 
     "interested",
   );
 
-  expect(snapshot).toMatchObject({ complete: false, total: 1 });
+  expect(snapshot).toMatchObject({ complete: false, completionTotal: null, total: 1 });
 });
 
 test("reports Yupao page access from a stable interest snapshot", async () => {
@@ -181,6 +182,7 @@ test("cleans BOSS interest-card titles and preserves the original detail link", 
 
   expect(snapshot).toMatchObject({
     complete: true,
+    completionTotal: 1,
     engagement: "interested",
     jobs: [
       {
@@ -224,7 +226,7 @@ test("keeps a BOSS snapshot partial when the visible total is unavailable", asyn
 
   const snapshot = await scope.run(() => captureJobEngagementSnapshot(page));
 
-  expect(snapshot).toMatchObject({ complete: false, total: 1 });
+  expect(snapshot).toMatchObject({ complete: false, completionTotal: null, total: 1 });
 });
 
 test("reads the platform-maintained total for every job engagement", () => {

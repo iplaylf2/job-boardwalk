@@ -113,3 +113,64 @@ test("contains a page-opening failure and keeps supervision alive", async () => 
   await expect(supervision).rejects.toThrow();
   await settlement;
 });
+
+// eslint-disable-next-line max-lines-per-function -- One collector pass proves fallback totals stay partial.
+test("does not promote a fallback observed count into a complete engagement snapshot", async () => {
+  let bossEvaluation = 0;
+  const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
+  const bossPage = {
+    evaluate: () => {
+      bossEvaluation += onePage;
+      return bossEvaluation === onePage
+        ? Promise.resolve({
+            accessElements: [],
+            accessText: "",
+            cards: [
+              {
+                details: [],
+                href: "https://www.zhipin.com/job_detail/partial.html",
+                text: "后端开发",
+                title: "后端开发",
+              },
+            ],
+            title: "BOSS直聘",
+            truncated: false,
+            url: bossUrl,
+          })
+        : Promise.resolve("我的求职进展");
+    },
+    title: () => Promise.resolve("BOSS直聘"),
+    url: () => bossUrl,
+  } as unknown as Page;
+  const redirectedYupaoPage = {
+    goto: () => Promise.resolve(null),
+    url: () => "https://www.yupao.com/web/login/",
+  } as unknown as Page;
+  const context = {
+    newPage: () => Promise.resolve(redirectedYupaoPage),
+    pages: () => [bossPage],
+  } as unknown as BrowserContext;
+  const snapshots: unknown[] = [];
+  const writer = {
+    *write(snapshot) {
+      snapshots.push(snapshot);
+      yield* [];
+      return {
+        complete: snapshot.complete,
+        engagement: snapshot.engagement,
+        observed: snapshot.jobs.length,
+        platformId: snapshot.platformId,
+        removed: 0,
+        synchronizedAt: snapshot.capturedAt,
+      };
+    },
+  } satisfies JobEngagementWriter;
+  const collector = jobEngagementCollector(context, writer, () => initialRecoveryRevision);
+  await using scope = createScope();
+
+  await scope.run(() => collector.collect(() => null));
+
+  expect(snapshots).toEqual([
+    expect.objectContaining({ complete: false, engagement: "contacted", total: 1 }),
+  ]);
+});

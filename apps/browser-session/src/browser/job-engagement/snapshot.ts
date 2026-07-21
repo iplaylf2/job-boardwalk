@@ -18,6 +18,10 @@ import { jobEngagementFromPage } from "./pages.js";
 const firstIndex = 0;
 const maximumEngagementItems = 200;
 
+export interface CapturedJobEngagementSnapshot extends JobEngagementSnapshot {
+  readonly completionTotal: number | null;
+}
+
 export interface YupaoJobEngagementMetadata {
   cards: JobEngagementEvidence[];
   text: string;
@@ -181,11 +185,12 @@ export function jobEngagementSnapshotFromYupaoMetadata(
   metadata: YupaoJobEngagementMetadata,
   capturedAt: string,
   engagement: JobEngagementKind,
-): JobEngagementSnapshot {
+): CapturedJobEngagementSnapshot {
   const visibleTotal = visibleJobEngagementCount(metadata.text, engagement);
   return {
     capturedAt,
     complete: visibleTotal !== null && metadata.cards.length === visibleTotal,
+    completionTotal: visibleTotal,
     engagement,
     jobs: metadata.cards.map((job) => {
       const sourceId = job.jobUrl ? extractExternalJobId("yupao", job.jobUrl) : null;
@@ -200,7 +205,7 @@ export function jobEngagementSnapshotFromYupaoMetadata(
 export function* captureJobEngagementSnapshot(
   page: Page,
   observePageAccess?: (page: PageAccessFacts) => void,
-): RiteCoroutine<JobEngagementSnapshot> {
+): RiteCoroutine<CapturedJobEngagementSnapshot> {
   const initialUrl = page.url();
   const { platformId } = requireRecruitingPlatformAdapter(initialUrl);
   const engagement = jobEngagementFromPage(platformId, initialUrl);
@@ -228,6 +233,7 @@ export function* captureJobEngagementSnapshot(
   return {
     capturedAt: snapshot.capturedAt,
     complete: visibleTotal !== null && !snapshot.truncated && jobs.length === visibleTotal,
+    completionTotal: visibleTotal !== null && !snapshot.truncated ? visibleTotal : null,
     engagement,
     jobs,
     platformId,

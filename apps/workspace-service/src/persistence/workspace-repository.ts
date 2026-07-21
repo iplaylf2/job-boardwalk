@@ -705,23 +705,28 @@ export class WorkspaceRepository {
         ),
       );
     }
-    if (input.platformId) {
-      const platformJobIds = this.#database
-        .select({ jobId: jobPostingSources.jobId })
-        .from(jobPostingSources)
-        .where(eq(jobPostingSources.platformId, input.platformId));
-      conditions.push(inArray(jobPostings.id, platformJobIds));
-    }
     if (input.engagement) {
       const sourceIdsWithEngagement = this.#database
         .select({ sourceId: jobSourceEngagements.sourceId })
         .from(jobSourceEngagements)
         .where(eq(jobSourceEngagements.kind, input.engagement));
+      const sourceCondition = input.platformId
+        ? and(
+            inArray(jobPostingSources.id, sourceIdsWithEngagement),
+            eq(jobPostingSources.platformId, input.platformId),
+          )
+        : inArray(jobPostingSources.id, sourceIdsWithEngagement);
       const jobIdsWithEngagement = this.#database
         .select({ jobId: jobPostingSources.jobId })
         .from(jobPostingSources)
-        .where(inArray(jobPostingSources.id, sourceIdsWithEngagement));
+        .where(sourceCondition);
       conditions.push(inArray(jobPostings.id, jobIdsWithEngagement));
+    } else if (input.platformId) {
+      const platformJobIds = this.#database
+        .select({ jobId: jobPostingSources.jobId })
+        .from(jobPostingSources)
+        .where(eq(jobPostingSources.platformId, input.platformId));
+      conditions.push(inArray(jobPostings.id, platformJobIds));
     }
     return and(...conditions);
   }

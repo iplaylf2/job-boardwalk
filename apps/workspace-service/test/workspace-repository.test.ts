@@ -209,6 +209,72 @@ test("merges high-confidence postings and skips unchanged page observations", as
   }
 });
 
+// eslint-disable-next-line max-lines-per-function -- One cross-platform aggregate proves source-bound filtering.
+test("binds combined platform and engagement filters to the same source", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    repository.saveJobPostingObservation({
+      initiatedBy: "system",
+      observation: jobPostingObservation("boss", { externalJobId: "boss-applied" }),
+      reason: "test",
+    });
+    repository.saveJobPostingObservation({
+      initiatedBy: "system",
+      observation: jobPostingObservation("yupao"),
+      reason: "test",
+    });
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test",
+      snapshot: {
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        engagement: "applied",
+        jobs: [
+          {
+            company: "星海科技有限公司",
+            details: ["Node.js", "TypeScript"],
+            externalJobId: "boss-applied",
+            jobUrl: "https://www.zhipin.com/job_detail/example.html",
+            location: "北京",
+            salaryText: "20-30K",
+            summary: "负责后端服务和平台能力建设。",
+            title: "后端开发",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=2&sub=1&page=1&tag=4",
+        total: 1,
+      },
+    });
+
+    expect(
+      repository.listJobPostingPage({
+        engagement: "applied",
+        page: firstPage,
+        pageSize: filterPageSize,
+        platformId: "boss",
+      }).total,
+    ).toBe(singleJob);
+    expect(
+      repository.listJobPostingPage({
+        engagement: "applied",
+        page: firstPage,
+        pageSize: filterPageSize,
+        platformId: "yupao",
+      }).total,
+    ).toBe(emptyCount);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
 test("keeps partial cross-platform cards separate", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
