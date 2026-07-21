@@ -9,6 +9,7 @@ import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import type { PlatformAccessAssessment } from "@job-boardwalk/contracts";
 
 import { bossTextReplacements } from "./boss-text-replacements.js";
+import { platformJobLinkPathPatterns } from "./platform-job-links.js";
 
 interface NavigationResponseFacts {
   readonly ok: boolean;
@@ -155,7 +156,7 @@ const bossJobCardExtraction = {
   detailsSelectors: [".tag-list li", ".job-card-footer li"],
   educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
   experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
-  jobLinkPathPattern: String.raw`^/job_detail/[^/]+\.html$`,
+  jobLinkPathPattern: platformJobLinkPathPatterns.boss,
   locationSelectors: [
     ".job-area",
     ".job-location",
@@ -190,7 +191,7 @@ const yupaoJobCardExtraction = {
   educationTextPattern: String.raw`学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
   excludedTitlePattern: String.raw`^查看更多(?:信息)?$`,
   experienceTextPattern: String.raw`经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上`,
-  jobLinkPathPattern: String.raw`^/zhaogong/\d+(?:/[^/]+)?\.html$`,
+  jobLinkPathPattern: platformJobLinkPathPatterns.yupao,
   locationSelectors: [
     ".job-area",
     ".job-location",

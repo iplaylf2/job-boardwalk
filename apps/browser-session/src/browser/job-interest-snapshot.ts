@@ -8,6 +8,7 @@ import type {
 } from "@job-boardwalk/contracts";
 
 import { captureJobCardSnapshot } from "./job-card-snapshot.js";
+import { extractExternalJobId } from "./platform-job-links.js";
 import {
   isInterestListPage,
   requireRecruitingPlatformAdapter,
@@ -21,11 +22,6 @@ interface YupaoJobInterestMetadata {
   cards: JobInterestEvidence[];
   text: string;
   url: string;
-}
-
-function externalJobId(jobUrl: string): string | undefined {
-  const match = /\/(?<id>[^/]+?)(?:\.html?)?\/?$/u.exec(new URL(jobUrl).pathname);
-  return match?.groups?.["id"];
 }
 
 function visibleInterestCount(text: string): number | null {
@@ -43,7 +39,7 @@ function toBossJobInterestEvidence(card: JobCardEvidence): JobInterestEvidence {
     bracketedLocation && card.title.endsWith(bracketedLocation)
       ? card.title.slice(firstIndex, -bracketedLocation.length).trim()
       : card.title;
-  const sourceId = externalJobId(card.href);
+  const sourceId = extractExternalJobId("boss", card.href);
   return {
     ...(card.company ? { company: card.company } : {}),
     details: card.details,
@@ -183,7 +179,10 @@ export function jobInterestSnapshotFromYupaoMetadata(
   return {
     capturedAt,
     complete: visibleTotal !== null && metadata.cards.length === visibleTotal,
-    jobs: metadata.cards,
+    jobs: metadata.cards.map((job) => {
+      const sourceId = job.jobUrl ? extractExternalJobId("yupao", job.jobUrl) : null;
+      return sourceId ? { ...job, externalJobId: sourceId } : job;
+    }),
     platformId: "yupao",
     sourceUrl: metadata.url,
     total: visibleTotal ?? metadata.cards.length,

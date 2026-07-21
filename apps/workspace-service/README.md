@@ -200,11 +200,15 @@ Dashboard reads `GET /api/jobs` with `page`, `pageSize`, optional `query`, and o
 parameters. Workspace Service applies those constraints in SQLite and returns the current page,
 total result count, and page count. `pageSize` is capped at 48.
 
-Workspace Service first deduplicates observations by platform plus external job ID or job URL. It
-merges a new cross-platform source only when normalized company, title, and location are all
-available and match; partial cards remain separate to avoid false merges. An unchanged observation
-only advances the source's latest check time. The database keeps the current normalized result and
-original links, not page snapshots or match judgments.
+Within one platform, Workspace Service identifies a source by its external job ID when available,
+then by the pathname of its job URL, and finally by normalized company, title, and location when no
+detail link is available. Browser Session supplies an external ID only when a recognized
+platform-specific job-detail path exposes one. When that path contains separate identifier and
+display-slug segments, the identifier becomes the preferred identity, so changing the slug does not
+split the source. Workspace Service merges a new cross-platform source only when normalized company,
+title, and location are all available and match. Partial cards remain separate to avoid false
+merges. An unchanged observation only advances the source's latest check time. The database keeps
+the current normalized result and original links, not page snapshots or match judgments.
 
 Salary normalization preserves the platform's original `salaryText` and adds a CNY amount in K
 with its source period. Monthly salary carries a month count only when the source explicitly says

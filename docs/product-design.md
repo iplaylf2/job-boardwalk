@@ -102,6 +102,12 @@ the collector does not suppress cards based on the page's apparent purpose or ma
 relevance judgments. A failure to read one tab is reported for that tab and does not discard
 observations from other tabs.
 
+Browser Session recognizes job-detail links through one platform-specific path contract and uses
+the same match to derive a stable external job ID when the platform exposes one. Identifier
+segments, rather than separate human-readable trailing slugs, define that ID. This keeps card
+collection and interest-list synchronization aligned when a platform changes display text without
+changing the underlying job.
+
 Each recruiting platform may also expose a list of jobs the user has marked “感兴趣”. Browser
 Session may read that list independently of the selected search intent, but marking or unmarking a
 job remains a user-controlled account action. This separate collector maintains one interest-list
@@ -116,9 +122,11 @@ or refresh observed relations but never removes a relation that the page may hav
 
 Workspace Service turns submitted observations into a durable job library rather than a page
 archive. Each platform source keeps its job and discovery links plus normalized fields; no HTML or
-historical page snapshot is stored. Workspace Service merges sources when their normalized company,
-title, and location identify the same job. An observation fingerprint skips unchanged records.
-Partial cards without that identity remain separate.
+historical page snapshot is stored. Within a platform, an external job ID is the preferred source
+identity, followed by the job URL pathname and then normalized company, title, and location when a
+detail link is unavailable. Across platforms, Workspace Service merges sources only when normalized
+company, title, and location identify the same job. An observation fingerprint skips unchanged
+records. Partial cards without that identity remain separate.
 
 Platform interest is a relation on one of those sources, not a second collection of jobs. Removing
 the relation leaves the normalized job and its other sources in the library. Dashboard presents

@@ -12,6 +12,7 @@ import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected
 
 import { captureJobCardSnapshot } from "./job-card-snapshot.js";
 import { ManagedPageTargets } from "./managed-page-targets.js";
+import { extractExternalJobId } from "./platform-job-links.js";
 import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 
@@ -19,14 +20,9 @@ const collectionIntervalMilliseconds = 30_000;
 const initialPageSettleMilliseconds = 1000;
 const maximumCardsPerPage = 100;
 
-function externalJobId(jobUrl: string): string | undefined {
-  const match = /\/(?<id>[^/]+?)(?:\.html?)?\/?$/u.exec(new URL(jobUrl).pathname);
-  return match?.groups?.["id"];
-}
-
 export function jobPostingObservations(snapshot: JobCardSnapshot): JobPostingObservation[] {
   return snapshot.cards.map((card) => {
-    const sourceId = externalJobId(card.href);
+    const sourceId = extractExternalJobId(snapshot.platformId, card.href);
     return {
       collectedAt: snapshot.capturedAt,
       ...(card.company ? { company: card.company } : {}),

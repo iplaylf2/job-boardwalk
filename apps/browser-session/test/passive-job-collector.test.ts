@@ -128,6 +128,32 @@ test("converts job-card evidence from any supported discovery page into posting 
   ]);
 });
 
+test("uses Yupao's numeric path segment as the stable external job id", () => {
+  const observations = jobPostingObservations({
+    capturedAt: "2026-07-17T10:00:00.000Z",
+    cards: [
+      ["123456789", "java-engineer"],
+      ["987654321", "java-engineer"],
+      ["123456789", "renamed-java-role"],
+    ].map(([id, slug]) => ({
+      details: [],
+      href: `https://www.yupao.com/zhaogong/${id}/${slug}.html`,
+      text: "Java开发工程师",
+      title: "Java开发工程师",
+    })),
+    platformId: "yupao",
+    sourceTitle: "Java 职位搜索",
+    sourceUrl: "https://www.yupao.com/topic/java/",
+    truncated: false,
+  });
+
+  expect(observations.map(({ externalJobId }) => externalJobId)).toEqual([
+    "123456789",
+    "987654321",
+    "123456789",
+  ]);
+});
+
 test("reuses a managed recommendation page after redirect without suppressing its cards", async () => {
   const seedUrl = "https://www.zhipin.com/web/geek/job-recommend";
   const loginUrl = "https://www.zhipin.com/web/user/";

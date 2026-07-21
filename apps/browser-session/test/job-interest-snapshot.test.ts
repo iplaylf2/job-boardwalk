@@ -67,6 +67,26 @@ test("classifies a complete Yupao interest page without requiring job links", ()
   });
 });
 
+test("uses Yupao's numeric path segment for linked interest jobs", () => {
+  const snapshot = jobInterestSnapshotFromYupaoMetadata(
+    {
+      cards: [
+        {
+          details: [],
+          jobUrl: "https://www.yupao.com/zhaogong/123456789/java-engineer.html",
+          summary: "Java开发工程师",
+          title: "Java开发工程师",
+        },
+      ],
+      text: "感兴趣1",
+      url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
+    },
+    "2026-07-19T10:00:00.000Z",
+  );
+
+  expect(snapshot.jobs).toEqual([expect.objectContaining({ externalJobId: "123456789" })]);
+});
+
 test("keeps a Yupao snapshot partial when the visible total is unavailable", () => {
   const snapshot = jobInterestSnapshotFromYupaoMetadata(
     {

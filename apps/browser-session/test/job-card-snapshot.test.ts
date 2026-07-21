@@ -72,7 +72,7 @@ function yupaoJobCardLinks(): HTMLAnchorElement[] {
   return [
     {
       closest: () => linkOnlyContainer,
-      href: "https://www.yupao.com/zhaogong/123456789.html",
+      href: "https://www.yupao.com/zhaogong/123456789/java-engineer.html",
       innerText: "Java开发工程师",
       parentElement: jobContainer,
       textContent: "Java开发工程师",

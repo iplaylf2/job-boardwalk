@@ -68,10 +68,12 @@ snapshots of at most 200 visible entries into the job library and updates the in
 their platform sources every 30 seconds. This collector does not depend on a selected search
 intent.
 
-BOSS直聘 exposes ordinary job-detail links on this page. 鱼泡直聘 currently renders the account
-cards without ordinary links, so its records retain the visible job facts while omitting `jobUrl`.
-Only a non-truncated read whose extracted-card count matches a visible platform total is complete.
-A complete snapshot replaces absent relations; a partial snapshot only adds or refreshes the
+BOSS直聘 exposes ordinary job-detail links on this page. 鱼泡直聘 account cards may omit them; when
+a recognized detail link is present, Browser Session preserves its `jobUrl` and derives
+`externalJobId` from the URL's numeric identifier segment rather than its trailing display slug.
+Without a recognized link, the snapshot retains the visible job facts and omits both fields. Only a
+non-truncated read whose extracted-card count matches a visible platform total is complete. A
+complete snapshot replaces absent relations; a partial snapshot only adds or refreshes the
 relations it observed. The collector never marks or unmarks a job, and removing a relation does not
 remove the job from the library.
 
@@ -207,6 +209,12 @@ The adapter registry is exhaustive over the catalog's `PlatformId` type. Adding 
 platform therefore requires catalog metadata and a Browser Session adapter. Conclusive
 platform-specific access rules belong in that adapter; interpretation that needs general page
 meaning remains outside Browser Session.
+
+The platform job-link boundary owns each supported job-detail path and its stable external ID
+capture. Job-card recognition, passive submission, and interest synchronization consume that same
+path contract, so a display slug or another incidental trailing segment cannot become source
+identity. Cross-application navigation origins and destinations remain in the platform catalog;
+page-specific job-link shapes remain inside Browser Session.
 
 Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
 made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page
