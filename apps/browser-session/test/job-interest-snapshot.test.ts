@@ -108,6 +108,35 @@ test("keeps a Yupao snapshot partial when the visible total is unavailable", () 
   expect(snapshot).toMatchObject({ complete: false, total: 1 });
 });
 
+test("reports Yupao page access from a stable interest snapshot", async () => {
+  const url = "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1";
+  const page = {
+    evaluate: () =>
+      Promise.resolve({
+        cards: [],
+        text: "首页\n消息\n简历\n鱼泡用户\n推荐\n感兴趣0",
+        url,
+      }),
+    url: () => url,
+  } as unknown as Page;
+  const observedPages: unknown[] = [];
+  await using scope = createScope();
+
+  await scope.run(() =>
+    captureJobInterestSnapshot(page, (facts) => {
+      observedPages.push(facts);
+    }),
+  );
+
+  expect(observedPages).toEqual([
+    {
+      elements: [],
+      text: "首页\n消息\n简历\n鱼泡用户\n推荐\n感兴趣0",
+      url,
+    },
+  ]);
+});
+
 test("cleans BOSS interest-card titles and preserves the original detail link", async () => {
   let evaluation = 0;
   const page = {

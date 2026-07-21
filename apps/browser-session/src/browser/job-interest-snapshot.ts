@@ -203,6 +203,7 @@ export function* captureJobInterestSnapshot(
     if (page.url() !== initialUrl || metadata.url !== initialUrl) {
       throw new Error("招聘平台的“感兴趣”列表在读取期间发生了导航。");
     }
+    observePageAccess?.({ elements: [], text: metadata.text, url: metadata.url });
     return jobInterestSnapshotFromYupaoMetadata(metadata, new Date().toISOString());
   }
 
