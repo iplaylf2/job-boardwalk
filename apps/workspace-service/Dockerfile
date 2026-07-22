@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM ghcr.io/pnpm/pnpm:11.13.0 AS pnpm
+FROM ghcr.io/pnpm/pnpm:11.15.1 AS pnpm
 
 FROM docker.io/library/node:26.5.0-bookworm-slim AS build
 
