@@ -115,29 +115,23 @@ test("contains a page-opening failure and keeps supervision alive", async () => 
 });
 
 test("does not promote a fallback observed count into a complete engagement snapshot", async () => {
-  let bossEvaluation = 0;
   const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
   const bossPage = {
-    evaluate: () => {
-      bossEvaluation += onePage;
-      return bossEvaluation === onePage
-        ? Promise.resolve({
-            accessElements: [],
-            accessText: "",
-            cards: [
-              {
-                details: [],
-                href: "https://www.zhipin.com/job_detail/partial.html",
-                text: "后端开发",
-                title: "后端开发",
-              },
-            ],
-            title: "BOSS直聘",
-            truncated: false,
-            url: bossUrl,
-          })
-        : Promise.resolve("我的求职进展");
-    },
+    evaluate: () =>
+      Promise.resolve({
+        jobs: [
+          {
+            details: [],
+            externalJobId: "partial",
+            jobUrl: "https://www.zhipin.com/job_detail/partial.html",
+            summary: "后端开发",
+            title: "后端开发",
+          },
+        ],
+        text: "我的求职进展",
+        truncated: false,
+        url: bossUrl,
+      }),
     title: () => Promise.resolve("BOSS直聘"),
     url: () => bossUrl,
   } as unknown as Page;
@@ -174,33 +168,68 @@ test("does not promote a fallback observed count into a complete engagement snap
   ]);
 });
 
+test("surfaces uncertain first-page emptiness instead of advancing the scan", async () => {
+  const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
+  let pageText = "累计沟通职位数量18";
+  const bossPage = {
+    evaluate: () =>
+      Promise.resolve({
+        jobs: [],
+        text: pageText,
+        truncated: false,
+        url: bossUrl,
+      }),
+    url: () => bossUrl,
+  } as unknown as Page;
+  const redirectedYupaoPage = {
+    goto: () => Promise.resolve(null),
+    url: () => "https://www.yupao.com/web/login/",
+  } as unknown as Page;
+  const context = {
+    newPage: () => Promise.resolve(redirectedYupaoPage),
+    pages: () => [bossPage],
+  } as unknown as BrowserContext;
+  const writer = {
+    *write() {
+      yield* [];
+      expect.unreachable("解析失败时不应写入空快照");
+    },
+  } satisfies JobEngagementWriter;
+  const errors: Error[] = [];
+  const collector = jobEngagementCollector(context, writer, () => initialRecoveryRevision);
+  await using scope = createScope();
+
+  await scope.run(() => collector.collect((error) => errors.push(error)));
+  pageText = "我的求职进展";
+  await scope.run(() => collector.collect((error) => errors.push(error)));
+
+  expect(errors.map((error) => error.message)).toEqual([
+    "个人中心显示 18 个岗位，但未识别到岗位卡片。",
+    "个人中心未提供岗位总数，也未识别到岗位卡片，无法确认列表为空。",
+  ]);
+});
+
 test("finishes a paginated engagement scan before rotating categories", async () => {
   let bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
   const navigations: string[] = [];
   const pages: Page[] = [];
   const bossPage = {
-    evaluate: (_callback: unknown, argument?: unknown) => {
-      if (argument) {
-        const page = new URL(bossUrl).searchParams.get("page") ?? "1";
-        return Promise.resolve({
-          accessElements: [],
-          accessText: "",
-          cards: [
-            {
-              details: [],
-              href: `https://www.zhipin.com/job_detail/contacted-${page}.html`,
-              text: `后端开发 ${page}`,
-              title: `后端开发 ${page}`,
-            },
-          ],
-          title: "BOSS直聘",
-          truncated: false,
-          url: bossUrl,
-        });
-      }
-      return Promise.resolve(
-        bossUrl.includes("tab=1") ? "累计沟通职位数量 2" : "累计投递简历数量 1",
-      );
+    evaluate: () => {
+      const page = new URL(bossUrl).searchParams.get("page") ?? "1";
+      return Promise.resolve({
+        jobs: [
+          {
+            details: [],
+            externalJobId: `contacted-${page}`,
+            jobUrl: `https://www.zhipin.com/job_detail/contacted-${page}.html`,
+            summary: `后端开发 ${page}`,
+            title: `后端开发 ${page}`,
+          },
+        ],
+        text: bossUrl.includes("tab=1") ? "累计沟通职位数量 2" : "累计投递简历数量 1",
+        truncated: false,
+        url: bossUrl,
+      });
     },
     goto: (targetUrl: string) => {
       navigations.push(targetUrl);

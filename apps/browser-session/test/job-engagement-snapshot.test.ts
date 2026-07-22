@@ -5,12 +5,11 @@ import { expect, test } from "vitest";
 
 import {
   captureJobEngagementSnapshot,
-  captureYupaoJobEngagementMetadata,
   jobEngagementSnapshotFromYupaoMetadata,
   visibleJobEngagementCount,
 } from "#/browser/job-engagement/snapshot.js";
+import { captureYupaoJobEngagementMetadata } from "#/browser/job-engagement/yupao-snapshot.js";
 
-const firstEvaluation = 1;
 const appliedJobCount = 3;
 const contactedJobCount = 570;
 const interestedJobCount = 2;
@@ -30,6 +29,7 @@ test("keeps the serialized Yupao extractor self-contained", () => {
   expect(result).toEqual({
     cards: [],
     text: "感兴趣0",
+    truncated: false,
     url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
   });
 });
@@ -49,6 +49,7 @@ test("classifies a complete Yupao interest page without requiring job links", ()
           },
         ],
         text: "面试0\n感兴趣1\n收藏职位",
+        truncated: false,
         url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
       },
       "2026-07-19T10:00:00.000Z",
@@ -87,6 +88,7 @@ test("uses Yupao's numeric path segment for linked interest jobs", () => {
         },
       ],
       text: "感兴趣1",
+      truncated: false,
       url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
     },
     "2026-07-19T10:00:00.000Z",
@@ -109,6 +111,7 @@ test("keeps a Yupao snapshot partial when the visible total is unavailable", () 
         },
       ],
       text: "我的求职进展",
+      truncated: false,
       url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
     },
     "2026-07-19T10:00:00.000Z",
@@ -148,33 +151,27 @@ test("reports Yupao page access from a stable interest snapshot", async () => {
 });
 
 test("cleans BOSS interest-card titles and preserves the original detail link", async () => {
-  let evaluation = 0;
+  const url = "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4";
   const page = {
-    evaluate: () => {
-      evaluation += firstEvaluation;
-      return evaluation === firstEvaluation
-        ? Promise.resolve({
-            accessElements: [],
-            accessText: "",
-            cards: [
-              {
-                company: "360集团",
-                details: ["Node.js"],
-                href: "https://www.zhipin.com/job_detail/agent-123.html?ka=personal_interest",
-                location: "[北京]",
-                salary: "30-40K·15薪",
-                text: "高级全栈工程师（Agent智能体） 北京",
-                title: "高级全栈工程师（Agent智能体）[北京]",
-              },
-            ],
-            title: "BOSS直聘",
-            truncated: false,
-            url: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
-          })
-        : Promise.resolve("感兴趣 1");
-    },
-    title: () => Promise.resolve("BOSS直聘"),
-    url: () => "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+    evaluate: () =>
+      Promise.resolve({
+        jobs: [
+          {
+            company: "360集团",
+            details: ["Node.js"],
+            externalJobId: "agent-123",
+            jobUrl: "https://www.zhipin.com/job_detail/agent-123.html?ka=personal_interest",
+            location: "北京",
+            salaryText: "30-40K·15薪",
+            summary: "高级全栈工程师（Agent智能体） 北京",
+            title: "高级全栈工程师（Agent智能体）",
+          },
+        ],
+        text: "感兴趣 1",
+        truncated: false,
+        url,
+      }),
+    url: () => url,
   } as unknown as Page;
   await using scope = createScope();
 
@@ -197,36 +194,49 @@ test("cleans BOSS interest-card titles and preserves the original detail link", 
 });
 
 test("keeps a BOSS snapshot partial when the visible total is unavailable", async () => {
-  let evaluation = 0;
+  const url = "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4";
   const page = {
-    evaluate: () => {
-      evaluation += firstEvaluation;
-      return evaluation === firstEvaluation
-        ? Promise.resolve({
-            accessElements: [],
-            accessText: "",
-            cards: [
-              {
-                details: [],
-                href: "https://www.zhipin.com/job_detail/agent-123.html",
-                text: "后端开发",
-                title: "后端开发",
-              },
-            ],
-            title: "BOSS直聘",
-            truncated: false,
-            url: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
-          })
-        : Promise.resolve("我的求职进展");
-    },
-    title: () => Promise.resolve("BOSS直聘"),
-    url: () => "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+    evaluate: () =>
+      Promise.resolve({
+        jobs: [
+          {
+            details: [],
+            externalJobId: "agent-123",
+            jobUrl: "https://www.zhipin.com/job_detail/agent-123.html",
+            summary: "后端开发",
+            title: "后端开发",
+          },
+        ],
+        text: "我的求职进展",
+        truncated: false,
+        url,
+      }),
+    url: () => url,
   } as unknown as Page;
   await using scope = createScope();
 
   const snapshot = await scope.run(() => captureJobEngagementSnapshot(page));
 
   expect(snapshot).toMatchObject({ complete: false, completionTotal: null, total: 1 });
+});
+
+test("accepts an empty later page as the end of a paginated engagement scan", async () => {
+  const url = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=3&tag=4";
+  const page = {
+    evaluate: () =>
+      Promise.resolve({
+        jobs: [],
+        text: "累计沟通职位数量18",
+        truncated: false,
+        url,
+      }),
+    url: () => url,
+  } as unknown as Page;
+  await using scope = createScope();
+
+  const snapshot = await scope.run(() => captureJobEngagementSnapshot(page));
+
+  expect(snapshot).toMatchObject({ complete: false, jobs: [], total: 18 });
 });
 
 test("reads the platform-maintained total for every job engagement", () => {
