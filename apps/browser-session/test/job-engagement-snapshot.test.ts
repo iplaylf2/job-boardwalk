@@ -11,7 +11,7 @@ import {
 import { captureYupaoJobEngagementMetadata } from "#/browser/job-engagement/yupao-snapshot.js";
 
 const appliedJobCount = 3;
-const contactedJobCount = 570;
+const contactedJobCount = 12;
 const interestedJobCount = 2;
 const interviewedJobCount = 0;
 
@@ -40,7 +40,7 @@ test("classifies a complete Yupao interest page without requiring job links", ()
       {
         cards: [
           {
-            company: "星海科技",
+            company: "示例科技甲",
             details: ["AIGC"],
             location: "朝阳区",
             salaryText: "2-4万元/月",
@@ -62,7 +62,7 @@ test("classifies a complete Yupao interest page without requiring job links", ()
     engagement: "interested",
     jobs: [
       {
-        company: "星海科技",
+        company: "示例科技甲",
         details: ["AIGC"],
         location: "朝阳区",
         salaryText: "2-4万元/月",
@@ -103,7 +103,7 @@ test("keeps a Yupao snapshot partial when the visible total is unavailable", () 
     {
       cards: [
         {
-          company: "星海科技",
+          company: "示例科技甲",
           details: [],
           location: "朝阳区",
           summary: "AIGC应用开发 朝阳区",
@@ -157,7 +157,7 @@ test("cleans BOSS interest-card titles and preserves the original detail link", 
       Promise.resolve({
         jobs: [
           {
-            company: "360集团",
+            company: "示例科技丁",
             details: ["Node.js"],
             externalJobId: "agent-123",
             jobUrl: "https://www.zhipin.com/job_detail/agent-123.html?ka=personal_interest",
@@ -240,7 +240,7 @@ test("accepts an empty later page as the end of a paginated engagement scan", as
 });
 
 test("reads the platform-maintained total for every job engagement", () => {
-  const text = "沟通过\n已投递简历\n面试0\n感兴趣2\n累计沟通职位数量570\n累计投递简历数量3";
+  const text = "沟通过\n已投递简历\n面试0\n感兴趣2\n累计沟通职位数量12\n累计投递简历数量3";
 
   expect(visibleJobEngagementCount(text, "contacted")).toBe(contactedJobCount);
   expect(visibleJobEngagementCount(text, "applied")).toBe(appliedJobCount);

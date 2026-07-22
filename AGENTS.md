@@ -66,13 +66,18 @@
   retries that continue without new evidence. Route names alone are not evidence of a verification
   barrier.
 
-## Testing
+## Testing and examples
 
 - Test observable behavior at the boundary that owns it. Cover representative accepted and rejected
   cases for public MCP capabilities, URL and input validation, error classification, persistence
   invariants, and resource lifecycle.
 - Keep tests independent of undocumented routes, reader-facing prose, and third-party driver
   internals.
+- Use unmistakably synthetic employers, recruiters, account identities, activity counts, and
+  composite job-card content in tests and documentation. Do not copy observations from a live
+  browser session or the development database into tracked files, even when each individual field
+  is public. Real platform names, origins, route shapes, and interface labels may appear only when
+  required by the supported-platform contract or adapter behavior under test.
 
 ## Local services
 

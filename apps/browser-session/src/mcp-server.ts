@@ -21,7 +21,7 @@ const browserServerInstructions = [
   `Browser Session 管理可见的 Patchright 浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
   "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
   "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
-  "用户交接：需要登录、验证或其他用户操作时，使用 browser_prepare_login 准备登录界面；界面打开后立即停止浏览器输入，后台页面采集也会保持暂停。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
+  "用户交接：需要打开登录界面时，使用 browser_prepare_login 准备交接；界面打开后立即停止浏览器输入，后台页面采集也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
   "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
 ].join("\n\n");
 
@@ -71,7 +71,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description:
-      "读取当前受支持招聘平台页面中已经加载的岗位卡片，返回有界、去重的页面证据供调用方汇总。不会导航、滚动、点击或持久化岗位；同一次页面读取可能刷新平台适配器能够明确判定的访问观察，并将其加入 Browser Session 状态上报。岗位提交不由此工具触发：选中求职方向期间，独立的被动采集流程会定期将所有已打开平台页面中能识别出的岗位卡片提交到 Workspace Service，关联推荐页仅作为研究种子。",
+      "读取当前受支持招聘平台页面中已经加载的岗位卡片，返回有界、去重的页面证据供调用方汇总。不会导航、滚动、点击或持久化岗位；同一次页面读取可能刷新平台适配器能够明确判定的访问观察，并将其加入 Browser Session 状态上报。岗位提交不由此工具触发：独立的被动采集流程会定期提交所有已打开平台页面中能识别出的岗位卡片；当前求职方向仅提供要自动打开的研究起点，没有当前方向时，已打开的平台页面仍会被观察。",
     name: "browser_job_card_snapshot",
   }),
   defineBrowserTool({

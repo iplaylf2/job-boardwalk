@@ -105,14 +105,14 @@ test("converts job-card evidence from any supported discovery page into posting 
       capturedAt: "2026-07-17T10:00:00.000Z",
       cards: [
         {
-          company: "星海科技",
+          company: "示例科技甲",
           details: ["3-5年", "本科"],
           educationRequirement: "本科",
           experienceRequirement: "3-5年",
           href: "https://www.zhipin.com/job_detail/abc123.html",
           location: "北京",
           salary: "20-30K",
-          text: "后端开发 星海科技 北京 20-30K 3-5年 本科",
+          text: "后端开发 示例科技甲 北京 20-30K 3-5年 本科",
           title: "后端开发",
         },
       ],
@@ -124,7 +124,7 @@ test("converts job-card evidence from any supported discovery page into posting 
   ).toEqual([
     {
       collectedAt: "2026-07-17T10:00:00.000Z",
-      company: "星海科技",
+      company: "示例科技甲",
       details: ["3-5年", "本科"],
       discoveryUrl: "https://www.zhipin.com/web/geek/jobs?query=Java",
       educationRequirement: "本科",
@@ -134,7 +134,7 @@ test("converts job-card evidence from any supported discovery page into posting 
       location: "北京",
       platformId: "boss",
       salaryText: "20-30K",
-      summary: "后端开发 星海科技 北京 20-30K 3-5年 本科",
+      summary: "后端开发 示例科技甲 北京 20-30K 3-5年 本科",
       title: "后端开发",
     },
   ]);

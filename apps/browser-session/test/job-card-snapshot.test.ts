@@ -26,13 +26,13 @@ function bossJobCardLinks(): HTMLAnchorElement[] {
       ".job-name": "后端工程师",
       ".salary": "-K",
       "[class*='location']": "上海",
-      "a[href*='/gongsi/']": "星海科技",
+      "a[href*='/gongsi/']": "示例科技甲",
     },
     ["3-5年", "本科"],
   );
   const secondContainer = jobCardContainer(
     {
-      ".company-name": "远帆网络",
+      ".company-name": "示例网络乙",
       ".job-area": "杭州",
       ".job-name": "平台工程师",
       ".salary": "20-30K",
@@ -69,12 +69,13 @@ function yupaoJobCardLinks(): HTMLAnchorElement[] {
   const linkOnlyContainer = jobCardContainer({}, []);
   const jobContainer = jobCardContainer(
     {
-      "a[href*='/qiye/']": "鲮鲤科技",
+      "a[href*='/qiye/']": "示例科技丙",
     },
     [],
   );
   const moreContainer = jobCardContainer({}, []);
-  jobContainer.textContent = "Java开发工程师 4000-5000元/月 Java 3-5年 本科 鲮鲤科技 海淀区·牡丹园";
+  jobContainer.textContent =
+    "Java开发工程师 4000-5000元/月 Java 3-5年 本科 示例科技丙 海淀区·示例园";
   moreContainer.textContent = "查看更多信息";
   return [
     {
@@ -132,7 +133,7 @@ test("deduplicates BOSS job links by stable external id instead of the full URL"
   const container = jobCardContainer(
     {
       ".job-name": "后端工程师",
-      "a[href*='/gongsi/']": "星海科技",
+      "a[href*='/gongsi/']": "示例科技甲",
     },
     [],
   );
@@ -207,7 +208,7 @@ test("extracts bounded, deduplicated evidence only from same-origin job cards", 
   expect(metadata).toMatchObject({
     cards: [
       {
-        company: "星海科技",
+        company: "示例科技甲",
         details: ["3-5年", "本科"],
         location: "上海",
         salary: "25-35K",
@@ -270,10 +271,10 @@ test("excludes Yupao's more-information entry from job evidence", () => {
 
   expect(metadata.cards).toMatchObject([
     {
-      company: "鲮鲤科技",
+      company: "示例科技丙",
       educationRequirement: "本科",
       experienceRequirement: "3-5年",
-      location: "海淀区·牡丹园",
+      location: "海淀区·示例园",
       salary: "4000-5000元/月",
       title: "Java开发工程师",
     },

@@ -7,22 +7,22 @@ function textElement(textContent: string): Element {
 }
 
 function personalJobCard(): { container: Element; link: HTMLAnchorElement } {
-  const company = textElement("畅捷通");
+  const company = textElement("示例软件己");
   const links: HTMLAnchorElement[] = [];
   const container = {
     innerText:
-      "付女士 HRBP\n畅捷通\n互联网 已上市 1000-9999人\n.net全栈开发工程师\n[北京·海淀区·西北旺]\n25-30K·14薪 3-5年 本科",
+      "示例招聘者 HRBP\n示例软件己\n互联网 B轮 100-499人\n.NET平台工程师\n[北京·海淀区·示例园]\n21-29K·13薪 3-5年 本科",
     parentElement: null,
     querySelector: (selector: string) => (selector === "a[href*='/gongsi/']" ? company : null),
     querySelectorAll: () => links,
     textContent:
-      "付女士 HRBP 畅捷通 互联网 已上市 1000-9999人 .net全栈开发工程师 [北京·海淀区·西北旺] 25-30K·14薪 3-5年 本科",
+      "示例招聘者 HRBP 示例软件己 互联网 B轮 100-499人 .NET平台工程师 [北京·海淀区·示例园] 21-29K·13薪 3-5年 本科",
   } as unknown as Element;
   const link = {
     href: "https://www.zhipin.com/job_detail/stable-id.html?securityId=rotating&ka=personal_submitted_job_stable-id",
-    innerText: ".net全栈开发工程师[北京·海淀区·西北旺]",
+    innerText: ".NET平台工程师[北京·海淀区·示例园]",
     parentElement: container,
-    textContent: ".net全栈开发工程师[北京·海淀区·西北旺]",
+    textContent: ".NET平台工程师[北京·海淀区·示例园]",
   } as unknown as HTMLAnchorElement;
   links.push(link);
   return { container, link };
@@ -47,13 +47,13 @@ test("extracts BOSS personal-center jobs from semantic links instead of discover
 
   expect(metadata.jobs).toEqual([
     expect.objectContaining({
-      company: "畅捷通",
+      company: "示例软件己",
       educationRequirement: "本科",
       experienceRequirement: "3-5年",
       externalJobId: "stable-id",
-      location: "北京·海淀区·西北旺",
-      salaryText: "25-30K·14薪",
-      title: ".net全栈开发工程师",
+      location: "北京·海淀区·示例园",
+      salaryText: "21-29K·13薪",
+      title: ".NET平台工程师",
     }),
   ]);
 });

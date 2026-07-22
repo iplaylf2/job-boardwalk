@@ -124,9 +124,7 @@ export function JobSearchIntentsSection(props: {
       <div class={styles["sectionIntroduction"]}>
         <div>
           <h3>求职方向</h3>
-          <p>
-            系统会围绕当前方向自动整理岗位。平台页面是研究起点，其他已打开的相关页面也可纳入整理。
-          </p>
+          <p>当前方向提供自动打开的研究起点；系统也会整理其他已打开的招聘平台页面中的岗位。</p>
         </div>
         <button
           class={`${styles["button"]} ${styles["primaryButton"]}`}
@@ -204,7 +202,7 @@ export function JobSearchIntentsSection(props: {
                   <div class={styles["removal"]}>
                     <span>
                       {intent.selected
-                        ? "移除当前方向后，岗位整理会暂停，直到你选择另一个方向。"
+                        ? "移除当前方向后，系统将不再自动打开研究起点；已打开的招聘平台页面中的岗位仍会继续整理。"
                         : "移除后，这个方向及其平台研究起点将不再保留。"}
                     </span>
                     <button
