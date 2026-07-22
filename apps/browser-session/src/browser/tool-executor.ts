@@ -1,11 +1,12 @@
-import type { BrowserContext, Locator } from "patchright";
+import type { Locator } from "patchright";
 import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
-import type { PlatformId } from "@job-boardwalk/platform-catalog";
+import type { PlatformId, PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
 import type { BackgroundCollectionControl } from "./background-collection-control.js";
-import { BrowserTabs, parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
+import { parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
+import type { BrowserTabs } from "./browser-tabs.js";
 import { clickAndCapturePopup } from "./click-popup.js";
 import {
   assertPlatformNavigationLink,
@@ -29,10 +30,12 @@ interface ElementReference {
   tabId: number;
 }
 
-function* waitForRequestedInterval(params: Record<string, unknown>): RiteCoroutine<unknown> {
-  const milliseconds = params["milliseconds"] as number;
-  yield* sleep(milliseconds);
-  return { waitedMilliseconds: milliseconds };
+export interface BrowserToolExecutorCoordination {
+  recordReturnedControl: (platformId: PlatformId) => void;
+  synchronizeJobEngagement: (
+    platformId: PlatformId,
+    engagement: PlatformJobEngagementKind,
+  ) => RiteCoroutine<unknown>;
 }
 
 export class BrowserToolExecutor {
@@ -40,18 +43,23 @@ export class BrowserToolExecutor {
   readonly #collectionControl: BackgroundCollectionControl;
   readonly #observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null;
   readonly #recordReturnedControl: (platformId: PlatformId) => void;
+  readonly #synchronizeJobEngagement: (
+    platformId: PlatformId,
+    engagement: PlatformJobEngagementKind,
+  ) => RiteCoroutine<unknown>;
   readonly #tabs: BrowserTabs;
 
   public constructor(
-    context: BrowserContext,
+    tabs: BrowserTabs,
     observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null,
     collectionControl: BackgroundCollectionControl,
-    recordReturnedControl: (platformId: PlatformId) => void,
+    coordination: BrowserToolExecutorCoordination,
   ) {
     this.#collectionControl = collectionControl;
     this.#observePageAccess = observePageAccess;
-    this.#recordReturnedControl = recordReturnedControl;
-    this.#tabs = new BrowserTabs(context);
+    this.#recordReturnedControl = coordination.recordReturnedControl;
+    this.#synchronizeJobEngagement = coordination.synchronizeJobEngagement;
+    this.#tabs = tabs;
   }
 
   public get tabCount(): number {
@@ -61,7 +69,9 @@ export class BrowserToolExecutor {
   public *execute(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
     switch (toolName) {
       case "browser_wait": {
-        return yield* waitForRequestedInterval(input);
+        const milliseconds = input["milliseconds"] as number;
+        yield* sleep(milliseconds);
+        return { waitedMilliseconds: milliseconds };
       }
       case "browser_tabs": {
         return yield* this.#tabs.executeAction(input);
@@ -77,6 +87,12 @@ export class BrowserToolExecutor {
       }
       case "browser_job_card_snapshot": {
         return yield* this.#jobCardSnapshot(input);
+      }
+      case "browser_sync_job_engagement": {
+        this.#clearElementReferences();
+        const platformId = input["platformId"] as PlatformId;
+        const engagement = input["engagement"] as PlatformJobEngagementKind;
+        return yield* this.#synchronizeJobEngagement(platformId, engagement);
       }
       case "browser_click": {
         return yield* this.#click(input);

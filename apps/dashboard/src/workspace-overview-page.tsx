@@ -56,7 +56,7 @@ export function WorkspaceOverviewPage(): JSX.Element {
       active="overview"
       jobCount={jobSummary()?.total}
       title="Job Boardwalk"
-      lede="围绕当前求职方向，持续整理研究中发现且可回查的岗位。"
+      lede="持续整理招聘平台中已发现且可回查的岗位，并保留当前研究依据。"
     >
       <Loading fallback={<p class={styles["loading"]}>正在读取本机工作区…</p>}>
         <Show when={workspaceOverview() && jobSummary()}>

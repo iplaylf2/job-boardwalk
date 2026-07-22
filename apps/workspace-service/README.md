@@ -191,9 +191,12 @@ containing `initiatedBy` and `reason`.
 
 Browser Session submits the facts exposed by job cards that are already present in a supported
 recruiting-platform page: title, company, location, salary text, detail tags, bounded card text, and
-the original links. A selected job-search intent supplies recommendation pages that seed passive
-collection. They do not limit collection to those pages: observations may come from any other open
-supported-platform tab, and already-open tabs remain observable without a selected intent.
+the original links. Passive collection reads eligible supported-platform tabs that are already open;
+a selected job-search intent supplies recommendation pages as context for explicit agent research
+but never causes Workspace Service or Browser Session to open them. Personal-center engagement
+pages do not contribute through this write path; they arrive through the
+[job engagement synchronization](#job-engagement-synchronization) boundary.
+
 `POST /api/jobs` is the service-to-service write boundary.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`, and
@@ -220,6 +223,8 @@ annual values are shown only when the source itself uses an annual salary period
 `PUT /api/job-engagements` synchronizes one platform-maintained personal-center category. Workspace
 Service stores `interested`, `contacted`, `applied`, and `interviewed` as non-exclusive relations on
 the matching platform source, not as separate job collections or one mutually exclusive status.
+Browser Session calls this endpoint with agent attribution only during an explicit, user-requested
+synchronization task; Workspace Service does not schedule browser collection.
 Partial snapshots add or refresh observed relations. A complete `interested` snapshot also removes
 relations no longer present. The other engagement kinds remain durable because platforms may age
 historical jobs out of their visible lists.

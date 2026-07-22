@@ -21,7 +21,7 @@ export function PersonalContextPanel(props: {
         <div>
           <SectionKicker>当前设置</SectionKicker>
           <h2 id="profile-heading">研究依据</h2>
-          <p class={styles["headingCopy"]}>求职方向决定研究范围，个人条件帮助比较和解释岗位。</p>
+          <p class={styles["headingCopy"]}>求职方向提供研究起点，个人条件帮助比较和解释岗位。</p>
         </div>
         <div class={styles["headingActions"]}>
           <button

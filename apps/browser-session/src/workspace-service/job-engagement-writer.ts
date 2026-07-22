@@ -24,8 +24,8 @@ export class WorkspaceJobEngagementWriter implements JobEngagementWriter {
       this.#fetch(this.#endpoint, {
         body: JSON.stringify({
           ...snapshot,
-          initiatedBy: "system",
-          reason: `Browser Session 同步平台个人中心岗位跟进：${snapshot.engagement}`,
+          initiatedBy: "agent",
+          reason: `Agent 发起平台岗位跟进同步：${snapshot.engagement}`,
         }),
         headers: { "content-type": "application/json" },
         method: "PUT",

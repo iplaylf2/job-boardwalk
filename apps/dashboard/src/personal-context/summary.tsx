@@ -23,7 +23,11 @@ function DirectionSummary(props: { intents: JobSearchIntent[] }): JSX.Element {
       </p>
       <Show
         when={selectedIntent()}
-        fallback={<p class={styles["empty"]}>尚未选择求职方向，当前不会自动整理岗位。</p>}
+        fallback={
+          <p class={styles["empty"]}>
+            尚未选择求职方向。已打开的招聘平台页面仍会整理，但系统不会主动打开研究起点。
+          </p>
+        }
       >
         {(intent) => (
           <>

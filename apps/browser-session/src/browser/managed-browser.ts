@@ -1,5 +1,5 @@
 import { chromium } from "patchright";
-import type { BrowserContext } from "patchright";
+import type { BrowserContext, Page } from "patchright";
 import type { BrowserRuntimeStatus, PlatformAccessObservation } from "@job-boardwalk/contracts";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { CanceledError, ScopeError, completer, sleep, until } from "@shajara/host";
@@ -9,8 +9,8 @@ import { race, wait } from "@shajara/host/primitives";
 import type { BrowserControl } from "./browser-control.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
 import type { JobEngagementWriter } from "#/workspace-service/job-engagement-writer.js";
-import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 import { BackgroundCollectionControl } from "./background-collection-control.js";
+import { BrowserTabs } from "./browser-tabs.js";
 import { JobEngagementCollector } from "./job-engagement/collector.js";
 import { PassiveJobCollector } from "./passive-job-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
@@ -49,14 +49,18 @@ function launchPersistentContext(profilePath: string): Promise<BrowserContext> {
 }
 
 function coordinateCollection(
+  context: BrowserContext,
   collectionControl: BackgroundCollectionControl,
   platformAccessObserver: PlatformAccessObserver,
 ) {
+  const browserTabs = new BrowserTabs(context);
   return {
+    browserTabs,
     collectionControl,
     observePageAccess(page: PageAccessFacts) {
       return platformAccessObserver.observePage(page);
     },
+    selectPage: (page: Page) => browserTabs.selectPage(page),
   };
 }
 
@@ -65,7 +69,6 @@ export class ManagedBrowser implements BrowserControl {
   readonly #profilePath: string;
   readonly #jobEngagementWriter: JobEngagementWriter;
   readonly #jobPostingWriter: JobPostingWriter;
-  readonly #selectedIntentReader: SelectedJobSearchIntentReader;
   #context: BrowserContext | null = null;
   readonly #returnedControlRevisions = new Map<PlatformId, number>();
   #platformAccessObserver: PlatformAccessObserver | null = null;
@@ -77,12 +80,10 @@ export class ManagedBrowser implements BrowserControl {
     dependencies: {
       jobEngagementWriter: JobEngagementWriter;
       jobPostingWriter: JobPostingWriter;
-      selectedIntentReader: SelectedJobSearchIntentReader;
     },
     launchContext: PersistentContextLauncher = launchPersistentContext,
   ) {
     this.#profilePath = profilePath;
-    this.#selectedIntentReader = dependencies.selectedIntentReader;
     this.#jobPostingWriter = dependencies.jobPostingWriter;
     this.#jobEngagementWriter = dependencies.jobEngagementWriter;
     this.#launchContext = launchContext;
@@ -143,10 +144,9 @@ export class ManagedBrowser implements BrowserControl {
     this.#context = context;
     const platformAccessObserver = new PlatformAccessObserver(context);
     const collectionControl = new BackgroundCollectionControl();
-    const coordination = coordinateCollection(collectionControl, platformAccessObserver);
+    const coordination = coordinateCollection(context, collectionControl, platformAccessObserver);
     const passiveJobCollector = new PassiveJobCollector(
       context,
-      this.#selectedIntentReader,
       this.#jobPostingWriter,
       coordination,
     );
@@ -159,13 +159,13 @@ export class ManagedBrowser implements BrowserControl {
     );
     this.#platformAccessObserver = platformAccessObserver;
     this.#toolExecutor = new BrowserToolExecutor(
-      context,
+      coordination.browserTabs,
       coordination.observePageAccess,
       collectionControl,
-      (platformId) => {
-        const currentRevision =
-          this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision;
-        this.#returnedControlRevisions.set(platformId, currentRevision + nextReturnedControl);
+      {
+        recordReturnedControl: (platformId) => this.#recordReturnedControl(platformId),
+        synchronizeJobEngagement: (platformId, engagement) =>
+          jobEngagementCollector.synchronize(platformId, engagement),
       },
     );
     this.#hasFailed = false;
@@ -173,7 +173,6 @@ export class ManagedBrowser implements BrowserControl {
       const result = yield* race([
         () => platformAccessObserver.run(),
         () => passiveJobCollector.run(reportError),
-        () => jobEngagementCollector.run(reportError),
         () => wait(closed.future),
       ]);
       return result;
@@ -183,6 +182,12 @@ export class ManagedBrowser implements BrowserControl {
       this.#toolExecutor = null;
       yield* until(() => context.close());
     }
+  }
+
+  #recordReturnedControl(platformId: PlatformId): void {
+    const currentRevision =
+      this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision;
+    this.#returnedControlRevisions.set(platformId, currentRevision + nextReturnedControl);
   }
 
   #recordFailure(error: Error, failureCount: number, reportError: (error: Error) => void): number {

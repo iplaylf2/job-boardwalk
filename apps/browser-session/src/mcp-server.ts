@@ -21,7 +21,7 @@ const browserServerInstructions = [
   `Browser Session 管理可见的 Patchright 浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
   "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
   "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
-  "用户交接：需要登录、验证或其他用户操作时，使用 browser_prepare_login 准备登录界面；界面打开后立即停止浏览器输入，后台页面采集也会保持暂停。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
+  "用户交接：需要打开登录界面时，使用 browser_prepare_login 准备交接；界面打开后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
   "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
 ].join("\n\n");
 
@@ -49,7 +49,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，先暂停后台页面采集，再复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并决定是否提交。",
+      "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，先暂停被动页面读取，再复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并决定是否提交。",
     name: "browser_prepare_login",
   }),
   defineBrowserTool({
@@ -60,7 +60,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面采集，并允许个人中心岗位跟进列表在该快照所属平台的后续采集周期复用原标签页重试导航，但不表示登录成功。普通快照省略该字段。",
+      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面读取，并允许后续显式岗位跟进同步复用该平台原标签页，但不表示登录成功。普通快照省略该字段。",
     name: "browser_snapshot",
   }),
   defineBrowserTool({
@@ -71,8 +71,19 @@ const browserTools = [
       readOnlyHint: false,
     },
     description:
-      "读取当前受支持招聘平台页面中已经加载的岗位卡片，返回有界、去重的页面证据供调用方汇总。不会导航、滚动、点击或持久化岗位；同一次页面读取可能刷新平台适配器能够明确判定的访问观察，并将其加入 Browser Session 状态上报。岗位提交不由此工具触发：选中求职方向期间，独立的被动采集流程会定期将所有已打开平台页面中能识别出的岗位卡片提交到 Workspace Service，关联推荐页仅作为研究种子。",
+      "读取当前招聘平台标签页中已加载的岗位卡片，返回有界、去重的页面证据；个人中心岗位跟进页面不属于此工具的读取范围，调用会失败。此工具不会导航、滚动、点击或持久化岗位，但同一次读取可能刷新平台适配器能够明确判定的访问观察，并将其加入 Browser Session 状态上报。独立的被动采集流程会定期提交所有已打开合格页面中的岗位卡片，但不会为当前求职方向自动打开或导航研究页面。",
     name: "browser_job_card_snapshot",
+  }),
+  defineBrowserTool({
+    annotations: {
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+      readOnlyHint: false,
+    },
+    description:
+      "仅在用户发起的岗位跟进同步任务中调用。此工具打开或复用指定招聘平台标签页，将其选中并前置，导航到指定个人中心岗位跟进类别，读取一页并写入 Workspace Service。BOSS 多页列表每次只读取一页；complete 为 false 时，检查可见页面后可用相同参数再次调用。感兴趣列表的完整快照可能移除已不在平台列表中的本地关系。",
+    name: "browser_sync_job_engagement",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },

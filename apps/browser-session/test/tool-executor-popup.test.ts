@@ -6,6 +6,7 @@ import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
+import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 
 const sourceUrl = "https://www.zhipin.com/beijing/";
@@ -69,10 +70,13 @@ function fakeContextWithPopup(): BrowserContext {
 
 test("returns and selects a popup opened by a captured recruiting link", async () => {
   const executor = new BrowserToolExecutor(
-    fakeContextWithPopup(),
+    new BrowserTabs(fakeContextWithPopup()),
     () => null,
     new BackgroundCollectionControl(),
-    () => null,
+    {
+      recordReturnedControl: () => null,
+      synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+    },
   );
   await using scope = createScope();
 

@@ -19,7 +19,7 @@ test("writes passively collected page facts as a system change", async () => {
   await scope.run(() =>
     writer.write({
       collectedAt: "2026-07-17T10:00:00.000Z",
-      company: "星海科技",
+      company: "示例科技甲",
       details: ["Node.js"],
       discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
       jobUrl: "https://www.zhipin.com/job_detail/example.html",

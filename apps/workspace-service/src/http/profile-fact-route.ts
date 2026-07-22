@@ -38,7 +38,7 @@ export function registerProfileFactRoute(
         });
         return updated
           ? context.json(updated)
-          : context.json({ error: "找不到个人资料" }, notFoundStatus);
+          : context.json({ error: "找不到个人条件" }, notFoundStatus);
       } catch (error) {
         return requestErrorResponse(error, context);
       }

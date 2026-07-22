@@ -31,7 +31,7 @@ const workspaceOverviewUri = "job-boardwalk://workspace/overview";
 const jobLibraryUri = "job-boardwalk://jobs";
 const researchReportsUri = "job-boardwalk://reports";
 const workspaceOverviewDescription =
-  "读取本机工作区概览：由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人情况，以及带平台推荐页关联和当前选择状态的求职方向。";
+  "读取本机工作区概览：由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人条件，以及带平台推荐页关联和当前选择状态的求职方向。";
 const jobLibraryResourceDescription =
   "读取岗位库第一页及分页元数据。岗位来自招聘平台页面，经规范化和跨平台合并；每个平台来源保留发现页面、可选的岗位原始链接，以及个人中心观察到的感兴趣、沟通过、已投递和面试记录。";
 const jobLibraryToolDescription =

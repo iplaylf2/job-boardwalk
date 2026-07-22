@@ -92,7 +92,7 @@ function seedMcpWorkspace(repository: WorkspaceRepository): void {
     initiatedBy: "system",
     observation: {
       collectedAt: "2026-07-17T10:00:00.000Z",
-      company: "星海科技",
+      company: "示例科技甲",
       details: ["Node.js"],
       discoveryUrl: "https://www.zhipin.com/web/geek/jobs?query=Node.js",
       externalJobId: "mcp-example",
@@ -420,7 +420,7 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     const response = await httpApp.request("/api/jobs", {
       body: JSON.stringify({
         collectedAt: "2026-07-17T10:00:00.000Z",
-        company: "星海科技",
+        company: "示例科技甲",
         details: ["Node.js"],
         discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
         initiatedBy: "system",
@@ -438,7 +438,7 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     expect(response.status).toBe(createdStatus);
     expect(await response.json()).toMatchObject({
       job: {
-        company: "星海科技",
+        company: "示例科技甲",
         sources: [{ platformId: "boss" }],
         title: "后端开发",
       },
@@ -448,7 +448,7 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     const invalidSourceResponse = await httpApp.request("/api/jobs", {
       body: JSON.stringify({
         collectedAt: "2026-07-17T10:00:00.000Z",
-        company: "星海科技",
+        company: "示例科技甲",
         details: [],
         discoveryUrl: "https://example.invalid/jobs",
         initiatedBy: "system",
@@ -482,7 +482,7 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     const libraryResponse = await httpApp.request("/api/jobs?page=1&pageSize=1&platform=boss");
     const library = JobPostingPage.assert(await libraryResponse.json());
     expect(library).toMatchObject({
-      jobs: [{ company: "星海科技", sources: [{ platformId: "boss" }] }],
+      jobs: [{ company: "示例科技甲", sources: [{ platformId: "boss" }] }],
       page: 1,
       pageCount: 1,
       pageSize: 1,
@@ -611,7 +611,7 @@ test("writes and lists research reports through MCP", async () => {
       params: {
         arguments: {
           initiatedBy: "agent",
-          markdown: "## 推荐\n\n优先核验星海科技。",
+          markdown: "## 推荐\n\n优先核验示例科技甲。",
           reason: "test",
           state: "complete",
           title: "岗位推荐",
@@ -623,7 +623,7 @@ test("writes and lists research reports through MCP", async () => {
       result: {
         structuredContent: {
           id: expect.any(Number),
-          markdown: expect.stringContaining("星海科技"),
+          markdown: expect.stringContaining("示例科技甲"),
           title: "岗位推荐",
         },
       },
@@ -780,7 +780,7 @@ test("synchronizes job engagements and filters the library through HTTP", async 
         initiatedBy: "system",
         jobs: [
           {
-            company: "360集团",
+            company: "示例科技丁",
             details: ["Node.js"],
             externalJobId: "agent",
             jobUrl: "https://www.zhipin.com/job_detail/agent.html",
@@ -802,7 +802,7 @@ test("synchronizes job engagements and filters the library through HTTP", async 
     expect(JobPostingPage.assert(await listResponse.json())).toMatchObject({
       jobs: [
         {
-          company: "360集团",
+          company: "示例科技丁",
           sources: [{ engagements: [{ kind: "applied" }], platformId: "boss" }],
         },
       ],

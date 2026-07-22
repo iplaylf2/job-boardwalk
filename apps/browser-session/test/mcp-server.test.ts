@@ -7,6 +7,7 @@ import type { BrowserContext } from "patchright";
 import { expect, test } from "vitest";
 
 import type { BrowserControl } from "#/browser/browser-control.js";
+import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { createBrowserSessionMcpServer } from "#/mcp-server.js";
@@ -41,10 +42,13 @@ function* unavailableBrowserCall() {
 function browserToolExecutorControl(): BrowserControl {
   const context = { on: () => context, pages: () => [] } as unknown as BrowserContext;
   const executor = new BrowserToolExecutor(
-    context,
+    new BrowserTabs(context),
     () => null,
     new BackgroundCollectionControl(),
-    () => null,
+    {
+      recordReturnedControl: () => null,
+      synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+    },
   );
   return {
     executeTool: (toolName, input) => executor.execute(toolName, input),
@@ -83,6 +87,7 @@ test("always exposes the project-owned Patchright browser tools", async () => {
       "browser_prepare_login",
       "browser_navigate",
       "browser_job_card_snapshot",
+      "browser_sync_job_engagement",
       "browser_snapshot",
       "browser_click",
       "browser_fill",
@@ -108,6 +113,17 @@ test("always exposes the project-owned Patchright browser tools", async () => {
     type: "boolean",
   });
   expect(snapshotTool?.inputSchema.required).toBeUndefined();
+  const engagementTool = listedTools.tools.find(
+    ({ name }) => name === "browser_sync_job_engagement",
+  );
+  expect(engagementTool?.inputSchema.properties?.["engagement"]).toMatchObject({
+    enum: expect.arrayContaining(["applied", "contacted", "interested", "interviewed"]),
+  });
+  expect(engagementTool?.annotations).toMatchObject({
+    destructiveHint: true,
+    idempotentHint: false,
+    readOnlyHint: false,
+  });
 
   const result = CallToolResultSchema.parse(
     await client.callTool({ arguments: { action: "list" }, name: "browser_tabs" }),
@@ -222,10 +238,10 @@ const invalidBrowserToolCalls = [
     title: "a job-card limit above the public maximum",
   },
   {
-    arguments: { maximumCards: 1.5 },
-    expectedField: /maximumCards/u,
-    name: "browser_job_card_snapshot",
-    title: "a fractional job-card limit",
+    arguments: { engagement: "contacted" },
+    expectedField: /platformId/u,
+    name: "browser_sync_job_engagement",
+    title: "a job-engagement sync without a platform",
   },
   {
     arguments: { ignored: true },

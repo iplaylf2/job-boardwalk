@@ -5,7 +5,6 @@ import { expect, test } from "vitest";
 import { ManagedBrowser } from "#/browser/managed-browser.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
 import type { JobEngagementWriter } from "#/workspace-service/job-engagement-writer.js";
-import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
 const jobPostingWriter = {
   *write() {
@@ -25,13 +24,6 @@ const jobEngagementWriter = {
     };
   },
 } satisfies JobEngagementWriter;
-const selectedIntentReader = {
-  *read() {
-    yield* [];
-    return null;
-  },
-} satisfies SelectedJobSearchIntentReader;
-
 function fakeContext(): BrowserContext {
   const browser = { version: () => "150.0.0.0" } as Browser;
   const context = {
@@ -47,7 +39,7 @@ function fakeContext(): BrowserContext {
 test("starts unavailable without leaking profile details through status", () => {
   const browser = new ManagedBrowser(
     "/private/profile",
-    { jobEngagementWriter, jobPostingWriter, selectedIntentReader },
+    { jobEngagementWriter, jobPostingWriter },
     () => Promise.resolve(fakeContext()),
   );
 
@@ -61,7 +53,7 @@ test("contains browser launch failures as unavailable tool calls", async () => {
   );
   const browser = new ManagedBrowser(
     "/private/profile",
-    { jobEngagementWriter, jobPostingWriter, selectedIntentReader },
+    { jobEngagementWriter, jobPostingWriter },
     () => Promise.reject(launchError),
   );
   const reportedErrors: Error[] = [];

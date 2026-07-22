@@ -5,7 +5,6 @@ import { expect, test } from "vitest";
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { PassiveJobCollector, jobPostingObservations } from "#/browser/passive-job-collector.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
-import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
 const onePageRead = 1;
 
@@ -31,69 +30,11 @@ function jobPage(url: string, title: string): Page {
   } as unknown as Page;
 }
 
-function redirectingJobPage(destinationUrl: string): {
-  moveTo: (url: string) => void;
-  navigationCount: () => number;
-  page: Page;
-} {
-  let url = "about:blank";
-  let navigationCount = 0;
-  const page = {
-    evaluate: () =>
-      Promise.resolve({
-        accessElements: [],
-        accessText: "",
-        cards: [
-          {
-            details: [],
-            href: "https://www.zhipin.com/job_detail/redirect-card.html",
-            text: "重定向页面上的职位卡片",
-            title: "后端开发",
-          },
-        ],
-        title: "登录",
-        truncated: false,
-        url,
-      }),
-    goto: () => {
-      navigationCount += onePageRead;
-      url = destinationUrl;
-      return Promise.resolve(null);
-    },
-    url: () => url,
-  } as unknown as Page;
-  return {
-    moveTo(newUrl) {
-      url = newUrl;
-    },
-    navigationCount: () => navigationCount,
-    page,
-  };
-}
-
-function selectedIntentReader(seedUrl: string): SelectedJobSearchIntentReader {
-  return {
-    *read() {
-      yield* [];
-      return {
-        city: "北京",
-        id: 1,
-        name: "北京后端",
-        position: "后端开发",
-        recommendationPages: [{ label: "推荐", platformId: "boss", url: seedUrl }],
-        selected: true,
-        updatedAt: "2026-07-17T10:00:00.000Z",
-      };
-    },
-  };
-}
-
 function passiveJobCollector(
   context: BrowserContext,
-  reader: SelectedJobSearchIntentReader,
   writer: JobPostingWriter,
 ): PassiveJobCollector {
-  return new PassiveJobCollector(context, reader, writer, {
+  return new PassiveJobCollector(context, writer, {
     collectionControl: new BackgroundCollectionControl(),
     observePageAccess: () => null,
   });
@@ -105,14 +46,14 @@ test("converts job-card evidence from any supported discovery page into posting 
       capturedAt: "2026-07-17T10:00:00.000Z",
       cards: [
         {
-          company: "星海科技",
+          company: "示例科技甲",
           details: ["3-5年", "本科"],
           educationRequirement: "本科",
           experienceRequirement: "3-5年",
           href: "https://www.zhipin.com/job_detail/abc123.html",
           location: "北京",
           salary: "20-30K",
-          text: "后端开发 星海科技 北京 20-30K 3-5年 本科",
+          text: "后端开发 示例科技甲 北京 20-30K 3-5年 本科",
           title: "后端开发",
         },
       ],
@@ -124,7 +65,7 @@ test("converts job-card evidence from any supported discovery page into posting 
   ).toEqual([
     {
       collectedAt: "2026-07-17T10:00:00.000Z",
-      company: "星海科技",
+      company: "示例科技甲",
       details: ["3-5年", "本科"],
       discoveryUrl: "https://www.zhipin.com/web/geek/jobs?query=Java",
       educationRequirement: "本科",
@@ -134,7 +75,7 @@ test("converts job-card evidence from any supported discovery page into posting 
       location: "北京",
       platformId: "boss",
       salaryText: "20-30K",
-      summary: "后端开发 星海科技 北京 20-30K 3-5年 本科",
+      summary: "后端开发 示例科技甲 北京 20-30K 3-5年 本科",
       title: "后端开发",
     },
   ]);
@@ -166,61 +107,46 @@ test("uses Yupao's numeric path segment as the stable external job id", () => {
   ]);
 });
 
-test("reuses a managed recommendation page after redirect without suppressing its cards", async () => {
-  const seedUrl = "https://www.zhipin.com/web/geek/job-recommend";
-  const loginUrl = "https://www.zhipin.com/web/user/";
-  const pages: Page[] = [];
-  let newPageCount = 0;
-  const observations: { discoveryUrl: string }[] = [];
-  const redirectedPage = redirectingJobPage(loginUrl);
+test("observes existing pages without opening or navigating recommendation seeds", async () => {
+  const existingUrl = "https://www.zhipin.com/web/geek/jobs?query=TypeScript";
+  let pagesRead = 0;
   const context = {
     newPage: () => {
-      newPageCount += onePageRead;
-      pages.push(redirectedPage.page);
-      return Promise.resolve(redirectedPage.page);
+      expect.unreachable("后台采集不应新建标签页");
     },
-    pages: () => [...pages],
+    pages: () => {
+      pagesRead += onePageRead;
+      return [jobPage(existingUrl, "平台工程师")];
+    },
   } as unknown as BrowserContext;
+  const observations: { discoveryUrl: string }[] = [];
   const writer = {
     *write(observation) {
       yield* [];
       observations.push(observation);
     },
   } satisfies JobPostingWriter;
-  const collector = passiveJobCollector(context, selectedIntentReader(seedUrl), writer);
+  const collector = passiveJobCollector(context, writer);
   await using scope = createScope();
 
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
-  await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
 
-  expect(redirectedPage.navigationCount()).toBe(onePageRead);
-  expect(observations).toEqual([
-    expect.objectContaining({ discoveryUrl: loginUrl }),
-    expect.objectContaining({ discoveryUrl: loginUrl }),
-  ]);
-
-  const laterPageUrl = "https://www.zhipin.com/web/geek/jobs";
-  redirectedPage.moveTo(laterPageUrl);
-  await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
-
-  expect(newPageCount).toBe(onePageRead);
-  expect(redirectedPage.navigationCount()).toBe(onePageRead);
-  expect(observations.at(-onePageRead)).toEqual(
-    expect.objectContaining({ discoveryUrl: laterPageUrl }),
-  );
+  expect(pagesRead).toBe(onePageRead);
+  expect(observations).toEqual([expect.objectContaining({ discoveryUrl: existingUrl })]);
 });
 
-test("collects recognizable cards from non-seed platform tabs during the selected intent", async () => {
+test("collects eligible platform tabs and leaves engagement pages to their owner", async () => {
   const seedUrl = "https://www.zhipin.com/web/geek/job-recommend";
   const searchUrl = "https://www.zhipin.com/web/geek/jobs?query=TypeScript";
+  const engagementUrl = "https://www.yupao.com/user/resume-info/";
   const context = {
     pages: () => [
       jobPage(seedUrl, "后端开发"),
       jobPage(searchUrl, "平台工程师"),
+      jobPage(engagementUrl, "鱼泡个人中心侧栏内容"),
       { url: () => "https://example.invalid/jobs" } as Page,
     ],
   } as BrowserContext;
-  const reader = selectedIntentReader(seedUrl);
   const observations: { discoveryUrl: string }[] = [];
   const writer = {
     *write(observation) {
@@ -228,7 +154,7 @@ test("collects recognizable cards from non-seed platform tabs during the selecte
       observations.push(observation);
     },
   } satisfies JobPostingWriter;
-  const collector = passiveJobCollector(context, reader, writer);
+  const collector = passiveJobCollector(context, writer);
   await using scope = createScope();
 
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
@@ -239,7 +165,7 @@ test("collects recognizable cards from non-seed platform tabs during the selecte
   ]);
 });
 
-test("continues collecting open platform tabs without seeding pages when no intent is selected", async () => {
+test("continues collecting open platform tabs", async () => {
   let pageReadCount = 0;
   let writeCount = 0;
   const context = {
@@ -248,19 +174,13 @@ test("continues collecting open platform tabs without seeding pages when no inte
       return [jobPage("https://www.zhipin.com/web/geek/jobs", "后端开发")];
     },
   } as unknown as BrowserContext;
-  const reader = {
-    *read() {
-      yield* [];
-      return null;
-    },
-  } satisfies SelectedJobSearchIntentReader;
   const writer = {
     *write() {
       yield* [];
       writeCount += onePageRead;
     },
   } satisfies JobPostingWriter;
-  const collector = passiveJobCollector(context, reader, writer);
+  const collector = passiveJobCollector(context, writer);
   await using scope = createScope();
 
   await scope.run(() => collector.collect((error) => expect.unreachable(error.message)));
@@ -286,7 +206,7 @@ test("reports one unstable page and preserves jobs from later healthy pages", as
       observations.push(observation);
     },
   } satisfies JobPostingWriter;
-  const collector = passiveJobCollector(context, selectedIntentReader(seedUrl), writer);
+  const collector = passiveJobCollector(context, writer);
   const errors: Error[] = [];
   await using scope = createScope();
 

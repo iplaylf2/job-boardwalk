@@ -27,7 +27,7 @@ function jobPostingObservation(
 ): JobPostingObservation {
   return {
     collectedAt: overrides.collectedAt ?? "2026-07-17T10:00:00.000Z",
-    ...(overrides.company === null ? {} : { company: overrides.company ?? "星海科技有限公司" }),
+    ...(overrides.company === null ? {} : { company: overrides.company ?? "示例科技甲有限公司" }),
     details: ["Node.js", "TypeScript"],
     discoveryUrl:
       platformId === "boss"
@@ -182,7 +182,7 @@ test("merges high-confidence postings and skips unchanged page observations", as
       initiatedBy: "system",
       observation: jobPostingObservation("yupao", {
         collectedAt: "2026-07-17T10:10:00.000Z",
-        company: "星海科技",
+        company: "示例科技甲",
         title: "【急聘】后端开发",
       }),
       reason: "test",
@@ -235,7 +235,7 @@ test("binds combined platform and engagement filters to the same source", async 
         engagement: "applied",
         jobs: [
           {
-            company: "星海科技有限公司",
+            company: "示例科技甲有限公司",
             details: ["Node.js", "TypeScript"],
             externalJobId: "boss-applied",
             jobUrl: "https://www.zhipin.com/job_detail/example.html",
@@ -396,7 +396,7 @@ test("replaces reversible interest engagements without removing jobs from the li
         engagement: "interested",
         jobs: [
           {
-            company: "360集团",
+            company: "示例科技丁",
             details: ["Node.js"],
             externalJobId: "agent",
             jobUrl: "https://www.zhipin.com/job_detail/agent.html",
@@ -404,7 +404,7 @@ test("replaces reversible interest engagements without removing jobs from the li
             title: "高级全栈工程师",
           },
           {
-            company: "博趣互动",
+            company: "示例互动戊",
             details: ["C#"],
             externalJobId: "server",
             jobUrl: "https://www.zhipin.com/job_detail/server.html",
@@ -453,7 +453,7 @@ test("replaces reversible interest engagements without removing jobs from the li
         engagement: "interested",
         jobs: [
           {
-            company: "博趣互动",
+            company: "示例互动戊",
             details: ["C#", "MySQL"],
             externalJobId: "server",
             jobUrl: "https://www.zhipin.com/job_detail/server.html",
@@ -480,7 +480,7 @@ test("replaces reversible interest engagements without removing jobs from the li
         engagement: "interested",
         jobs: [
           {
-            company: "博趣互动",
+            company: "示例互动戊",
             details: ["C#", "MySQL"],
             externalJobId: "server",
             jobUrl: "https://www.zhipin.com/job_detail/server.html",
@@ -545,7 +545,7 @@ test("preserves historical job engagements when later complete lists omit them",
         engagement: "contacted",
         jobs: [
           {
-            company: "星海科技",
+            company: "示例科技甲",
             details: [],
             externalJobId: "contacted-job",
             jobUrl: "https://www.zhipin.com/job_detail/contacted-job.html",
