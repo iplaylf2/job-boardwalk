@@ -210,13 +210,15 @@ test("reuses a managed recommendation page after redirect without suppressing it
   );
 });
 
-test("collects recognizable cards from non-seed platform tabs during the selected intent", async () => {
+test("collects eligible platform tabs and leaves engagement pages to their owner", async () => {
   const seedUrl = "https://www.zhipin.com/web/geek/job-recommend";
   const searchUrl = "https://www.zhipin.com/web/geek/jobs?query=TypeScript";
+  const engagementUrl = "https://www.yupao.com/user/resume-info/";
   const context = {
     pages: () => [
       jobPage(seedUrl, "后端开发"),
       jobPage(searchUrl, "平台工程师"),
+      jobPage(engagementUrl, "鱼泡个人中心侧栏内容"),
       { url: () => "https://example.invalid/jobs" } as Page,
     ],
   } as BrowserContext;

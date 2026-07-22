@@ -167,24 +167,6 @@ test("deduplicates BOSS job links by stable external id instead of the full URL"
   expect(metadata.truncated).toBe(false);
 });
 
-test.each([
-  ["https://www.zhipin.com/web/geek/job-recommend", "boss"],
-  ["https://www.zhipin.com/web/geek/jobs?query=Java", "boss"],
-  ["https://www.zhipin.com/job_detail/example.html", "boss"],
-  ["https://www.yupao.com/topic/a2c1488/", "yupao"],
-  ["https://www.yupao.com/zhaogong/a1c0/", "yupao"],
-])("provides job-card extraction for any supported platform page at %s", (url, platformId) => {
-  expect(requireJobCardExtraction(url)).toMatchObject({ platformId });
-});
-
-test.each([
-  "https://example.invalid/jobs",
-  "http://www.zhipin.com/web/geek/jobs",
-  "https://user:secret@www.yupao.com/topic/a2c1488/",
-])("rejects pages outside the supported platform navigation boundary at %s", (url) => {
-  expect(() => requireJobCardExtraction(url)).toThrow(/HTTPS 导航范围/u);
-});
-
 test("extracts bounded, deduplicated evidence only from same-origin job cards", () => {
   vi.stubGlobal("document", {
     body: { innerText: "推荐职位" },

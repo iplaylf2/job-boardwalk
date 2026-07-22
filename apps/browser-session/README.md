@@ -23,12 +23,13 @@ verification, or other account actions.
 
 ## Job-card reads and passive collection
 
-`browser_job_card_snapshot` is the structured job-card read boundary. It accepts any page inside
-BOSS直聘 or 鱼泡直聘's supported HTTPS navigation scope and returns bounded, deduplicated job-card
-evidence already present in that document without navigating, scrolling, clicking, opening
-details, or persisting jobs. A page with no recognizable cards returns an empty card collection.
-Workspace Service owns the selected intent and its platform recommendation seed pages; the agent
-compares that context with live page evidence when judging relevance.
+`browser_job_card_snapshot` is the structured job-card read boundary. It accepts eligible pages
+inside BOSS直聘 or 鱼泡直聘's supported HTTPS navigation scope and returns bounded, deduplicated
+job-card evidence already present in that document without navigating, scrolling, clicking,
+opening details, or persisting jobs. A page with no recognizable cards returns an empty card
+collection; an engagement-owned page is rejected instead. Workspace Service owns the selected
+intent and its platform recommendation seed pages; the agent compares that context with live page
+evidence when judging relevance.
 
 A passive collector reuses this bounded reader. It reads the selected job-search intent from
 Workspace Service and maintains an associated tab for each recommendation seed. It first adopts an
@@ -36,24 +37,25 @@ already-open exact URL or creates a tab for the seed. While that tab remains ope
 survives login, verification, and canonical redirects, so later passes do not repeatedly open the
 requested URL or replace the redirected page. Other tabs remain untouched.
 
-The collector then observes every open supported-platform tab immediately and every 30 seconds and
-submits every recognizable card currently loaded in those documents to Workspace Service without
-scrolling, clicking, or opening details. The tab's association, current route, apparent purpose,
-and semantic relevance do not suppress recognizable cards. A document with no recognizable cards
-produces no job observations. This captures related search results and other discovery surfaces
-reached during directed research instead of treating the recommendation feed as the storage
-boundary.
+The collector then observes eligible open supported-platform tabs immediately and every 30 seconds
+and submits every recognizable card currently loaded in those documents to Workspace Service
+without scrolling, clicking, or opening details. Engagement-owned pages are left to the separate
+collector described below. Outside that platform-specific ownership boundary, a tab's seed
+association and semantic relevance do not suppress recognizable cards. A document with no
+recognizable cards produces no job observations. This captures related search results and other
+discovery surfaces reached during directed research instead of treating the recommendation feed
+as the storage boundary.
 
-Without a selected intent, passive collection still observes supported platform tabs that are
-already open, but it does not open recommendation seed pages. A selected intent supplies those
-seeds; it does not limit which open platform tabs can contribute cards. Repeated observations let
-Workspace Service skip unchanged records and update facts when visible cards change; no agent call
-is required. A page that closes or navigates during its bounded read is reported and skipped
-without discarding jobs collected from other tabs. A Workspace Service write failure stops the
-current pass and is retried on the next pass. The same bounded DOM pass refreshes any conclusive
-platform-access evidence.
+Without a selected intent, passive collection still observes eligible supported-platform tabs
+that are already open, but it does not open recommendation seed pages. A selected intent supplies
+those seeds; it does not limit which eligible open tabs can contribute cards. Repeated
+observations let Workspace Service skip unchanged records and update facts when visible cards
+change; no agent call is required. A page that closes or navigates during its bounded read is
+reported and skipped without discarding jobs collected from other tabs. A Workspace Service write
+failure stops the current pass and is retried on the next pass. The same bounded DOM pass refreshes
+any conclusive platform-access evidence.
 
-## Personal-center engagement collection
+## Job engagement collection
 
 Browser Session independently observes each platform's personal-center categories for interested,
 contacted, applied, and interviewed jobs. These category memberships become engagement evidence;
@@ -129,11 +131,11 @@ automatic access-assessment coverage differs:
 | 鱼泡直聘 | A bounded snapshot whose header contains the message and resume navigation followed by a non-login account identity records `authenticated`.                                                                                             |
 
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
-agent or the same bounded job-card read already used for job collection. Browser Session
-sends no detection request and does not refresh or open a page for this purpose. `browser_snapshot`
-returns `platformAccessObservation`; when it is non-null, the same observation is already queued for
-the periodic Workspace Service report. A platform page loaded before monitoring begins is also
-reassessed by the passive collection cycle. The Dashboard still shows timestamped
+agent or a bounded page read already performed by the job-card or engagement collector. Browser
+Session sends no detection request and does not refresh or open a page for this purpose.
+`browser_snapshot` returns `platformAccessObservation`; when it is non-null, the same observation is
+already queued for the periodic Workspace Service report. A platform page loaded before monitoring
+begins is also reassessed by its owning collection cycle. The Dashboard still shows timestamped
 observations, not a timeless live authentication guarantee.
 
 ## Runtime behavior

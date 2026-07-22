@@ -14,7 +14,7 @@ import type { BackgroundCollectionControl } from "./background-collection-contro
 import { captureJobCardSnapshot } from "./job-card-snapshot.js";
 import { ManagedPageTargets } from "./managed-page-targets.js";
 import { extractExternalJobId } from "./platform-job-links.js";
-import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
+import { isJobCardCollectionPage } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 
 const collectionIntervalMilliseconds = 30_000;
@@ -101,7 +101,7 @@ export class PassiveJobCollector {
     }
     const snapshots: JobCardSnapshot[] = [];
     for (const page of this.#context.pages()) {
-      if (!findRecruitingPlatformAdapter(page.url())) {
+      if (!isJobCardCollectionPage(page.url())) {
         continue;
       }
       const snapshot = yield* this.#capturePage(page, reportError);

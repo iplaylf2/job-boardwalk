@@ -82,25 +82,27 @@ unrestricted page text.
 
 ## Job discovery and engagement tracking
 
-Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It
-extracts already-loaded job cards from any page inside a supported recruiting platform's
-navigation boundary without navigating, scrolling, opening details, or persisting results. Browser
-Session owns this page read, but it does not own the selected intent, semantic relevance judgments,
-or durable job observations.
+Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It reads
+eligible pages inside a supported recruiting platform's navigation boundary without navigating,
+scrolling, opening details, or persisting results. Pages owned by engagement collection are
+rejected rather than reported as empty job-card pages. Browser Session owns this page read, but it
+does not own the selected intent, semantic relevance judgments, or durable job observations.
 
-Passive collection observes recognizable job cards from every open supported-platform tab. A
+Passive collection observes recognizable job cards from open supported-platform tabs, except for
+pages owned by engagement collection. This ownership boundary prevents recruiter activity,
+account navigation, and other adjacent links from being reinterpreted as discovery cards. A
 selected job-search intent supplies recommendation seeds for which Browser Session maintains
 associated tabs. If a seed navigation redirects, the association remains with that tab so the
 collector does not repeatedly open the requested URL or replace what the user can see. Seed
-associations control tab provisioning; they are not a whitelist of pages eligible for collection.
-Without a selected intent, the collector opens no seed tabs but continues to observe tabs that are
-already open.
+associations control tab provisioning; they are not a whitelist of discovery pages eligible for
+collection. Without a selected intent, the collector opens no seed tabs but continues to observe
+eligible tabs that are already open.
 
-Every recognizable card contributes an observation regardless of which seed, search path, or other
-research action led to its page. A page with no recognizable cards contributes no job observations;
-the collector does not suppress cards based on the page's apparent purpose or make semantic
-relevance judgments. A failure to read one tab is reported for that tab and does not discard
-observations from other tabs.
+Every recognizable card on an eligible page contributes an observation regardless of which seed,
+search path, or other research action led to it. A page with no recognizable cards contributes no
+job observations. The ownership exclusion is structural and platform-specific; the collector does
+not otherwise make semantic relevance judgments. A failure to read one tab is reported for that
+tab and does not discard observations from other tabs.
 
 Browser Session recognizes job-detail links through one platform-specific path contract and uses
 the same match to derive a stable external job ID when the platform exposes one. Identifier
@@ -183,10 +185,10 @@ applies the delegation boundary before acting.
 
 Platform access is an append-only observation stream. Browser Session passively observes navigation
 responses the visible browser already receives and applies deterministic adapter rules to bounded
-page reads. These are either snapshots requested by the agent or the job-card read already used
-for passive job collection. It does not issue a detection request, refresh a page, or open a tab to
-check authentication. An adapter with a conclusive navigation rule may use response
-success, the final URL, and the server redirect chain to produce one of two authentication results:
+page reads initiated by explicit snapshots, passive job collection, or job engagement collection.
+It does not issue a detection request, refresh a page, or open a tab to check authentication. An
+adapter with a conclusive navigation rule may use response success, the final URL, and the server
+redirect chain to produce one of two authentication results:
 
 - `protected-resource` records `authenticated` when a known protected navigation succeeds;
 - `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
@@ -198,10 +200,11 @@ returns the same structured observation so the agent can answer without submitti
 Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
 alone, display names alone, and cookie presence do not establish authentication.
 
-An explicit job-card snapshot reads the current page without consulting Workspace Service. Its
-bounded page evidence may also refresh a conclusive access observation. The separate passive
-collector reads the selected intent and its recommendation seed pages from Workspace Service; the
-agent may read the same workspace context when explaining the current research direction.
+An explicit job-card snapshot reads the current eligible page without consulting Workspace
+Service. It rejects an engagement-owned page, which has a separate collection boundary. Evidence
+from a successful read may also refresh a conclusive access observation. The passive collector
+reads the selected intent and its recommendation seed pages from Workspace Service; the agent may
+read the same workspace context when explaining the current research direction.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page

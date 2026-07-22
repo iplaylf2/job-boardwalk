@@ -193,7 +193,10 @@ Browser Session submits the facts exposed by job cards that are already present 
 recruiting-platform page: title, company, location, salary text, detail tags, bounded card text, and
 the original links. A selected job-search intent supplies recommendation pages that seed passive
 collection. They do not limit collection to those pages: observations may come from any other open
-supported-platform tab, and already-open tabs remain observable without a selected intent.
+eligible supported-platform tab, and already-open eligible tabs remain observable without a
+selected intent. Only eligible pages contribute through this write path; engagement-owned pages
+arrive through the [job engagement synchronization](#job-engagement-synchronization) boundary.
+
 `POST /api/jobs` is the service-to-service write boundary.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`, and

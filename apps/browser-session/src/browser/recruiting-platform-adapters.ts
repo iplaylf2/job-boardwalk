@@ -1,8 +1,11 @@
 import {
   isPlatformId,
+  parsePlatformJobEngagementUrl,
   parsePlatformWebUrl,
   platformCatalog,
   platformIds,
+  platformJobEngagementKinds,
+  resolvePlatformJobEngagementUrl,
   resolvePlatformWebUrl,
 } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
@@ -31,6 +34,7 @@ interface RecruitingPlatformAdapter {
   readonly jobCardExtraction: JobCardExtractionConfig;
   readonly snapshotSettleMilliseconds?: number;
   readonly isInNavigationScope: (value: string) => boolean;
+  readonly isJobCardCollectionPage: (value: string) => boolean;
   readonly assessNavigation?: (
     response: NavigationResponseFacts,
   ) => PlatformAccessAssessment | null;
@@ -133,12 +137,29 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
     : null;
 }
 
+function isYupaoJobCardCollectionPage(value: string): boolean {
+  const url = parsePlatformWebUrl("yupao", value);
+  return (
+    url !== null &&
+    !platformJobEngagementKinds.some(
+      (engagement) =>
+        url.pathname === new URL(resolvePlatformJobEngagementUrl("yupao", engagement)).pathname,
+    )
+  );
+}
+
 function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlatformAdapter {
   const metadata = platformCatalog[platformId];
   return {
     entryUrl: resolvePlatformWebUrl(platformId, "entry"),
     isInNavigationScope(value) {
       return parsePlatformWebUrl(platformId, value) !== null;
+    },
+    isJobCardCollectionPage(value) {
+      return (
+        parsePlatformWebUrl(platformId, value) !== null &&
+        parsePlatformJobEngagementUrl(platformId, value) === null
+      );
     },
     jobCardExtraction: platformId === "boss" ? bossJobCardExtraction : yupaoJobCardExtraction,
     label: metadata.label,
@@ -218,6 +239,7 @@ export const recruitingPlatformAdapters = {
   yupao: {
     ...createRecruitingPlatformAdapter("yupao"),
     assessPage: assessYupaoPage,
+    isJobCardCollectionPage: isYupaoJobCardCollectionPage,
     snapshotSettleMilliseconds: yupaoSnapshotSettleMilliseconds,
   },
 } as const satisfies Record<PlatformId, RecruitingPlatformAdapter>;
@@ -253,10 +275,17 @@ export function requireJobCardExtraction(url: string): {
   platformId: PlatformId;
 } {
   const adapter = requireRecruitingPlatformAdapter(url);
+  if (!adapter.isJobCardCollectionPage(url)) {
+    throw new Error("当前页面由岗位跟进采集器负责，不属于岗位卡片采集范围。");
+  }
   return {
     extraction: adapter.jobCardExtraction,
     platformId: adapter.platformId,
   };
+}
+
+export function isJobCardCollectionPage(url: string): boolean {
+  return findRecruitingPlatformAdapter(url)?.isJobCardCollectionPage(url) ?? false;
 }
 
 export function assertPlatformNavigationUrl(platformId: PlatformId, url: string): void {
