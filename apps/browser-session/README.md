@@ -27,51 +27,38 @@ verification, or other account actions.
 inside BOSS直聘 or 鱼泡直聘's supported HTTPS navigation scope and returns bounded, deduplicated
 job-card evidence already present in that document without navigating, scrolling, clicking,
 opening details, or persisting jobs. A page with no recognizable cards returns an empty card
-collection; an engagement-owned page is rejected instead. Workspace Service owns the selected
-intent and its platform recommendation seed pages; the agent compares that context with live page
-evidence when judging relevance.
+collection; a personal-center engagement page is rejected instead. Workspace Service owns the
+selected intent and its platform recommendation pages; the agent compares that context with live
+page evidence and explicitly navigates when the user requests research.
 
-A passive collector reuses this bounded reader. It reads the selected job-search intent from
-Workspace Service and maintains an associated tab for each recommendation seed. It first adopts an
-already-open exact URL or creates a tab for the seed. While that tab remains open, the association
-survives login, verification, and canonical redirects, so later passes do not repeatedly open the
-requested URL or replace the redirected page. Other tabs remain untouched.
-
-The collector then observes eligible open supported-platform tabs immediately and every 30 seconds
-and submits every recognizable card currently loaded in those documents to Workspace Service
-without scrolling, clicking, or opening details. Engagement-owned pages are left to the separate
-collector described below. Outside that platform-specific ownership boundary, a tab's seed
-association and semantic relevance do not suppress recognizable cards. A document with no
-recognizable cards produces no job observations. This captures related search results and other
-discovery surfaces reached during directed research instead of treating the recommendation feed
-as the storage boundary.
-
-Without a selected intent, passive collection still observes eligible supported-platform tabs
-that are already open, but it does not open recommendation seed pages. A selected intent supplies
-those seeds; it does not limit which eligible open tabs can contribute cards. Repeated
+The passive collector observes eligible open supported-platform tabs immediately and every 30
+seconds and submits every recognizable card currently loaded in those documents to Workspace
+Service without navigating, scrolling, clicking, opening tabs, or opening details. Personal-center
+pages are excluded. A document with no recognizable cards produces no job observations. Repeated
 observations let Workspace Service skip unchanged records and update facts when visible cards
-change; no agent call is required. A page that closes or navigates during its bounded read is
-reported and skipped without discarding jobs collected from other tabs. A Workspace Service write
-failure stops the current pass and is retried on the next pass. The same bounded DOM pass refreshes
-any conclusive platform-access evidence.
+change. A page that closes or navigates during its bounded read is reported and skipped without
+discarding jobs collected from other tabs. A Workspace Service write failure stops the current pass
+and is retried on the next pass. The same bounded DOM pass refreshes any conclusive platform-access
+evidence. Because the collector never creates or navigates a page, recommendation-page research
+remains an explicit user-delegated agent action.
 
-## Job engagement collection
+## Explicit job-engagement synchronization
 
-Browser Session independently observes each platform's personal-center categories for interested,
-contacted, applied, and interviewed jobs. These category memberships become engagement evidence;
-the collector does not infer them from messages. One managed tab per platform rotates through the
-categories every 30 seconds. Its platform association survives redirects, preventing repeated login
-or verification tabs, and remains unchanged during user handoff. After the user returns control,
-the collector may reuse that tab to retry category navigation. This collection does not depend on a
-selected search intent and never performs the recruiting action represented by a category.
+`browser_sync_job_engagement` is the explicit, one-shot synchronization boundary for interested,
+contacted, applied, and interviewed jobs. It is called by the agent only as part of a user-requested
+task. Each call opens or reuses one platform tab, selects and brings it to the foreground, navigates
+to one requested category, reads at most one page, and writes that evidence to Workspace Service
+with agent attribution. Browser Session does not schedule this tool, rotate categories in the
+background, or use personal-center navigation as session keepalive. The category evidence does not
+imply that Browser Session performed the recruiting action represented by the category.
 
-BOSS category lists may be paginated. The collector advances one category page per rotation,
-persists each partial page, and accumulates an in-memory scan until it can submit a complete list;
-this avoids rapid visible page churn. 鱼泡 account cards may omit job links. When a recognized link
-is present, Browser Session preserves it and derives the stable external job ID; otherwise the
-snapshot retains the visible job facts. A complete `interested` snapshot may remove relations no
-longer present. The `contacted`, `applied`, and `interviewed` relations preserve historical
-observations even when a later platform list omits them.
+BOSS category lists may be paginated. A call persists one partial page and retains its bounded
+in-memory scan; if the result is incomplete, the agent may inspect the visible page and call the
+same platform and category again to advance one page. 鱼泡 account cards may omit job links. When a
+recognized link is present, Browser Session preserves it and derives the stable external job ID;
+otherwise the snapshot retains the visible job facts. A complete `interested` snapshot may remove
+relations no longer present. The `contacted`, `applied`, and `interviewed` relations preserve
+historical observations even when a later platform list omits them.
 
 ## Run Browser Session
 
@@ -131,8 +118,9 @@ automatic access-assessment coverage differs:
 | 鱼泡直聘 | A bounded snapshot whose header contains the message and resume navigation followed by a non-login account identity records `authenticated`.                                                                                             |
 
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
-agent or a bounded page read already performed by the job-card or engagement collector. Browser
-Session sends no detection request and does not refresh or open a page for this purpose.
+agent or a bounded page read already performed by passive job collection or an explicit engagement
+sync. Browser Session sends no detection request and does not refresh or open a page for this
+purpose.
 `browser_snapshot` returns `platformAccessObservation`; when it is non-null, the same observation is
 already queued for the periodic Workspace Service report. A platform page loaded before monitoring
 begins is also reassessed by its owning collection cycle. The Dashboard still shows timestamped
@@ -196,8 +184,8 @@ finish during the handoff because they do not drive the browser.
 
 After the user explicitly returns control, the agent calls `browser_snapshot` with
 `userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit
-the flag. The flag resumes background page collection and authorizes recovery of personal-center
-engagement collection for the observed platform. It records returned control, not successful
+the flag. The flag resumes passive page reads and authorizes a later explicit job-engagement
+sync to reuse the observed platform tab. It records returned control, not successful
 authentication.
 
 ## Maintenance constraints
@@ -208,8 +196,9 @@ platform-specific access rules belong in that adapter; interpretation that needs
 meaning remains outside Browser Session.
 
 The platform job-link boundary owns each supported job-detail path and its stable external ID
-capture. Job-card recognition, passive submission, and engagement collection consume that same path
-contract, so a display slug or another incidental trailing segment cannot become source identity.
+capture. Job-card recognition, passive submission, and engagement synchronization consume that same
+path contract, so a display slug or another incidental trailing segment cannot become source
+identity.
 Cross-application navigation origins and destinations remain in the platform catalog; page-specific
 job-link shapes remain inside Browser Session.
 

@@ -50,6 +50,11 @@ export class BrowserTabs {
     this.#selectedPageId = tabId;
   }
 
+  public *selectPage(page: Page): RiteCoroutine<void> {
+    this.markSelected(this.#register(page));
+    yield* until(() => page.bringToFront());
+  }
+
   public requireNavigationPage(tabId: number): Page {
     const page = this.#pages.get(tabId);
     if (!page || page.isClosed()) {
@@ -173,8 +178,7 @@ export class BrowserTabs {
   }
 
   *#activate([tabId, page]: [number, Page]): RiteCoroutine<unknown> {
-    this.markSelected(tabId);
-    yield* until(() => page.bringToFront());
+    yield* this.selectPage(page);
     return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
   }
 

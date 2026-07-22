@@ -4,8 +4,10 @@ import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
+import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { PlatformAccessObserver } from "#/browser/platform-access-observer.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
+import type { BrowserToolExecutorCoordination } from "#/browser/tool-executor.js";
 
 const accountLinks = [
   ["消息", "https://www.zhipin.com/web/geek/chat"],
@@ -14,6 +16,30 @@ const accountLinks = [
 ] as const;
 const firstLocatorIndex = 0;
 const expectedActionCount = 1;
+
+function executorCoordination(
+  recordReturnedControl: (platformId: PlatformId) => void = () => null,
+): BrowserToolExecutorCoordination {
+  return {
+    recordReturnedControl,
+    synchronizeJobEngagement() {
+      expect.unreachable("此测试不应同步岗位跟进");
+    },
+  };
+}
+
+function browserToolExecutor(
+  context: BrowserContext,
+  coordination: BrowserToolExecutorCoordination = executorCoordination(),
+  observePageAccess: typeof PlatformAccessObserver.prototype.observePage = () => null,
+): BrowserToolExecutor {
+  return new BrowserToolExecutor(
+    new BrowserTabs(context),
+    observePageAccess,
+    new BackgroundCollectionControl(),
+    coordination,
+  );
+}
 
 function fakeAuthenticatedBossPage(): Page {
   const locator = {
@@ -129,11 +155,8 @@ function fakeActionPage(element: { href?: string; name: string; role: string }) 
 test("returns and queues an adapter-owned access observation with a bounded snapshot", async () => {
   const context = fakeContext(fakeAuthenticatedBossPage());
   const observer = new PlatformAccessObserver(context);
-  const executor = new BrowserToolExecutor(
-    context,
-    (page) => observer.observePage(page),
-    new BackgroundCollectionControl(),
-    () => null,
+  const executor = browserToolExecutor(context, executorCoordination(), (page) =>
+    observer.observePage(page),
   );
   await using scope = createScope();
 
@@ -159,11 +182,9 @@ test("returns and queues an adapter-owned access observation with a bounded snap
 test("ignores returned-control declarations when no user handoff is active", async () => {
   const context = fakeContext(fakeAuthenticatedBossPage());
   const returnedControlPlatforms: PlatformId[] = [];
-  const executor = new BrowserToolExecutor(
+  const executor = browserToolExecutor(
     context,
-    () => null,
-    new BackgroundCollectionControl(),
-    (platformId) => returnedControlPlatforms.push(platformId),
+    executorCoordination((platformId) => returnedControlPlatforms.push(platformId)),
   );
   await using scope = createScope();
 
@@ -177,11 +198,8 @@ test("ignores returned-control declarations when no user handoff is active", asy
 test("refreshes platform access evidence while reading job cards", async () => {
   const context = fakeContext(fakeAuthenticatedYupaoJobCardPage());
   const observer = new PlatformAccessObserver(context);
-  const executor = new BrowserToolExecutor(
-    context,
-    (page) => observer.observePage(page),
-    new BackgroundCollectionControl(),
-    () => null,
+  const executor = browserToolExecutor(context, executorCoordination(), (page) =>
+    observer.observePage(page),
   );
   await using scope = createScope();
 
@@ -196,18 +214,36 @@ test("refreshes platform access evidence while reading job cards", async () => {
   ]);
 });
 
+test("forwards explicit job-engagement synchronization and expires page references", async () => {
+  const context = fakeContext(fakeAuthenticatedBossPage());
+  const requests: { engagement: string; platformId: string }[] = [];
+  const executor = browserToolExecutor(context, {
+    recordReturnedControl: () => null,
+    *synchronizeJobEngagement(platformId, engagement) {
+      yield* [];
+      requests.push({ engagement, platformId });
+    },
+  });
+  await using scope = createScope();
+
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  await scope.run(() =>
+    executor.execute("browser_sync_job_engagement", {
+      engagement: "interested",
+      platformId: "boss",
+    }),
+  );
+  expect(requests).toEqual([{ engagement: "interested", platformId: "boss" }]);
+  expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(/不存在/u);
+});
+
 test("clicks a same-platform link through its captured element", async () => {
   const fake = fakeActionPage({
     href: "https://www.zhipin.com/job_detail/example.html",
     name: "查看职位",
     role: "link",
   });
-  const executor = new BrowserToolExecutor(
-    fakeContext(fake.page),
-    () => null,
-    new BackgroundCollectionControl(),
-    () => null,
-  );
+  const executor = browserToolExecutor(fakeContext(fake.page));
   await using scope = createScope();
 
   await scope.run(() => executor.execute("browser_snapshot", {}));
@@ -221,12 +257,7 @@ test("fills a captured text control without classifying its business purpose", a
     name: "筛选条件",
     role: "textbox",
   });
-  const executor = new BrowserToolExecutor(
-    fakeContext(input.page),
-    () => null,
-    new BackgroundCollectionControl(),
-    () => null,
-  );
+  const executor = browserToolExecutor(fakeContext(input.page));
   await using scope = createScope();
   await scope.run(() => executor.execute("browser_snapshot", {}));
   await scope.run(() => executor.execute("browser_fill", { ref: "e1", value: "Node.js" }));
@@ -238,12 +269,7 @@ test("clicks a captured page button without classifying its business purpose", a
     name: "展开筛选",
     role: "button",
   });
-  const executor = new BrowserToolExecutor(
-    fakeContext(button.page),
-    () => null,
-    new BackgroundCollectionControl(),
-    () => null,
-  );
+  const executor = browserToolExecutor(fakeContext(button.page));
   await using scope = createScope();
   await scope.run(() => executor.execute("browser_snapshot", {}));
   await scope.run(() => executor.execute("browser_click", { ref: "e1" }));
@@ -255,12 +281,7 @@ test("selects an option in a captured selection control", async () => {
     name: "经验要求",
     role: "combobox",
   });
-  const executor = new BrowserToolExecutor(
-    fakeContext(select.page),
-    () => null,
-    new BackgroundCollectionControl(),
-    () => null,
-  );
+  const executor = browserToolExecutor(fakeContext(select.page));
   await using scope = createScope();
   await scope.run(() => executor.execute("browser_snapshot", {}));
   await scope.run(() => executor.execute("browser_select", { ref: "e1", value: "3-5年" }));

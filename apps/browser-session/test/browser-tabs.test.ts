@@ -11,12 +11,14 @@ import {
 import { BrowserTabs, readNavigationPageSummary } from "#/browser/browser-tabs.js";
 
 interface FakePage {
+  activationCount: number;
   navigationCount: number;
   page: Page;
   url: string;
 }
 
 const firstNavigationCount = 1;
+const firstActivationCount = 1;
 const bossLoginUrl = resolvePlatformWebUrl("boss", "login");
 const yupaoLoginUrl = resolvePlatformWebUrl("yupao", "login");
 // eslint-disable-next-line no-script-url
@@ -24,12 +26,16 @@ const scriptControlHref = "javascript:;";
 
 function fakePage(initialUrl: string, title = "Jobs"): FakePage {
   const state: FakePage = {
+    activationCount: 0,
     navigationCount: 0,
     page: null as unknown as Page,
     url: initialUrl,
   };
   state.page = {
-    bringToFront: () => Promise.resolve(),
+    bringToFront: () => {
+      state.activationCount += 1;
+      return Promise.resolve();
+    },
     goto: (url: string) => {
       state.navigationCount += 1;
       state.url = url;
@@ -149,6 +155,20 @@ test("requires a supported platform when ensuring a tab", () => {
   const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
 
   expect(() => tabs.executeAction({ action: "ensure" }).next()).toThrow(/platformId/u);
+});
+
+test("selects an externally managed page through the shared tab owner", async () => {
+  const fake = fakePage("https://www.zhipin.com/web/geek/recommend");
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+  await using scope = createScope();
+
+  await scope.run(() => tabs.selectPage(fake.page));
+  const result = await scope.run(() => tabs.executeAction({ action: "list" }));
+
+  expect(fake.activationCount).toBe(firstActivationCount);
+  expect(result).toEqual({
+    tabs: [expect.objectContaining({ active: true, platformId: "boss" })],
+  });
 });
 
 test("prepares the configured login interface in the existing platform tab", async () => {

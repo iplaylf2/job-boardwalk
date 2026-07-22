@@ -39,13 +39,12 @@ Available now:
 - Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
   with platform-specific navigation and access-assessment rules behind adapters. It can also take a
   bounded, structured snapshot of job cards already loaded on an eligible supported-platform page.
-  While a job-search intent is selected, a passive collector maintains a tab for each recommendation
-  seed and reuses that tab if its navigation redirects. The collector submits recognizable cards
-  from every eligible open platform tab; the selected intent does not restrict which eligible tabs
-  may contribute jobs, and already-open eligible tabs remain observable without a selected intent.
-  A separate collector owns the platform categories for interested, contacted, applied, and
-  interviewed jobs. It uses platform routes and page structure rather than message interpretation,
-  and it never performs the actions represented by those categories.
+  A passive collector submits recognizable cards from eligible platform tabs that are already open;
+  it never opens or navigates a recommendation page. The selected job-search intent supplies
+  research context for explicit agent navigation, not a background browsing schedule. Interested,
+  contacted, applied, and interviewed lists are synchronized one platform, category, and page at a
+  time only within a user-requested agent task. Browser Session does not rotate those lists or use
+  personal-center navigation to keep a session active.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
   sources, and Markdown research reports. It skips unchanged observations and merges confident

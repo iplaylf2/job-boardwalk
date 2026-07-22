@@ -50,9 +50,10 @@ browser profiles, authentication cookies, or desktop windows.
 The **Dashboard** is an independent view of durable workspace data and leased Browser Session
 presence. It also lets the user maintain personal context and a collection of job-search intents.
 At most one intent is selected as the current research direction; it supplies platform
-recommendation seed pages to passive collection. Each intent associates a target position and city
-with those pages. Dashboard also presents unexpired research reports as workspace documents. It
-neither controls the browser nor requires an active agent conversation.
+recommendation pages that the agent may visit during user-requested research. Each intent
+associates a target position and city with those pages. Dashboard also presents unexpired research
+reports as workspace documents. It neither controls the browser nor requires an active agent
+conversation.
 
 The **agent** coordinates the two service boundaries and owns the human-handoff state in its
 conversation with the user. Browser tools produce live evidence; workspace tools preserve the
@@ -84,19 +85,16 @@ unrestricted page text.
 
 Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It reads
 eligible pages inside a supported recruiting platform's navigation boundary without navigating,
-scrolling, opening details, or persisting results. Pages owned by engagement collection are
-rejected rather than reported as empty job-card pages. Browser Session owns this page read, but it
+scrolling, opening details, or persisting results. Personal-center engagement pages are rejected
+rather than reported as empty job-card pages. Browser Session owns this page read, but it
 does not own the selected intent, semantic relevance judgments, or durable job observations.
 
 Passive collection observes recognizable job cards from open supported-platform tabs, except for
-pages owned by engagement collection. This ownership boundary prevents recruiter activity,
+personal-center engagement pages. This ownership boundary prevents recruiter activity,
 account navigation, and other adjacent links from being reinterpreted as discovery cards. A
-selected job-search intent supplies recommendation seeds for which Browser Session maintains
-associated tabs. If a seed navigation redirects, the association remains with that tab so the
-collector does not repeatedly open the requested URL or replace what the user can see. Seed
-associations control tab provisioning; they are not a whitelist of discovery pages eligible for
-collection. Without a selected intent, the collector opens no seed tabs but continues to observe
-eligible tabs that are already open.
+selected job-search intent supplies recommendation pages as agent research context, but the
+collector never opens or navigates a tab for them. Browser navigation remains an explicit action in
+a user-requested research task.
 
 Every recognizable card on an eligible page contributes an observation regardless of which seed,
 search path, or other research action led to it. A page with no recognizable cards contributes no
@@ -106,9 +104,9 @@ tab and does not discard observations from other tabs.
 
 Browser Session recognizes job-detail links through one platform-specific path contract and uses
 the same match to derive a stable external job ID when the platform exposes one. Identifier
-segments, rather than separate human-readable trailing slugs, define that ID. Card collection and
-engagement collection therefore retain the same source identity when a platform changes display
-text without changing the underlying job.
+segments, rather than separate human-readable trailing slugs, define that ID. Job-card observations
+and engagement synchronization therefore retain the same source identity when a platform changes
+display text without changing the underlying job.
 
 Each recruiting platform exposes personal-center categories for interested, contacted, applied, or
 interviewed jobs. Job Boardwalk calls an observed membership in one of these categories a
@@ -117,11 +115,12 @@ both contacted and applied, for example. They are evidence of how the platform c
 when observed, not a reconstructed workflow status or a semantic interpretation of message prose.
 
 Browser Session maps the platform categories to `interested`, `contacted`, `applied`, and
-`interviewed`. It maintains one personal-center tab per platform, rotates through the categories at
-ordinary interactive pace, and accumulates paginated BOSS lists across collection passes. A
-redirected category tab remains associated with the platform instead of being replaced. During
-user handoff it remains untouched; after control returns, the collector may reuse it to retry the
-category navigation.
+`interviewed`. The agent explicitly requests one platform and category at a time during a
+user-requested synchronization task. The selected tab is brought to the foreground, and each call
+reads at most one page; repeated explicit calls may accumulate a paginated BOSS list. A redirected
+category tab remains associated with the platform instead of being automatically replaced or
+retried. During user handoff it remains untouched; after control returns, a later explicit call may
+reuse it.
 
 `interested` represents a reversible current classification, so a complete snapshot may remove
 relations absent from the platform list. The other engagement kinds preserve historical evidence
@@ -151,7 +150,7 @@ session used for research:
 1. When the user requests login, or visible page evidence shows that the requested workflow
    requires authentication and the current session is unauthenticated, the agent asks Browser
    Session to reuse the platform tab and open its login interface.
-2. Browser Session pauses background page collection before opening the login interface. Once the
+2. Browser Session pauses passive page reads before opening the login interface. Once the
    interface is visibly ready, the agent stops browser actions and asks the user to take over that
    window. Opening the interface prepares the handoff; it does not authorize the agent to enter or
    submit credentials or verification input.
@@ -165,11 +164,11 @@ session used for research:
 
 Only one actor drives a browser session at a time. Human takeover pauses agent input. Agent control
 resumes only after the user explicitly returns control. On that first post-handoff snapshot,
-`userReturnedControl` resumes background page collection across the browser context and allows the
-collector to resume navigation among the observed platform's personal-center engagement lists. It
-neither asserts authentication nor grants authority for account actions. The handoff governs browser
-activity; Workspace Service writes already started from previously captured evidence may finish
-while the user has browser control.
+`userReturnedControl` resumes passive page reads across the browser context and allows a later
+explicit sync to reuse the observed platform's personal-center tab. It neither asserts
+authentication nor grants authority for account actions. The handoff governs browser activity;
+Workspace Service writes already started from previously captured evidence may finish while the
+user has browser control.
 
 Browser Session keeps a dedicated persistent browser profile, stored by default in its
 operating-system user-data directory, so cookies and ordinary client state survive between service
@@ -185,8 +184,9 @@ applies the delegation boundary before acting.
 
 Platform access is an append-only observation stream. Browser Session passively observes navigation
 responses the visible browser already receives and applies deterministic adapter rules to bounded
-page reads initiated by explicit snapshots, passive job collection, or job engagement collection.
-It does not issue a detection request, refresh a page, or open a tab to check authentication. An
+page reads initiated by explicit snapshots, passive job collection, or an explicit job-engagement
+synchronization task. It does not issue a detection request, refresh a page, or open a tab to check
+authentication. An
 adapter with a conclusive navigation rule may use response success, the final URL, and the server
 redirect chain to produce one of two authentication results:
 
@@ -201,10 +201,11 @@ Missing or incomplete controls produce no conclusion. Opening a login page direc
 alone, display names alone, and cookie presence do not establish authentication.
 
 An explicit job-card snapshot reads the current eligible page without consulting Workspace
-Service. It rejects an engagement-owned page, which has a separate collection boundary. Evidence
-from a successful read may also refresh a conclusive access observation. The passive collector
-reads the selected intent and its recommendation seed pages from Workspace Service; the agent may
-read the same workspace context when explaining the current research direction.
+Service. It rejects a personal-center engagement page, which belongs to the explicit
+synchronization boundary. Evidence from a successful read may also refresh a conclusive access
+observation. The passive collector only reads eligible pages already open in the managed browser.
+Recommendation-page navigation and personal-center job-engagement synchronization are explicit
+agent actions within a user-requested task; neither is scheduled as background browser activity.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page

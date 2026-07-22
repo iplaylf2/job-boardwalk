@@ -5,10 +5,10 @@ import type { RiteCoroutine } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
+import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { PassiveJobCollector } from "#/browser/passive-job-collector.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
-import type { SelectedJobSearchIntentReader } from "#/workspace-service/selected-job-search-intent-reader.js";
 
 const noCollections = 0;
 const oneCollection = 1;
@@ -116,10 +116,13 @@ test("connects login preparation and returned-control snapshots to the gate", as
   const control = new BackgroundCollectionControl();
   const returnedControlPlatforms: PlatformId[] = [];
   const executor = new BrowserToolExecutor(
-    fakeLoginContext(),
+    new BrowserTabs(fakeLoginContext()),
     () => null,
     control,
-    (platformId) => returnedControlPlatforms.push(platformId),
+    {
+      recordReturnedControl: (platformId) => returnedControlPlatforms.push(platformId),
+      synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+    },
   );
   let collectionCount = noCollections;
   await using scope = createScope();
@@ -150,10 +153,13 @@ test("reopens collection when login preparation fails", async () => {
   const control = new BackgroundCollectionControl();
   const navigationError = new Error("navigation failed");
   const executor = new BrowserToolExecutor(
-    fakeLoginContext(navigationError),
+    new BrowserTabs(fakeLoginContext(navigationError)),
     () => null,
     control,
-    () => null,
+    {
+      recordReturnedControl: () => null,
+      synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+    },
   );
   let collectionCount = noCollections;
   const failingScope = createScope();
@@ -178,19 +184,13 @@ test("does not make workspace persistence delay browser handoff", async () => {
   const control = new BackgroundCollectionControl();
   const persistence = Promise.withResolvers<true>();
   let persistenceStarted = false;
-  const reader = {
-    *read() {
-      yield* [];
-      return null;
-    },
-  } satisfies SelectedJobSearchIntentReader;
   const writer = {
     *write() {
       persistenceStarted = true;
       yield* until(() => persistence.promise);
     },
   } satisfies JobPostingWriter;
-  const collector = new PassiveJobCollector(fakeLoginContext(), reader, writer, {
+  const collector = new PassiveJobCollector(fakeLoginContext(), writer, {
     collectionControl: control,
     observePageAccess: () => null,
   });

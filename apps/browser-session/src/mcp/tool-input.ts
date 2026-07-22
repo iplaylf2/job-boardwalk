@@ -1,8 +1,9 @@
-import { platformIds } from "@job-boardwalk/platform-catalog";
+import { platformIds, platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
 
 import { toolInput } from "#/mcp/contract.js";
 
 const PlatformId = toolInput.enumerated(...platformIds);
+const JobEngagementKind = toolInput.enumerated(...platformJobEngagementKinds);
 const OptionalTabId = toolInput("number.integer >= 1");
 const ElementReference = toolInput("string > 0");
 
@@ -33,6 +34,11 @@ const BrowserSnapshotInput = toolInput({
 const BrowserJobCardSnapshotInput = toolInput({
   maximumCards: "1 <= number.integer <= 100 = 50",
   "tabId?": OptionalTabId,
+});
+
+const BrowserSyncJobEngagementInput = toolInput({
+  engagement: JobEngagementKind,
+  platformId: PlatformId,
 });
 
 const BrowserClickInput = toolInput({
@@ -69,6 +75,7 @@ export const browserToolInputContracts = {
   browser_select: BrowserSelectInput,
   browser_snapshot: BrowserSnapshotInput,
   browser_status: BrowserStatusInput,
+  browser_sync_job_engagement: BrowserSyncJobEngagementInput,
   browser_tabs: BrowserTabsInput,
   browser_wait: BrowserWaitInput,
 } as const;
