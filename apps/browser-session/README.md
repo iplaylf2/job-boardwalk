@@ -21,7 +21,7 @@ platform-specific navigation and authentication rules. A platform's HTTPS naviga
 research navigation and explicit login-handoff preparation; it does not authorize login,
 verification, or other account actions.
 
-## Job-card reads and passive collection
+## Job evidence reads and passive collection
 
 `browser_job_card_snapshot` is the structured job-card read boundary. It accepts eligible pages
 inside BOSS直聘 or 鱼泡直聘's supported HTTPS navigation scope and returns bounded, deduplicated
@@ -31,16 +31,21 @@ collection; a personal-center engagement page is rejected instead. Workspace Ser
 selected intent and its platform recommendation pages; the agent compares that context with live
 page evidence and explicitly navigates when the user requests research.
 
+`browser_job_description_snapshot` is the corresponding structured read for a supported job-detail
+page. It returns the main posting description and recognizable job facts such as title, company,
+location, and salary; recommended job cards are excluded. Its `truncated` flag means Browser
+Session reached its local text limit. It does not imply that the platform hid additional text.
+
 The passive collector observes eligible open supported-platform tabs immediately and every 30
-seconds and submits every recognizable card currently loaded in those documents to Workspace
-Service without navigating, scrolling, clicking, opening tabs, or opening details. Personal-center
-pages are excluded. A document with no recognizable cards produces no job observations. Repeated
-observations let Workspace Service skip unchanged records and update facts when visible cards
-change. A page that closes or navigates during its bounded read is reported and skipped without
-discarding jobs collected from other tabs. A Workspace Service write failure stops the current pass
-and is retried on the next pass. The same bounded DOM pass refreshes any conclusive platform-access
-evidence. Because the collector never creates or navigates a page, recommendation-page research
-remains an explicit user-delegated agent action.
+seconds. Collection pages contribute recognizable cards; detail pages contribute their main
+posting description. The collector never navigates, scrolls, clicks, or opens tabs. Personal-center
+pages are excluded. Repeated observations let Workspace Service independently skip unchanged card
+facts and description text, while a later card observation cannot erase a previously captured
+description. A page that closes or navigates during its bounded read is reported and skipped
+without discarding evidence from other tabs. A Workspace Service write failure stops that
+collection pass and is retried on the next pass. The same bounded DOM pass refreshes any conclusive
+platform-access evidence. The collector does not initiate recommendation-page or detail-page
+navigation; those remain explicit agent actions within user-delegated research.
 
 ## Explicit job-engagement synchronization
 
@@ -104,8 +109,8 @@ bounded page read. Detailed browser errors remain in the local process log. Set
 <http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
 control.
 
-Job-card submission uses the same Workspace Service URL. A failed submission is reported locally
-and retried by the next bounded collection pass without stopping browser control.
+Job-observation submission uses the same Workspace Service URL. A failed submission is reported
+locally and retried by the next bounded collection pass without stopping browser control.
 
 ### Platform adapter coverage
 

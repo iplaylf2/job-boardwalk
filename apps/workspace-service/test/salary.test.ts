@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { normalizeJobPostingSalary } from "#/job-posting/salary.js";
+import { parseJobPostingSalary } from "#/job-library/salary.js";
 
 test.each([
   [
@@ -50,10 +50,10 @@ test.each([
     },
   ],
 ])("normalizes %s without inventing a work schedule", (salaryText, expected) => {
-  expect(normalizeJobPostingSalary(salaryText)).toEqual(expected);
+  expect(parseJobPostingSalary(salaryText)).toEqual(expected);
 });
 
 test("keeps negotiated and unknown salary text unnormalized", () => {
-  expect(normalizeJobPostingSalary("面议")).toBeNull();
-  expect(normalizeJobPostingSalary("项目提成")).toBeNull();
+  expect(parseJobPostingSalary("面议")).toBeNull();
+  expect(parseJobPostingSalary("项目提成")).toBeNull();
 });

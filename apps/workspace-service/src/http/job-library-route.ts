@@ -1,21 +1,14 @@
 import type { Context, Hono } from "hono";
-import { SaveJobPostingObservationCommand } from "@job-boardwalk/contracts";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { normalizeJobPostingObservation } from "#/job-posting/observation-normalization.js";
-import {
-  defaultJobPageSize,
-  firstJobPage,
-  maximumJobPageSize,
-} from "#/job-posting/library-query.js";
-import type { JobLibraryQuery } from "#/job-posting/library-query.js";
+import { defaultJobPageSize, firstJobPage, maximumJobPageSize } from "#/job-library/query.js";
+import type { JobLibraryQuery } from "#/job-library/query.js";
 import { isPlatformId, isPlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 import type { PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 
-import { InvalidRequestError, readRequestBody, requestErrorResponse } from "./request.js";
+import { InvalidRequestError, requestErrorResponse } from "./request.js";
 
-const createdStatus = 201;
 function readJobEngagement(value: string | undefined): PlatformJobEngagementKind | null {
   if (!value) {
     return null;
@@ -77,7 +70,7 @@ function readPositiveQueryInteger(
   return parsed;
 }
 
-export function registerJobPostingRoute(
+export function registerJobLibraryRoute(
   app: Hono,
   repository: WorkspaceRepository,
   serviceScope: Scope,
@@ -87,23 +80,6 @@ export function registerJobPostingRoute(
       try {
         yield* [];
         return context.json(repository.listJobPostingPage(readJobLibraryQuery(context)));
-      } catch (error) {
-        return requestErrorResponse(error, context);
-      }
-    }),
-  );
-  app.post("/api/jobs", (context) =>
-    serviceScope.run(function* saveJobPostingObservation() {
-      try {
-        const input = yield* readRequestBody(context, SaveJobPostingObservationCommand);
-        return context.json(
-          repository.saveJobPostingObservation({
-            initiatedBy: input.initiatedBy,
-            observation: normalizeJobPostingObservation(input),
-            reason: input.reason,
-          }),
-          createdStatus,
-        );
       } catch (error) {
         return requestErrorResponse(error, context);
       }

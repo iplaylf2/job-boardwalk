@@ -7,7 +7,11 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
-import type { NormalizedSalary } from "@job-boardwalk/contracts";
+import type {
+  JobCardObservation,
+  JobDescriptionObservation,
+  JobPostingDescription,
+} from "@job-boardwalk/contracts";
 
 export const platformAccessObservations = sqliteTable(
   "platform_access_observations",
@@ -109,6 +113,7 @@ export const jobSearchIntentRecommendationPages = sqliteTable(
 export const jobPostings = sqliteTable("job_postings", {
   company: text(),
   createdAt: text("created_at").notNull(),
+  description: text({ mode: "json" }).$type<JobPostingDescription>(),
   details: text({ mode: "json" }).$type<string[]>().notNull(),
   educationRequirement: text("education_requirement"),
   experienceRequirement: text("experience_requirement"),
@@ -123,30 +128,24 @@ export const jobPostings = sqliteTable("job_postings", {
 export const jobPostingSources = sqliteTable(
   "job_posting_sources",
   {
-    collectedAt: text("collected_at").notNull(),
-    company: text(),
-    details: text({ mode: "json" }).$type<string[]>().notNull(),
-    discoveryUrl: text("discovery_url").notNull(),
-    educationRequirement: text("education_requirement"),
-    experienceRequirement: text("experience_requirement"),
-    externalJobId: text("external_job_id"),
+    cardObservation: text("card_observation", { mode: "json" }).$type<JobCardObservation>(),
+    descriptionObservation: text("description_observation", {
+      mode: "json",
+    }).$type<JobDescriptionObservation>(),
     id: integer().primaryKey({ autoIncrement: true }),
     identityKey: text("identity_key").notNull(),
     jobId: integer("job_id")
       .notNull()
       .references(() => jobPostings.id, { onDelete: "cascade" }),
-    jobUrl: text("job_url"),
     lastCheckedAt: text("last_checked_at").notNull(),
-    location: text(),
-    normalizedSalary: text("normalized_salary", { mode: "json" }).$type<NormalizedSalary>(),
     platformId: text("platform_id").notNull(),
-    salaryText: text("salary_text"),
-    sourceFingerprint: text("source_fingerprint").notNull(),
-    summary: text().notNull(),
-    title: text().notNull(),
   },
   (table) => [
     uniqueIndex("job_posting_sources_platform_identity").on(table.platformId, table.identityKey),
+    check(
+      "job_posting_sources_observation",
+      sql`${table.cardObservation} is not null or ${table.descriptionObservation} is not null`,
+    ),
   ],
 );
 

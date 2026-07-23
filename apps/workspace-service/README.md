@@ -57,7 +57,8 @@ The MCP surface provides:
 - `job-boardwalk://workspace/overview`, a resource containing Browser Session presence,
   platform-access summaries, profile facts, and job-search intents;
 - `read_workspace_overview`, which reads the same workspace state;
-- `job-boardwalk://jobs`, which exposes the first page of the current job library;
+- `job-boardwalk://jobs`, which exposes the first page of the current job library, including
+  available collected descriptions and platform sources;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
   `platformId`, and `engagement` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
@@ -81,7 +82,8 @@ The HTTP surface currently exposes:
 - `POST /api/search-intents/:id/select`
 - `DELETE /api/search-intents/:id`
 - `GET /api/jobs` (`engagement` accepts `interested`, `contacted`, `applied`, or `interviewed`)
-- `POST /api/jobs`
+- `POST /api/job-card-observations`
+- `POST /api/job-description-observations`
 - `PUT /api/job-engagements`
 - `GET /api/reports`
 - `GET /api/reports/:id`
@@ -191,13 +193,16 @@ containing `initiatedBy` and `reason`.
 
 Browser Session submits the facts exposed by job cards that are already present in a supported
 recruiting-platform page: title, company, location, salary text, detail tags, bounded card text, and
-the original links. Passive collection reads eligible supported-platform tabs that are already open;
-a selected job-search intent supplies recommendation pages as context for explicit agent research
-but never causes Workspace Service or Browser Session to open them. Personal-center engagement
-pages do not contribute through this write path; they arrive through the
+the original links. An already-open detail page also contributes its bounded main posting
+description. Passive collection reads eligible supported-platform tabs that are already open; a
+selected job-search intent supplies recommendation pages as context for explicit agent research but
+never causes Workspace Service or Browser Session to open them. Personal-center engagement pages do
+not contribute through this write path; they arrive through the
 [job engagement synchronization](#job-engagement-synchronization) boundary.
 
-`POST /api/jobs` is the service-to-service write boundary.
+`POST /api/job-card-observations` and `POST /api/job-description-observations` are the
+service-to-service write boundaries. Their request contracts describe what was actually observed;
+the service does not infer a missing description from a card submission.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`, and
 `engagement` parameters. Workspace Service applies those constraints in SQLite and returns the
@@ -210,8 +215,13 @@ platform-specific job-detail path exposes one. When that path contains separate 
 display-slug segments, the identifier becomes the preferred identity, so changing the slug does not
 split the source. Workspace Service merges a new cross-platform source only when normalized company,
 title, and location are all available and match. Partial cards remain separate to avoid false
-merges. An unchanged observation only advances the source's latest check time. The database keeps
-the current normalized result and original links, not page snapshots or match judgments.
+merges. The database keeps the current normalized result and each source's latest card and
+description observations, not HTML, page snapshots, or match judgments. The two observation types
+are updated independently, so submitting a card never clears a stored description. An unchanged
+observation advances only the source's latest check time. Description capture time and Browser
+Session's local truncation state remain part of the stored observation. See
+[Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
+evidence lifecycle.
 
 Salary normalization preserves the platform's original `salaryText` and adds a CNY amount in K
 with its source period. Monthly salary carries a month count only when the source explicitly says

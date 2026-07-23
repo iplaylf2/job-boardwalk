@@ -3,14 +3,17 @@ import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { ManagedBrowser } from "#/browser/managed-browser.js";
-import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
+import type { JobObservationWriter } from "#/workspace-service/job-observation-writer.js";
 import type { JobEngagementWriter } from "#/workspace-service/job-engagement-writer.js";
 
-const jobPostingWriter = {
-  *write() {
+const jobObservationWriter = {
+  *writeCardObservation() {
     yield* [];
   },
-} satisfies JobPostingWriter;
+  *writeDescriptionObservation() {
+    yield* [];
+  },
+} satisfies JobObservationWriter;
 const jobEngagementWriter = {
   *write(snapshot) {
     yield* [];
@@ -39,7 +42,7 @@ function fakeContext(): BrowserContext {
 test("starts unavailable without leaking profile details through status", () => {
   const browser = new ManagedBrowser(
     "/private/profile",
-    { jobEngagementWriter, jobPostingWriter },
+    { jobEngagementWriter, jobObservationWriter },
     () => Promise.resolve(fakeContext()),
   );
 
@@ -53,7 +56,7 @@ test("contains browser launch failures as unavailable tool calls", async () => {
   );
   const browser = new ManagedBrowser(
     "/private/profile",
-    { jobEngagementWriter, jobPostingWriter },
+    { jobEngagementWriter, jobObservationWriter },
     () => Promise.reject(launchError),
   );
   const reportedErrors: Error[] = [];

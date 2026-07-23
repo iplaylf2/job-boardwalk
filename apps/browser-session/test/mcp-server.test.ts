@@ -87,6 +87,7 @@ test("always exposes the project-owned Patchright browser tools", async () => {
       "browser_prepare_login",
       "browser_navigate",
       "browser_job_card_snapshot",
+      "browser_job_description_snapshot",
       "browser_sync_job_engagement",
       "browser_snapshot",
       "browser_click",

@@ -81,7 +81,7 @@ is unknown; after a lease expires, presence is offline. Reporting failure never 
 Session from operating. Status reports contain no cookies, credentials, storage contents, or
 unrestricted page text.
 
-## Job discovery and engagement tracking
+## Job discovery and evidence
 
 Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It reads
 eligible pages inside a supported recruiting platform's navigation boundary without navigating,
@@ -89,12 +89,13 @@ scrolling, opening details, or persisting results. Personal-center engagement pa
 rather than reported as empty job-card pages. Browser Session owns this page read, but it
 does not own the selected intent, semantic relevance judgments, or durable job observations.
 
-Passive collection observes recognizable job cards from open supported-platform tabs, except for
-personal-center engagement pages. This ownership boundary prevents recruiter activity,
-account navigation, and other adjacent links from being reinterpreted as discovery cards. A
-selected job-search intent supplies recommendation pages as agent research context, but the
-collector never opens or navigates a tab for them. Browser navigation remains an explicit action in
-a user-requested research task.
+It separately exposes the main posting description from a supported detail page. Card collection
+pages and detail pages are disjoint: recommendations surrounding a detail page cannot be
+reinterpreted as the main posting. Passive collection observes recognizable cards and main
+descriptions from already-open supported-platform tabs, except for personal-center engagement
+pages. A selected job-search intent supplies recommendation pages as agent research context, but
+the collector never opens or navigates a tab for them. Browser navigation remains an explicit
+action in a user-requested research task.
 
 Every recognizable card on an eligible page contributes an observation regardless of which seed,
 search path, or other research action led to it. A page with no recognizable cards contributes no
@@ -107,6 +108,22 @@ the same match to derive a stable external job ID when the platform exposes one.
 segments, rather than separate human-readable trailing slugs, define that ID. Job-card observations
 and engagement synchronization therefore retain the same source identity when a platform changes
 display text without changing the underlying job.
+
+Workspace Service turns submitted observations into a durable job library rather than a page
+archive. Each platform source stores its most recently submitted card observation and description
+observation independently; no HTML or historical page snapshot is stored. A changed observation
+replaces the previous observation of the same kind. An unchanged observation advances only the
+source check time. A card observation does not imply that the description was inspected, so it
+never clears a stored description. The description's capture time and Browser Session's local
+truncation state remain explicit. The normalized job is derived from the observations currently
+stored for its sources.
+
+Within a platform, an external job ID is the preferred source identity, followed by the job URL
+pathname and then normalized company, title, and location when a detail link is unavailable. Across
+platforms, Workspace Service merges sources only when normalized company, title, and location
+identify the same job. Partial cards without that identity remain separate.
+
+## Engagement tracking
 
 Each recruiting platform exposes personal-center categories for interested, contacted, applied, or
 interviewed jobs. Job Boardwalk calls an observed membership in one of these categories a
@@ -128,14 +145,6 @@ that the platform once included the source in that category; a later omission do
 because a platform may limit or age out personal-center history. Partial snapshots only add or
 refresh observed relations. No category establishes when the underlying action occurred or which
 resume artifact was sent.
-
-Workspace Service turns submitted observations into a durable job library rather than a page
-archive. Each platform source keeps its job and discovery links plus normalized fields; no HTML or
-historical page snapshot is stored. Within a platform, an external job ID is the preferred source
-identity, followed by the job URL pathname and then normalized company, title, and location when a
-detail link is unavailable. Across platforms, Workspace Service merges sources only when normalized
-company, title, and location identify the same job. An observation fingerprint skips unchanged
-records. Partial cards without that identity remain separate.
 
 Engagements do not create separate job collections. Removing an `interested` relation leaves the
 normalized job, its other sources, and its historical engagement evidence in the library.
@@ -186,9 +195,8 @@ Platform access is an append-only observation stream. Browser Session passively 
 responses the visible browser already receives and applies deterministic adapter rules to bounded
 page reads initiated by explicit snapshots, passive job collection, or an explicit job-engagement
 synchronization task. It does not issue a detection request, refresh a page, or open a tab to check
-authentication. An
-adapter with a conclusive navigation rule may use response success, the final URL, and the server
-redirect chain to produce one of two authentication results:
+authentication. An adapter with a conclusive navigation rule may use response success, the final
+URL, and the server redirect chain to produce one of two authentication results:
 
 - `protected-resource` records `authenticated` when a known protected navigation succeeds;
 - `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
@@ -200,12 +208,13 @@ returns the same structured observation so the agent can answer without submitti
 Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
 alone, display names alone, and cookie presence do not establish authentication.
 
-An explicit job-card snapshot reads the current eligible page without consulting Workspace
-Service. It rejects a personal-center engagement page, which belongs to the explicit
-synchronization boundary. Evidence from a successful read may also refresh a conclusive access
-observation. The passive collector only reads eligible pages already open in the managed browser.
-Recommendation-page navigation and personal-center job-engagement synchronization are explicit
-agent actions within a user-requested task; neither is scheduled as background browser activity.
+Explicit job-card and job-description snapshots read the current eligible page without consulting
+Workspace Service. A job-card snapshot rejects a personal-center engagement page, which belongs to
+the explicit synchronization boundary. Evidence from a successful read may also refresh a
+conclusive access observation. The passive collector only reads eligible pages already open in the
+managed browser. Recommendation-page navigation and personal-center job-engagement synchronization
+are explicit agent actions within a user-requested task; neither is scheduled as background browser
+activity.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page

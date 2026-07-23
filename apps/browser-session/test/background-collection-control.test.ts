@@ -6,9 +6,9 @@ import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { BrowserTabs } from "#/browser/browser-tabs.js";
-import { PassiveJobCollector } from "#/browser/passive-job-collector.js";
+import { PassiveJobObservationCollector } from "#/browser/job-observation/passive-collector.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
-import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
+import type { JobObservationWriter } from "#/workspace-service/job-observation-writer.js";
 
 const noCollections = 0;
 const oneCollection = 1;
@@ -185,12 +185,15 @@ test("does not make workspace persistence delay browser handoff", async () => {
   const persistence = Promise.withResolvers<true>();
   let persistenceStarted = false;
   const writer = {
-    *write() {
+    *writeCardObservation() {
       persistenceStarted = true;
       yield* until(() => persistence.promise);
     },
-  } satisfies JobPostingWriter;
-  const collector = new PassiveJobCollector(fakeLoginContext(), writer, {
+    *writeDescriptionObservation() {
+      yield* [];
+    },
+  } satisfies JobObservationWriter;
+  const collector = new PassiveJobObservationCollector(fakeLoginContext(), writer, {
     collectionControl: control,
     observePageAccess: () => null,
   });

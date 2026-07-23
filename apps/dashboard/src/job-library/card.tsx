@@ -70,6 +70,20 @@ function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
   );
 }
 
+function JobDescription(props: {
+  description: NonNullable<JobPosting["description"]>;
+}): JSX.Element {
+  return (
+    <details class={styles["description"]}>
+      <summary>
+        职位描述
+        {props.description.truncated ? "（采集文本已截断）" : ""}
+      </summary>
+      <p>{props.description.text}</p>
+    </details>
+  );
+}
+
 export function JobCard(props: { job: JobPosting }): JSX.Element {
   const salary = displaySalary(props.job);
   const latestEngagementAt = props.job.sources
@@ -101,6 +115,9 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
         <div class={styles["details"]}>
           <For each={props.job.details}>{(detail) => <span>{detail}</span>}</For>
         </div>
+      </Show>
+      <Show when={props.job.description}>
+        {(description) => <JobDescription description={description()} />}
       </Show>
       <footer>
         <JobSourceLinks job={props.job} />

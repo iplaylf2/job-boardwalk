@@ -7,7 +7,8 @@ import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-pr
 import { registerBrowserSessionStatusRoute } from "./browser-session-status-route.js";
 import { registerJobSearchIntentRoute } from "./job-search-intent-route.js";
 import { registerJobEngagementRoute } from "./job-engagement-route.js";
-import { registerJobPostingRoute } from "./job-posting-route.js";
+import { registerJobLibraryRoute } from "./job-library-route.js";
+import { registerJobObservationRoute } from "./job-observation-route.js";
 import { registerPlatformAccessObservationRoute } from "./platform-access-observation-route.js";
 import { registerProfileFactRoute } from "./profile-fact-route.js";
 import { registerResearchReportRoute } from "./research-report-route.js";
@@ -25,6 +26,7 @@ export function registerApiRoutes(
   registerProfileFactRoute(app, repository, serviceScope);
   registerResearchReportRoute(app, repository, serviceScope);
   registerJobSearchIntentRoute(app, repository, serviceScope);
-  registerJobPostingRoute(app, repository, serviceScope);
+  registerJobLibraryRoute(app, repository, serviceScope);
+  registerJobObservationRoute(app, repository, serviceScope);
   registerJobEngagementRoute(app, repository, serviceScope);
 }

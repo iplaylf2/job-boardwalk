@@ -2,6 +2,7 @@
 export * from "./browser-session.ts";
 export * from "./job-engagement.ts";
 export * from "./job-card-snapshot.ts";
+export * from "./job-observation.ts";
 export * from "./job-posting.ts";
 export * from "./platform-access.ts";
 export * from "./profile.ts";

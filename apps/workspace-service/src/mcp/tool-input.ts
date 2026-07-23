@@ -1,12 +1,8 @@
 import { platformIds, platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
 import { SaveResearchReportCommand } from "@job-boardwalk/contracts";
 
-import {
-  defaultJobPageSize,
-  firstJobPage,
-  maximumJobPageSize,
-} from "#/job-posting/library-query.js";
-import type { JobLibraryQuery } from "#/job-posting/library-query.js";
+import { defaultJobPageSize, firstJobPage, maximumJobPageSize } from "#/job-library/query.js";
+import type { JobLibraryQuery } from "#/job-library/query.js";
 import { toolInput } from "#/mcp/contract.js";
 
 const PlatformId = toolInput.enumerated(...platformIds);

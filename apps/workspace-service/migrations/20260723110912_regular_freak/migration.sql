@@ -1,29 +1,19 @@
 CREATE TABLE `job_posting_sources` (
-	`collected_at` text NOT NULL,
-	`company` text,
-	`details` text NOT NULL,
-	`discovery_url` text NOT NULL,
-	`education_requirement` text,
-	`experience_requirement` text,
-	`external_job_id` text,
+	`card_observation` text,
+	`description_observation` text,
 	`id` integer PRIMARY KEY AUTOINCREMENT,
 	`identity_key` text NOT NULL,
 	`job_id` integer NOT NULL,
-	`job_url` text,
 	`last_checked_at` text NOT NULL,
-	`location` text,
-	`normalized_salary` text,
 	`platform_id` text NOT NULL,
-	`salary_text` text,
-	`source_fingerprint` text NOT NULL,
-	`summary` text NOT NULL,
-	`title` text NOT NULL,
-	CONSTRAINT `fk_job_posting_sources_job_id_job_postings_id_fk` FOREIGN KEY (`job_id`) REFERENCES `job_postings`(`id`) ON DELETE CASCADE
+	CONSTRAINT `fk_job_posting_sources_job_id_job_postings_id_fk` FOREIGN KEY (`job_id`) REFERENCES `job_postings`(`id`) ON DELETE CASCADE,
+	CONSTRAINT "job_posting_sources_observation" CHECK("card_observation" is not null or "description_observation" is not null)
 );
 --> statement-breakpoint
 CREATE TABLE `job_postings` (
 	`company` text,
 	`created_at` text NOT NULL,
+	`description` text,
 	`details` text NOT NULL,
 	`education_requirement` text,
 	`experience_requirement` text,

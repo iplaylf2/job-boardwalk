@@ -36,6 +36,10 @@ const BrowserJobCardSnapshotInput = toolInput({
   "tabId?": OptionalTabId,
 });
 
+const BrowserJobDescriptionSnapshotInput = toolInput({
+  "tabId?": OptionalTabId,
+});
+
 const BrowserSyncJobEngagementInput = toolInput({
   engagement: JobEngagementKind,
   platformId: PlatformId,
@@ -69,6 +73,7 @@ export const browserToolInputContracts = {
   browser_click: BrowserClickInput,
   browser_fill: BrowserFillInput,
   browser_job_card_snapshot: BrowserJobCardSnapshotInput,
+  browser_job_description_snapshot: BrowserJobDescriptionSnapshotInput,
   browser_navigate: BrowserNavigateInput,
   browser_prepare_login: BrowserPrepareLoginInput,
   browser_scroll: BrowserScrollInput,

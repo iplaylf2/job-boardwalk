@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { expect, test } from "vitest";
-import type { JobPostingObservation } from "@job-boardwalk/contracts";
+import type { JobCardObservation } from "@job-boardwalk/contracts";
 
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
@@ -14,19 +14,19 @@ const emptyCount = 0;
 const firstPage = 1;
 const singleJob = 1;
 const twoJobs = 2;
-function jobPostingObservation(
+function jobCardObservation(
   platformId: "boss" | "yupao",
   overrides: Partial<{
     company: string | null;
     externalJobId: string;
     jobUrl: string;
-    collectedAt: string;
+    observedAt: string;
     location: string | null;
     title: string;
   }> = {},
-): JobPostingObservation {
+): JobCardObservation {
   return {
-    collectedAt: overrides.collectedAt ?? "2026-07-17T10:00:00.000Z",
+    observedAt: overrides.observedAt ?? "2026-07-17T10:00:00.000Z",
     ...(overrides.company === null ? {} : { company: overrides.company ?? "示例科技甲有限公司" }),
     details: ["Node.js", "TypeScript"],
     discoveryUrl:
@@ -171,18 +171,18 @@ test("merges high-confidence postings and skips unchanged page observations", as
   });
 
   try {
-    const firstSave = repository.saveJobPostingObservation({
+    const firstSave = repository.saveJobCardObservation({
       initiatedBy: "system",
-      observation: jobPostingObservation("boss", { externalJobId: "boss-123" }),
+      observation: jobCardObservation("boss", { externalJobId: "boss-123" }),
       reason: "test",
     });
     expect(firstSave.outcome).toBe("created");
 
-    const secondSource = repository.saveJobPostingObservation({
+    const secondSource = repository.saveJobCardObservation({
       initiatedBy: "system",
-      observation: jobPostingObservation("yupao", {
-        collectedAt: "2026-07-17T10:10:00.000Z",
+      observation: jobCardObservation("yupao", {
         company: "示例科技甲",
+        observedAt: "2026-07-17T10:10:00.000Z",
         title: "【急聘】后端开发",
       }),
       reason: "test",
@@ -192,16 +192,81 @@ test("merges high-confidence postings and skips unchanged page observations", as
       outcome: "source-added",
     });
     expect(
-      repository.saveJobPostingObservation({
+      repository.saveJobCardObservation({
         initiatedBy: "system",
-        observation: jobPostingObservation("boss", {
-          collectedAt: "2026-07-17T11:00:00.000Z",
+        observation: jobCardObservation("boss", {
           externalJobId: "boss-123",
           jobUrl: "https://www.zhipin.com/job_detail/example.html?from=recommend",
+          observedAt: "2026-07-17T11:00:00.000Z",
         }),
         reason: "test",
       }).outcome,
     ).toBe("unchanged");
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("retains enriched descriptions across later card observations", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    const card = jobCardObservation("boss", { externalJobId: "progressive-123" });
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: card,
+      reason: "test card observation",
+    });
+    const enriched = repository.saveJobDescriptionObservation({
+      initiatedBy: "system",
+      observation: {
+        company: "示例科技甲有限公司",
+        description: {
+          capturedAt: "2026-07-23T10:00:00.000Z",
+          text: "工作职责\n建设合成测试平台。\n任职要求\n熟悉 TypeScript。",
+          truncated: false,
+        },
+        details: ["TypeScript"],
+        educationRequirement: "本科",
+        externalJobId: "progressive-123",
+        jobUrl: "https://www.zhipin.com/job_detail/example.html",
+        location: "北京",
+        observedAt: "2026-07-23T10:00:00.000Z",
+        platformId: "boss",
+        title: "后端开发",
+      },
+      reason: "test detail observation",
+    });
+    expect(enriched).toMatchObject({
+      job: {
+        description: { truncated: false },
+        educationRequirement: "本科",
+        sources: [{ description: { text: expect.stringContaining("合成测试平台") } }],
+      },
+      outcome: "source-updated",
+    });
+
+    const refreshed = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: {
+        ...card,
+        observedAt: "2026-07-23T11:00:00.000Z",
+        salaryText: "22-32K",
+      },
+      reason: "test changed later card observation",
+    });
+    expect(refreshed).toMatchObject({
+      job: {
+        description: { text: expect.stringContaining("合成测试平台") },
+        sources: [{ description: { truncated: false } }],
+      },
+      outcome: "source-updated",
+    });
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -216,14 +281,14 @@ test("binds combined platform and engagement filters to the same source", async 
   });
 
   try {
-    repository.saveJobPostingObservation({
+    repository.saveJobCardObservation({
       initiatedBy: "system",
-      observation: jobPostingObservation("boss", { externalJobId: "boss-applied" }),
+      observation: jobCardObservation("boss", { externalJobId: "boss-applied" }),
       reason: "test",
     });
-    repository.saveJobPostingObservation({
+    repository.saveJobCardObservation({
       initiatedBy: "system",
-      observation: jobPostingObservation("yupao"),
+      observation: jobCardObservation("yupao"),
       reason: "test",
     });
     repository.synchronizeJobEngagement({
@@ -282,9 +347,9 @@ test("keeps partial cross-platform cards separate", async () => {
 
   try {
     for (const platformId of ["boss", "yupao"] as const) {
-      repository.saveJobPostingObservation({
+      repository.saveJobCardObservation({
         initiatedBy: "system",
-        observation: jobPostingObservation(platformId, { company: null, location: null }),
+        observation: jobCardObservation(platformId, { company: null, location: null }),
         reason: "test",
       });
     }

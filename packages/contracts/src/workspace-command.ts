@@ -4,7 +4,7 @@ import {
   normalizedTimestamp,
   trimmedNonEmptyString,
 } from "./internal/contract-fields.ts";
-import { JobPostingObservation } from "./job-posting.ts";
+import { JobCardObservation, JobDescriptionObservation } from "./job-observation.ts";
 import { JobEngagementSnapshot } from "./job-engagement.ts";
 import { ResearchReportMarkdown, ResearchReportState } from "./research-report.ts";
 import { RecommendationPageReference } from "./search-intent.ts";
@@ -39,12 +39,18 @@ export const SaveJobSearchIntentCommand = WorkspaceChangeAttribution.merge({
 });
 export type SaveJobSearchIntentCommand = typeof SaveJobSearchIntentCommand.infer;
 
-export const SaveJobPostingObservationCommand = JobPostingObservation.merge(
+export const SaveJobCardObservationCommand = JobCardObservation.merge(
   WorkspaceChangeAttribution,
 ).merge({
   jobUrl: trimmedNonEmptyString,
 });
-export type SaveJobPostingObservationCommand = typeof SaveJobPostingObservationCommand.infer;
+export type SaveJobCardObservationCommand = typeof SaveJobCardObservationCommand.infer;
+
+export const SaveJobDescriptionObservationCommand = JobDescriptionObservation.merge(
+  WorkspaceChangeAttribution,
+);
+export type SaveJobDescriptionObservationCommand =
+  typeof SaveJobDescriptionObservationCommand.infer;
 
 export const SynchronizeJobEngagementCommand = JobEngagementSnapshot.merge(
   WorkspaceChangeAttribution,

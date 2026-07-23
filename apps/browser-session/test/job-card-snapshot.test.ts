@@ -1,8 +1,8 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { runInNewContext } from "node:vm";
 
-import { captureJobCardMetadata } from "#/browser/job-card-snapshot.js";
-import { requireJobCardExtraction } from "#/browser/recruiting-platform-adapters.js";
+import { captureJobCardMetadata } from "#/browser/job-observation/card-snapshot.js";
+import { requireJobCardExtractionConfig } from "#/browser/recruiting-platform-adapters.js";
 
 const singleCard = 1;
 
@@ -93,7 +93,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("does not promote a BOSS detail-panel link to a surrounding list container", () => {
+test("does not treat a BOSS detail-panel link as a surrounding job card", () => {
   const surroundingList = jobCardContainer(
     {
       ".job-name": "被错误借用的标题",
@@ -119,7 +119,7 @@ test("does not promote a BOSS detail-panel link to a surrounding list container"
 
   const metadata = captureJobCardMetadata({
     accessTextCharacters: 5000,
-    config: requireJobCardExtraction("https://www.zhipin.com/web/geek/jobs").extraction,
+    config: requireJobCardExtractionConfig("https://www.zhipin.com/web/geek/jobs").config,
     maximumAccessElements: 300,
     maximumCardTextCharacters: 1500,
     maximumCards: 50,
@@ -156,7 +156,7 @@ test("deduplicates BOSS job links by stable external id instead of the full URL"
 
   const metadata = captureJobCardMetadata({
     accessTextCharacters: 5000,
-    config: requireJobCardExtraction("https://www.zhipin.com/web/geek/jobs").extraction,
+    config: requireJobCardExtractionConfig("https://www.zhipin.com/web/geek/jobs").config,
     maximumAccessElements: 300,
     maximumCardTextCharacters: 1500,
     maximumCards: 50,
@@ -180,7 +180,7 @@ test("extracts bounded, deduplicated evidence only from same-origin job cards", 
 
   const metadata = captureJobCardMetadata({
     accessTextCharacters: 5000,
-    config: requireJobCardExtraction("https://www.zhipin.com/web/geek/job-recommend").extraction,
+    config: requireJobCardExtractionConfig("https://www.zhipin.com/web/geek/job-recommend").config,
     maximumAccessElements: 300,
     maximumCardTextCharacters: 1500,
     maximumCards: 1,
@@ -204,7 +204,7 @@ test("extracts bounded, deduplicated evidence only from same-origin job cards", 
 test("executes the serialized page callback without Node-side helpers", () => {
   const input = {
     accessTextCharacters: 5000,
-    config: requireJobCardExtraction("https://www.zhipin.com/web/geek/job-recommend").extraction,
+    config: requireJobCardExtractionConfig("https://www.zhipin.com/web/geek/job-recommend").config,
     maximumAccessElements: 300,
     maximumCardTextCharacters: 1500,
     maximumCards: 50,
@@ -244,7 +244,7 @@ test("excludes Yupao's more-information entry from job evidence", () => {
 
   const metadata = captureJobCardMetadata({
     accessTextCharacters: 5000,
-    config: requireJobCardExtraction("https://www.yupao.com/topic/a2c1488/").extraction,
+    config: requireJobCardExtractionConfig("https://www.yupao.com/topic/a2c1488/").config,
     maximumAccessElements: 300,
     maximumCardTextCharacters: 1500,
     maximumCards: 50,

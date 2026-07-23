@@ -1,28 +1,37 @@
 import type { BrowserContext, Page } from "patchright";
-import type { JobPostingObservation, JobCardSnapshot } from "@job-boardwalk/contracts";
+import type {
+  JobCardObservation,
+  JobDescriptionObservation,
+  JobCardSnapshot,
+} from "@job-boardwalk/contracts";
 import { CanceledError, ScopeError, sleep } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
-import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
-import type { BackgroundCollectionControl } from "./background-collection-control.js";
-import { captureJobCardSnapshot } from "./job-card-snapshot.js";
-import { extractExternalJobId } from "./platform-job-links.js";
-import { isJobCardCollectionPage } from "./recruiting-platform-adapters.js";
-import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import type { JobObservationWriter } from "#/workspace-service/job-observation-writer.js";
+import type { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
+import { extractExternalJobId } from "#/browser/platform-job-links.js";
+import {
+  isJobCardCollectionPage,
+  isJobDetailPage,
+} from "#/browser/recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
+import { captureJobCardSnapshot } from "./card-snapshot.js";
+import { captureJobDescriptionObservation } from "./description-observation.js";
 
 const collectionIntervalMilliseconds = 30_000;
 const maximumCardsPerPage = 100;
+type CapturedJobEvidence = JobCardSnapshot | JobDescriptionObservation;
 
-interface PassiveJobCollectionCoordination {
+interface PassiveJobObservationCollectionCoordination {
   readonly collectionControl: BackgroundCollectionControl;
   readonly observePageAccess: (page: PageAccessFacts) => void;
 }
 
-export function jobPostingObservations(snapshot: JobCardSnapshot): JobPostingObservation[] {
+export function observationsFromJobCardSnapshot(snapshot: JobCardSnapshot): JobCardObservation[] {
   return snapshot.cards.map((card) => {
     const sourceId = extractExternalJobId(snapshot.platformId, card.href);
     return {
-      collectedAt: snapshot.capturedAt,
+      observedAt: snapshot.capturedAt,
       ...(card.company ? { company: card.company } : {}),
       details: card.details,
       discoveryUrl: snapshot.sourceUrl,
@@ -39,16 +48,16 @@ export function jobPostingObservations(snapshot: JobCardSnapshot): JobPostingObs
   });
 }
 
-export class PassiveJobCollector {
+export class PassiveJobObservationCollector {
   readonly #context: BrowserContext;
   readonly #collectionControl: BackgroundCollectionControl;
   readonly #observePageAccess: (page: PageAccessFacts) => void;
-  readonly #writer: JobPostingWriter;
+  readonly #writer: JobObservationWriter;
 
   public constructor(
     context: BrowserContext,
-    writer: JobPostingWriter,
-    coordination: PassiveJobCollectionCoordination,
+    writer: JobObservationWriter,
+    coordination: PassiveJobObservationCollectionCoordination,
   ) {
     this.#collectionControl = coordination.collectionControl;
     this.#context = context;
@@ -58,39 +67,47 @@ export class PassiveJobCollector {
 
   public *collect(reportError: (error: Error) => void): RiteCoroutine<void> {
     const collection = yield* this.#collectionControl.runCollection(() =>
-      this.#captureSnapshots(reportError),
+      this.#captureOpenPageEvidence(reportError),
     );
     if (!collection.started) {
       return;
     }
-    for (const snapshot of collection.value) {
-      for (const observation of jobPostingObservations(snapshot)) {
-        yield* this.#writer.write(observation);
+    for (const evidence of collection.value) {
+      if ("cards" in evidence) {
+        for (const observation of observationsFromJobCardSnapshot(evidence)) {
+          yield* this.#writer.writeCardObservation(observation);
+        }
+      } else {
+        yield* this.#writer.writeDescriptionObservation(evidence);
       }
     }
   }
 
-  *#captureSnapshots(reportError: (error: Error) => void): RiteCoroutine<JobCardSnapshot[]> {
-    const snapshots: JobCardSnapshot[] = [];
+  *#captureOpenPageEvidence(
+    reportError: (error: Error) => void,
+  ): RiteCoroutine<CapturedJobEvidence[]> {
+    const evidenceItems: CapturedJobEvidence[] = [];
     for (const page of this.#context.pages()) {
-      if (!isJobCardCollectionPage(page.url())) {
+      if (!isJobCardCollectionPage(page.url()) && !isJobDetailPage(page.url())) {
         continue;
       }
-      const snapshot = yield* this.#capturePage(page, reportError);
-      if (!snapshot) {
+      const evidence = yield* this.#capturePageEvidence(page, reportError);
+      if (!evidence) {
         continue;
       }
-      snapshots.push(snapshot);
+      evidenceItems.push(evidence);
     }
-    return snapshots;
+    return evidenceItems;
   }
 
-  *#capturePage(
+  *#capturePageEvidence(
     page: Page,
     reportError: (error: Error) => void,
-  ): RiteCoroutine<JobCardSnapshot | null> {
+  ): RiteCoroutine<CapturedJobEvidence | null> {
     try {
-      return yield* captureJobCardSnapshot(page, maximumCardsPerPage, this.#observePageAccess);
+      return isJobDetailPage(page.url())
+        ? yield* captureJobDescriptionObservation(page, this.#observePageAccess)
+        : yield* captureJobCardSnapshot(page, maximumCardsPerPage, this.#observePageAccess);
     } catch (error) {
       if (error instanceof CanceledError || error instanceof ScopeError) {
         throw error;
