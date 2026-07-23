@@ -31,6 +31,10 @@ relations, platform-access observations, and reports. Browser Session owns brows
 Dashboard reads those models from Workspace Service; it does not access SQLite, Patchright, the
 browser profile, or either service's lifecycle.
 
+When Workspace Service data cannot be loaded, Dashboard keeps the page header and primary
+navigation visible. The affected data region reports the failure instead of presenting it as an
+empty result; retryable failures offer a retry action.
+
 Saved platform observations are historical evidence rather than a guarantee of current access, so
 their observation times remain visible. Browser Session presence is a separate short-lived lease.
 Dashboard gives visual priority to an unavailable browser or an unresolved platform interruption

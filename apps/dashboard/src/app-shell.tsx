@@ -1,5 +1,4 @@
 import type { JSX } from "@solidjs/web";
-import { Show } from "solid-js";
 
 import styles from "./app-shell.module.css";
 
@@ -8,7 +7,6 @@ type ActivePage = "jobs" | "overview" | "reports";
 interface AppShellProps {
   active: ActivePage;
   children: JSX.Element;
-  jobCount?: number;
   lede: string;
   title: string;
 }
@@ -28,11 +26,6 @@ function PrimaryNavigation(props: AppShellProps): JSX.Element {
           {...(props.active === item.active ? { "aria-current": "page" as const } : {})}
         >
           {item.label}
-          {item.active === "jobs" ? (
-            <Show when={typeof props.jobCount === "number"}>
-              <span>{String(props.jobCount)}</span>
-            </Show>
-          ) : null}
         </a>
       ))}
     </nav>

@@ -56,12 +56,6 @@
   text-decoration: none;
 }
 
-.primary-navigation a span {
-  color: var(--ink-subtle);
-  font-size: var(--text-caption);
-  font-variant-numeric: tabular-nums;
-}
-
 .primary-navigation a:hover {
   color: var(--ink);
 }

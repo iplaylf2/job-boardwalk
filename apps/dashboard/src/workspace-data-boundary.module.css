@@ -1,0 +1,38 @@
+.failure {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  border: 1px solid color-mix(in oklab, var(--danger) 32%, var(--line));
+  border-radius: 14px;
+  padding: 20px 22px;
+  background: color-mix(in oklab, var(--danger-soft) 42%, var(--surface));
+}
+
+.failure h2 {
+  margin: 0;
+  color: var(--danger);
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+}
+
+.failure p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-ui);
+}
+
+.failure button {
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: var(--text-ui);
+  font-weight: 700;
+}
+
+.failure button:hover {
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}

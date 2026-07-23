@@ -8,6 +8,48 @@ import type { JobEngagementKind, RecommendationPageReference } from "@job-boardw
 
 const notFoundStatus = 404;
 
+interface WorkspaceReadErrorOptions extends ErrorOptions {
+  retryable?: boolean;
+}
+
+export class WorkspaceReadError extends Error {
+  public override name = "WorkspaceReadError";
+  public readonly retryable: boolean;
+
+  public constructor(message: string, options: WorkspaceReadErrorOptions = {}) {
+    super(message, options);
+    this.retryable = options.retryable ?? true;
+  }
+}
+
+async function fetchWorkspaceResponse(path: string, failureMessage: string): Promise<Response> {
+  try {
+    return await fetch(path);
+  } catch (error) {
+    throw new WorkspaceReadError(failureMessage, { cause: error });
+  }
+}
+
+async function readWorkspaceData<Result>(input: {
+  failureMessage: string;
+  notFoundMessage?: string;
+  parse: (value: unknown) => Result;
+  path: string;
+}): Promise<Result> {
+  const response = await fetchWorkspaceResponse(input.path, input.failureMessage);
+  if (!response.ok) {
+    if (response.status === notFoundStatus && typeof input.notFoundMessage === "string") {
+      throw new WorkspaceReadError(input.notFoundMessage, { retryable: false });
+    }
+    throw new WorkspaceReadError(input.failureMessage);
+  }
+  try {
+    return input.parse(await response.json());
+  } catch (error) {
+    throw new WorkspaceReadError(input.failureMessage, { cause: error });
+  }
+}
+
 async function requestWorkspaceChange(path: string, init: RequestInit): Promise<void> {
   const response = await fetch(path, {
     ...init,
@@ -20,15 +62,15 @@ async function requestWorkspaceChange(path: string, init: RequestInit): Promise<
   throw new Error(typeof result?.error === "string" ? result.error : "无法保存更改，请稍后再试。");
 }
 
-export async function readWorkspaceOverview(): Promise<WorkspaceOverview> {
-  const response = await fetch("/api/workspace/overview");
-  if (!response.ok) {
-    throw new Error("无法读取本机工作区。请确认工作区服务已经启动。");
-  }
-  return WorkspaceOverview.assert(await response.json());
+export function readWorkspaceOverview(): Promise<WorkspaceOverview> {
+  return readWorkspaceData({
+    failureMessage: "无法读取本机工作区。请确认工作区服务正在运行。",
+    parse: WorkspaceOverview.assert,
+    path: "/api/workspace/overview",
+  });
 }
 
-export async function readJobPostingPage(input: {
+export function readJobPostingPage(input: {
   engagement?: JobEngagementKind;
   page: number;
   pageSize: number;
@@ -42,31 +84,28 @@ export async function readJobPostingPage(input: {
     ...(input.platform ? { platform: input.platform } : {}),
     ...(input.query ? { query: input.query } : {}),
   });
-  const response = await fetch(`/api/jobs?${search.toString()}`);
-  if (!response.ok) {
-    throw new Error("无法读取岗位库。请确认工作区服务已经启动。");
-  }
-  return JobPostingPage.assert(await response.json());
+  return readWorkspaceData({
+    failureMessage: "无法读取岗位库。请确认工作区服务正在运行。",
+    parse: JobPostingPage.assert,
+    path: `/api/jobs?${search.toString()}`,
+  });
 }
 
-export async function listResearchReports(): Promise<ResearchReportList> {
-  const response = await fetch("/api/reports");
-  if (!response.ok) {
-    throw new Error("无法读取研究报告。请确认工作区服务已经启动。");
-  }
-  return ResearchReportList.assert(await response.json());
+export function listResearchReports(): Promise<ResearchReportList> {
+  return readWorkspaceData({
+    failureMessage: "无法读取研究报告。请确认工作区服务正在运行。",
+    parse: ResearchReportList.assert,
+    path: "/api/reports",
+  });
 }
 
-export async function readResearchReport(id: number): Promise<ResearchReport> {
-  const response = await fetch(`/api/reports/${String(id)}`);
-  if (!response.ok) {
-    throw new Error(
-      response.status === notFoundStatus
-        ? "这份研究报告不存在或已经过期。"
-        : "无法读取研究报告。请确认工作区服务已经启动。",
-    );
-  }
-  return ResearchReport.assert(await response.json());
+export function readResearchReport(id: number): Promise<ResearchReport> {
+  return readWorkspaceData({
+    failureMessage: "无法读取研究报告。请确认工作区服务正在运行。",
+    notFoundMessage: "这份研究报告不存在或已经过期。",
+    parse: ResearchReport.assert,
+    path: `/api/reports/${String(id)}`,
+  });
 }
 
 export function saveProfileFact(input: { id?: number; key: string; value: string }): Promise<void> {

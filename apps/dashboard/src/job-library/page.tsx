@@ -1,9 +1,11 @@
-import { createMemo, createSignal, For, Loading, onSettled, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobPostingPage } from "@job-boardwalk/contracts";
 
 import { AppShell } from "#/app-shell.js";
 import { SectionKicker } from "#/ui/section-kicker.js";
+import { WorkspaceDataBoundary } from "#/workspace-data-boundary.js";
+import { createWorkspaceRead } from "#/workspace-read.js";
 import { readJobPostingPage } from "#/workspace-service-client.js";
 
 import { JobCard } from "./card.js";
@@ -14,10 +16,9 @@ import styles from "./page.module.css";
 const allPlatforms = "all";
 const emptyCollectionLength = 0;
 const firstPage = 1;
-const initialRefreshCount = 0;
 const jobLibraryLede = "集中查看已收录岗位，并按感兴趣、沟通过、已投递等平台记录筛选。";
+const pageStep = 1;
 const pageSize = 24;
-const refreshIncrement = 1;
 const refreshIntervalMilliseconds = 30_000;
 
 const jobLibraryPageCopy = {
@@ -60,13 +61,6 @@ function JobEngagementNavigation(props: { view: JobLibraryView }): JSX.Element {
       ))}
     </nav>
   );
-}
-
-function usePeriodicRefresh(onRefresh: () => void): void {
-  onSettled(() => {
-    const interval = setInterval(onRefresh, refreshIntervalMilliseconds);
-    return () => clearInterval(interval);
-  });
 }
 
 function JobLibraryFilters(props: {
@@ -136,7 +130,7 @@ function JobResults(props: {
         <button
           type="button"
           disabled={props.result.page === firstPage}
-          onClick={() => props.onPageChanged(props.result.page - refreshIncrement)}
+          onClick={() => props.onPageChanged(props.result.page - pageStep)}
         >
           上一页
         </button>
@@ -146,7 +140,7 @@ function JobResults(props: {
         <button
           type="button"
           disabled={props.result.page >= props.result.pageCount}
-          onClick={() => props.onPageChanged(props.result.page + refreshIncrement)}
+          onClick={() => props.onPageChanged(props.result.page + pageStep)}
         >
           下一页
         </button>
@@ -162,18 +156,17 @@ export function JobLibraryPage(props: { requestedEngagement: string | null }): J
   const [query, setQuery] = createSignal("");
   const [platform, setPlatform] = createSignal(allPlatforms);
   const [page, setPage] = createSignal(firstPage);
-  const [refreshCount, setRefreshCount] = createSignal(initialRefreshCount);
-  const jobPage = createMemo(() => {
-    refreshCount();
-    return readJobPostingPage({
-      ...(engagement ? { engagement } : {}),
-      page: page(),
-      pageSize,
-      ...(platform() === allPlatforms ? {} : { platform: platform() }),
-      ...(query() ? { query: query() } : {}),
-    });
-  });
-  usePeriodicRefresh(() => setRefreshCount((value) => value + refreshIncrement));
+  const jobPage = createWorkspaceRead(
+    () =>
+      readJobPostingPage({
+        ...(engagement ? { engagement } : {}),
+        page: page(),
+        pageSize,
+        ...(platform() === allPlatforms ? {} : { platform: platform() }),
+        ...(query() ? { query: query() } : {}),
+      }),
+    refreshIntervalMilliseconds,
+  );
   function changePlatform(value: string): void {
     setPage(firstPage);
     setPlatform(value);
@@ -194,11 +187,11 @@ export function JobLibraryPage(props: { requestedEngagement: string | null }): J
           onQueryChanged={setDraftQuery}
           onSubmitted={submitQuery}
         />
-        <Loading fallback={<p class={styles["empty"]}>正在读取岗位…</p>}>
-          <Show when={jobPage()}>
+        <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取岗位…</p>}>
+          <Show when={jobPage.data()}>
             {(result) => <JobResults result={result()} view={view} onPageChanged={setPage} />}
           </Show>
-        </Loading>
+        </WorkspaceDataBoundary>
       </section>
     </AppShell>
   );
