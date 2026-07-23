@@ -5,6 +5,8 @@ import {
   WorkspaceOverview,
 } from "@job-boardwalk/contracts";
 import type { JobEngagementKind, RecommendationPageReference } from "@job-boardwalk/contracts";
+import { CanceledError, InterruptedError, ScopeError, abortSignal, until } from "@shajara/host";
+import type { RiteCoroutine } from "@shajara/host";
 
 const notFoundStatus = 404;
 
@@ -22,21 +24,54 @@ export class WorkspaceReadError extends Error {
   }
 }
 
-async function fetchWorkspaceResponse(path: string, failureMessage: string): Promise<Response> {
+function isRuntimeConvergence(error: unknown): boolean {
+  return (
+    error instanceof CanceledError ||
+    error instanceof InterruptedError ||
+    error instanceof ScopeError
+  );
+}
+
+function* fetchWorkspaceResponse(path: string, init?: RequestInit): RiteCoroutine<Response> {
+  const signal = yield* abortSignal();
+  return yield* until(() => fetch(path, { ...init, signal }));
+}
+
+function* fetchWorkspaceReadResponse(
+  path: string,
+  failureMessage: string,
+): RiteCoroutine<Response> {
   try {
-    return await fetch(path);
+    return yield* fetchWorkspaceResponse(path);
   } catch (error) {
+    if (isRuntimeConvergence(error)) {
+      throw error;
+    }
     throw new WorkspaceReadError(failureMessage, { cause: error });
   }
 }
 
-async function readWorkspaceData<Result>(input: {
+function* fetchWorkspaceChangeResponse(path: string, init: RequestInit): RiteCoroutine<Response> {
+  try {
+    return yield* fetchWorkspaceResponse(path, {
+      ...init,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    if (isRuntimeConvergence(error)) {
+      throw error;
+    }
+    throw new Error("无法提交更改，请稍后再试。", { cause: error });
+  }
+}
+
+function* readWorkspaceData<Result>(input: {
   failureMessage: string;
   notFoundMessage?: string;
   parse: (value: unknown) => Result;
   path: string;
-}): Promise<Result> {
-  const response = await fetchWorkspaceResponse(input.path, input.failureMessage);
+}): RiteCoroutine<Result> {
+  const response = yield* fetchWorkspaceReadResponse(input.path, input.failureMessage);
   if (!response.ok) {
     if (response.status === notFoundStatus && typeof input.notFoundMessage === "string") {
       throw new WorkspaceReadError(input.notFoundMessage, { retryable: false });
@@ -44,39 +79,44 @@ async function readWorkspaceData<Result>(input: {
     throw new WorkspaceReadError(input.failureMessage);
   }
   try {
-    return input.parse(await response.json());
+    return input.parse(yield* until(() => response.json()));
   } catch (error) {
+    if (isRuntimeConvergence(error)) {
+      throw error;
+    }
     throw new WorkspaceReadError(input.failureMessage, { cause: error });
   }
 }
 
-async function requestWorkspaceChange(path: string, init: RequestInit): Promise<void> {
-  const response = await fetch(path, {
-    ...init,
-    headers: { "content-type": "application/json" },
-  });
+function* requestWorkspaceChange(path: string, init: RequestInit): RiteCoroutine<void> {
+  const response = yield* fetchWorkspaceChangeResponse(path, init);
   if (response.ok) {
     return;
   }
-  const result = (await response.json().catch(() => null)) as { error?: unknown } | null;
-  throw new Error(typeof result?.error === "string" ? result.error : "无法保存更改，请稍后再试。");
+  const result = (yield* until(() =>
+    response.json().then(
+      (value: unknown) => value as { error?: unknown },
+      () => null,
+    ),
+  )) as { error?: unknown } | null;
+  throw new Error(typeof result?.error === "string" ? result.error : "无法提交更改，请稍后再试。");
 }
 
-export function readWorkspaceOverview(): Promise<WorkspaceOverview> {
-  return readWorkspaceData({
+export function* readWorkspaceOverview(): RiteCoroutine<WorkspaceOverview> {
+  return yield* readWorkspaceData({
     failureMessage: "无法读取本机工作区。请确认工作区服务正在运行。",
     parse: WorkspaceOverview.assert,
     path: "/api/workspace/overview",
   });
 }
 
-export function readJobPostingPage(input: {
+export function* readJobPostingPage(input: {
   engagement?: JobEngagementKind;
   page: number;
   pageSize: number;
   platform?: string;
   query?: string;
-}): Promise<JobPostingPage> {
+}): RiteCoroutine<JobPostingPage> {
   const search = new URLSearchParams({
     page: String(input.page),
     pageSize: String(input.pageSize),
@@ -84,23 +124,23 @@ export function readJobPostingPage(input: {
     ...(input.platform ? { platform: input.platform } : {}),
     ...(input.query ? { query: input.query } : {}),
   });
-  return readWorkspaceData({
+  return yield* readWorkspaceData({
     failureMessage: "无法读取岗位库。请确认工作区服务正在运行。",
     parse: JobPostingPage.assert,
     path: `/api/jobs?${search.toString()}`,
   });
 }
 
-export function listResearchReports(): Promise<ResearchReportList> {
-  return readWorkspaceData({
+export function* listResearchReports(): RiteCoroutine<ResearchReportList> {
+  return yield* readWorkspaceData({
     failureMessage: "无法读取研究报告。请确认工作区服务正在运行。",
     parse: ResearchReportList.assert,
     path: "/api/reports",
   });
 }
 
-export function readResearchReport(id: number): Promise<ResearchReport> {
-  return readWorkspaceData({
+export function* readResearchReport(id: number): RiteCoroutine<ResearchReport> {
+  return yield* readWorkspaceData({
     failureMessage: "无法读取研究报告。请确认工作区服务正在运行。",
     notFoundMessage: "这份研究报告不存在或已经过期。",
     parse: ResearchReport.assert,
@@ -108,8 +148,12 @@ export function readResearchReport(id: number): Promise<ResearchReport> {
   });
 }
 
-export function saveProfileFact(input: { id?: number; key: string; value: string }): Promise<void> {
-  return requestWorkspaceChange(
+export function* saveProfileFact(input: {
+  id?: number;
+  key: string;
+  value: string;
+}): RiteCoroutine<void> {
+  yield* requestWorkspaceChange(
     typeof input.id === "number" ? `/api/profile/facts/${String(input.id)}` : "/api/profile/facts",
     {
       body: JSON.stringify({
@@ -125,8 +169,8 @@ export function saveProfileFact(input: { id?: number; key: string; value: string
   );
 }
 
-export function deleteProfileFact(id: number): Promise<void> {
-  return requestWorkspaceChange(`/api/profile/facts/${id}`, {
+export function* deleteProfileFact(id: number): RiteCoroutine<void> {
+  yield* requestWorkspaceChange(`/api/profile/facts/${id}`, {
     body: JSON.stringify({
       initiatedBy: "user",
       reason: "用户在 Dashboard 中移除个人条件",
@@ -135,16 +179,16 @@ export function deleteProfileFact(id: number): Promise<void> {
   });
 }
 
-export function saveJobSearchIntent(input: {
+export function* saveJobSearchIntent(input: {
   city: string;
   id?: number;
   name: string;
   position: string;
   selected: boolean;
   recommendationPages: RecommendationPageReference[];
-}): Promise<void> {
+}): RiteCoroutine<void> {
   const { id, ...intent } = input;
-  return requestWorkspaceChange(id ? `/api/search-intents/${id}` : "/api/search-intents", {
+  yield* requestWorkspaceChange(id ? `/api/search-intents/${id}` : "/api/search-intents", {
     body: JSON.stringify({
       ...intent,
       initiatedBy: "user",
@@ -154,8 +198,8 @@ export function saveJobSearchIntent(input: {
   });
 }
 
-export function selectJobSearchIntent(id: number): Promise<void> {
-  return requestWorkspaceChange(`/api/search-intents/${id}/select`, {
+export function* selectJobSearchIntent(id: number): RiteCoroutine<void> {
+  yield* requestWorkspaceChange(`/api/search-intents/${id}/select`, {
     body: JSON.stringify({
       initiatedBy: "user",
       reason: "用户在 Dashboard 中将求职方向设为当前",
@@ -164,8 +208,8 @@ export function selectJobSearchIntent(id: number): Promise<void> {
   });
 }
 
-export function deleteJobSearchIntent(id: number): Promise<void> {
-  return requestWorkspaceChange(`/api/search-intents/${id}`, {
+export function* deleteJobSearchIntent(id: number): RiteCoroutine<void> {
+  yield* requestWorkspaceChange(`/api/search-intents/${id}`, {
     body: JSON.stringify({
       initiatedBy: "user",
       reason: "用户在 Dashboard 中移除求职方向",

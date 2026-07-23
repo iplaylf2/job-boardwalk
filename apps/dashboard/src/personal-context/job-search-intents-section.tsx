@@ -4,6 +4,7 @@ import type { JobSearchIntent, RecommendationPageReference } from "@job-boardwal
 import { platformCatalog } from "@job-boardwalk/platform-catalog";
 
 // oxlint-disable max-lines, max-lines-per-function -- The editor state stays next to the intent collection it controls.
+import { useDashboardRuntime } from "#/dashboard-runtime.js";
 import {
   deleteJobSearchIntent,
   saveJobSearchIntent,
@@ -23,6 +24,7 @@ export function JobSearchIntentsSection(props: {
   intents: JobSearchIntent[];
   onChanged: () => void;
 }): JSX.Element {
+  const runtime = useDashboardRuntime();
   const [editingId, setEditingId] = createSignal<number | "new" | null>(null);
   const [removingId, setRemovingId] = createSignal<number | null>(null);
   const [name, setName] = createSignal("");
@@ -74,14 +76,16 @@ export function JobSearchIntentsSection(props: {
     setError("");
     try {
       const existing = props.intents.find((intent) => intent.id === editingId());
-      await saveJobSearchIntent({
-        city: city(),
-        ...(typeof editingId() === "number" ? { id: editingId() as number } : {}),
-        name: name(),
-        position: position(),
-        recommendationPages: readRecommendationPages(),
-        selected: existing?.selected ?? props.intents.length === emptyCollectionLength,
-      });
+      await runtime.run(
+        saveJobSearchIntent({
+          city: city(),
+          ...(typeof editingId() === "number" ? { id: editingId() as number } : {}),
+          name: name(),
+          position: position(),
+          recommendationPages: readRecommendationPages(),
+          selected: existing?.selected ?? props.intents.length === emptyCollectionLength,
+        }),
+      );
       setEditingId(null);
       props.onChanged();
     } catch (caughtError) {
@@ -95,7 +99,7 @@ export function JobSearchIntentsSection(props: {
     setSaving(true);
     setError("");
     try {
-      await selectJobSearchIntent(intent.id);
+      await runtime.run(selectJobSearchIntent(intent.id));
       props.onChanged();
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "无法设为当前求职方向。");
@@ -108,7 +112,7 @@ export function JobSearchIntentsSection(props: {
     setSaving(true);
     setError("");
     try {
-      await deleteJobSearchIntent(intent.id);
+      await runtime.run(deleteJobSearchIntent(intent.id));
       setRemovingId(null);
       setEditingId(null);
       props.onChanged();
@@ -124,7 +128,7 @@ export function JobSearchIntentsSection(props: {
       <div class={styles["sectionIntroduction"]}>
         <div>
           <h3>求职方向</h3>
-          <p>当前方向提供自动打开的研究起点；系统也会整理其他已打开的招聘平台页面中的岗位。</p>
+          <p>当前方向向助手提供研究起点；系统也会整理其他已打开的招聘平台页面中的岗位。</p>
         </div>
         <button
           class={`${styles["button"]} ${styles["primaryButton"]}`}
@@ -138,7 +142,7 @@ export function JobSearchIntentsSection(props: {
         when={props.intents.length !== emptyCollectionLength}
         fallback={
           <p class={styles["empty"]}>
-            尚未添加求职方向。添加后，系统会从关联的平台页面开始整理岗位。
+            尚未添加求职方向。添加后，助手可在研究任务中使用关联的平台页面作为起点。
           </p>
         }
       >
@@ -202,7 +206,7 @@ export function JobSearchIntentsSection(props: {
                   <div class={styles["removal"]}>
                     <span>
                       {intent.selected
-                        ? "移除当前方向后，系统将不再自动打开研究起点；已打开的招聘平台页面中的岗位仍会继续整理。"
+                        ? "移除当前方向后，助手将不再使用其中的平台页面作为研究起点；已打开页面中的岗位仍会继续整理。"
                         : "移除后，这个方向及其平台研究起点将不再保留。"}
                     </span>
                     <button

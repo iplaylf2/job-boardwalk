@@ -35,7 +35,7 @@ const jobLibraryPageCopy = {
     kicker: "岗位跟进",
   },
   interested: {
-    empty: "尚未从招聘平台个人中心同步到“感兴趣”岗位。你可以在平台标记岗位并等待同步。",
+    empty: "尚未从招聘平台个人中心同步到“感兴趣”岗位。你可以在平台标记岗位，再让助手同步该列表。",
     kicker: "岗位跟进",
   },
   interviewed: {

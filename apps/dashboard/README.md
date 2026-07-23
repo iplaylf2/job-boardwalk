@@ -56,6 +56,20 @@ Dashboard treats raw HTML as text and does not load Markdown images. The rendere
 headings, lists, links, tables, quotes, code, section anchors, local Dashboard links, and HTTPS
 source links. It is a document reader, not an agent UI or browser-control surface.
 
+## Concurrency model
+
+The Dashboard client owns one top-level shajara scope from mount until the document is discarded.
+Reads from Workspace Service and user-initiated changes run as `RiteCoroutine` routines.
+`fetch(...)` and response-body Promises enter those routines through `until(...)` at the HTTP leaf.
+Solid owns reactive state, loading, and error presentation; the Dashboard runtime is the explicit
+Promise boundary for Solid computations and event handlers.
+
+Polling uses shajara waits rather than independent browser intervals. Each reactive read owns one
+active request: recomputing or disposing that read cancels its routine and aborts its `fetch(...)`.
+Discarding the document cancels the page scope and its remaining work, while the browser's
+back/forward cache preserves that scope. Expected read and mutation failures remain local to their
+UI operation instead of closing the page scope.
+
 ## Run Dashboard
 
 Dashboard's production runtime is the root Compose deployment:
