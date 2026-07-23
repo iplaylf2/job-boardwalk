@@ -1,12 +1,12 @@
 import { WorkspaceJobEngagementWriter } from "./job-engagement-writer.js";
-import { WorkspaceJobPostingWriter } from "./job-posting-writer.js";
+import { WorkspaceJobObservationWriter } from "./job-observation-writer.js";
 
 export function createWorkspaceServiceClients(workspaceServiceUrl: URL): {
   jobEngagementWriter: WorkspaceJobEngagementWriter;
-  jobPostingWriter: WorkspaceJobPostingWriter;
+  jobObservationWriter: WorkspaceJobObservationWriter;
 } {
   return {
     jobEngagementWriter: new WorkspaceJobEngagementWriter(workspaceServiceUrl),
-    jobPostingWriter: new WorkspaceJobPostingWriter(workspaceServiceUrl),
+    jobObservationWriter: new WorkspaceJobObservationWriter(workspaceServiceUrl),
   };
 }

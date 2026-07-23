@@ -76,6 +76,17 @@ const browserTools = [
   }),
   defineBrowserTool({
     annotations: {
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+      readOnlyHint: false,
+    },
+    description:
+      "读取当前岗位详情页的主职位描述，以及可识别的标题、公司、地点、薪资等来源字段；不把相关推荐当作职位描述。同一次读取可能刷新平台访问观察。被动采集也会把已打开详情页中的这类观察提交给 Workspace Service。",
+    name: "browser_job_description_snapshot",
+  }),
+  defineBrowserTool({
+    annotations: {
       destructiveHint: true,
       idempotentHint: false,
       openWorldHint: true,

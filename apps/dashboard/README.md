@@ -18,7 +18,9 @@ The interface has three primary reader paths:
   `engagement` query parameter; these are views of one collection, not peer pages. The library also
   provides search, platform filtering, original source links, and server-backed pagination. Source
   labels show every observed engagement, while each card shows when its platform records were last
-  synchronized.
+  synchronized. A card with a collected job description offers an action that opens it in a
+  dialog. The dialog reports when Browser Session reached its local text limit and the displayed
+  description may be incomplete.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
 The header owns only cross-resource navigation. Follow-up filters belong to the job library and do
@@ -30,6 +32,10 @@ Workspace Service owns durable personal context, job-search intents, job facts a
 relations, platform-access observations, and reports. Browser Session owns browser runtime status.
 Dashboard reads those models from Workspace Service; it does not access SQLite, Patchright, the
 browser profile, or either service's lifecycle.
+
+When Workspace Service data cannot be loaded, Dashboard keeps the page header and primary
+navigation visible. The affected data region reports the failure instead of presenting it as an
+empty result; retryable failures offer a retry action.
 
 Saved platform observations are historical evidence rather than a guarantee of current access, so
 their observation times remain visible. Browser Session presence is a separate short-lived lease.
@@ -51,6 +57,20 @@ page.
 Dashboard treats raw HTML as text and does not load Markdown images. The renderer supports prose,
 headings, lists, links, tables, quotes, code, section anchors, local Dashboard links, and HTTPS
 source links. It is a document reader, not an agent UI or browser-control surface.
+
+## Concurrency model
+
+The Dashboard client owns one top-level shajara scope from mount until the document is discarded.
+Reads from Workspace Service and user-initiated changes run as `RiteCoroutine` routines.
+`fetch(...)` and response-body Promises enter those routines through `until(...)` at the HTTP leaf.
+Solid owns reactive state, loading, and error presentation; the Dashboard runtime is the explicit
+Promise boundary for Solid computations and event handlers.
+
+Polling uses shajara waits rather than independent browser intervals. Each reactive read owns one
+active request: recomputing or disposing that read cancels its routine and aborts its `fetch(...)`.
+Discarding the document cancels the page scope and its remaining work, while the browser's
+back/forward cache preserves that scope. Expected read and mutation failures remain local to their
+UI operation instead of closing the page scope.
 
 ## Run Dashboard
 

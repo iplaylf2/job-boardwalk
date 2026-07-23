@@ -3,28 +3,11 @@ import {
   minimumNonEmptyArrayLength,
   nonNegativeInteger,
   normalizedTimestamp,
-  platformId,
   positiveInteger,
   trimmedNonEmptyString,
 } from "./internal/contract-fields.ts";
 import { JobSourceEngagement } from "./job-engagement.ts";
-
-export const JobPostingObservation = contract({
-  collectedAt: normalizedTimestamp,
-  "company?": trimmedNonEmptyString,
-  details: trimmedNonEmptyString.array(),
-  discoveryUrl: trimmedNonEmptyString,
-  "educationRequirement?": trimmedNonEmptyString,
-  "experienceRequirement?": trimmedNonEmptyString,
-  "externalJobId?": trimmedNonEmptyString,
-  "jobUrl?": trimmedNonEmptyString,
-  "location?": trimmedNonEmptyString,
-  platformId,
-  "salaryText?": trimmedNonEmptyString,
-  summary: trimmedNonEmptyString,
-  title: trimmedNonEmptyString,
-});
-export type JobPostingObservation = typeof JobPostingObservation.infer;
+import { JobCardObservation, JobPostingDescription } from "./job-observation.ts";
 
 export const NormalizedSalary = contract({
   currency: "'CNY'",
@@ -35,7 +18,8 @@ export const NormalizedSalary = contract({
 });
 export type NormalizedSalary = typeof NormalizedSalary.infer;
 
-export const JobPostingSource = JobPostingObservation.merge({
+export const JobPostingSource = JobCardObservation.merge({
+  "description?": JobPostingDescription,
   engagements: JobSourceEngagement.array(),
   id: positiveInteger,
   jobId: positiveInteger,
@@ -47,6 +31,7 @@ export type JobPostingSource = typeof JobPostingSource.infer;
 export const JobPosting = contract({
   "company?": trimmedNonEmptyString,
   createdAt: normalizedTimestamp,
+  "description?": JobPostingDescription,
   details: trimmedNonEmptyString.array(),
   "educationRequirement?": trimmedNonEmptyString,
   "experienceRequirement?": trimmedNonEmptyString,
@@ -68,8 +53,8 @@ export const JobPostingPage = contract({
 });
 export type JobPostingPage = typeof JobPostingPage.infer;
 
-export const SaveJobPostingObservationResult = contract({
+export const SaveJobObservationResult = contract({
   job: JobPosting,
   outcome: "'created' | 'source-added' | 'source-updated' | 'unchanged'",
 });
-export type SaveJobPostingObservationResult = typeof SaveJobPostingObservationResult.infer;
+export type SaveJobObservationResult = typeof SaveJobObservationResult.infer;

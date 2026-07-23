@@ -88,16 +88,16 @@ function seedMcpWorkspace(repository: WorkspaceRepository): void {
     source: "test",
     value: "后端工程师",
   });
-  repository.saveJobPostingObservation({
+  repository.saveJobCardObservation({
     initiatedBy: "system",
     observation: {
-      collectedAt: "2026-07-17T10:00:00.000Z",
       company: "示例科技甲",
       details: ["Node.js"],
       discoveryUrl: "https://www.zhipin.com/web/geek/jobs?query=Node.js",
       externalJobId: "mcp-example",
       jobUrl: "https://www.zhipin.com/job_detail/mcp-example.html",
       location: "北京",
+      observedAt: "2026-07-17T10:00:00.000Z",
       platformId: "boss",
       summary: "负责后端服务开发。",
       title: "后端开发",
@@ -417,15 +417,15 @@ test("stores and reads collected page facts through the public HTTP boundary", a
   const httpApp = createTestHttpApp(repository, serviceScope);
 
   try {
-    const response = await httpApp.request("/api/jobs", {
+    const response = await httpApp.request("/api/job-card-observations", {
       body: JSON.stringify({
-        collectedAt: "2026-07-17T10:00:00.000Z",
         company: "示例科技甲",
         details: ["Node.js"],
         discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
         initiatedBy: "system",
         jobUrl: "https://www.zhipin.com/job_detail/example.html",
         location: "北京",
+        observedAt: "2026-07-17T10:00:00.000Z",
         platformId: "boss",
         reason: "test",
         salaryText: "20-30K",
@@ -444,15 +444,46 @@ test("stores and reads collected page facts through the public HTTP boundary", a
       },
       outcome: "created",
     });
-
-    const invalidSourceResponse = await httpApp.request("/api/jobs", {
+    const descriptionResponse = await httpApp.request("/api/job-description-observations", {
       body: JSON.stringify({
-        collectedAt: "2026-07-17T10:00:00.000Z",
+        company: "示例科技甲",
+        description: {
+          capturedAt: "2026-07-17T10:05:00.000Z",
+          text: "工作职责\n1. 建设合成测试平台。\n任职要求\n1. 熟悉 TypeScript。",
+          truncated: false,
+        },
+        details: [],
+        initiatedBy: "system",
+        jobUrl: "https://www.zhipin.com/job_detail/example.html",
+        location: "北京",
+        observedAt: "2026-07-17T10:05:00.000Z",
+        platformId: "boss",
+        reason: "test detail enrichment",
+        salaryText: "20-30K",
+        title: "后端开发",
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(descriptionResponse.status).toBe(createdStatus);
+    expect(await descriptionResponse.json()).toMatchObject({
+      job: {
+        description: {
+          text: expect.stringContaining("\n任职要求\n"),
+          truncated: false,
+        },
+      },
+      outcome: "source-updated",
+    });
+
+    const invalidSourceResponse = await httpApp.request("/api/job-card-observations", {
+      body: JSON.stringify({
         company: "示例科技甲",
         details: [],
         discoveryUrl: "https://example.invalid/jobs",
         initiatedBy: "system",
         jobUrl: "https://example.invalid/job/example",
+        observedAt: "2026-07-17T10:00:00.000Z",
         platformId: "boss",
         reason: "test",
         summary: "负责后端服务开发。",
@@ -463,12 +494,12 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     });
     expect(invalidSourceResponse.status).toBe(badRequestStatus);
 
-    const missingJobUrlResponse = await httpApp.request("/api/jobs", {
+    const missingJobUrlResponse = await httpApp.request("/api/job-card-observations", {
       body: JSON.stringify({
-        collectedAt: "2026-07-17T10:00:00.000Z",
         details: [],
         discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
         initiatedBy: "system",
+        observedAt: "2026-07-17T10:00:00.000Z",
         platformId: "boss",
         reason: "test",
         summary: "负责后端服务开发。",
@@ -482,7 +513,13 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     const libraryResponse = await httpApp.request("/api/jobs?page=1&pageSize=1&platform=boss");
     const library = JobPostingPage.assert(await libraryResponse.json());
     expect(library).toMatchObject({
-      jobs: [{ company: "示例科技甲", sources: [{ platformId: "boss" }] }],
+      jobs: [
+        {
+          company: "示例科技甲",
+          description: { text: expect.stringContaining("合成测试平台") },
+          sources: [{ platformId: "boss" }],
+        },
+      ],
       page: 1,
       pageCount: 1,
       pageSize: 1,

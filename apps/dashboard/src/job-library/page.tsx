@@ -1,12 +1,15 @@
-import { createMemo, createSignal, For, Loading, onSettled, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import type { JobPostingPage } from "@job-boardwalk/contracts";
+import type { JobPosting, JobPostingPage } from "@job-boardwalk/contracts";
 
 import { AppShell } from "#/app-shell.js";
 import { SectionKicker } from "#/ui/section-kicker.js";
+import { WorkspaceDataBoundary } from "#/workspace-data-boundary.js";
+import { createWorkspaceRead } from "#/workspace-read.js";
 import { readJobPostingPage } from "#/workspace-service-client.js";
 
 import { JobCard } from "./card.js";
+import { JobDescriptionDialog } from "./description-dialog.js";
 import { jobLibraryViewLabel, jobLibraryViews, readJobLibraryView } from "./engagement.js";
 import type { JobLibraryView } from "./engagement.js";
 import styles from "./page.module.css";
@@ -14,10 +17,9 @@ import styles from "./page.module.css";
 const allPlatforms = "all";
 const emptyCollectionLength = 0;
 const firstPage = 1;
-const initialRefreshCount = 0;
 const jobLibraryLede = "集中查看已收录岗位，并按感兴趣、沟通过、已投递等平台记录筛选。";
+const pageStep = 1;
 const pageSize = 24;
-const refreshIncrement = 1;
 const refreshIntervalMilliseconds = 30_000;
 
 const jobLibraryPageCopy = {
@@ -34,7 +36,7 @@ const jobLibraryPageCopy = {
     kicker: "岗位跟进",
   },
   interested: {
-    empty: "尚未从招聘平台个人中心同步到“感兴趣”岗位。你可以在平台标记岗位并等待同步。",
+    empty: "尚未从招聘平台个人中心同步到“感兴趣”岗位。你可以在平台标记岗位，再让助手同步该列表。",
     kicker: "岗位跟进",
   },
   interviewed: {
@@ -60,13 +62,6 @@ function JobEngagementNavigation(props: { view: JobLibraryView }): JSX.Element {
       ))}
     </nav>
   );
-}
-
-function usePeriodicRefresh(onRefresh: () => void): void {
-  onSettled(() => {
-    const interval = setInterval(onRefresh, refreshIntervalMilliseconds);
-    return () => clearInterval(interval);
-  });
 }
 
 function JobLibraryFilters(props: {
@@ -111,6 +106,7 @@ function JobLibraryFilters(props: {
 
 function JobResults(props: {
   onPageChanged: (page: number) => void;
+  onShowDescription: (job: JobPosting) => void;
   result: JobPostingPage;
   view: JobLibraryView;
 }): JSX.Element {
@@ -129,14 +125,16 @@ function JobResults(props: {
         fallback={<p class={styles["empty"]}>{copy.empty}</p>}
       >
         <div class={styles["grid"]}>
-          <For each={props.result.jobs}>{(job) => <JobCard job={job} />}</For>
+          <For each={props.result.jobs}>
+            {(job) => <JobCard job={job} onShowDescription={props.onShowDescription} />}
+          </For>
         </div>
       </Show>
       <nav class={styles["pagination"]} aria-label="岗位页码">
         <button
           type="button"
           disabled={props.result.page === firstPage}
-          onClick={() => props.onPageChanged(props.result.page - refreshIncrement)}
+          onClick={() => props.onPageChanged(props.result.page - pageStep)}
         >
           上一页
         </button>
@@ -146,7 +144,7 @@ function JobResults(props: {
         <button
           type="button"
           disabled={props.result.page >= props.result.pageCount}
-          onClick={() => props.onPageChanged(props.result.page + refreshIncrement)}
+          onClick={() => props.onPageChanged(props.result.page + pageStep)}
         >
           下一页
         </button>
@@ -155,51 +153,82 @@ function JobResults(props: {
   );
 }
 
-export function JobLibraryPage(props: { requestedEngagement: string | null }): JSX.Element {
-  const view = readJobLibraryView(props.requestedEngagement);
+function createJobLibraryPageState(view: JobLibraryView) {
   const engagement = view === "all" ? null : view;
   const [draftQuery, setDraftQuery] = createSignal("");
   const [query, setQuery] = createSignal("");
   const [platform, setPlatform] = createSignal(allPlatforms);
   const [page, setPage] = createSignal(firstPage);
-  const [refreshCount, setRefreshCount] = createSignal(initialRefreshCount);
-  const jobPage = createMemo(() => {
-    refreshCount();
-    return readJobPostingPage({
-      ...(engagement ? { engagement } : {}),
-      page: page(),
-      pageSize,
-      ...(platform() === allPlatforms ? {} : { platform: platform() }),
-      ...(query() ? { query: query() } : {}),
-    });
-  });
-  usePeriodicRefresh(() => setRefreshCount((value) => value + refreshIncrement));
+  const [selectedJob, setSelectedJob] = createSignal<JobPosting | null>(null);
+  const jobPage = createWorkspaceRead(
+    () =>
+      readJobPostingPage({
+        ...(engagement ? { engagement } : {}),
+        page: page(),
+        pageSize,
+        ...(platform() === allPlatforms ? {} : { platform: platform() }),
+        ...(query() ? { query: query() } : {}),
+      }),
+    refreshIntervalMilliseconds,
+  );
   function changePlatform(value: string): void {
+    setSelectedJob(null);
     setPage(firstPage);
     setPlatform(value);
   }
   function submitQuery(): void {
+    setSelectedJob(null);
     setPage(firstPage);
     setQuery(draftQuery().trim());
   }
+  function changePage(nextPage: number): void {
+    setSelectedJob(null);
+    setPage(nextPage);
+  }
+  return {
+    changePage,
+    changePlatform,
+    draftQuery,
+    jobPage,
+    platform,
+    selectedJob,
+    setDraftQuery,
+    setSelectedJob,
+    submitQuery,
+  };
+}
+
+export function JobLibraryPage(props: { requestedEngagement: string | null }): JSX.Element {
+  const view = readJobLibraryView(props.requestedEngagement);
+  const state = createJobLibraryPageState(view);
 
   return (
     <AppShell active="jobs" title="岗位库" lede={jobLibraryLede}>
       <section class={styles["library"]} aria-labelledby="job-results-heading">
         <JobEngagementNavigation view={view} />
         <JobLibraryFilters
-          draftQuery={draftQuery()}
-          platform={platform()}
-          onPlatformChanged={changePlatform}
-          onQueryChanged={setDraftQuery}
-          onSubmitted={submitQuery}
+          draftQuery={state.draftQuery()}
+          platform={state.platform()}
+          onPlatformChanged={state.changePlatform}
+          onQueryChanged={state.setDraftQuery}
+          onSubmitted={state.submitQuery}
         />
-        <Loading fallback={<p class={styles["empty"]}>正在读取岗位…</p>}>
-          <Show when={jobPage()}>
-            {(result) => <JobResults result={result()} view={view} onPageChanged={setPage} />}
+        <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取岗位…</p>}>
+          <Show when={state.jobPage.data()}>
+            {(result) => (
+              <JobResults
+                result={result()}
+                view={view}
+                onPageChanged={state.changePage}
+                onShowDescription={state.setSelectedJob}
+              />
+            )}
           </Show>
-        </Loading>
+        </WorkspaceDataBoundary>
       </section>
+      <Show when={state.selectedJob()}>
+        {(job) => <JobDescriptionDialog job={job()} onClose={() => state.setSelectedJob(null)} />}
+      </Show>
     </AppShell>
   );
 }

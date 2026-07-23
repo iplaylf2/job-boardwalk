@@ -78,7 +78,7 @@ function normalizeAnnual(compact: string): NormalizedSalary | null {
   return null;
 }
 
-export function normalizeJobPostingSalary(salaryText: string | undefined): NormalizedSalary | null {
+export function parseJobPostingSalary(salaryText: string | undefined): NormalizedSalary | null {
   if (!salaryText || salaryText.includes("面议")) {
     return null;
   }

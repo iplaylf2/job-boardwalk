@@ -9,8 +9,6 @@ import { ProfileFactsSection } from "./profile-facts-section.js";
 import styles from "./manager.module.css";
 
 function installModalBehavior(manager: HTMLElement | null, onClose: () => void): () => void {
-  const previousOverflow = document.body.style.overflow;
-  document.body.style.overflow = "hidden";
   manager?.focus();
   function closeOnEscape(event: KeyboardEvent): void {
     if (event.key === "Escape") {
@@ -19,7 +17,6 @@ function installModalBehavior(manager: HTMLElement | null, onClose: () => void):
   }
   document.addEventListener("keydown", closeOnEscape);
   return () => {
-    document.body.style.overflow = previousOverflow;
     document.removeEventListener("keydown", closeOnEscape);
   };
 }

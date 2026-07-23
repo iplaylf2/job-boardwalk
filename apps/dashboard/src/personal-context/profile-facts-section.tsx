@@ -3,6 +3,7 @@ import type { JSX } from "@solidjs/web";
 import type { ProfileFact } from "@job-boardwalk/contracts";
 
 // oxlint-disable max-lines-per-function -- The editor state stays next to the section it controls.
+import { useDashboardRuntime } from "#/dashboard-runtime.js";
 import { deleteProfileFact, saveProfileFact } from "#/workspace-service-client.js";
 
 import styles from "./manager.module.css";
@@ -23,6 +24,7 @@ export function ProfileFactsSection(props: {
   facts: ProfileFact[];
   onChanged: () => void;
 }): JSX.Element {
+  const runtime = useDashboardRuntime();
   const [editingId, setEditingId] = createSignal<number | "new" | null>(null);
   const [removingId, setRemovingId] = createSignal<number | null>(null);
   const [key, setKey] = createSignal("");
@@ -51,11 +53,13 @@ export function ProfileFactsSection(props: {
     setSaving(true);
     setError("");
     try {
-      await saveProfileFact({
-        ...(typeof editingId() === "number" ? { id: editingId() as number } : {}),
-        key: key(),
-        value: value(),
-      });
+      await runtime.run(
+        saveProfileFact({
+          ...(typeof editingId() === "number" ? { id: editingId() as number } : {}),
+          key: key(),
+          value: value(),
+        }),
+      );
       setEditingId(null);
       props.onChanged();
     } catch (caughtError) {
@@ -69,7 +73,7 @@ export function ProfileFactsSection(props: {
     setSaving(true);
     setError("");
     try {
-      await deleteProfileFact(fact.id);
+      await runtime.run(deleteProfileFact(fact.id));
       setRemovingId(null);
       setEditingId(null);
       props.onChanged();

@@ -8,8 +8,10 @@ import { drizzle } from "drizzle-orm/node-sqlite";
 import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
 import type {
+  JobCardObservation,
+  JobDescriptionObservation,
+  JobPostingDescription,
   JobPosting,
-  JobPostingObservation,
   JobPostingPage,
   JobPostingSource,
   JobSourceEngagement,
@@ -20,14 +22,14 @@ import type {
   ResearchReport,
   ResearchReportSummary,
   RecordedPlatformAccessObservation,
-  SaveJobPostingObservationResult,
+  SaveJobObservationResult,
   JobEngagementSnapshot,
   SynchronizeJobEngagementResult,
 } from "@job-boardwalk/contracts";
 import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
-import { normalizeJobPostingSalary } from "#/job-posting/salary.js";
-import type { JobLibraryQuery } from "#/job-posting/library-query.js";
+import { parseJobPostingSalary } from "#/job-library/salary.js";
+import type { JobLibraryQuery } from "#/job-library/query.js";
 
 import {
   jobPostings,
@@ -46,7 +48,28 @@ type JobPostingRow = typeof jobPostings.$inferSelect;
 type JobPostingSourceRow = typeof jobPostingSources.$inferSelect;
 type JobSourceEngagementRow = typeof jobSourceEngagements.$inferSelect;
 type ResearchReportRow = typeof researchReports.$inferSelect;
-type NonEmptyJobPostingObservations = [JobPostingObservation, ...JobPostingObservation[]];
+const firstParameterIndex = 0;
+type WorkspaceDatabase = ReturnType<typeof drizzle>;
+type WorkspaceTransactionCallback = Parameters<
+  WorkspaceDatabase["transaction"]
+>[typeof firstParameterIndex];
+type WorkspaceTransaction = Parameters<WorkspaceTransactionCallback>[typeof firstParameterIndex];
+type PreparedJobObservation =
+  | {
+      cardObservation: JobCardObservation;
+      initiatedBy: "agent" | "system" | "user";
+      kind: "card";
+      observation: JobCardObservation;
+      reason: string;
+    }
+  | {
+      cardObservation: JobCardObservation;
+      initiatedBy: "agent" | "system" | "user";
+      kind: "description";
+      observation: JobDescriptionObservation;
+      reason: string;
+    };
+type SourceObservations = Pick<JobPostingSourceRow, "cardObservation" | "descriptionObservation">;
 const emptyCollectionLength = 0;
 const emptyCount = 0;
 const firstPage = 1;
@@ -66,7 +89,7 @@ function normalizedCompanyIdentity(value: string): string {
   return normalizedIdentityPart(value).replace(/(?:有限责任公司|股份有限公司|有限公司|公司)$/u, "");
 }
 
-function jobPostingIdentityKey(observation: JobPostingObservation): string {
+function jobPostingIdentityKey(observation: JobCardObservation): string {
   if (!observation.company || !observation.location) {
     return jobPostingSourceIdentityKey(observation);
   }
@@ -77,20 +100,49 @@ function jobPostingIdentityKey(observation: JobPostingObservation): string {
   ]);
 }
 
-function observationFingerprint(observation: JobPostingObservation): string {
+function cardObservationFingerprint(observation: JobCardObservation): string {
+  const { discoveryUrl: _discoveryUrl, jobUrl, observedAt: _observedAt, ...facts } = observation;
   return hashValue({
-    company: observation.company ?? null,
-    details: [...new Set(observation.details)].toSorted(),
-    educationRequirement: observation.educationRequirement ?? null,
-    experienceRequirement: observation.experienceRequirement ?? null,
-    location: observation.location ?? null,
-    salaryText: observation.salaryText ?? null,
-    summary: observation.summary,
-    title: observation.title,
+    ...facts,
+    details: [...new Set(facts.details)].toSorted(),
+    jobUrl: jobUrl ? new URL(jobUrl).pathname : null,
   });
 }
 
-function jobPostingSourceIdentityKey(observation: JobPostingObservation): string {
+function projectDescriptionAsCardObservation(
+  observation: JobDescriptionObservation,
+): JobCardObservation {
+  return {
+    observedAt: observation.observedAt,
+    ...(observation.company ? { company: observation.company } : {}),
+    details: observation.details,
+    discoveryUrl: observation.jobUrl,
+    ...(observation.educationRequirement
+      ? { educationRequirement: observation.educationRequirement }
+      : {}),
+    ...(observation.experienceRequirement
+      ? { experienceRequirement: observation.experienceRequirement }
+      : {}),
+    ...(observation.externalJobId ? { externalJobId: observation.externalJobId } : {}),
+    jobUrl: observation.jobUrl,
+    ...(observation.location ? { location: observation.location } : {}),
+    platformId: observation.platformId,
+    ...(observation.salaryText ? { salaryText: observation.salaryText } : {}),
+    summary: observation.description.text.replaceAll(/\s+/gu, " ").trim(),
+    title: observation.title,
+  };
+}
+
+function descriptionObservationFingerprint(observation: JobDescriptionObservation): string {
+  const { description, observedAt: _observedAt, ...facts } = observation;
+  return hashValue({
+    ...facts,
+    description: { text: description.text, truncated: description.truncated },
+    details: [...new Set(facts.details)].toSorted(),
+  });
+}
+
+function jobPostingSourceIdentityKey(observation: JobCardObservation): string {
   if (observation.externalJobId) {
     return hashValue([observation.platformId, observation.externalJobId]);
   }
@@ -113,12 +165,12 @@ function toJobSourceEngagement(row: JobSourceEngagementRow): JobSourceEngagement
   };
 }
 
-function jobPostingObservationFromEngagement(
+function jobCardObservationFromEngagement(
   snapshot: JobEngagementSnapshot,
   job: JobEngagementSnapshot["jobs"][number],
-): JobPostingObservation {
+): JobCardObservation {
   return {
-    collectedAt: snapshot.capturedAt,
+    observedAt: snapshot.capturedAt,
     ...(job.company ? { company: job.company } : {}),
     details: job.details,
     discoveryUrl: snapshot.sourceUrl,
@@ -141,73 +193,118 @@ function toJobPostingSource(
   if (!isPlatformId(row.platformId)) {
     throw new Error(`数据库中存在未知招聘平台：${row.platformId}`);
   }
+  const evidence = jobSourceEvidence(row.cardObservation, row.descriptionObservation);
+  const normalizedSalary = evidence.salaryText ? parseJobPostingSalary(evidence.salaryText) : null;
   return {
-    collectedAt: row.collectedAt,
-    ...(row.company ? { company: row.company } : {}),
-    details: row.details,
-    discoveryUrl: row.discoveryUrl,
-    ...(row.educationRequirement ? { educationRequirement: row.educationRequirement } : {}),
-    ...(row.experienceRequirement ? { experienceRequirement: row.experienceRequirement } : {}),
-    ...(row.externalJobId ? { externalJobId: row.externalJobId } : {}),
+    ...evidence,
     engagements: engagementRows
       .filter(({ sourceId }) => sourceId === row.id)
       .map(toJobSourceEngagement),
     id: row.id,
     jobId: row.jobId,
-    ...(row.jobUrl ? { jobUrl: row.jobUrl } : {}),
     lastCheckedAt: row.lastCheckedAt,
-    ...(row.location ? { location: row.location } : {}),
-    ...(row.normalizedSalary ? { normalizedSalary: row.normalizedSalary } : {}),
-    platformId: row.platformId,
-    ...(row.salaryText ? { salaryText: row.salaryText } : {}),
-    summary: row.summary,
-    title: row.title,
+    ...(normalizedSalary ? { normalizedSalary } : {}),
   };
 }
 
-function canonicalJobPostingValues(observations: NonEmptyJobPostingObservations) {
+type JobSourceEvidence = JobCardObservation & {
+  description?: JobPostingDescription;
+};
+
+function jobSourceEvidence(
+  cardObservation: JobCardObservation | null,
+  descriptionObservation: JobDescriptionObservation | null,
+): JobSourceEvidence {
+  if (!descriptionObservation) {
+    if (!cardObservation) {
+      throw new Error("岗位来源至少需要卡片或详情证据。");
+    }
+    return cardObservation;
+  }
+  const descriptionEvidence = projectDescriptionAsCardObservation(descriptionObservation);
+  if (!cardObservation) {
+    return { ...descriptionEvidence, description: descriptionObservation.description };
+  }
+  return {
+    ...cardObservation,
+    ...descriptionEvidence,
+    description: descriptionObservation.description,
+    details: [
+      ...new Set([...cardObservation.details, ...descriptionObservation.details]),
+    ].toSorted(),
+    discoveryUrl: cardObservation.discoveryUrl,
+    observedAt:
+      descriptionObservation.observedAt > cardObservation.observedAt
+        ? descriptionObservation.observedAt
+        : cardObservation.observedAt,
+    summary: cardObservation.summary,
+  };
+}
+
+function observationTime(input: PreparedJobObservation): string {
+  return input.observation.observedAt;
+}
+
+function observationMatches(
+  source: JobPostingSourceRow | undefined,
+  input: PreparedJobObservation,
+): boolean {
+  if (input.kind === "card") {
+    return Boolean(
+      source?.cardObservation &&
+      cardObservationFingerprint(source.cardObservation) ===
+        cardObservationFingerprint(input.observation),
+    );
+  }
+  return Boolean(
+    source?.descriptionObservation &&
+    descriptionObservationFingerprint(source.descriptionObservation) ===
+      descriptionObservationFingerprint(input.observation),
+  );
+}
+
+function updatedSourceObservations(
+  source: JobPostingSourceRow | undefined,
+  input: PreparedJobObservation,
+): SourceObservations {
+  return input.kind === "card"
+    ? {
+        cardObservation: input.observation,
+        descriptionObservation: source?.descriptionObservation ?? null,
+      }
+    : {
+        cardObservation: source?.cardObservation ?? null,
+        descriptionObservation: input.observation,
+      };
+}
+
+function canonicalJobPostingValues(observations: JobSourceEvidence[]) {
   const [firstObservation, ...remainingObservations] = observations;
+  if (!firstObservation) {
+    throw new Error("岗位规范化至少需要一个平台来源。");
+  }
   let latest = firstObservation;
+  let latestDescription = firstObservation.description;
   for (const observation of remainingObservations) {
-    if (observation.collectedAt > latest.collectedAt) {
+    if (observation.observedAt > latest.observedAt) {
       latest = observation;
+    }
+    if (
+      observation.description &&
+      (!latestDescription || observation.description.capturedAt > latestDescription.capturedAt)
+    ) {
+      latestDescription = observation.description;
     }
   }
   return {
     company: latest.company ?? null,
+    description: latestDescription ?? null,
     details: [...new Set(observations.flatMap(({ details }) => details))].toSorted(),
     educationRequirement: latest.educationRequirement ?? null,
     experienceRequirement: latest.experienceRequirement ?? null,
     location: latest.location ?? null,
     summary: latest.summary,
     title: latest.title,
-  };
-}
-
-function jobPostingSourceValues(
-  jobId: number,
-  observation: JobPostingObservation,
-  fingerprint: string,
-) {
-  return {
-    collectedAt: observation.collectedAt,
-    company: observation.company ?? null,
-    details: [...new Set(observation.details)].toSorted(),
-    discoveryUrl: observation.discoveryUrl,
-    educationRequirement: observation.educationRequirement ?? null,
-    experienceRequirement: observation.experienceRequirement ?? null,
-    externalJobId: observation.externalJobId ?? null,
-    identityKey: jobPostingSourceIdentityKey(observation),
-    jobId,
-    jobUrl: observation.jobUrl ?? null,
-    lastCheckedAt: observation.collectedAt,
-    location: observation.location ?? null,
-    normalizedSalary: normalizeJobPostingSalary(observation.salaryText),
-    platformId: observation.platformId,
-    salaryText: observation.salaryText ?? null,
-    sourceFingerprint: fingerprint,
-    summary: observation.summary,
-    title: observation.title,
   };
 }
 
@@ -219,6 +316,7 @@ function toJobPosting(
   return {
     ...(job.company ? { company: job.company } : {}),
     createdAt: job.createdAt,
+    ...(job.description ? { description: job.description } : {}),
     details: job.details,
     ...(job.educationRequirement ? { educationRequirement: job.educationRequirement } : {}),
     ...(job.experienceRequirement ? { experienceRequirement: job.experienceRequirement } : {}),
@@ -524,7 +622,7 @@ export class WorkspaceRepository {
     const sourceRows = this.#database
       .select()
       .from(jobPostingSources)
-      .orderBy(asc(jobPostingSources.platformId), asc(jobPostingSources.jobUrl))
+      .orderBy(asc(jobPostingSources.platformId), asc(jobPostingSources.id))
       .all();
     const engagementRows = this.#listJobSourceEngagements(sourceRows.map(({ id }) => id));
     return this.#database
@@ -551,8 +649,8 @@ export class WorkspaceRepository {
     const { snapshot } = input;
     const sourceIds: number[] = [];
     for (const job of snapshot.jobs) {
-      const observation = jobPostingObservationFromEngagement(snapshot, job);
-      this.saveJobPostingObservation({
+      const observation = jobCardObservationFromEngagement(snapshot, job);
+      this.saveJobCardObservation({
         initiatedBy: input.initiatedBy,
         observation,
         reason: input.reason,
@@ -700,6 +798,7 @@ export class WorkspaceRepository {
           like(jobPostings.title, pattern),
           like(jobPostings.company, pattern),
           like(jobPostings.location, pattern),
+          like(jobPostings.description, pattern),
           like(jobPostings.summary, pattern),
           like(jobPostings.details, pattern),
         ),
@@ -739,7 +838,7 @@ export class WorkspaceRepository {
       .select()
       .from(jobPostingSources)
       .where(inArray(jobPostingSources.jobId, jobIds))
-      .orderBy(asc(jobPostingSources.platformId), asc(jobPostingSources.jobUrl))
+      .orderBy(asc(jobPostingSources.platformId), asc(jobPostingSources.id))
       .all();
   }
 
@@ -767,35 +866,42 @@ export class WorkspaceRepository {
     );
   }
 
-  // eslint-disable-next-line max-lines-per-function -- One transaction owns source deduplication and canonical aggregation.
-  public saveJobPostingObservation(input: {
+  public saveJobCardObservation(input: {
     initiatedBy: "agent" | "system" | "user";
-    observation: JobPostingObservation;
+    observation: JobCardObservation;
     reason: string;
-  }): SaveJobPostingObservationResult {
-    const { observation } = input;
-    const fingerprint = observationFingerprint(observation);
-    const jobIdentityKey = jobPostingIdentityKey(observation);
-    const sourceIdentityKey = jobPostingSourceIdentityKey(observation);
-    const existingSource = this.#database
-      .select()
-      .from(jobPostingSources)
-      .where(
-        and(
-          eq(jobPostingSources.platformId, observation.platformId),
-          eq(jobPostingSources.identityKey, sourceIdentityKey),
-        ),
-      )
-      .get();
-    if (existingSource?.sourceFingerprint === fingerprint) {
+  }): SaveJobObservationResult {
+    return this.#saveJobObservation({
+      ...input,
+      cardObservation: input.observation,
+      kind: "card",
+    });
+  }
+
+  public saveJobDescriptionObservation(input: {
+    initiatedBy: "agent" | "system" | "user";
+    observation: JobDescriptionObservation;
+    reason: string;
+  }): SaveJobObservationResult {
+    return this.#saveJobObservation({
+      ...input,
+      cardObservation: projectDescriptionAsCardObservation(input.observation),
+      kind: "description",
+    });
+  }
+
+  #saveJobObservation(input: PreparedJobObservation): SaveJobObservationResult {
+    const { cardObservation } = input;
+    const sourceIdentityKey = jobPostingSourceIdentityKey(cardObservation);
+    const existingSource = this.#findJobPostingSource(
+      cardObservation.platformId,
+      sourceIdentityKey,
+    );
+    const observedAt = observationTime(input);
+    if (existingSource && observationMatches(existingSource, input)) {
       this.#database
         .update(jobPostingSources)
-        .set({
-          discoveryUrl: observation.discoveryUrl,
-          externalJobId: observation.externalJobId ?? null,
-          jobUrl: observation.jobUrl ?? null,
-          lastCheckedAt: observation.collectedAt,
-        })
+        .set({ lastCheckedAt: observedAt })
         .where(eq(jobPostingSources.id, existingSource.id))
         .run();
       const job = this.#readJobPosting(existingSource.jobId);
@@ -805,74 +911,15 @@ export class WorkspaceRepository {
       return { job, outcome: "unchanged" };
     }
 
+    const sourceObservations = updatedSourceObservations(existingSource, input);
     const now = new Date().toISOString();
-    // eslint-disable-next-line max-lines-per-function -- The callback atomically chooses the source deduplication outcome.
-    const result = this.#database.transaction((transaction) => {
-      if (existingSource) {
-        const siblingSources = transaction
-          .select()
-          .from(jobPostingSources)
-          .where(eq(jobPostingSources.jobId, existingSource.jobId))
-          .all()
-          .filter(({ id }) => id !== existingSource.id)
-          .map((source) => toJobPostingSource(source, []));
-        const canonical = canonicalJobPostingValues([observation, ...siblingSources]);
-        transaction
-          .update(jobPostingSources)
-          .set(jobPostingSourceValues(existingSource.jobId, observation, fingerprint))
-          .where(eq(jobPostingSources.id, existingSource.id))
-          .run();
-        transaction
-          .update(jobPostings)
-          .set({ ...canonical, updatedAt: now })
-          .where(eq(jobPostings.id, existingSource.jobId))
-          .run();
-        return { jobId: existingSource.jobId, outcome: "source-updated" as const };
-      }
-
-      const existingJob = transaction
-        .select()
-        .from(jobPostings)
-        .where(eq(jobPostings.identityKey, jobIdentityKey))
-        .get();
-      if (existingJob) {
-        const siblingSources = transaction
-          .select()
-          .from(jobPostingSources)
-          .where(eq(jobPostingSources.jobId, existingJob.id))
-          .all()
-          .map((source) => toJobPostingSource(source, []));
-        transaction
-          .insert(jobPostingSources)
-          .values(jobPostingSourceValues(existingJob.id, observation, fingerprint))
-          .run();
-        transaction
-          .update(jobPostings)
-          .set({
-            ...canonicalJobPostingValues([observation, ...siblingSources]),
-            updatedAt: now,
-          })
-          .where(eq(jobPostings.id, existingJob.id))
-          .run();
-        return { jobId: existingJob.id, outcome: "source-added" as const };
-      }
-
-      const canonical = canonicalJobPostingValues([observation]);
-      const jobId = transaction
-        .insert(jobPostings)
-        .values({
-          ...canonical,
-          createdAt: now,
-          identityKey: jobIdentityKey,
-          updatedAt: now,
-        })
-        .returning({ id: jobPostings.id })
-        .get().id;
-      transaction
-        .insert(jobPostingSources)
-        .values(jobPostingSourceValues(jobId, observation, fingerprint))
-        .run();
-      return { jobId, outcome: "created" as const };
+    const result = this.#persistJobObservation({
+      cardObservation,
+      existingSource,
+      now,
+      observedAt,
+      sourceIdentityKey,
+      sourceObservations,
     });
     this.#database
       .insert(workspaceChanges)
@@ -881,7 +928,7 @@ export class WorkspaceRepository {
         occurredAt: now,
         operation: result.outcome,
         reason: input.reason,
-        subject: `${observation.company ? `${observation.company} · ` : ""}${observation.title}`,
+        subject: `${cardObservation.company ? `${cardObservation.company} · ` : ""}${cardObservation.title}`,
       })
       .run();
     const job = this.#readJobPosting(result.jobId);
@@ -889,6 +936,108 @@ export class WorkspaceRepository {
       throw new Error(`保存后无法读取岗位：${String(result.jobId)}`);
     }
     return { job, outcome: result.outcome };
+  }
+
+  #findJobPostingSource(platformId: string, identityKey: string) {
+    return this.#database
+      .select()
+      .from(jobPostingSources)
+      .where(
+        and(
+          eq(jobPostingSources.platformId, platformId),
+          eq(jobPostingSources.identityKey, identityKey),
+        ),
+      )
+      .get();
+  }
+
+  #persistJobObservation(input: {
+    cardObservation: JobCardObservation;
+    existingSource: JobPostingSourceRow | undefined;
+    sourceObservations: SourceObservations;
+    now: string;
+    observedAt: string;
+    sourceIdentityKey: string;
+  }) {
+    return this.#database.transaction((transaction) => {
+      if (input.existingSource) {
+        const { id, jobId } = input.existingSource;
+        transaction
+          .update(jobPostingSources)
+          .set({ ...input.sourceObservations, lastCheckedAt: input.observedAt })
+          .where(eq(jobPostingSources.id, id))
+          .run();
+        WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, input.now);
+        return { jobId, outcome: "source-updated" as const };
+      }
+      const existingJob = transaction
+        .select()
+        .from(jobPostings)
+        .where(eq(jobPostings.identityKey, jobPostingIdentityKey(input.cardObservation)))
+        .get();
+      if (existingJob) {
+        WorkspaceRepository.#insertJobSource(transaction, existingJob.id, input);
+        WorkspaceRepository.#refreshCanonicalJob(transaction, existingJob.id, input.now);
+        return { jobId: existingJob.id, outcome: "source-added" as const };
+      }
+      const jobId = transaction
+        .insert(jobPostings)
+        .values({
+          ...canonicalJobPostingValues([
+            jobSourceEvidence(
+              input.sourceObservations.cardObservation,
+              input.sourceObservations.descriptionObservation,
+            ),
+          ]),
+          createdAt: input.now,
+          identityKey: jobPostingIdentityKey(input.cardObservation),
+          updatedAt: input.now,
+        })
+        .returning({ id: jobPostings.id })
+        .get().id;
+      WorkspaceRepository.#insertJobSource(transaction, jobId, input);
+      return { jobId, outcome: "created" as const };
+    });
+  }
+
+  static #insertJobSource(
+    transaction: WorkspaceTransaction,
+    jobId: number,
+    input: {
+      cardObservation: JobCardObservation;
+      sourceObservations: SourceObservations;
+      observedAt: string;
+      sourceIdentityKey: string;
+    },
+  ): void {
+    transaction
+      .insert(jobPostingSources)
+      .values({
+        ...input.sourceObservations,
+        identityKey: input.sourceIdentityKey,
+        jobId,
+        lastCheckedAt: input.observedAt,
+        platformId: input.cardObservation.platformId,
+      })
+      .run();
+  }
+
+  static #refreshCanonicalJob(
+    transaction: WorkspaceTransaction,
+    jobId: number,
+    updatedAt: string,
+  ): void {
+    const currentSources = transaction
+      .select()
+      .from(jobPostingSources)
+      .where(eq(jobPostingSources.jobId, jobId))
+      .all()
+      .map((source) => jobSourceEvidence(source.cardObservation, source.descriptionObservation));
+    transaction
+      .update(jobPostings)
+      .set({ ...canonicalJobPostingValues(currentSources), updatedAt })
+      .where(eq(jobPostings.id, jobId))
+      .run();
   }
 
   public createProfileFact(input: {

@@ -3,8 +3,11 @@ import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
-import { PassiveJobCollector, jobPostingObservations } from "#/browser/passive-job-collector.js";
-import type { JobPostingWriter } from "#/workspace-service/job-posting-writer.js";
+import {
+  observationsFromJobCardSnapshot,
+  PassiveJobObservationCollector,
+} from "#/browser/job-observation/passive-collector.js";
+import type { JobObservationWriter } from "#/workspace-service/job-observation-writer.js";
 
 const onePageRead = 1;
 
@@ -30,11 +33,28 @@ function jobPage(url: string, title: string): Page {
   } as unknown as Page;
 }
 
+function detailPage(url: string, title: string): Page {
+  return {
+    evaluate: () =>
+      Promise.resolve({
+        accessElements: [],
+        accessText: "",
+        company: "示例科技乙",
+        description: "建设合成测试平台。",
+        details: [],
+        title,
+        truncated: false,
+        url,
+      }),
+    url: () => url,
+  } as unknown as Page;
+}
+
 function passiveJobCollector(
   context: BrowserContext,
-  writer: JobPostingWriter,
-): PassiveJobCollector {
-  return new PassiveJobCollector(context, writer, {
+  writer: JobObservationWriter,
+): PassiveJobObservationCollector {
+  return new PassiveJobObservationCollector(context, writer, {
     collectionControl: new BackgroundCollectionControl(),
     observePageAccess: () => null,
   });
@@ -42,7 +62,7 @@ function passiveJobCollector(
 
 test("converts job-card evidence from any supported discovery page into posting observations", () => {
   expect(
-    jobPostingObservations({
+    observationsFromJobCardSnapshot({
       capturedAt: "2026-07-17T10:00:00.000Z",
       cards: [
         {
@@ -64,7 +84,6 @@ test("converts job-card evidence from any supported discovery page into posting 
     }),
   ).toEqual([
     {
-      collectedAt: "2026-07-17T10:00:00.000Z",
       company: "示例科技甲",
       details: ["3-5年", "本科"],
       discoveryUrl: "https://www.zhipin.com/web/geek/jobs?query=Java",
@@ -73,6 +92,7 @@ test("converts job-card evidence from any supported discovery page into posting 
       externalJobId: "abc123",
       jobUrl: "https://www.zhipin.com/job_detail/abc123.html",
       location: "北京",
+      observedAt: "2026-07-17T10:00:00.000Z",
       platformId: "boss",
       salaryText: "20-30K",
       summary: "后端开发 示例科技甲 北京 20-30K 3-5年 本科",
@@ -82,7 +102,7 @@ test("converts job-card evidence from any supported discovery page into posting 
 });
 
 test("uses Yupao's numeric path segment as the stable external job id", () => {
-  const observations = jobPostingObservations({
+  const observations = observationsFromJobCardSnapshot({
     capturedAt: "2026-07-17T10:00:00.000Z",
     cards: [
       ["123456789", "java-engineer"],
@@ -121,11 +141,14 @@ test("observes existing pages without opening or navigating recommendation seeds
   } as unknown as BrowserContext;
   const observations: { discoveryUrl: string }[] = [];
   const writer = {
-    *write(observation) {
+    *writeCardObservation(observation) {
       yield* [];
       observations.push(observation);
     },
-  } satisfies JobPostingWriter;
+    *writeDescriptionObservation() {
+      yield* [];
+    },
+  } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
   await using scope = createScope();
 
@@ -138,22 +161,28 @@ test("observes existing pages without opening or navigating recommendation seeds
 test("collects eligible platform tabs and leaves engagement pages to their owner", async () => {
   const seedUrl = "https://www.zhipin.com/web/geek/job-recommend";
   const searchUrl = "https://www.zhipin.com/web/geek/jobs?query=TypeScript";
+  const detailUrl = "https://www.zhipin.com/job_detail/detail-123.html";
   const engagementUrl = "https://www.yupao.com/user/resume-info/";
   const context = {
     pages: () => [
       jobPage(seedUrl, "后端开发"),
       jobPage(searchUrl, "平台工程师"),
+      detailPage(detailUrl, "测试工程师"),
       jobPage(engagementUrl, "鱼泡个人中心侧栏内容"),
       { url: () => "https://example.invalid/jobs" } as Page,
     ],
   } as BrowserContext;
   const observations: { discoveryUrl: string }[] = [];
   const writer = {
-    *write(observation) {
+    *writeCardObservation(observation) {
       yield* [];
       observations.push(observation);
     },
-  } satisfies JobPostingWriter;
+    *writeDescriptionObservation(observation) {
+      yield* [];
+      observations.push({ discoveryUrl: observation.jobUrl });
+    },
+  } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
   await using scope = createScope();
 
@@ -162,6 +191,7 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
   expect(observations).toEqual([
     expect.objectContaining({ discoveryUrl: seedUrl }),
     expect.objectContaining({ discoveryUrl: searchUrl }),
+    expect.objectContaining({ discoveryUrl: detailUrl }),
   ]);
 });
 
@@ -175,11 +205,14 @@ test("continues collecting open platform tabs", async () => {
     },
   } as unknown as BrowserContext;
   const writer = {
-    *write() {
+    *writeCardObservation() {
       yield* [];
       writeCount += onePageRead;
     },
-  } satisfies JobPostingWriter;
+    *writeDescriptionObservation() {
+      yield* [];
+    },
+  } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
   await using scope = createScope();
 
@@ -201,11 +234,14 @@ test("reports one unstable page and preserves jobs from later healthy pages", as
   } as unknown as BrowserContext;
   const observations: { discoveryUrl: string }[] = [];
   const writer = {
-    *write(observation) {
+    *writeCardObservation(observation) {
       yield* [];
       observations.push(observation);
     },
-  } satisfies JobPostingWriter;
+    *writeDescriptionObservation() {
+      yield* [];
+    },
+  } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
   const errors: Error[] = [];
   await using scope = createScope();

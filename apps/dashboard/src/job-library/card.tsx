@@ -46,7 +46,7 @@ function displaySalary(job: JobPosting): string | null {
   return null;
 }
 
-function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
+function JobSourceActions(props: { job: JobPosting; onShowDescription: () => void }): JSX.Element {
   return (
     <div class={styles["sources"]}>
       <For each={props.job.sources}>
@@ -66,11 +66,24 @@ function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
           );
         }}
       </For>
+      <Show when={props.job.description}>
+        <button
+          aria-haspopup="dialog"
+          class={styles["descriptionButton"]}
+          type="button"
+          onClick={props.onShowDescription}
+        >
+          查看职位描述
+        </button>
+      </Show>
     </div>
   );
 }
 
-export function JobCard(props: { job: JobPosting }): JSX.Element {
+export function JobCard(props: {
+  job: JobPosting;
+  onShowDescription: (job: JobPosting) => void;
+}): JSX.Element {
   const salary = displaySalary(props.job);
   const latestEngagementAt = props.job.sources
     .flatMap((source) => source.engagements.map(({ lastObservedAt }) => lastObservedAt))
@@ -103,7 +116,10 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
         </div>
       </Show>
       <footer>
-        <JobSourceLinks job={props.job} />
+        <JobSourceActions
+          job={props.job}
+          onShowDescription={() => props.onShowDescription(props.job)}
+        />
         <span>
           {latestEngagementAt
             ? `平台记录同步于 ${formattedDate(latestEngagementAt)}`

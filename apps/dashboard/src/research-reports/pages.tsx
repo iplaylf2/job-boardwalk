@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Loading, onSettled, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type {
   ResearchReport,
@@ -7,14 +7,14 @@ import type {
 } from "@job-boardwalk/contracts";
 
 import { AppShell } from "#/app-shell.js";
+import { WorkspaceDataBoundary } from "#/workspace-data-boundary.js";
+import { createWorkspaceRead } from "#/workspace-read.js";
 import { listResearchReports, readResearchReport } from "#/workspace-service-client.js";
 
 import { ResearchReportMarkdownView } from "./markdown-view.js";
 import styles from "./pages.module.css";
 
 const emptyCollectionLength = 0;
-const initialRefreshCount = 0;
-const refreshIncrement = 1;
 const refreshIntervalMilliseconds = 5000;
 
 function formatTimestamp(value: string): string {
@@ -53,18 +53,7 @@ function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
 }
 
 export function ResearchReportListPage(): JSX.Element {
-  const [refreshCount, setRefreshCount] = createSignal(initialRefreshCount);
-  const reportList = createMemo(() => {
-    refreshCount();
-    return listResearchReports();
-  });
-  onSettled(() => {
-    const interval = setInterval(
-      () => setRefreshCount((value) => value + refreshIncrement),
-      refreshIntervalMilliseconds,
-    );
-    return () => clearInterval(interval);
-  });
+  const reportList = createWorkspaceRead(listResearchReports, refreshIntervalMilliseconds);
 
   return (
     <AppShell
@@ -73,9 +62,9 @@ export function ResearchReportListPage(): JSX.Element {
       lede="集中阅读研究过程中形成的阶段性判断、依据与后续建议。"
     >
       <section class={styles["list"]} aria-label="研究报告列表">
-        <Loading fallback={<p class={styles["empty"]}>正在读取研究报告…</p>}>
+        <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取研究报告…</p>}>
           <Show
-            when={reportList()}
+            when={reportList.data()}
             fallback={<p class={styles["empty"]}>当前没有可阅读的研究报告。</p>}
           >
             {(result) => (
@@ -87,7 +76,7 @@ export function ResearchReportListPage(): JSX.Element {
               </Show>
             )}
           </Show>
-        </Loading>
+        </WorkspaceDataBoundary>
       </section>
     </AppShell>
   );
@@ -112,18 +101,10 @@ function ResearchReportDocument(props: { report: ResearchReport }): JSX.Element 
 }
 
 export function ResearchReportDetailPage(props: { reportId: number }): JSX.Element {
-  const [refreshCount, setRefreshCount] = createSignal(initialRefreshCount);
-  const report = createMemo(() => {
-    refreshCount();
-    return readResearchReport(props.reportId);
-  });
-  onSettled(() => {
-    const interval = setInterval(
-      () => setRefreshCount((value) => value + refreshIncrement),
-      refreshIntervalMilliseconds,
-    );
-    return () => clearInterval(interval);
-  });
+  const report = createWorkspaceRead(
+    () => readResearchReport(props.reportId),
+    refreshIntervalMilliseconds,
+  );
 
   return (
     <AppShell
@@ -131,9 +112,9 @@ export function ResearchReportDetailPage(props: { reportId: number }): JSX.Eleme
       title="研究报告"
       lede="研究报告记录阶段性判断；岗位与跟进记录仍应回到招聘平台核验。"
     >
-      <Loading fallback={<p class={styles["empty"]}>正在读取研究报告…</p>}>
-        <Show when={report()}>{(result) => <ResearchReportDocument report={result()} />}</Show>
-      </Loading>
+      <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取研究报告…</p>}>
+        <Show when={report.data()}>{(result) => <ResearchReportDocument report={result()} />}</Show>
+      </WorkspaceDataBoundary>
     </AppShell>
   );
 }

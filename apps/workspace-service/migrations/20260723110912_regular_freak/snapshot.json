@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "b481d6c7-0341-4e47-9144-f97fbde7a073",
+  "id": "7de45b46-74ad-4fd0-827a-641c0e35c3bd",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -42,11 +42,11 @@
     },
     {
       "type": "text",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "collected_at",
+      "name": "card_observation",
       "entityType": "columns",
       "table": "job_posting_sources"
     },
@@ -56,57 +56,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "company",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "details",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "discovery_url",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "education_requirement",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "experience_requirement",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "external_job_id",
+      "name": "description_observation",
       "entityType": "columns",
       "table": "job_posting_sources"
     },
@@ -142,16 +92,6 @@
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "job_url",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -162,71 +102,11 @@
     },
     {
       "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "location",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "normalized_salary",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
       "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "platform_id",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "salary_text",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "source_fingerprint",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "summary",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "title",
       "entityType": "columns",
       "table": "job_posting_sources"
     },
@@ -247,6 +127,16 @@
       "default": null,
       "generated": null,
       "name": "created_at",
+      "entityType": "columns",
+      "table": "job_postings"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "description",
       "entityType": "columns",
       "table": "job_postings"
     },
@@ -916,6 +806,12 @@
       "name": "profile_facts_key_unique",
       "entityType": "uniques",
       "table": "profile_facts"
+    },
+    {
+      "value": "\"card_observation\" is not null or \"description_observation\" is not null",
+      "name": "job_posting_sources_observation",
+      "entityType": "checks",
+      "table": "job_posting_sources"
     },
     {
       "value": "\"selected\" in (0, 1)",

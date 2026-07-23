@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- The exhaustive registry keeps platform navigation, access, and extraction contracts auditable together.
 import {
   isPlatformId,
   parsePlatformJobEngagementUrl,
@@ -12,6 +13,8 @@ import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import type { PlatformAccessAssessment } from "@job-boardwalk/contracts";
 
 import { bossTextReplacements } from "./boss-text-replacements.js";
+import { jobDescriptionExtractionConfigs } from "./job-observation/description-extraction-config.js";
+import type { JobDescriptionExtractionConfig } from "./job-observation/description-extraction-config.js";
 import { platformJobLinkPathPatterns } from "./platform-job-links.js";
 
 interface NavigationResponseFacts {
@@ -31,10 +34,12 @@ interface RecruitingPlatformAdapter {
   readonly label: string;
   readonly loginUrl: string;
   readonly platformId: PlatformId;
-  readonly jobCardExtraction: JobCardExtractionConfig;
+  readonly jobCardExtractionConfig: JobCardExtractionConfig;
+  readonly jobDescriptionExtractionConfig: JobDescriptionExtractionConfig;
   readonly snapshotSettleMilliseconds?: number;
   readonly isInNavigationScope: (value: string) => boolean;
   readonly isJobCardCollectionPage: (value: string) => boolean;
+  readonly isJobDetailPage: (value: string) => boolean;
   readonly assessNavigation?: (
     response: NavigationResponseFacts,
   ) => PlatformAccessAssessment | null;
@@ -56,6 +61,12 @@ export interface JobCardExtractionConfig {
   readonly titleBoundaryPattern?: string;
   readonly titleFromFirstLine?: boolean;
   readonly titleSelectors: readonly string[];
+}
+function isPlatformJobDetailPage(platformId: PlatformId, value: string): boolean {
+  const url = parsePlatformWebUrl(platformId, value);
+  return Boolean(
+    url && new RegExp(platformJobLinkPathPatterns[platformId], "u").test(url.pathname),
+  );
 }
 function isLoginPageUrl(candidateUrl: string, loginUrl: string): boolean {
   const current = new URL(candidateUrl);
@@ -107,9 +118,8 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
   const firstLineIndex = 0;
   const nextLineOffset = 1;
   const resumeLineOffset = 2;
-  const identityLineOffset = 3;
   const loginLabelFragments = ["登录", "注册"] as const;
-  const accountContextLabels = new Set(["搜索", "推荐", "添加求职期望"]);
+  const requiredNavigationLabels = ["首页", "职位", "公司", "校园"] as const;
   const headerLines = page.text
     .split(/\r?\n/u)
     .map((line) => line.trim())
@@ -125,13 +135,12 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
     return null;
   }
   const identity = headerLines[messageLineIndex + resumeLineOffset];
-  const accountContext = headerLines[messageLineIndex + identityLineOffset];
-  const isPersonalCenter =
-    parsePlatformWebUrl("yupao", page.url)?.pathname === "/user/resume-info/";
+  const headerNavigation = new Set(headerLines.slice(firstLineIndex, messageLineIndex));
+  const showsYupaoHeader = requiredNavigationLabels.every((label) => headerNavigation.has(label));
   const hasAccountIdentity =
+    showsYupaoHeader &&
     Boolean(identity) &&
-    !loginLabelFragments.some((fragment) => identity?.includes(fragment)) &&
-    (isPersonalCenter || accountContextLabels.has(accountContext ?? ""));
+    !loginLabelFragments.some((fragment) => identity?.includes(fragment));
   return hasAccountIdentity
     ? { authenticationState: "authenticated", evidence: "authenticated-page" }
     : null;
@@ -141,6 +150,7 @@ function isYupaoJobCardCollectionPage(value: string): boolean {
   const url = parsePlatformWebUrl("yupao", value);
   return (
     url !== null &&
+    !isPlatformJobDetailPage("yupao", value) &&
     !platformJobEngagementKinds.some(
       (engagement) =>
         url.pathname === new URL(resolvePlatformJobEngagementUrl("yupao", engagement)).pathname,
@@ -158,10 +168,13 @@ function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlat
     isJobCardCollectionPage(value) {
       return (
         parsePlatformWebUrl(platformId, value) !== null &&
+        !isPlatformJobDetailPage(platformId, value) &&
         parsePlatformJobEngagementUrl(platformId, value) === null
       );
     },
-    jobCardExtraction: platformId === "boss" ? bossJobCardExtraction : yupaoJobCardExtraction,
+    isJobDetailPage: (value) => isPlatformJobDetailPage(platformId, value),
+    jobCardExtractionConfig: platformId === "boss" ? bossJobCardExtraction : yupaoJobCardExtraction,
+    jobDescriptionExtractionConfig: jobDescriptionExtractionConfigs[platformId],
     label: metadata.label,
     loginUrl: resolvePlatformWebUrl(platformId, "login"),
     platformId,
@@ -195,6 +208,7 @@ const bossJobCardExtraction = {
 } as const satisfies JobCardExtractionConfig;
 
 const yupaoSnapshotSettleMilliseconds = 1000;
+
 const yupaoJobCardExtraction = {
   companySelectors: [
     "a[href*='/qiye/']",
@@ -270,22 +284,42 @@ export function requireRecruitingPlatformAdapter(url: string): RecruitingPlatfor
   return adapter;
 }
 
-export function requireJobCardExtraction(url: string): {
-  extraction: JobCardExtractionConfig;
+export function requireJobCardExtractionConfig(url: string): {
+  config: JobCardExtractionConfig;
   platformId: PlatformId;
 } {
   const adapter = requireRecruitingPlatformAdapter(url);
   if (!adapter.isJobCardCollectionPage(url)) {
-    throw new Error("当前页面由岗位跟进采集器负责，不属于岗位卡片采集范围。");
+    throw new Error("当前页面不属于岗位卡片采集范围。");
   }
   return {
-    extraction: adapter.jobCardExtraction,
+    config: adapter.jobCardExtractionConfig,
+    platformId: adapter.platformId,
+  };
+}
+
+export function requireJobDetailExtractionConfigs(url: string): {
+  cardConfig: JobCardExtractionConfig;
+  descriptionConfig: JobDescriptionExtractionConfig;
+  platformId: PlatformId;
+} {
+  const adapter = requireRecruitingPlatformAdapter(url);
+  if (!adapter.isJobDetailPage(url)) {
+    throw new Error("当前页面不是受支持招聘平台的岗位详情页。");
+  }
+  return {
+    cardConfig: adapter.jobCardExtractionConfig,
+    descriptionConfig: adapter.jobDescriptionExtractionConfig,
     platformId: adapter.platformId,
   };
 }
 
 export function isJobCardCollectionPage(url: string): boolean {
   return findRecruitingPlatformAdapter(url)?.isJobCardCollectionPage(url) ?? false;
+}
+
+export function isJobDetailPage(url: string): boolean {
+  return findRecruitingPlatformAdapter(url)?.isJobDetailPage(url) ?? false;
 }
 
 export function assertPlatformNavigationUrl(platformId: PlatformId, url: string): void {

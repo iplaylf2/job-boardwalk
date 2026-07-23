@@ -84,7 +84,7 @@ function fakeAuthenticatedYupaoJobCardPage(): Page {
     evaluate: () =>
       Promise.resolve({
         accessElements: [],
-        accessText: "消息\n简历\n测试用户\n推荐",
+        accessText: "首页\n职位\n公司\n校园\n消息\n简历\n测试用户\n推荐",
         cards: [],
         title: "北京招聘信息 - 鱼泡直聘",
         truncated: false,

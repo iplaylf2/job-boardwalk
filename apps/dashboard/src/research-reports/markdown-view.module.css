@@ -70,6 +70,14 @@
   letter-spacing: 0.04em;
 }
 
+.markdown :is(th, td)[data-alignment="center"] {
+  text-align: center;
+}
+
+.markdown :is(th, td)[data-alignment="right"] {
+  text-align: right;
+}
+
 .markdown code {
   border-radius: 4px;
   padding: 2px 5px;

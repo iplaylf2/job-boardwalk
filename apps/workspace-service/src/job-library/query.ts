@@ -1,5 +1,5 @@
-import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import type { JobEngagementKind } from "@job-boardwalk/contracts";
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
 export const firstJobPage = 1;
 export const defaultJobPageSize = 24;

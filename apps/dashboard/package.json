@@ -16,6 +16,7 @@
   "dependencies": {
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
+    "@shajara/host": "catalog:",
     "@solidjs/web": "2.0.0-beta.22",
     "markdown-it": "14.3.0",
     "solid-js": "2.0.0-beta.22"

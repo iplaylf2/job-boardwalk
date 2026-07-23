@@ -4,6 +4,10 @@ import { contract } from "./contract.ts";
 
 export const trimmedNonEmptyString = contract("string.trim.preformatted > 0");
 
+export const normalizedNonEmptyText = contract("string")
+  .pipe((value) => value.trim())
+  .to("string > 0");
+
 export const normalizedTimestamp = contract("string.date").pipe((value) =>
   new Date(value).toISOString(),
 );

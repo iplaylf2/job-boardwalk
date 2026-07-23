@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- The executor is the cohesive dispatch boundary for the public browser tool surface.
 import type { Locator } from "patchright";
 import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import type { PlatformId, PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
@@ -19,7 +20,8 @@ import {
   maximumElementHrefCharacters,
   maximumElementNameCharacters,
 } from "./page-snapshot.js";
-import { captureJobCardSnapshot } from "./job-card-snapshot.js";
+import { captureJobCardSnapshot } from "./job-observation/card-snapshot.js";
+import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
 
 const zero = 0;
 
@@ -87,6 +89,9 @@ export class BrowserToolExecutor {
       }
       case "browser_job_card_snapshot": {
         return yield* this.#jobCardSnapshot(input);
+      }
+      case "browser_job_description_snapshot": {
+        return yield* this.#jobDescriptionSnapshot(input);
       }
       case "browser_sync_job_engagement": {
         this.#clearElementReferences();
@@ -233,6 +238,13 @@ export class BrowserToolExecutor {
     this.#tabs.markSelected(tabId);
     const snapshot = yield* captureJobCardSnapshot(page, maximumCards, this.#observePageAccess);
     return { ...snapshot, tabId };
+  }
+
+  *#jobDescriptionSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
+    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
+    this.#tabs.markSelected(tabId);
+    const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
+    return { ...observation, tabId };
   }
 
   *#scrollToReference(params: Record<string, unknown>): RiteCoroutine<unknown> {

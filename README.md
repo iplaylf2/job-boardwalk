@@ -38,17 +38,15 @@ Available now:
 
 - Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
   with platform-specific navigation and access-assessment rules behind adapters. It can also take a
-  bounded, structured snapshot of job cards already loaded on an eligible supported-platform page.
-  A passive collector submits recognizable cards from eligible platform tabs that are already open;
-  it never opens or navigates a recommendation page. The selected job-search intent supplies
-  research context for explicit agent navigation, not a background browsing schedule. Interested,
-  contacted, applied, and interviewed lists are synchronized one platform, category, and page at a
-  time only within a user-requested agent task. Browser Session does not rotate those lists or use
-  personal-center navigation to keep a session active.
+  bounded, structured snapshot of job cards or the main description on an already-open detail page.
+  A passive collector preserves evidence from eligible pages that are already open; it never opens
+  or navigates research pages. The selected job-search intent guides explicit agent navigation, not
+  background browsing. Interested, contacted, applied, and interviewed lists are synchronized one
+  platform, category, and page at a time only within a user-requested agent task.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
-  sources, and Markdown research reports. It skips unchanged observations and merges confident
-  cross-platform matches while preserving every available platform link.
+  sources, source-specific descriptions, and Markdown research reports. It merges confident
+  cross-platform matches while preserving each platform source and its collected evidence.
 - Dashboard displays that durable workspace data alongside leased Browser Session presence and
   lets the user maintain and select job-search intents. Its paginated job library supports search,
   platform filtering, and in-library views for interested, contacted, applied, and interviewed

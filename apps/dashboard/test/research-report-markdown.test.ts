@@ -6,11 +6,14 @@ import { renderResearchReportMarkdown } from "#/research-reports/markdown.js";
 
 test("renders report tables, HTTPS links, and Dashboard-local links", () => {
   const html = renderResearchReportMarkdown(
-    "| 岗位 | 判断 |\n| --- | --- |\n| Node.js | 推荐 |\n\n[查看岗位](https://example.com/job)\n\n[岗位库](/jobs)\n\n[结论](#结论)",
+    "| 岗位 | 数量 | 判断 |\n| --- | ---: | :---: |\n| Node.js | 3 | 推荐 |\n\n[查看岗位](https://example.com/job)\n\n[岗位库](/jobs)\n\n[结论](#结论)",
   );
 
   expect(html).toContain("<table>");
   expect(html).toContain("<td>Node.js</td>");
+  expect(html).toContain('<th data-alignment="right">数量</th>');
+  expect(html).toContain('<td data-alignment="center">推荐</td>');
+  expect(html).not.toContain(' style="');
   expect(html).toContain('<a href="https://example.com/job">查看岗位</a>');
   expect(html).toContain('<a href="/jobs">岗位库</a>');
   expect(html).toContain('<a href="#%E7%BB%93%E8%AE%BA">结论</a>');

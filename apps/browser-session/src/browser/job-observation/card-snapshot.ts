@@ -3,8 +3,11 @@ import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import type { JobCardEvidence, JobCardSnapshot } from "@job-boardwalk/contracts";
 
-import { requireJobCardExtraction } from "./recruiting-platform-adapters.js";
-import type { JobCardExtractionConfig, PageAccessFacts } from "./recruiting-platform-adapters.js";
+import { requireJobCardExtractionConfig } from "#/browser/recruiting-platform-adapters.js";
+import type {
+  JobCardExtractionConfig,
+  PageAccessFacts,
+} from "#/browser/recruiting-platform-adapters.js";
 
 const accessTextCharacters = 5000;
 const firstIndex = 0;
@@ -215,11 +218,11 @@ export function* captureJobCardSnapshot(
   observePageAccess?: (page: PageAccessFacts) => void,
 ): RiteCoroutine<JobCardSnapshot> {
   const initialUrl = page.url();
-  const { extraction, platformId } = requireJobCardExtraction(initialUrl);
+  const { config, platformId } = requireJobCardExtractionConfig(initialUrl);
   const metadata = yield* until(() =>
     page.evaluate(captureJobCardMetadata, {
       accessTextCharacters,
-      config: extraction,
+      config,
       maximumAccessElements,
       maximumCardTextCharacters,
       maximumCards,
