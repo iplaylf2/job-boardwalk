@@ -179,7 +179,7 @@ test.each([
 });
 
 test.each(["搜索", "推荐", "添加求职期望"])(
-  "observes an authenticated Yupao account identity followed by %s in the bounded header",
+  "observes an authenticated Yupao account identity with %s following it",
   (accountContext) => {
     expect(
       derivePageAccessObservation(
@@ -210,6 +210,35 @@ test.each(["搜索", "推荐", "添加求职期望"])(
     });
   },
 );
+
+test("observes an authenticated Yupao identity when a job title follows the account header", () => {
+  expect(
+    derivePageAccessObservation(
+      {
+        elements: [],
+        text: [
+          "首页",
+          "职位",
+          "公司",
+          "校园",
+          "意外险",
+          "下载APP",
+          "消息",
+          "简历",
+          "测试用户",
+          "合成岗位标题",
+        ].join("\n"),
+        url: "https://www.yupao.com/zhaogong/123456789.html",
+      },
+      () => Date.parse(observedAt),
+    ),
+  ).toEqual({
+    authenticationState: "authenticated",
+    evidence: "authenticated-page",
+    observedAt,
+    platformId: "yupao",
+  });
+});
 
 test("observes an authenticated Yupao identity on its personal-center page", () => {
   expect(
@@ -246,7 +275,7 @@ test.each(["登录", "注册", "登录/注册", "立即登录", "免费注册"])
     expect(
       derivePageAccessObservation({
         elements: [],
-        text: ["首页", "职位", "消息", "简历", identity, "推荐"].join("\n"),
+        text: ["首页", "职位", "公司", "校园", "消息", "简历", identity, "推荐"].join("\n"),
         url: "https://www.yupao.com/topic/a2c1488/",
       }),
     ).toBeNull();

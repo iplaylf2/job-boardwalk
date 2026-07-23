@@ -22,8 +22,8 @@ afterEach(() => {
 
 test("observes the BOSS main description without surrounding recruiter or recommendation text", () => {
   const url = "https://www.zhipin.com/job_detail/synthetic-role.html";
+  const companySelector = "a[href*='/gongsi/'][href*='.html']:not([href*='/gongsi/job/'])";
   const fields: Record<string, { innerText?: string; textContent: string }> = {
-    ".company-info a[href*='/gongsi/']": { textContent: "合成雇主甲" },
     ".job-name": { textContent: "平台工程师" },
     ".job-sec-text": {
       innerText: "工作职责\n1. 建设合成测试平台。\n任职资格\n1. 熟悉 TypeScript。",
@@ -34,7 +34,12 @@ test("observes the BOSS main description without surrounding recruiter or recomm
   vi.stubGlobal("document", {
     body: { innerText: "职位描述\n正文\n合成招聘者\nBOSS 安全提示\n推荐岗位" },
     querySelector: (selector: string) => fields[selector] ?? null,
-    querySelectorAll: () => [],
+    querySelectorAll(selector: string) {
+      if (selector === companySelector) {
+        return [{ textContent: "" }, { textContent: "合成雇主甲" }];
+      }
+      return fields[selector] ? [fields[selector]] : [];
+    },
   });
   vi.stubGlobal("location", { href: url });
 
@@ -63,7 +68,9 @@ test("extracts the Yupao description from its visible section boundary", () => {
       querySelector(selector: string) {
         return selector === "h1" ? { textContent: "业务系统工程师" } : null;
       },
-      querySelectorAll: () => [],
+      querySelectorAll(selector: string) {
+        return selector === "h1" ? [{ textContent: "业务系统工程师" }] : [];
+      },
     },
     input,
     location: { href: url },

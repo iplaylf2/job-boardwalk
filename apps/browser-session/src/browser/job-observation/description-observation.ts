@@ -55,15 +55,14 @@ export function captureJobDescriptionMetadata(input: {
     },
     firstText(selectors: readonly string[]): string | null {
       for (const selector of selectors) {
-        const value = helpers
-          .bounded(
-            document.querySelector(selector)?.textContent ?? "",
-            input.maximumFieldCharacters,
-          )
-          .split("\n")
-          .at(firstIndex);
-        if (value) {
-          return value;
+        for (const element of document.querySelectorAll(selector)) {
+          const value = helpers
+            .bounded(element.textContent ?? "", input.maximumFieldCharacters)
+            .split("\n")
+            .at(firstIndex);
+          if (value) {
+            return value;
+          }
         }
       }
       return null;
