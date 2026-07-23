@@ -18,8 +18,9 @@ The interface has three primary reader paths:
   `engagement` query parameter; these are views of one collection, not peer pages. The library also
   provides search, platform filtering, original source links, and server-backed pagination. Source
   labels show every observed engagement, while each card shows when its platform records were last
-  synchronized. A collected posting description is available in a collapsed section. If Browser
-  Session reached its local text limit, the section says that the collected text was truncated.
+  synchronized. A card with a collected job description offers an action that opens it in a
+  dialog. The dialog reports when Browser Session reached its local text limit and the displayed
+  description may be incomplete.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
 The header owns only cross-resource navigation. Follow-up filters belong to the job library and do

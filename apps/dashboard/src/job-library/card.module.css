@@ -78,27 +78,6 @@
   font-weight: 600;
 }
 
-.description {
-  border-radius: 10px;
-  background: var(--neutral-soft);
-  padding: 10px 12px;
-}
-
-.description summary {
-  cursor: pointer;
-  color: var(--brand-dark);
-  font-size: var(--text-meta);
-  font-weight: 700;
-}
-
-.description p {
-  margin: 10px 0 0;
-  color: var(--ink-muted);
-  font-size: var(--text-meta);
-  line-height: 1.65;
-  white-space: pre-wrap;
-}
-
 .card footer {
   align-items: end;
   border-top: 1px solid var(--line);
@@ -108,11 +87,19 @@
   font-size: var(--text-caption);
 }
 
+.description-button,
 .sources a {
   color: var(--brand);
   font-size: var(--text-meta);
   font-weight: 700;
   text-decoration: none;
+}
+
+.description-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .sources span {
@@ -121,6 +108,7 @@
   font-weight: 700;
 }
 
+.description-button:hover,
 .sources a:hover {
   color: var(--brand-dark);
   text-decoration: underline;

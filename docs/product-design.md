@@ -277,6 +277,16 @@ management surface owns creating, revising, selecting, and removing job-search i
 facts. Removing a fact stops it from influencing future interpretation; Workspace Service retains
 change attribution separately.
 
+### Job library
+
+Job cards remain compact and comparable regardless of description length. A collected description
+opens in a dedicated dialog rather than expanding inside its card, so reading one job does not
+reflow the surrounding list. Only one description is open at a time, and closing it returns the
+user to the same list context. On a narrow screen, the dialog fills the viewport; its header remains
+visible while the description scrolls independently.
+
+### Product direction
+
 As the product grows, it should also include:
 
 - other research intents;

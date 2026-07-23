@@ -46,7 +46,7 @@ function displaySalary(job: JobPosting): string | null {
   return null;
 }
 
-function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
+function JobSourceActions(props: { job: JobPosting; onShowDescription: () => void }): JSX.Element {
   return (
     <div class={styles["sources"]}>
       <For each={props.job.sources}>
@@ -66,25 +66,24 @@ function JobSourceLinks(props: { job: JobPosting }): JSX.Element {
           );
         }}
       </For>
+      <Show when={props.job.description}>
+        <button
+          aria-haspopup="dialog"
+          class={styles["descriptionButton"]}
+          type="button"
+          onClick={props.onShowDescription}
+        >
+          查看职位描述
+        </button>
+      </Show>
     </div>
   );
 }
 
-function JobDescription(props: {
-  description: NonNullable<JobPosting["description"]>;
+export function JobCard(props: {
+  job: JobPosting;
+  onShowDescription: (job: JobPosting) => void;
 }): JSX.Element {
-  return (
-    <details class={styles["description"]}>
-      <summary>
-        职位描述
-        {props.description.truncated ? "（采集文本已截断）" : ""}
-      </summary>
-      <p>{props.description.text}</p>
-    </details>
-  );
-}
-
-export function JobCard(props: { job: JobPosting }): JSX.Element {
   const salary = displaySalary(props.job);
   const latestEngagementAt = props.job.sources
     .flatMap((source) => source.engagements.map(({ lastObservedAt }) => lastObservedAt))
@@ -116,11 +115,11 @@ export function JobCard(props: { job: JobPosting }): JSX.Element {
           <For each={props.job.details}>{(detail) => <span>{detail}</span>}</For>
         </div>
       </Show>
-      <Show when={props.job.description}>
-        {(description) => <JobDescription description={description()} />}
-      </Show>
       <footer>
-        <JobSourceLinks job={props.job} />
+        <JobSourceActions
+          job={props.job}
+          onShowDescription={() => props.onShowDescription(props.job)}
+        />
         <span>
           {latestEngagementAt
             ? `平台记录同步于 ${formattedDate(latestEngagementAt)}`
