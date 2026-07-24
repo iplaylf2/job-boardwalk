@@ -5,26 +5,35 @@ import { expect, test } from "vitest";
 
 import {
   captureJobEngagementSnapshot,
-  jobEngagementSnapshotFromYupaoMetadata,
-  visibleJobEngagementCount,
+  jobEngagementSnapshotFromPageMetadata,
+  parseJobEngagementTotal,
 } from "#/browser/job-engagement/snapshot.js";
-import { captureYupaoJobEngagementMetadata } from "#/browser/job-engagement/yupao-snapshot.js";
+import { maximumJobsPerEngagementScan } from "#/browser/job-engagement/scan-limit.js";
+import { captureYupaoJobEngagementMetadata } from "#/browser/job-engagement/yupao-page-capture.js";
 
 const appliedJobCount = 3;
 const contactedJobCount = 12;
 const interestedJobCount = 2;
 const interviewedJobCount = 0;
+const maximumSummaryCharacters = 1500;
+const pageCaptureLimits = {
+  maximumCards: maximumJobsPerEngagementScan,
+  maximumSummaryCharacters,
+};
 
 test("keeps the serialized Yupao extractor self-contained", () => {
-  const result = runInNewContext(`(${captureYupaoJobEngagementMetadata.toString()})()`, {
-    document: {
-      body: { innerText: "感兴趣0" },
-      querySelectorAll: () => [],
+  const result = runInNewContext(
+    `(${captureYupaoJobEngagementMetadata.toString()})(${JSON.stringify(pageCaptureLimits)})`,
+    {
+      document: {
+        body: { innerText: "感兴趣0" },
+        querySelectorAll: () => [],
+      },
+      location: {
+        href: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
+      },
     },
-    location: {
-      href: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
-    },
-  }) as { cards: unknown[]; text: string; url: string };
+  ) as { cards: unknown[]; text: string; url: string };
 
   expect(result).toEqual({
     cards: [],
@@ -36,9 +45,9 @@ test("keeps the serialized Yupao extractor self-contained", () => {
 
 test("classifies a complete Yupao interest page without requiring job links", () => {
   expect(
-    jobEngagementSnapshotFromYupaoMetadata(
+    jobEngagementSnapshotFromPageMetadata(
       {
-        cards: [
+        jobs: [
           {
             company: "示例科技甲",
             details: ["AIGC"],
@@ -54,6 +63,7 @@ test("classifies a complete Yupao interest page without requiring job links", ()
       },
       "2026-07-19T10:00:00.000Z",
       "interested",
+      "yupao",
     ),
   ).toEqual({
     capturedAt: "2026-07-19T10:00:00.000Z",
@@ -77,9 +87,9 @@ test("classifies a complete Yupao interest page without requiring job links", ()
 });
 
 test("uses Yupao's numeric path segment for linked interest jobs", () => {
-  const snapshot = jobEngagementSnapshotFromYupaoMetadata(
+  const snapshot = jobEngagementSnapshotFromPageMetadata(
     {
-      cards: [
+      jobs: [
         {
           details: [],
           jobUrl: "https://www.yupao.com/zhaogong/123456789/java-engineer.html",
@@ -93,15 +103,16 @@ test("uses Yupao's numeric path segment for linked interest jobs", () => {
     },
     "2026-07-19T10:00:00.000Z",
     "interested",
+    "yupao",
   );
 
   expect(snapshot.jobs).toEqual([expect.objectContaining({ externalJobId: "123456789" })]);
 });
 
 test("keeps a Yupao snapshot partial when the visible total is unavailable", () => {
-  const snapshot = jobEngagementSnapshotFromYupaoMetadata(
+  const snapshot = jobEngagementSnapshotFromPageMetadata(
     {
-      cards: [
+      jobs: [
         {
           company: "示例科技甲",
           details: [],
@@ -116,6 +127,7 @@ test("keeps a Yupao snapshot partial when the visible total is unavailable", () 
     },
     "2026-07-19T10:00:00.000Z",
     "interested",
+    "yupao",
   );
 
   expect(snapshot).toMatchObject({ complete: false, completionTotal: null, total: 1 });
@@ -220,7 +232,7 @@ test("keeps a BOSS snapshot partial when the visible total is unavailable", asyn
   expect(snapshot).toMatchObject({ complete: false, completionTotal: null, total: 1 });
 });
 
-test("accepts an empty later page as the end of a paginated engagement scan", async () => {
+test("keeps an empty later page partial when the declared total is nonzero", async () => {
   const url = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=3&tag=4";
   const page = {
     evaluate: () =>
@@ -242,8 +254,8 @@ test("accepts an empty later page as the end of a paginated engagement scan", as
 test("reads the platform-maintained total for every job engagement", () => {
   const text = "沟通过\n已投递简历\n面试0\n感兴趣2\n累计沟通职位数量12\n累计投递简历数量3";
 
-  expect(visibleJobEngagementCount(text, "contacted")).toBe(contactedJobCount);
-  expect(visibleJobEngagementCount(text, "applied")).toBe(appliedJobCount);
-  expect(visibleJobEngagementCount(text, "interviewed")).toBe(interviewedJobCount);
-  expect(visibleJobEngagementCount(text, "interested")).toBe(interestedJobCount);
+  expect(parseJobEngagementTotal(text, "contacted")).toBe(contactedJobCount);
+  expect(parseJobEngagementTotal(text, "applied")).toBe(appliedJobCount);
+  expect(parseJobEngagementTotal(text, "interviewed")).toBe(interviewedJobCount);
+  expect(parseJobEngagementTotal(text, "interested")).toBe(interestedJobCount);
 });

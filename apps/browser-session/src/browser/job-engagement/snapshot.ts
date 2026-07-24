@@ -1,7 +1,5 @@
 import type { Page } from "patchright";
-import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
-import { parsePlatformJobEngagementUrl } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import type {
   JobEngagementEvidence,
@@ -10,28 +8,18 @@ import type {
 } from "@job-boardwalk/contracts";
 
 import { extractExternalJobId } from "#/browser/platform-job-links.js";
-import { requireRecruitingPlatformAdapter } from "#/browser/recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
 
-import { captureBossJobEngagementMetadata } from "./boss-snapshot.js";
-import { captureYupaoJobEngagementMetadata } from "./yupao-snapshot.js";
-import type { YupaoJobEngagementMetadata } from "./yupao-snapshot.js";
+import { jobEngagementPlatformAdapters, matchJobEngagementPage } from "./platform-adapters.js";
+import type { JobEngagementPageMetadata } from "./platform-adapters.js";
 
 const emptyCollectionLength = 0;
-const firstPage = 1;
 
 export interface CapturedJobEngagementSnapshot extends JobEngagementSnapshot {
   readonly completionTotal: number | null;
 }
 
-interface JobEngagementPageMetadata {
-  jobs: JobEngagementEvidence[];
-  text: string;
-  truncated: boolean;
-  url: string;
-}
-
-export function visibleJobEngagementCount(
+export function parseJobEngagementTotal(
   text: string,
   engagement: JobEngagementKind,
 ): number | null {
@@ -55,47 +43,22 @@ function jobsWithExternalIds(
   });
 }
 
-function yupaoPageMetadata(metadata: YupaoJobEngagementMetadata): JobEngagementPageMetadata {
-  return {
-    jobs: metadata.cards,
-    text: metadata.text,
-    truncated: metadata.truncated,
-    url: metadata.url,
-  };
-}
-
-export function jobEngagementSnapshotFromYupaoMetadata(
-  metadata: YupaoJobEngagementMetadata,
-  capturedAt: string,
-  engagement: JobEngagementKind,
-): CapturedJobEngagementSnapshot {
-  return jobEngagementSnapshotFromPageMetadata(
-    yupaoPageMetadata(metadata),
-    capturedAt,
-    engagement,
-    "yupao",
-  );
-}
-
-function isFirstEngagementPage(url: string): boolean {
-  const page = Number(new URL(url).searchParams.get("page") ?? firstPage);
-  return page === firstPage;
-}
-
-function jobEngagementSnapshotFromPageMetadata(
+export function jobEngagementSnapshotFromPageMetadata(
   metadata: JobEngagementPageMetadata,
   capturedAt: string,
   engagement: JobEngagementKind,
   platformId: PlatformId,
 ): CapturedJobEngagementSnapshot {
   const jobs = jobsWithExternalIds(platformId, metadata.jobs);
-  const visibleTotal = visibleJobEngagementCount(metadata.text, engagement);
-  if (jobs.length === emptyCollectionLength && isFirstEngagementPage(metadata.url)) {
+  const visibleTotal = parseJobEngagementTotal(metadata.text, engagement);
+  const adapter = jobEngagementPlatformAdapters[platformId];
+  const isInitialTarget = adapter.matchesTarget(adapter.initialTarget(engagement), metadata.url);
+  if (jobs.length === emptyCollectionLength && isInitialTarget) {
     if (visibleTotal === null) {
-      throw new Error("个人中心未提供岗位总数，也未识别到岗位卡片，无法确认列表为空。");
+      throw new Error("岗位跟进分类页未提供总数，也未识别到岗位卡片，无法确认列表为空。");
     }
     if (visibleTotal > emptyCollectionLength) {
-      throw new Error(`个人中心显示 ${String(visibleTotal)} 个岗位，但未识别到岗位卡片。`);
+      throw new Error(`岗位跟进分类页显示 ${String(visibleTotal)} 个岗位，但未识别到岗位卡片。`);
     }
   }
   const hasCompleteEvidence = visibleTotal !== null && !metadata.truncated;
@@ -116,23 +79,19 @@ export function* captureJobEngagementSnapshot(
   observePageAccess?: (page: PageAccessFacts) => void,
 ): RiteCoroutine<CapturedJobEngagementSnapshot> {
   const initialUrl = page.url();
-  const { platformId } = requireRecruitingPlatformAdapter(initialUrl);
-  const engagement = parsePlatformJobEngagementUrl(platformId, initialUrl);
-  if (!engagement) {
-    throw new Error("当前页面不是招聘平台个人中心的岗位跟进列表。");
+  const match = matchJobEngagementPage(initialUrl);
+  if (!match) {
+    throw new Error("当前页面不是受支持的岗位跟进分类页。");
   }
-  const metadata =
-    platformId === "boss"
-      ? yield* until(() => page.evaluate(captureBossJobEngagementMetadata))
-      : yupaoPageMetadata(yield* until(() => page.evaluate(captureYupaoJobEngagementMetadata)));
+  const metadata = yield* match.adapter.capturePage(page);
   if (page.url() !== initialUrl || metadata.url !== initialUrl) {
-    throw new Error("个人中心岗位跟进列表在读取期间发生了导航。");
+    throw new Error("岗位跟进分类页在读取期间发生了导航；请等待页面稳定后重试。");
   }
   observePageAccess?.({ elements: [], text: metadata.text, url: metadata.url });
   return jobEngagementSnapshotFromPageMetadata(
     metadata,
     new Date().toISOString(),
-    engagement,
-    platformId,
+    match.engagement,
+    match.adapter.platformId,
   );
 }

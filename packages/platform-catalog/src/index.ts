@@ -13,11 +13,19 @@ type PlatformWebOrigin = `https://${string}`;
 type PlatformWebPath = `/${string}`;
 const firstPage = 1;
 
+interface PlatformJobEngagementPagination {
+  firstPage: number;
+  parameter: string;
+}
+
 interface PlatformCatalogEntry {
   label: string;
   web: {
     destinations: Record<PlatformWebDestination, PlatformWebPath>;
-    jobEngagementPaths: Record<PlatformJobEngagementKind, PlatformWebPath>;
+    jobEngagement: {
+      pagination: PlatformJobEngagementPagination | null;
+      paths: Record<PlatformJobEngagementKind, PlatformWebPath>;
+    };
     navigationDomain: string;
     origin: PlatformWebOrigin;
   };
@@ -31,11 +39,14 @@ export const platformCatalog = {
         entry: "/",
         login: "/web/user/",
       },
-      jobEngagementPaths: {
-        applied: "/web/geek/recommend?tab=2&sub=1&page=1&tag=4",
-        contacted: "/web/geek/recommend?tab=1&sub=1&page=1&tag=4",
-        interested: "/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
-        interviewed: "/web/geek/recommend?tab=3&sub=1&page=1&tag=4",
+      jobEngagement: {
+        pagination: { firstPage, parameter: "page" },
+        paths: {
+          applied: "/web/geek/recommend?tab=2&sub=1&page=1&tag=4",
+          contacted: "/web/geek/recommend?tab=1&sub=1&page=1&tag=4",
+          interested: "/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+          interviewed: "/web/geek/recommend?tab=3&sub=1&page=1&tag=4",
+        },
       },
       navigationDomain: "zhipin.com",
       origin: "https://www.zhipin.com",
@@ -48,11 +59,14 @@ export const platformCatalog = {
         entry: "/",
         login: "/web/login/",
       },
-      jobEngagementPaths: {
-        applied: "/user/resume-info/?tab=2&subTab=1&mode=1",
-        contacted: "/user/resume-info/?tab=1&subTab=1&mode=1",
-        interested: "/user/resume-info/?tab=4&subTab=1&mode=1",
-        interviewed: "/user/resume-info/?tab=3&subTab=1&mode=1",
+      jobEngagement: {
+        pagination: null,
+        paths: {
+          applied: "/user/resume-info/?tab=2&subTab=1&mode=1",
+          contacted: "/user/resume-info/?tab=1&subTab=1&mode=1",
+          interested: "/user/resume-info/?tab=4&subTab=1&mode=1",
+          interviewed: "/user/resume-info/?tab=3&subTab=1&mode=1",
+        },
       },
       navigationDomain: "yupao.com",
       origin: "https://www.yupao.com",
@@ -72,8 +86,8 @@ export function resolvePlatformJobEngagementUrl(
   platformId: PlatformId,
   engagement: PlatformJobEngagementKind,
 ): string {
-  const { jobEngagementPaths, origin } = platformCatalog[platformId].web;
-  return `${origin}${jobEngagementPaths[engagement]}`;
+  const { jobEngagement, origin } = platformCatalog[platformId].web;
+  return `${origin}${jobEngagement.paths[engagement]}`;
 }
 
 export function parsePlatformWebUrl(platformId: PlatformId, value: string): URL | null {
@@ -100,15 +114,16 @@ export function parsePlatformJobEngagementUrl(
   if (!url) {
     return null;
   }
+  const { pagination } = platformCatalog[platformId].web.jobEngagement;
   for (const engagement of platformJobEngagementKinds) {
     const expected = new URL(resolvePlatformJobEngagementUrl(platformId, engagement));
     if (url.pathname !== expected.pathname) {
       continue;
     }
     const matchesParameters = [...expected.searchParams].every(([name, expectedValue]) => {
-      if (platformId === "boss" && name === "page") {
+      if (pagination?.parameter === name) {
         const page = Number(url.searchParams.get(name));
-        return Number.isSafeInteger(page) && page >= firstPage;
+        return Number.isSafeInteger(page) && page >= pagination.firstPage;
       }
       return url.searchParams.get(name) === expectedValue;
     });

@@ -41,8 +41,9 @@ Available now:
   bounded, structured snapshot of job cards or the main description on an already-open detail page.
   A passive collector preserves evidence from eligible pages that are already open; it never opens
   or navigates research pages. The selected job-search intent guides explicit agent navigation, not
-  background browsing. Interested, contacted, applied, and interviewed lists are synchronized one
-  platform, category, and page at a time only within a user-requested agent task.
+  background browsing. Interested, contacted, applied, and interviewed lists are synchronized for
+  one platform and category at a time, only within a user-requested agent task; supported
+  continuations require another explicit call and remain bounded to 60 distinct jobs.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
   sources, source-specific descriptions, and Markdown research reports. It merges confident

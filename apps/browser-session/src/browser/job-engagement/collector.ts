@@ -17,12 +17,12 @@ import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js"
 
 import { captureJobEngagementSnapshot } from "./snapshot.js";
 import type { CapturedJobEngagementSnapshot } from "./snapshot.js";
-import { isExactJobEngagementPage, isJobEngagementPage, jobEngagementPageUrl } from "./pages.js";
+import { isJobEngagementPage, jobEngagementPlatformAdapters } from "./platform-adapters.js";
+import type { JobEngagementPlatformAdapter, JobEngagementTarget } from "./platform-adapters.js";
+import { maximumJobsPerEngagementScan } from "./scan-limit.js";
 
 const emptyCollectionLength = 0;
 const initialPageSettleMilliseconds = 1000;
-const firstPage = 1;
-const nextIndex = 1;
 
 interface JobEngagementCollectionCoordination {
   readonly collectionControl: BackgroundCollectionControl;
@@ -32,7 +32,7 @@ interface JobEngagementCollectionCoordination {
 
 interface EngagementScan {
   readonly jobs: JobEngagementEvidence[];
-  readonly page: number;
+  readonly target: JobEngagementTarget;
 }
 
 function scanKey(platformId: PlatformId, engagement: JobEngagementKind): string {
@@ -119,57 +119,67 @@ export class JobEngagementCollector {
   ): RiteCoroutine<JobEngagementSnapshot> {
     const pages = this.#context.pages();
     const key = scanKey(platformId, engagement);
-    const scan = this.#scans.get(key) ?? { jobs: [], page: firstPage };
-    const page = yield* this.#ensureEngagementPage(platformId, engagement, scan.page, pages);
+    const adapter = jobEngagementPlatformAdapters[platformId];
+    const scan = this.#scans.get(key) ?? {
+      jobs: [],
+      target: adapter.initialTarget(engagement),
+    };
+    const page = yield* this.#ensureEngagementPage(adapter, scan.target, pages);
     const captured = yield* captureJobEngagementSnapshot(page, this.#observePageAccess);
     const accumulatedJobs = mergeEvidence(scan.jobs, captured.jobs);
-    const canPaginate = platformId === "boss";
-    const canContinueScan = canPaginate && captured.completionTotal !== null;
+    const nextTarget = adapter.nextTarget(scan.target);
+    const hasCompleteScanEvidence =
+      captured.completionTotal !== null && accumulatedJobs.length === captured.completionTotal;
+    const boundedJobs = accumulatedJobs.slice(emptyCollectionLength, maximumJobsPerEngagementScan);
     const complete =
-      captured.complete || (canContinueScan && accumulatedJobs.length >= captured.completionTotal);
-    const reachedEnd = complete || captured.jobs.length === emptyCollectionLength;
-    if (reachedEnd || !canContinueScan) {
+      hasCompleteScanEvidence && accumulatedJobs.length <= maximumJobsPerEngagementScan;
+    const hasReachedScanLimit = accumulatedJobs.length >= maximumJobsPerEngagementScan;
+    const shouldEndScan =
+      complete ||
+      captured.jobs.length === emptyCollectionLength ||
+      hasReachedScanLimit ||
+      nextTarget === null;
+    if (shouldEndScan) {
       this.#scans.delete(key);
       return {
-        ...toSnapshot(captured, accumulatedJobs, complete),
-        sourceUrl: jobEngagementPageUrl(platformId, engagement),
+        ...toSnapshot(captured, boundedJobs, complete),
+        sourceUrl: adapter.initialTarget(engagement).url,
       };
     }
-    this.#scans.set(key, { jobs: accumulatedJobs, page: scan.page + nextIndex });
+    this.#scans.set(key, { jobs: accumulatedJobs, target: nextTarget });
     return toSnapshot(captured);
   }
 
   *#ensureEngagementPage(
-    platformId: PlatformId,
-    engagement: JobEngagementKind,
-    pageNumber: number,
+    adapter: JobEngagementPlatformAdapter,
+    target: JobEngagementTarget,
     pages: Page[],
   ): RiteCoroutine<Page> {
-    const resolution = this.#engagementPages.resolve(platformId, pages);
+    const resolution = this.#engagementPages.resolve(adapter.platformId, pages);
     if (resolution.state === "waiting") {
       throw new Error(
-        "岗位跟进标签页此前已离开目标列表；请先检查可见页面，并在必要的用户交接完成后再重试。",
+        "此前用于岗位跟进同步的标签页已离开对应分类页；请检查可见页面，并在必要的用户交接完成后重试。",
       );
     }
     const page =
       resolution.state === "open" ? yield* until(() => this.#context.newPage()) : resolution.page;
     if (resolution.state === "open") {
       pages.push(page);
-      this.#engagementPages.claim(platformId, page);
+      this.#engagementPages.claim(adapter.platformId, page);
     }
     yield* this.#selectPage(page);
-    if (!isExactJobEngagementPage(platformId, engagement, pageNumber, page.url())) {
+    if (!adapter.matchesTarget(target, page.url())) {
       if (resolution.state !== "open") {
-        this.#engagementPages.claim(platformId, page);
+        this.#engagementPages.claim(adapter.platformId, page);
       }
       yield* until(() =>
-        page.goto(jobEngagementPageUrl(platformId, engagement, pageNumber), {
+        page.goto(target.url, {
           waitUntil: "domcontentloaded",
         }),
       );
-      this.#engagementPages.observe(platformId, page);
-      if (!isExactJobEngagementPage(platformId, engagement, pageNumber, page.url())) {
-        throw new Error("导航后未到达请求的岗位跟进列表；请检查可见页面和平台访问状态。");
+      this.#engagementPages.observe(adapter.platformId, page);
+      if (!adapter.matchesTarget(target, page.url())) {
+        throw new Error("导航后未到达请求的岗位跟进分类页；请检查可见页面和平台访问状态。");
       }
       yield* sleep(initialPageSettleMilliseconds);
     }

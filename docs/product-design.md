@@ -132,9 +132,15 @@ both contacted and applied, for example. They are evidence of how the platform c
 when observed, not a reconstructed workflow status or a semantic interpretation of message prose.
 
 Browser Session maps the platform categories to `interested`, `contacted`, `applied`, and
-`interviewed`. The agent explicitly requests one platform and category at a time during a
-user-requested synchronization task. The selected tab is brought to the foreground, and each call
-reads at most one page; repeated explicit calls may accumulate a paginated BOSS list. A redirected
+`interviewed`. A user-requested synchronization task addresses one platform and category at a time.
+Each explicit call brings the selected tab to the foreground, reads one bounded batch from that
+category, and writes the observed evidence. When the platform supports continuation, another call
+for the same platform and category continues the current scan.
+
+A scan accumulates at most 60 distinct jobs. `complete` is true only when the platform-maintained
+total and the captured evidence establish the full category within that bound; otherwise the
+snapshot remains partial. The quantity bound limits collected evidence, not the age of an
+interaction: platform cards do not establish when the underlying action occurred. A redirected
 category tab remains associated with the platform instead of being automatically replaced or
 retried. During user handoff it remains untouched; after control returns, a later explicit call may
 reuse it.

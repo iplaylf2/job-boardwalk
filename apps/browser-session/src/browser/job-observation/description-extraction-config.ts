@@ -1,3 +1,5 @@
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
+
 export interface JobDescriptionExtractionConfig {
   readonly companySelectors: readonly string[];
   readonly descriptionSelectors: readonly string[];
@@ -27,4 +29,4 @@ export const jobDescriptionExtractionConfigs = {
       before: "职位总结",
     },
   },
-} as const satisfies Record<"boss" | "yupao", JobDescriptionExtractionConfig>;
+} as const satisfies Record<PlatformId, JobDescriptionExtractionConfig>;

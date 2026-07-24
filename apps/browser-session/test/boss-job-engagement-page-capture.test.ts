@@ -1,6 +1,13 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { captureBossJobEngagementMetadata } from "#/browser/job-engagement/boss-snapshot.js";
+import { captureBossJobEngagementMetadata } from "#/browser/job-engagement/boss-page-capture.js";
+import { maximumJobsPerEngagementScan } from "#/browser/job-engagement/scan-limit.js";
+
+const maximumSummaryCharacters = 1500;
+const pageCaptureLimits = {
+  maximumCards: maximumJobsPerEngagementScan,
+  maximumSummaryCharacters,
+};
 
 function textElement(textContent: string): Element {
   return { textContent } as Element;
@@ -43,7 +50,7 @@ test("extracts BOSS personal-center jobs from semantic links instead of discover
     origin: "https://www.zhipin.com",
   });
 
-  const metadata = captureBossJobEngagementMetadata();
+  const metadata = captureBossJobEngagementMetadata(pageCaptureLimits);
 
   expect(metadata.jobs).toEqual([
     expect.objectContaining({
@@ -81,7 +88,7 @@ test("ignores detail links without a valid same-origin personal-center engagemen
     origin: "https://www.zhipin.com",
   });
 
-  const metadata = captureBossJobEngagementMetadata();
+  const metadata = captureBossJobEngagementMetadata(pageCaptureLimits);
 
   expect(metadata.jobs).toEqual([]);
 });
@@ -110,7 +117,7 @@ test("keeps semantic engagement jobs when optional company and salary fields are
     origin: "https://www.zhipin.com",
   });
 
-  const metadata = captureBossJobEngagementMetadata();
+  const metadata = captureBossJobEngagementMetadata(pageCaptureLimits);
 
   expect(metadata.jobs).toEqual([
     expect.objectContaining({

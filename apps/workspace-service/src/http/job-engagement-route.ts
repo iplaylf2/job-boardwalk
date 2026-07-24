@@ -7,12 +7,13 @@ import {
   parsePlatformWebUrl,
   platformCatalog,
 } from "@job-boardwalk/platform-catalog";
+import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
 import { InvalidRequestError, readRequestBody, requestErrorResponse } from "./request.js";
 
-function normalizedPlatformUrl(value: string, platformId: "boss" | "yupao", field: string): string {
+function normalizedPlatformUrl(value: string, platformId: PlatformId, field: string): string {
   const url = parsePlatformWebUrl(platformId, value);
   if (!url) {
     throw new InvalidRequestError(
@@ -29,7 +30,7 @@ function normalizedJobEngagementSnapshot(
   const sourceUrl = normalizedPlatformUrl(input.sourceUrl, input.platformId, "sourceUrl");
   if (parsePlatformJobEngagementUrl(input.platformId, sourceUrl) !== input.engagement) {
     throw new InvalidRequestError(
-      "sourceUrl 必须匹配 platformId 和 engagement 对应的岗位跟进分类页",
+      "sourceUrl 必须是 platformId 所指定平台中与 engagement 对应的岗位跟进分类页。",
     );
   }
   return {

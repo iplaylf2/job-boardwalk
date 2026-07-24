@@ -241,7 +241,9 @@ historical jobs out of their visible lists.
 
 `GET /api/jobs?engagement=applied` and the other engagement values return jobs with at least one
 matching source. Every relation records when Workspace Service first and most recently observed it;
-neither timestamp claims when the recruiting action occurred.
+neither timestamp claims when the recruiting action occurred. See
+[Product design](../../docs/product-design.md#engagement-tracking) for the cross-application
+engagement and snapshot semantics.
 
 ### Research reports
 

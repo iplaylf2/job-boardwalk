@@ -49,21 +49,26 @@ navigation; those remain explicit agent actions within user-delegated research.
 
 ## Explicit job-engagement synchronization
 
-`browser_sync_job_engagement` is the explicit, one-shot synchronization boundary for interested,
-contacted, applied, and interviewed jobs. It is called by the agent only as part of a user-requested
-task. Each call opens or reuses one platform tab, selects and brings it to the foreground, navigates
-to one requested category, reads at most one page, and writes that evidence to Workspace Service
-with agent attribution. Browser Session does not schedule this tool, rotate categories in the
-background, or use personal-center navigation as session keepalive. The category evidence does not
-imply that Browser Session performed the recruiting action represented by the category.
+`browser_sync_job_engagement` synchronizes interested, contacted, applied, and interviewed jobs
+only within a user-requested agent task. A scan is scoped to one platform and category. Each call
+opens or reuses the platform tab, brings it to the foreground, reads one bounded batch from the
+category, and immediately writes that evidence to Workspace Service with agent attribution. Browser
+Session does not schedule the tool, rotate categories in the background, or use personal-center
+navigation as session keepalive. Observing a category does not imply that Browser Session performed
+the action represented by it.
 
-BOSS category lists may be paginated. A call persists one partial page and retains its bounded
-in-memory scan; if the result is incomplete, the agent may inspect the visible page and call the
-same platform and category again to advance one page. 鱼泡 account cards may omit job links. When a
-recognized link is present, Browser Session preserves it and derives the stable external job ID;
-otherwise the snapshot retains the visible job facts. A complete `interested` snapshot may remove
-relations no longer present. The `contacted`, `applied`, and `interviewed` relations preserve
-historical observations even when a later platform list omits them.
+When a platform adapter provides a continuation, another call with the same platform and category
+resumes the bounded in-memory scan. The scan accumulates at most 60 distinct jobs and is discarded
+when it completes, reaches the bound, has no continuation, the current batch contains no recognized
+jobs, or Browser Session restarts. `complete=false` identifies partial evidence; it must not be
+interpreted as a complete platform history. Platform cards may omit job links. When a recognized
+link is present, Browser Session preserves it and derives the stable external job ID; otherwise the
+snapshot retains the visible job facts.
+
+A complete `interested` snapshot may remove relations no longer present. The `contacted`, `applied`,
+and `interviewed` relations preserve historical observations even when a later platform list omits
+them. [Product design](../../docs/product-design.md#engagement-tracking) defines the
+cross-application meaning of engagements and complete or partial snapshots.
 
 ## Run Browser Session
 

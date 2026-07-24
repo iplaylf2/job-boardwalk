@@ -93,7 +93,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description:
-      "仅在用户发起的岗位跟进同步任务中调用。此工具打开或复用指定招聘平台标签页，将其选中并前置，导航到指定个人中心岗位跟进类别，读取一页并写入 Workspace Service。BOSS 多页列表每次只读取一页；complete 为 false 时，检查可见页面后可用相同参数再次调用。感兴趣列表的完整快照可能移除已不在平台列表中的本地关系。",
+      "仅在用户发起的岗位跟进同步任务中调用。每次调用打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。若平台支持继续读取且返回 complete=false，请先检查可见页面，再以同一平台和类别调用；当前扫描最多累计 60 个不同岗位。complete=false 表示证据不完整，不得视为平台完整历史。complete=true 的感兴趣快照可能移除平台列表中已不存在的本地关系。",
     name: "browser_sync_job_engagement",
   }),
   defineBrowserTool({

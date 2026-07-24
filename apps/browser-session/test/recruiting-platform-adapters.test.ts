@@ -31,6 +31,16 @@ test.each([
 });
 
 test.each([
+  "https://www.zhipin.com/",
+  "https://www.zhipin.com/gongsi/",
+  "https://www.yupao.com/",
+  "https://www.yupao.com/a2/",
+  "https://www.yupao.com/qiye/",
+])("rejects a platform page outside the explicit job-card collection allowlist at %s", (url) => {
+  expect(() => requireJobCardExtractionConfig(url)).toThrow(/岗位卡片采集范围/u);
+});
+
+test.each([
   "https://example.invalid/jobs",
   "http://www.zhipin.com/web/geek/jobs",
   "https://user:secret@www.yupao.com/topic/a2c1488/",

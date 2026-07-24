@@ -1,12 +1,9 @@
 // oxlint-disable max-lines -- The exhaustive registry keeps platform navigation, access, and extraction contracts auditable together.
 import {
   isPlatformId,
-  parsePlatformJobEngagementUrl,
   parsePlatformWebUrl,
   platformCatalog,
   platformIds,
-  platformJobEngagementKinds,
-  resolvePlatformJobEngagementUrl,
   resolvePlatformWebUrl,
 } from "@job-boardwalk/platform-catalog";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
@@ -146,34 +143,35 @@ function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null
     : null;
 }
 
+function isBossJobCardCollectionPage(value: string): boolean {
+  const pathname = parsePlatformWebUrl("boss", value)?.pathname;
+  return pathname === "/web/geek/job-recommend" || pathname === "/web/geek/jobs";
+}
+
 function isYupaoJobCardCollectionPage(value: string): boolean {
   const url = parsePlatformWebUrl("yupao", value);
+  if (!url || isPlatformJobDetailPage("yupao", value)) {
+    return false;
+  }
   return (
-    url !== null &&
-    !isPlatformJobDetailPage("yupao", value) &&
-    !platformJobEngagementKinds.some(
-      (engagement) =>
-        url.pathname === new URL(resolvePlatformJobEngagementUrl("yupao", engagement)).pathname,
-    )
+    /^\/topic\/[^/]+\/?$/u.test(url.pathname) || /^\/zhaogong\/(?:[^/]+\/?)?$/u.test(url.pathname)
   );
 }
 
-function createRecruitingPlatformAdapter(platformId: PlatformId): RecruitingPlatformAdapter {
+function createRecruitingPlatformAdapter(
+  platformId: PlatformId,
+  jobCardExtractionConfig: JobCardExtractionConfig,
+  jobCardCollectionMatcher: (value: string) => boolean,
+): RecruitingPlatformAdapter {
   const metadata = platformCatalog[platformId];
   return {
     entryUrl: resolvePlatformWebUrl(platformId, "entry"),
     isInNavigationScope(value) {
       return parsePlatformWebUrl(platformId, value) !== null;
     },
-    isJobCardCollectionPage(value) {
-      return (
-        parsePlatformWebUrl(platformId, value) !== null &&
-        !isPlatformJobDetailPage(platformId, value) &&
-        parsePlatformJobEngagementUrl(platformId, value) === null
-      );
-    },
+    isJobCardCollectionPage: jobCardCollectionMatcher,
     isJobDetailPage: (value) => isPlatformJobDetailPage(platformId, value),
-    jobCardExtractionConfig: platformId === "boss" ? bossJobCardExtraction : yupaoJobCardExtraction,
+    jobCardExtractionConfig,
     jobDescriptionExtractionConfig: jobDescriptionExtractionConfigs[platformId],
     label: metadata.label,
     loginUrl: resolvePlatformWebUrl(platformId, "login"),
@@ -237,7 +235,7 @@ const yupaoJobCardExtraction = {
     "[class*='area']",
     "[class*='location']",
   ],
-  salarySelectors: [".salary", "[class*='salary']"],
+  salarySelectors: [".salary"],
   salaryTextPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:月|天|小时)|薪资面议|面议`,
   titleBoundaryPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:月|天|小时)|薪资面议|面议|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
   titleFromFirstLine: true,
@@ -246,14 +244,17 @@ const yupaoJobCardExtraction = {
 
 export const recruitingPlatformAdapters = {
   boss: {
-    ...createRecruitingPlatformAdapter("boss"),
+    ...createRecruitingPlatformAdapter("boss", bossJobCardExtraction, isBossJobCardCollectionPage),
     assessNavigation: assessBossNavigation,
     assessPage: assessBossPage,
   },
   yupao: {
-    ...createRecruitingPlatformAdapter("yupao"),
+    ...createRecruitingPlatformAdapter(
+      "yupao",
+      yupaoJobCardExtraction,
+      isYupaoJobCardCollectionPage,
+    ),
     assessPage: assessYupaoPage,
-    isJobCardCollectionPage: isYupaoJobCardCollectionPage,
     snapshotSettleMilliseconds: yupaoSnapshotSettleMilliseconds,
   },
 } as const satisfies Record<PlatformId, RecruitingPlatformAdapter>;

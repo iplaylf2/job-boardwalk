@@ -27,7 +27,7 @@ function* recordedCollection(recordCollection: () => void): RiteCoroutine<void> 
 }
 
 function fakeLoginContext(navigationError?: Error): BrowserContext {
-  let url = "https://www.zhipin.com/";
+  let url = "https://www.zhipin.com/web/geek/jobs";
   const page = {
     bringToFront: () => Promise.resolve(),
     evaluate: () =>

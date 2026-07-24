@@ -7,13 +7,18 @@ export interface BossJobEngagementMetadata {
   url: string;
 }
 
+interface JobEngagementPageCaptureLimits {
+  maximumCards: number;
+  maximumSummaryCharacters: number;
+}
+
 // This callback is self-contained because Patchright serializes it into the page realm.
 // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- One bounded pass owns BOSS personal-center engagement extraction.
-export function captureBossJobEngagementMetadata(): BossJobEngagementMetadata {
+export function captureBossJobEngagementMetadata(
+  input: JobEngagementPageCaptureLimits,
+): BossJobEngagementMetadata {
   const { document } = globalThis;
-  const maximumCards = 200;
   const maximumAncestorDepth = 10;
-  const maximumSummaryLength = 1500;
   const firstIndex = 0;
   const increment = 1;
   const salaryPattern = /\d+(?:-\d+)?K(?:·\d+薪)?|\d+(?:-\d+)?元\/(?:天|小时)|面议/u;
@@ -63,7 +68,7 @@ export function captureBossJobEngagementMetadata(): BossJobEngagementMetadata {
     ...new Map(links.map((entry) => [entry.evidence.externalJobId, entry])).values(),
   ];
   const jobs: JobEngagementEvidence[] = [];
-  for (const { evidence, link } of uniqueLinks.slice(firstIndex, maximumCards)) {
+  for (const { evidence, link } of uniqueLinks.slice(firstIndex, input.maximumCards)) {
     let container: Element = link;
     let ancestor: Element | null = link.parentElement;
     let depth = firstIndex;
@@ -84,7 +89,7 @@ export function captureBossJobEngagementMetadata(): BossJobEngagementMetadata {
     }
     const summary = helpers
       .normalized(helpers.rendered(container))
-      .slice(firstIndex, maximumSummaryLength);
+      .slice(firstIndex, input.maximumSummaryCharacters);
     const renderedTitle = helpers.normalized(helpers.rendered(link));
     const locationMatch = /\[(?<location>[^\]]+)\]\s*$/u.exec(renderedTitle);
     const location = locationMatch?.groups?.["location"]?.trim();
@@ -118,7 +123,7 @@ export function captureBossJobEngagementMetadata(): BossJobEngagementMetadata {
   return {
     jobs,
     text,
-    truncated: uniqueLinks.length > maximumCards,
+    truncated: uniqueLinks.length > input.maximumCards,
     url: globalThis.location.href,
   };
 }

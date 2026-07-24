@@ -7,12 +7,17 @@ export interface YupaoJobEngagementMetadata {
   url: string;
 }
 
+interface JobEngagementPageCaptureLimits {
+  maximumCards: number;
+  maximumSummaryCharacters: number;
+}
+
 // This callback is self-contained because Patchright serializes it into the page realm.
 // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- One bounded pass extracts non-link Yupao engagement cards.
-export function captureYupaoJobEngagementMetadata(): YupaoJobEngagementMetadata {
+export function captureYupaoJobEngagementMetadata(
+  input: JobEngagementPageCaptureLimits,
+): YupaoJobEngagementMetadata {
   const { document } = globalThis;
-  const maximumCards = 200;
-  const maximumSummaryLength = 1500;
   const salaryPattern =
     /^\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元\/月$|^\d+(?:-\d+)?元\/(?:月|天|小时)$|^(?:薪资面议|面议)$/u;
   const experiencePattern = /^(?:经验不限|在校\/应届|1年以内|1-3年|3-5年|5-10年|10年以上)$/u;
@@ -77,7 +82,7 @@ export function captureYupaoJobEngagementMetadata(): YupaoJobEngagementMetadata 
       ),
   );
   const cards: JobEngagementEvidence[] = [];
-  for (const candidate of uniqueCandidates.slice(startIndex, maximumCards)) {
+  for (const candidate of uniqueCandidates.slice(startIndex, input.maximumCards)) {
     const lines = helpers.lines(candidate);
     const salaryIndex = lines.findIndex((line) => salaryPattern.test(line));
     const location = lines[salaryIndex - increment]?.replace(/^\[(?<value>.*)\]$/u, "$<value>");
@@ -115,7 +120,7 @@ export function captureYupaoJobEngagementMetadata(): YupaoJobEngagementMetadata 
       ...(link ? { jobUrl: link.href } : {}),
       location,
       salaryText: lines[salaryIndex]!,
-      summary: lines.join(" ").slice(startIndex, maximumSummaryLength),
+      summary: lines.join(" ").slice(startIndex, input.maximumSummaryCharacters),
       title,
     });
   }
@@ -124,7 +129,7 @@ export function captureYupaoJobEngagementMetadata(): YupaoJobEngagementMetadata 
   return {
     cards,
     text,
-    truncated: uniqueCandidates.length > maximumCards,
+    truncated: uniqueCandidates.length > input.maximumCards,
     url: globalThis.location.href,
   };
 }
