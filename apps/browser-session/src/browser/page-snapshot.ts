@@ -12,7 +12,7 @@ const documentSettleTimeoutMilliseconds = 5000;
 const interactiveElementSelector =
   "a[href], button, input:not([type='password' i]), textarea, select, [role='button'], [role='link'], [role='textbox'], [contenteditable='true']";
 
-export interface CapturedElement {
+interface CapturedElement {
   disabled: boolean;
   href?: string;
   locator: Locator;

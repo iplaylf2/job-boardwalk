@@ -11,7 +11,7 @@
     "dev": "vite",
     "lint": "oxlint --config oxlint.config.ts .",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@job-boardwalk/contracts": "workspace:*",

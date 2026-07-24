@@ -15,7 +15,6 @@ export default defineConfig({
   },
   plugins: ["import"],
   rules: {
-    "eslint/default-case": "off",
     "eslint/func-style": ["error", "declaration"],
     "eslint/id-length": ["error", { exceptions: ["_"] }],
     "eslint/max-lines-per-function": ["error", { skipBlankLines: true, skipComments: true }],
@@ -39,7 +38,6 @@ export default defineConfig({
     "oxc/no-async-await": "off",
     "oxc/no-optional-chaining": "off",
     "oxc/no-rest-spread-properties": "off",
-    "typescript/ban-types": "off",
     "typescript/explicit-function-return-type": "off",
     "typescript/no-empty-object-type": ["error", { allowObjectTypes: "always" }],
     "typescript/no-non-null-assertion": "off",
@@ -47,7 +45,5 @@ export default defineConfig({
     "unicorn/no-array-callback-reference": "off",
     "unicorn/no-null": "off",
     "unicorn/no-useless-undefined": ["error", { checkArguments: false }],
-    "unicorn/prefer-add-event-listener": "off",
-    "unicorn/prefer-dom-node-remove": "off",
   },
 });
