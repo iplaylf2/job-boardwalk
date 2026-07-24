@@ -60,8 +60,9 @@ the applications.
 ## Run Job Boardwalk
 
 Workspace Service and Dashboard require Docker Engine with Docker Compose; building their images
-from source also requires BuildKit. Browser Session requires a graphical host session, Node.js 26.5
-or later, and pnpm 11.13 or later. The project's pnpm configuration downloads its pinned Node.js
+from source also requires BuildKit. Browser Session requires a graphical host session, Patchright
+Chromium, and the Node.js and pnpm toolchain declared in the root
+[`package.json`](package.json). The package-manager configuration downloads its pinned Node.js
 runtime when the host runtime does not match.
 
 Build and start the container-owned services:

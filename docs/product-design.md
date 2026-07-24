@@ -237,6 +237,15 @@ Browser research should behave like a continuous user-delegated session, not a s
 fetcher. Execution therefore favors a visible browser and reuse of the selected tab and session
 while they remain healthy, low concurrency, and ordinary navigation flow.
 
+The agent observes the page at workflow boundaries and after meaningful page or handoff changes.
+Navigation, paging, refreshes, and retries remain paced and bounded: the agent does not create tight
+polling loops, repeated visible page churn, or retries that continue without new evidence.
+
+The visible browser outcome and the user's observation govern whether an action visibly succeeded.
+A backend URL, page title, tool response, or other automation signal does not override the user's
+report that a different page or window is visible; the agent re-observes and reconciles the live
+page before continuing.
+
 Recovery must preserve the platform's visible access decisions. If a platform presents verification
 or denies access, the agent reports the interruption and waits for the user; it does not report
 denied content as a successful result.

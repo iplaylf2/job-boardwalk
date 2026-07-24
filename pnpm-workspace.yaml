@@ -16,6 +16,9 @@ packageExtensions:
     dependencies:
       typescript: 6.0.3
 
+# External packages used by two or more workspace manifests belong in this catalog and use
+# `catalog:`. A package used by one manifest keeps its version there; workspace packages use
+# `workspace:*`.
 catalog:
   "@hono/node-server": 2.0.11
   "@modelcontextprotocol/sdk": ^1.29.0

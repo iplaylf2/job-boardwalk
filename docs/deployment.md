@@ -8,8 +8,8 @@ are the boundary for login, verification, and other user-controlled actions.
 ## Requirements
 
 - Container host: Docker Engine with Docker Compose, plus BuildKit when building images from source
-- Graphical host: a repository checkout, Node.js 26.5 or later, pnpm 11.13 or later, and Patchright
-  Chromium
+- Graphical host: a repository checkout, Patchright Chromium, and the Node.js and pnpm toolchain
+  declared in the root [`package.json`](../package.json)
 
 The source build uses pinned Node.js, pnpm, and Caddy image versions. Host Node.js and pnpm are
 needed only for Browser Session and source development, not for deploying existing images.
