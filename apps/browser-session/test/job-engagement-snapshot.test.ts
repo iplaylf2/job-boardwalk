@@ -233,7 +233,7 @@ test("keeps a BOSS snapshot partial when the visible total is unavailable", asyn
 });
 
 test("keeps an empty later page partial when the declared total is nonzero", async () => {
-  const url = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=3&tag=4";
+  const url = "https://www.zhipin.com/web/geek/recommend?tab=1&page=3&tag=5";
   const page = {
     evaluate: () =>
       Promise.resolve({
@@ -252,10 +252,34 @@ test("keeps an empty later page partial when the declared total is nonzero", asy
 });
 
 test("reads the platform-maintained total for every job engagement", () => {
-  const text = "沟通过\n已投递简历\n面试0\n感兴趣2\n累计沟通职位数量12\n累计投递简历数量3";
+  const text = "沟通过已投递面试 0感兴趣2\n累计沟通职位数量12\n累计投递简历数量3";
 
   expect(parseJobEngagementTotal(text, "contacted")).toBe(contactedJobCount);
   expect(parseJobEngagementTotal(text, "applied")).toBe(appliedJobCount);
   expect(parseJobEngagementTotal(text, "interviewed")).toBe(interviewedJobCount);
   expect(parseJobEngagementTotal(text, "interested")).toBe(interestedJobCount);
+});
+
+test("classifies an empty BOSS interview page from its compact header count", () => {
+  const url = "https://www.zhipin.com/web/geek/recommend?tab=3&page=1&tag=5";
+
+  expect(
+    jobEngagementSnapshotFromPageMetadata(
+      {
+        jobs: [],
+        text: "沟通过已投递面试 0感兴趣10\n暂时未有邀约面试",
+        truncated: false,
+        url,
+      },
+      "2026-07-24T10:00:00.000Z",
+      "interviewed",
+      "boss",
+    ),
+  ).toMatchObject({
+    complete: true,
+    completionTotal: 0,
+    engagement: "interviewed",
+    jobs: [],
+    total: 0,
+  });
 });

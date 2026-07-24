@@ -42,10 +42,10 @@ export const platformCatalog = {
       jobEngagement: {
         pagination: { firstPage, parameter: "page" },
         paths: {
-          applied: "/web/geek/recommend?tab=2&sub=1&page=1&tag=4",
-          contacted: "/web/geek/recommend?tab=1&sub=1&page=1&tag=4",
+          applied: "/web/geek/recommend?tab=2&page=1&tag=5",
+          contacted: "/web/geek/recommend?tab=1&page=1&tag=5",
           interested: "/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
-          interviewed: "/web/geek/recommend?tab=3&sub=1&page=1&tag=4",
+          interviewed: "/web/geek/recommend?tab=3&page=1&tag=5",
         },
       },
       navigationDomain: "zhipin.com",

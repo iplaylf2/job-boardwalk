@@ -14,7 +14,7 @@ const jobsBeyondLimit = 15;
 const initialRecoveryRevision = 0;
 const laterPageNumber = 3;
 const paginatedScanTestTimeoutMilliseconds = 10_000;
-const contactedPageOneUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
+const contactedPageOneUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&page=1&tag=5";
 
 interface WrittenSnapshot {
   complete: boolean;
@@ -177,7 +177,7 @@ test("continues a paginated scan past an overlapping page", async () => {
     sourceUrl: contactedPageOneUrl,
   });
   expect(navigations).toEqual([
-    "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=2&tag=4",
-    "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=3&tag=4",
+    "https://www.zhipin.com/web/geek/recommend?tab=1&page=2&tag=5",
+    "https://www.zhipin.com/web/geek/recommend?tab=1&page=3&tag=5",
   ]);
 });

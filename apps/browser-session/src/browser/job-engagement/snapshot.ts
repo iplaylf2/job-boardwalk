@@ -26,8 +26,8 @@ export function parseJobEngagementTotal(
   const patterns = {
     applied: /累计投递简历数量\s*(?<total>\d+)/u,
     contacted: /累计沟通职位数量\s*(?<total>\d+)/u,
-    interested: /(?:^|\s)感兴趣\s*(?<total>\d+)(?:\s|$)/u,
-    interviewed: /(?:^|\s)面试\s*(?<total>\d+)(?:\s|$)/u,
+    interested: /感兴趣\s*(?<total>\d+)/u,
+    interviewed: /面试\s*(?<total>\d+)/u,
   } as const;
   const match = patterns[engagement].exec(text);
   return match?.groups?.["total"] ? Number(match.groups["total"]) : null;
