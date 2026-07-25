@@ -37,7 +37,7 @@ an explicit authorization model of its own. General research access does not gra
 Job Boardwalk separates live browser execution from durable workspace state.
 
 The **Browser Session** owns the visible browser process, persistent profile, tabs, and generic
-action lifecycle. It launches Patchright Chromium from a long-lived local HTTP MCP service. The
+action lifecycle. It launches a supported browser from a long-lived local HTTP MCP service. The
 agent host connects directly to the service and discovers stable project-owned tools without
 owning browser lifecycle.
 
@@ -58,9 +58,10 @@ conversation.
 The **Desktop Manager** owns the native local-runtime control surface and operating-system
 integration. It is not a WebView host: Dashboard remains a browser application, and recruiting
 pages remain in Browser Session's visible persistent browser. Lifecycle coordination crosses a
-bounded local protocol to a Node.js process supervisor, which owns service coordination under one
-top-level shajara scope. The native GUI does not import recruiting policy, access workspace
-persistence, or control recruiting pages.
+bounded local protocol to an application runtime supervisor, which owns service coordination under
+one top-level shajara scope, including startup, readiness, failure reporting, recovery, and ordered
+shutdown. The native GUI does not import recruiting policy, access workspace persistence, or
+control recruiting pages.
 
 The **agent** coordinates the browser and workspace service boundaries and owns the human-handoff
 state in its conversation with the user. Browser tools produce live evidence; workspace tools
@@ -69,12 +70,21 @@ may derive an authentication assessment from a real top-level navigation respons
 page snapshot when it has a conclusive platform-specific rule. The agent interprets evidence not
 covered by an adapter.
 
-The intended installed topology follows those ownership boundaries. Desktop Manager and Browser
-Session are host companions in the user's graphical session. Workspace Service and Dashboard are
-separate container workloads; Workspace Service publishes its HTTP boundary only to host loopback
-so Browser Session, the process supervisor, and the agent can reach it, while Dashboard uses the
-private container network. A virtual desktop or remote desktop transport is not part of the product:
-a host without a user-observable graphical session cannot run Browser Session.
+The target installed topology follows those ownership boundaries inside one directory-contained
+desktop product. Desktop Manager and the application runtime supervisor coordinate Workspace
+Service, Dashboard Host, and Browser Session without Docker or a system Node.js installation.
+Dashboard Host is a runtime role that serves the built Dashboard and proxies its local API
+boundary; it does not own Dashboard behavior or workspace state.
+
+Browser Session uses a supported system Chrome or Edge installation with a dedicated profile
+inside the product data directory; it does not bundle a browser or use the user's normal profile.
+When no compatible browser is available, Desktop Manager reports the requirement while keeping
+diagnostics available. The container topology remains the runnable development and deployment path
+today. [Desktop distribution](desktop-distribution.md) owns the installed form, runtime packaging,
+and desktop release boundary.
+
+A virtual desktop or remote desktop transport is not part of the product: a host without a
+user-observable graphical session cannot run Browser Session.
 
 ## Runtime presence and reporting
 

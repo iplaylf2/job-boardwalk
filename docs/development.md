@@ -1,8 +1,8 @@
 # Development
 
-This document defines Job Boardwalk's cross-language development model. Application READMEs own
-application-specific commands and requirements; [Deployment](deployment.md) owns the runtime
-topology and deployable artifacts.
+This document defines Job Boardwalk's cross-language development model. Application and tooling
+READMEs own component-specific commands and requirements; [Deployment](deployment.md) owns the
+runtime topology and deployable artifacts.
 
 ## Workspace authorities
 
@@ -45,6 +45,18 @@ pnpm exec moon run repository:format-write cargo-workspace:format-write
 
 Package scripts and Cargo commands remain valid leaf operations when Moon is unavailable or
 inappropriate, including inside application Dockerfiles.
+
+## Desktop distribution staging
+
+Build the current application artifacts and assemble the directory-contained staging tree with:
+
+```sh
+pnpm exec moon run desktop-distribution:assemble
+```
+
+[Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
+checks. [Desktop distribution](desktop-distribution.md) defines the installed form, build
+ownership, and remaining delivery work.
 
 ## Continuous integration
 

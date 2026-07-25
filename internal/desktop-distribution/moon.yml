@@ -1,0 +1,54 @@
+language: "typescript"
+layer: "tool"
+stack: "infrastructure"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  assemble:
+    command: "pnpm run assemble"
+    deps:
+      - "browser-session:build"
+      - "cargo-workspace:build"
+      - "dashboard:build"
+      - "workspace-service:build"
+    inputs:
+      - "src/**/*"
+      - "package.json"
+      - "tsconfig.json"
+      - "/Cargo.lock"
+      - "/Cargo.toml"
+      - "/apps/desktop-manager/Cargo.toml"
+      - "/apps/browser-session/dist/**/*"
+      - "/apps/dashboard/dist/**/*"
+      - "/apps/workspace-service/dist/**/*"
+      - "/target/release/job-boardwalk-desktop-manager*"
+    outputs:
+      - "/target/desktop-distribution"
+
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "src/**/*"
+      - "oxlint.config.ts"
+
+  test:
+    command: "pnpm run test"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "src/**/*"
+      - "test/**/*"
+      - "package.json"
+      - "vitest.config.ts"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    inputs:
+      - "src/**/*"
+      - "test/**/*"
+      - "package.json"
+      - "tsconfig.json"
+      - "vitest.config.ts"

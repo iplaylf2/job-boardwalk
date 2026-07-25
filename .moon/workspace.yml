@@ -6,6 +6,7 @@ projects:
     dashboard: "apps/dashboard"
     workspace-service: "apps/workspace-service"
     contracts: "packages/contracts"
+    desktop-distribution: "internal/desktop-distribution"
     platform-catalog: "packages/platform-catalog"
     presets: "internal/presets"
 

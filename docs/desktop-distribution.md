@@ -1,0 +1,135 @@
+# Desktop distribution
+
+This document is the source of truth for Job Boardwalk's installed form and desktop release
+boundary. [Product design](product-design.md) owns cross-application behavior and control
+boundaries; [Deployment](deployment.md) documents the current runnable topology.
+
+## Delivery status
+
+The repository currently produces a deterministic desktop staging tree that proves the assembly
+boundary, component allowlist, and integrity manifest against real application build outputs. It
+is marked `desktop-staging` and `releaseReady: false` because it does not yet contain the
+self-contained application runtime or working lifecycle controls. It is therefore neither an
+installable release nor a supported way to run Job Boardwalk.
+
+[Desktop Distribution](../internal/desktop-distribution/README.md) documents the staging command
+and output. The current runnable topology remains the Docker Compose and graphical-host arrangement
+documented in [Deployment](deployment.md).
+
+## Installed product contract
+
+A release is installed by placing one complete `Job Boardwalk` directory in a user-selected,
+writable location. The directory may be extracted from an archive, copied, placed through
+drag-and-drop, or written by a thin installer. Running the installed product must not require
+Docker, a system Node.js runtime, pnpm, Cargo, or a source checkout.
+
+The installed product writes its runtime state only inside its product directory and requires no
+system-wide registration. An optional operating-system integration, such as a shortcut, is a
+separate explicit user action.
+
+Uninstallation consists of stopping Job Boardwalk and removing its directory. Removing the
+directory also removes the workspace database and browser profile; preserve `data/` in a backup
+when either must be retained.
+
+## Product directory
+
+Desktop Manager derives the product root from its executable or application-bundle location, not
+from the launching process's current working directory. The target logical layout is:
+
+```text
+Job Boardwalk/
+├── bin/
+│   ├── job-boardwalk-desktop-manager
+│   └── job-boardwalk-runtime
+├── payload/
+│   ├── dashboard/
+│   ├── migrations/
+│   └── licenses/
+├── data/
+│   ├── browser-profile/
+│   ├── logs/
+│   └── workspace.sqlite
+└── manifest.json
+```
+
+Platform packaging may wrap Desktop Manager in a signed application bundle or add executable
+suffixes, but one writable outer product directory must contain the immutable resources and the
+`data/` directory. Signed bundle contents remain immutable; runtime data is a sibling under the
+outer product root, never a child of the signed bundle.
+
+Packaged services receive absolute, product-root-derived paths. Source development may override
+paths through environment variables, but an installed run cannot depend on ambient environment
+variables or the current working directory.
+
+## Runtime payload
+
+The release contains an application-specific runtime executable built from the Node.js runtime,
+application code, and production dependencies required by Job Boardwalk. Unused runtime components
+and dependencies are excluded; the product does not ship a general-purpose Node.js distribution or
+`node_modules`.
+
+The executable contains the runtime supervisor and service roles defined by
+[Product design](product-design.md). The runtime may start itself in distinct roles so process
+isolation does not require duplicate runtime files. Dashboard Host serves the built Dashboard and
+proxies `/api`; it replaces Caddy in the installed product.
+
+Packaged service endpoints bind only to loopback. Their concrete addresses remain private runtime
+details coordinated among product-owned components.
+
+## System browser dependency
+
+The release does not bundle Chromium. Browser Session discovers and validates a supported Chrome
+or Edge installation on the host, then uses the dedicated profile under
+`data/browser-profile/`. It never launches the user's normal browser profile.
+
+Supported browser families and versions form an explicit, tested compatibility contract.
+Downloading or installing a browser is outside the default product lifecycle.
+
+[Product design](product-design.md) remains authoritative for Browser Session ownership, visible
+browser behavior, user handoff, credentials, verification, applications, messages, and account
+control.
+
+## Integrity and release artifacts
+
+Every assembled product tree contains a versioned manifest with the product version, target
+platform and architecture, relative file paths, byte sizes, and SHA-256 digests. Paths use forward
+slashes and remain sorted so identical inputs produce identical manifests.
+
+Each target is built and tested on its native operating system. Release validation runs the
+assembled directory outside the repository and from an unrelated current working directory before
+platform signing or notarization. Portable archives are the primary artifacts. A native installer
+is acceptable only when it preserves the same product-directory boundary.
+
+An update stages and verifies replacement resources before switching them into place. It preserves
+`data/`; partial in-place replacement is not a valid update path.
+
+## Build ownership
+
+Build responsibilities follow the boundary that owns each artifact:
+
+| Owner                                                                               | Responsibility                                                                                                                   |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Application projects                                                                | Produce finalized native, service, and web artifacts.                                                                            |
+| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Declare allowed components, assemble and validate the product layout, emit integrity metadata, and configure platform packaging. |
+| Platform packager                                                                   | Produce archives, application bundles, and installers and integrate platform signing and notarization.                           |
+| Moon                                                                                | Schedule the application builds, distribution work, and repository checks.                                                       |
+
+Desktop Distribution is a private monorepo build tool, not an application runtime dependency.
+Platform packaging mechanics belong to the selected maintained packager rather than to custom
+assembly code.
+
+## Delivery sequence
+
+1. **Staging boundary — implemented.** Assemble the current Desktop Manager, Dashboard, Workspace
+   Service, and Browser Session outputs from an explicit component plan, then emit the integrity
+   manifest. The staging tree contains no Docker files, browser binary, Node.js distribution,
+   `node_modules`, or source checkout.
+2. **Self-contained runtime.** Add Dashboard Host and the shajara runtime supervisor, produce the
+   application-specific runtime executable, and make every packaged service consume
+   product-root-derived paths.
+3. **Desktop lifecycle.** Add supported-system-browser discovery, compatibility diagnostics, the
+   in-directory profile, the bounded manager protocol, and working start, stop, status, logs, and
+   Dashboard controls.
+4. **Platform releases.** Add native smoke tests, portable archives, signing, notarization,
+   provenance, licenses, backup, and atomic in-directory updates. The desktop release becomes the
+   supported product topology when it covers the complete observable lifecycle.

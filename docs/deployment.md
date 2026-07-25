@@ -5,6 +5,10 @@ while Browser Session runs as a companion in the user's graphical host session. 
 an optional native application in that same host session. Its current build opens Dashboard but
 does not own service lifecycle.
 
+This is the current runnable topology, not the target installed form. The target
+[desktop distribution](desktop-distribution.md) places the manager, application-specific runtime,
+service payloads, and writable data in one user-selected directory and does not depend on Docker.
+
 The browser is intentionally outside Docker because its visible window and persistent host profile
 are the boundary for login, verification, and other user-controlled actions.
 
@@ -136,16 +140,16 @@ database and the single Drizzle baseline together.
 
 ## Source development
 
-Container deployment is the runtime contract. For fast source iteration, developers may run
-Workspace Service and Dashboard directly:
+Container deployment is the current runtime contract. For fast source iteration, developers may
+run Workspace Service and Dashboard directly:
 
 ```sh
 pnpm exec moon run workspace-service:dev
 pnpm exec moon run dashboard:dev
 ```
 
-These development servers retain the same loopback ports and API boundaries. Vite's proxy is a
-development tool only; the production Dashboard is always the Caddy image.
+These development servers retain the same loopback ports and API boundaries. In the current
+container topology, Vite's proxy is a development tool and Caddy serves the production Dashboard.
 
 ## Runtime boundaries
 
@@ -204,3 +208,7 @@ The resulting OCI images are the deployment artifacts. `compose.yaml` defaults t
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the
 `JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can replace
 them with registry tags or immutable digests.
+
+The target desktop release replaces these OCI images with the directory-contained artifacts
+defined in [Desktop distribution](desktop-distribution.md). The current desktop staging tree
+validates assembly and integrity only; it is not a runnable or supported deployment.

@@ -31,9 +31,13 @@ control recruiting pages.
 
 ## Planned lifecycle boundary
 
-When local lifecycle management is implemented, a Node.js process supervisor will own process
-coordination under one top-level shajara scope and expose a bounded local protocol to Desktop
-Manager. No supervisor or protocol is implemented yet.
+When local lifecycle management is implemented, the application runtime supervisor will own
+process coordination under one top-level shajara scope and expose a bounded local protocol to
+Desktop Manager. No supervisor or protocol is implemented yet.
+
+[Desktop distribution](../../docs/desktop-distribution.md) defines the target directory-contained,
+Docker-free installed form and release boundary. Desktop Manager is the lifecycle control surface,
+not the installer.
 
 [Product design](../../docs/product-design.md) owns the intended cross-application boundary.
 [Development](../../docs/development.md) owns the polyglot workspace and CI model.
