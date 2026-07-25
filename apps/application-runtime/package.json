@@ -1,28 +1,27 @@
 {
-  "name": "@job-boardwalk/desktop-distribution",
+  "name": "@job-boardwalk/application-runtime",
   "private": true,
-  "description": "Coordinates Job Boardwalk's directory-contained desktop distribution.",
-  "bin": {
-    "job-boardwalk-desktop-distribution": "./src/cli.ts"
-  },
+  "description": "Supervises Job Boardwalk's directory-contained application services.",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
   },
   "scripts": {
-    "assemble": "node src/cli.ts",
+    "build": "vite build && node scripts/build-executable.ts",
     "lint": "oxlint --config oxlint.config.ts .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@job-boardwalk/desktop-product-layout": "workspace:*"
+    "@job-boardwalk/desktop-product-layout": "workspace:*",
+    "@shajara/host": "catalog:"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

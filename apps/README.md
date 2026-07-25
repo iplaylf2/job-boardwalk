@@ -5,6 +5,8 @@
   and recruiting-domain APIs.
 - [`dashboard`](dashboard/) presents workspace state and research reports, and lets the user
   maintain personal context and job-search intents.
+- [`application-runtime`](application-runtime/) owns the directory-contained service supervisor
+  and Dashboard Host used by desktop staging.
 - [`desktop-manager`](desktop-manager/) owns the native local-runtime control surface. Its current
   implementation provides the operating-system handoff to Dashboard.
 
@@ -15,6 +17,10 @@ services and never access the browser profile. Browser Session reaches the conta
 Service through its loopback-published port and sends bounded status reports containing runtime
 status and any cached platform-access observations. Workspace Service derives short-lived presence
 for Dashboard without taking ownership of the browser.
+
+Application Runtime is used by desktop staging, not by the supported Compose topology. It
+supervises Workspace Service and Dashboard Host from the staged product directory; Browser Session
+and Desktop Manager lifecycle integration remain future work.
 
 Desktop Manager is a Slint application and deliberately does not embed Dashboard or recruiting
 pages. Its current implementation opens Dashboard in the user's browser and makes no claim about

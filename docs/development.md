@@ -55,8 +55,10 @@ pnpm exec moon run desktop-distribution:assemble
 ```
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
-checks. [Desktop distribution](desktop-distribution.md) defines the installed form, build
-ownership, and remaining delivery work.
+checks. The assembled Application Runtime is a Node.js single executable that runs Workspace
+Service and Dashboard Host without a system Node.js installation. [Desktop
+distribution](desktop-distribution.md) defines the installed form, build ownership, and remaining
+delivery work.
 
 ## Continuous integration
 

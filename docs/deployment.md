@@ -210,5 +210,7 @@ names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local
 them with registry tags or immutable digests.
 
 The target desktop release replaces these OCI images with the directory-contained artifacts
-defined in [Desktop distribution](desktop-distribution.md). The current desktop staging tree
-validates assembly and integrity only; it is not a runnable or supported deployment.
+defined in [Desktop distribution](desktop-distribution.md). The current desktop staging tree can
+run Workspace Service and Dashboard Host through its self-contained Application Runtime, but it
+does not yet package Browser Session or expose lifecycle controls through Desktop Manager. It is
+an engineering artifact, not a supported deployment.

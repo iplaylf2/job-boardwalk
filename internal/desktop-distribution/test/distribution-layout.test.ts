@@ -21,16 +21,26 @@ test("defines the product-owned staging inputs and platform output", () => {
         source: path.join(repositoryRoot, "target", "release", "job-boardwalk-desktop-manager.exe"),
       },
       {
-        destination: path.join("payload", "browser-session"),
-        source: path.join(repositoryRoot, "apps", "browser-session", "dist"),
+        destination: path.join("bin", "job-boardwalk-runtime.exe"),
+        source: path.join(repositoryRoot, "target", "release", "job-boardwalk-runtime.exe"),
       },
       {
         destination: path.join("payload", "dashboard"),
         source: path.join(repositoryRoot, "apps", "dashboard", "dist"),
       },
       {
-        destination: path.join("payload", "workspace-service"),
-        source: path.join(repositoryRoot, "apps", "workspace-service", "dist"),
+        destination: path.join("payload", "workspace-service.mjs"),
+        source: path.join(
+          repositoryRoot,
+          "apps",
+          "workspace-service",
+          "dist",
+          "workspace-service.mjs",
+        ),
+      },
+      {
+        destination: path.join("payload", "migrations"),
+        source: path.join(repositoryRoot, "apps", "workspace-service", "dist", "migrations"),
       },
     ],
     outputRoot: path.join(repositoryRoot, "target", "desktop-distribution", "win32-synthetic-arch"),

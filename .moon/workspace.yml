@@ -2,10 +2,12 @@ projects:
   sources:
     cargo-workspace: "."
     repository: ".moon/projects/repository"
+    application-runtime: "apps/application-runtime"
     browser-session: "apps/browser-session"
     dashboard: "apps/dashboard"
     workspace-service: "apps/workspace-service"
     contracts: "packages/contracts"
+    desktop-product-layout: "packages/desktop-product-layout"
     desktop-distribution: "internal/desktop-distribution"
     platform-catalog: "packages/platform-catalog"
     presets: "internal/presets"

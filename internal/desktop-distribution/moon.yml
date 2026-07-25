@@ -10,7 +10,7 @@ tasks:
   assemble:
     command: "pnpm run assemble"
     deps:
-      - "browser-session:build"
+      - "application-runtime:build"
       - "cargo-workspace:build"
       - "dashboard:build"
       - "workspace-service:build"
@@ -21,10 +21,11 @@ tasks:
       - "/Cargo.lock"
       - "/Cargo.toml"
       - "/apps/desktop-manager/Cargo.toml"
-      - "/apps/browser-session/dist/**/*"
       - "/apps/dashboard/dist/**/*"
-      - "/apps/workspace-service/dist/**/*"
+      - "/apps/workspace-service/dist/workspace-service.mjs"
+      - "/apps/workspace-service/dist/migrations/**/*"
       - "/target/release/job-boardwalk-desktop-manager*"
+      - "/target/release/job-boardwalk-runtime*"
     outputs:
       - "/target/desktop-distribution"
 

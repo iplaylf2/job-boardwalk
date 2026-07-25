@@ -1,0 +1,53 @@
+language: "typescript"
+layer: "application"
+stack: "backend"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  build:
+    command: "pnpm run build"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "package.json"
+      - "scripts/**/*"
+      - "src/**/*"
+      - "tsconfig.json"
+      - "vite.config.ts"
+    outputs:
+      - "dist"
+      - "/target/release/job-boardwalk-runtime*"
+
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "oxlint.config.ts"
+      - "scripts/**/*"
+      - "src/**/*"
+      - "test/**/*"
+
+  test:
+    command: "pnpm run test"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "package.json"
+      - "src/**/*"
+      - "test/**/*"
+      - "vitest.config.ts"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    deps:
+      - target: "^:typecheck"
+        optional: true
+    inputs:
+      - "package.json"
+      - "scripts/**/*"
+      - "src/**/*"
+      - "test/**/*"
+      - "tsconfig.json"
+      - "vite.config.ts"

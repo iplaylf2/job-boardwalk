@@ -85,6 +85,10 @@ policy, provide SPA route fallback, and proxy `/api` to Workspace Service over t
 network. The application-owned `Dockerfile` builds only Dashboard and its workspace dependencies;
 its runtime stage receives only the static `dist/` artifact. Open <http://127.0.0.1:54311>.
 
+The desktop staging topology serves the same finalized `dist/` artifact through Application
+Runtime's Dashboard Host. That host preserves the browser-security headers, SPA fallback, and
+`/api` boundary while replacing Caddy inside the directory-contained product.
+
 For source development, run Workspace Service and Dashboard in separate terminals:
 
 ```sh

@@ -31,9 +31,9 @@ control recruiting pages.
 
 ## Planned lifecycle boundary
 
-When local lifecycle management is implemented, the application runtime supervisor will own
-process coordination under one top-level shajara scope and expose a bounded local protocol to
-Desktop Manager. No supervisor or protocol is implemented yet.
+Application Runtime now owns Workspace Service and Dashboard Host process coordination under one
+top-level shajara scope. Desktop Manager still has no bounded local protocol for observing or
+controlling that supervisor, and Browser Session is not yet part of the supervised lifecycle.
 
 [Desktop distribution](../../docs/desktop-distribution.md) defines the target directory-contained,
 Docker-free installed form and release boundary. Desktop Manager is the lifecycle control surface,

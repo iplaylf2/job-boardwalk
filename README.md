@@ -24,6 +24,9 @@ integration to separate applications:
   maintain personal context and select the job-search intent that guides recruiting research. Its
   container serves the production client and proxies its same-origin API requests; it never
   controls the browser.
+- [Application Runtime](apps/application-runtime/) is the directory-contained service coordinator
+  used by desktop staging. Its Node.js single executable supervises Workspace Service and
+  Dashboard Host; it does not yet supervise Browser Session or expose a Desktop Manager protocol.
 - [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
   boundary. It does not embed a browser engine or take over Browser Session's page-control
   boundary.
@@ -58,6 +61,10 @@ Available now:
   conclusions available without the agent conversation that produced them.
 - Desktop Manager provides a compiled native window that opens Dashboard in the user's browser. It
   does not yet observe or supervise the local services.
+- Desktop staging assembles Desktop Manager, Application Runtime, Dashboard, Workspace Service, and
+  migrations into one directory. Application Runtime can run the Workspace Service and Dashboard
+  Host boundary without Docker or a system Node.js installation, but Browser Session and Desktop
+  Manager lifecycle integration remain incomplete.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.
@@ -143,6 +150,6 @@ artifacts, and the CI platform policy.
 - [`apps/`](apps/README.md) contains the product applications.
 - [`docs/`](docs/README.md) contains cross-application product, deployment, and development
   documentation.
-- [`packages/`](packages/README.md) contains shared product contracts and the recruiting-platform
-  catalog.
+- [`packages/`](packages/README.md) contains shared product contracts, the desktop-product layout,
+  and the recruiting-platform catalog.
 - [`internal/`](internal/README.md) contains private monorepo tooling.

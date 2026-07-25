@@ -1,6 +1,8 @@
 import { arch as readArchitecture, platform as readPlatform } from "node:os";
 import path from "node:path";
 
+import { desktopProductRelativePaths } from "@job-boardwalk/desktop-product-layout";
+
 export interface DistributionComponent {
   readonly destination: string;
   readonly source: string;
@@ -22,10 +24,50 @@ interface CreateDesktopDistributionPlanOptions {
   readonly repositoryRoot: string;
 }
 
-function executableName(platform: NodeJS.Platform): string {
+function managerExecutableName(platform: NodeJS.Platform): string {
   return platform === "win32"
     ? "job-boardwalk-desktop-manager.exe"
     : "job-boardwalk-desktop-manager";
+}
+
+function runtimeExecutableName(platform: NodeJS.Platform): string {
+  return platform === "win32" ? "job-boardwalk-runtime.exe" : "job-boardwalk-runtime";
+}
+
+function createDistributionComponents(
+  repositoryRoot: string,
+  platform: NodeJS.Platform,
+): DistributionComponent[] {
+  const managerExecutable = managerExecutableName(platform);
+  const runtimeExecutable = runtimeExecutableName(platform);
+  return [
+    {
+      destination: path.join("bin", managerExecutable),
+      source: path.join(repositoryRoot, "target", "release", managerExecutable),
+    },
+    {
+      destination: path.join("bin", runtimeExecutable),
+      source: path.join(repositoryRoot, "target", "release", runtimeExecutable),
+    },
+    {
+      destination: desktopProductRelativePaths.dashboardDirectory,
+      source: path.join(repositoryRoot, "apps", "dashboard", "dist"),
+    },
+    {
+      destination: desktopProductRelativePaths.workspaceServiceModule,
+      source: path.join(
+        repositoryRoot,
+        "apps",
+        "workspace-service",
+        "dist",
+        "workspace-service.mjs",
+      ),
+    },
+    {
+      destination: desktopProductRelativePaths.migrationsDirectory,
+      source: path.join(repositoryRoot, "apps", "workspace-service", "dist", "migrations"),
+    },
+  ];
 }
 
 export function createDesktopDistributionPlan(
@@ -33,28 +75,10 @@ export function createDesktopDistributionPlan(
 ): DesktopDistributionPlan {
   const architecture = options.architecture ?? readArchitecture();
   const platform = options.platform ?? readPlatform();
-  const managerExecutable = executableName(platform);
 
   return {
     architecture,
-    components: [
-      {
-        destination: path.join("bin", managerExecutable),
-        source: path.join(options.repositoryRoot, "target", "release", managerExecutable),
-      },
-      {
-        destination: path.join("payload", "browser-session"),
-        source: path.join(options.repositoryRoot, "apps", "browser-session", "dist"),
-      },
-      {
-        destination: path.join("payload", "dashboard"),
-        source: path.join(options.repositoryRoot, "apps", "dashboard", "dist"),
-      },
-      {
-        destination: path.join("payload", "workspace-service"),
-        source: path.join(options.repositoryRoot, "apps", "workspace-service", "dist"),
-      },
-    ],
+    components: createDistributionComponents(options.repositoryRoot, platform),
     outputRoot:
       options.outputRoot ??
       path.join(

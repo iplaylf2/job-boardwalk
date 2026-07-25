@@ -41,8 +41,10 @@ export function resolveWorkspaceDatabasePath(
       );
 }
 
-export function* prepareWorkspaceDatabasePath(): RiteCoroutine<string> {
-  const databasePath = resolveWorkspaceDatabasePath();
+export function* prepareWorkspaceDatabasePath(
+  explicitDatabasePath?: string,
+): RiteCoroutine<string> {
+  const databasePath = explicitDatabasePath ?? resolveWorkspaceDatabasePath();
   const databaseDirectory = path.dirname(databasePath);
   yield* until(() => mkdir(databaseDirectory, { mode: privateDirectoryMode, recursive: true }));
   yield* until(() => chmod(databaseDirectory, privateDirectoryMode));

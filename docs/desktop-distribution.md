@@ -6,11 +6,17 @@ boundaries; [Deployment](deployment.md) documents the current runnable topology.
 
 ## Delivery status
 
-The repository currently produces a deterministic desktop staging tree that proves the assembly
-boundary, component allowlist, and integrity manifest against real application build outputs. It
-is marked `desktop-staging` and `releaseReady: false` because it does not yet contain the
-self-contained application runtime or working lifecycle controls. It is therefore neither an
-installable release nor a supported way to run Job Boardwalk.
+The repository currently produces a deterministic desktop staging tree with a self-contained
+application runtime. The runtime starts Workspace Service and Dashboard Host as isolated roles,
+waits for their loopback health endpoints, and shuts them down in order. It derives the Dashboard,
+migrations, and workspace database paths from the installed executable rather than from the
+current working directory or ambient configuration.
+
+The tree remains marked `desktop-staging` and `releaseReady: false`: Browser Session is not yet a
+packaged runtime role, and Desktop Manager has no lifecycle protocol. Browser discovery and
+diagnostics, release operations, and platform packaging belong to later delivery stages. The
+staging tree is therefore a runnable engineering artifact, not an installable release or supported
+product topology.
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the staging command
 and output. The current runnable topology remains the Docker Compose and graphical-host arrangement
@@ -44,7 +50,8 @@ Job Boardwalk/
 ├── payload/
 │   ├── dashboard/
 │   ├── migrations/
-│   └── licenses/
+│   ├── licenses/
+│   └── workspace-service.mjs
 ├── data/
 │   ├── browser-profile/
 │   ├── logs/
@@ -64,14 +71,16 @@ variables or the current working directory.
 ## Runtime payload
 
 The release contains an application-specific runtime executable built from the Node.js runtime,
-application code, and production dependencies required by Job Boardwalk. Unused runtime components
-and dependencies are excluded; the product does not ship a general-purpose Node.js distribution or
+the supervisor and Dashboard Host code, and their production dependencies. The finalized Workspace
+Service module and Dashboard assets remain product payload resources. Unused runtime components and
+dependencies are excluded; the product does not ship a general-purpose Node.js distribution or
 `node_modules`.
 
-The executable contains the runtime supervisor and service roles defined by
-[Product design](product-design.md). The runtime may start itself in distinct roles so process
-isolation does not require duplicate runtime files. Dashboard Host serves the built Dashboard and
-proxies `/api`; it replaces Caddy in the installed product.
+The executable contains the runtime supervisor and role dispatch defined by
+[Product design](product-design.md). It may start itself in distinct roles so process isolation
+does not require duplicate runtime files. The Workspace Service role loads the finalized module
+from the payload; Dashboard Host serves the built Dashboard and proxies `/api`, replacing Caddy in
+the directory-contained product.
 
 Packaged service endpoints bind only to loopback. Their concrete addresses remain private runtime
 details coordinated among product-owned components.
@@ -107,12 +116,13 @@ An update stages and verifies replacement resources before switching them into p
 
 Build responsibilities follow the boundary that owns each artifact:
 
-| Owner                                                                               | Responsibility                                                                                                                   |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Application projects                                                                | Produce finalized native, service, and web artifacts.                                                                            |
-| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Declare allowed components, assemble and validate the product layout, emit integrity metadata, and configure platform packaging. |
-| Platform packager                                                                   | Produce archives, application bundles, and installers and integrate platform signing and notarization.                           |
-| Moon                                                                                | Schedule the application builds, distribution work, and repository checks.                                                       |
+| Owner                                                                               | Responsibility                                                                                                                 |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Application projects                                                                | Produce finalized native, service, and web artifacts.                                                                          |
+| [`@job-boardwalk/desktop-product-layout`](../packages/desktop-product-layout/)      | Define the shared relative and resolved path contract for the directory-contained product.                                     |
+| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Declare allowed components, assemble and validate the product tree, emit integrity metadata, and configure platform packaging. |
+| Platform packager                                                                   | Produce archives, application bundles, and installers and integrate platform signing and notarization.                         |
+| Moon                                                                                | Schedule the application builds, distribution work, and repository checks.                                                     |
 
 Desktop Distribution is a private monorepo build tool, not an application runtime dependency.
 Platform packaging mechanics belong to the selected maintained packager rather than to custom
@@ -120,16 +130,17 @@ assembly code.
 
 ## Delivery sequence
 
-1. **Staging boundary — implemented.** Assemble the current Desktop Manager, Dashboard, Workspace
-   Service, and Browser Session outputs from an explicit component plan, then emit the integrity
-   manifest. The staging tree contains no Docker files, browser binary, Node.js distribution,
+1. **Staging boundary — implemented.** Assemble an explicit allowlist of finalized application
+   artifacts into the deterministic product tree, then emit the integrity manifest. The staging
+   tree contains no Docker files, browser binary, general-purpose Node.js distribution,
    `node_modules`, or source checkout.
-2. **Self-contained runtime.** Add Dashboard Host and the shajara runtime supervisor, produce the
-   application-specific runtime executable, and make every packaged service consume
-   product-root-derived paths.
+2. **Self-contained runtime — implemented for the packaged service boundary.** Dashboard Host and
+   the shajara runtime supervisor run from the application-specific Node.js single executable.
+   Workspace Service and Dashboard Host consume product-root-derived paths and run without Docker,
+   a system Node.js installation, `node_modules`, or a source checkout.
 3. **Desktop lifecycle.** Add supported-system-browser discovery, compatibility diagnostics, the
-   in-directory profile, the bounded manager protocol, and working start, stop, status, logs, and
-   Dashboard controls.
+   Browser Session runtime role and in-directory profile, the bounded manager protocol, and working
+   start, stop, status, logs, and Dashboard controls.
 4. **Platform releases.** Add native smoke tests, portable archives, signing, notarization,
    provenance, licenses, backup, and atomic in-directory updates. The desktop release becomes the
    supported product topology when it covers the complete observable lifecycle.
