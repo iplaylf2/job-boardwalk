@@ -1,0 +1,73 @@
+language: "typescript"
+layer: "tool"
+stack: "infrastructure"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  format:
+    command: "pnpm run format:check"
+    inputs:
+      - "/.github/**/*.yml"
+      - "/.moon/**/*.{json,yml}"
+      - "/apps/**/*.{css,html,json,md,ts,tsx,yml}"
+      - "/docs/**/*.md"
+      - "/internal/**/*.{json,md,ts,yml}"
+      - "/packages/**/*.{json,md,ts,yml}"
+      - "/*.{json,md,ts,yml}"
+    options:
+      runFromWorkspaceRoot: true
+
+  format-write:
+    command: "pnpm run format"
+    inputs:
+      - "/.github/**/*.yml"
+      - "/.moon/**/*.{json,yml}"
+      - "/apps/**/*.{css,html,json,md,ts,tsx,yml}"
+      - "/docs/**/*.md"
+      - "/internal/**/*.{json,md,ts,yml}"
+      - "/packages/**/*.{json,md,ts,yml}"
+      - "/*.{json,md,ts,yml}"
+    options:
+      cache: false
+      runFromWorkspaceRoot: true
+      runInCI: false
+
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "/oxlint.config.ts"
+      - "/internal/presets/exports/oxlint.shared.ts"
+      - "/internal/presets/package.json"
+      - "/package.json"
+      - "/pnpm-lock.yaml"
+    options:
+      runFromWorkspaceRoot: true
+
+  unused:
+    command: "pnpm run unused"
+    inputs:
+      - "/apps/**/*.{json,ts,tsx}"
+      - "/internal/**/*.{json,ts}"
+      - "/knip.jsonc"
+      - "/package.json"
+      - "/packages/**/*.{json,ts}"
+      - "/pnpm-lock.yaml"
+      - "/pnpm-workspace.yaml"
+    options:
+      runFromWorkspaceRoot: true
+
+  boundaries:
+    command: "pnpm run boundaries"
+    inputs:
+      - "/.dependency-cruiser.json"
+      - "/apps/**/*.{json,ts,tsx}"
+      - "/internal/**/*.{json,ts}"
+      - "/package.json"
+      - "/packages/**/*.{json,ts}"
+      - "/pnpm-lock.yaml"
+      - "/pnpm-workspace.yaml"
+    options:
+      runFromWorkspaceRoot: true

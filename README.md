@@ -11,8 +11,8 @@ account changes, applications, and communication always remain under user contro
 
 ## System map
 
-Job Boardwalk separates the browser that produces live evidence from the workspace that preserves
-durable facts:
+Job Boardwalk assigns browser execution, durable state, web presentation, and native desktop
+integration to separate applications:
 
 - [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that owns a
   visible persistent Patchright browser in the user's graphical session and exposes project-owned
@@ -24,6 +24,9 @@ durable facts:
   maintain personal context and select the job-search intent that guides recruiting research. Its
   container serves the production client and proxies its same-origin API requests; it never
   controls the browser.
+- [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
+  boundary. It does not embed a browser engine or take over Browser Session's page-control
+  boundary.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -53,6 +56,8 @@ Available now:
   platform filtering, and in-library views for interested, contacted, applied, and interviewed
   records while preserving the original recruiting-platform sources. Its report reader keeps saved
   conclusions available without the agent conversation that produced them.
+- Desktop Manager provides a compiled native window that opens Dashboard in the user's browser. It
+  does not yet observe or supervise the local services.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.
@@ -79,12 +84,22 @@ Install dependencies and Patchright's Chromium on the graphical host, then start
 ```sh
 pnpm install
 pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
-pnpm --filter @job-boardwalk/browser-session dev
+pnpm exec moon run browser-session:dev
 ```
 
 Browser Session launches a visible browser with a dedicated profile in the operating system's user
 data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
+
+The current Desktop Manager build is optional. After installing the Rust toolchain and platform
+build dependencies described in its [README](apps/desktop-manager/README.md), launch it separately:
+
+```sh
+pnpm exec moon run cargo-workspace:run-desktop-manager
+```
+
+It opens Dashboard through the operating system's URL handler; it does not start or inspect the
+other applications.
 
 When the user requests login, or visible page evidence shows that the requested workflow requires
 authentication and the current session is unauthenticated, the agent proactively opens the
@@ -94,27 +109,40 @@ control, and the agent resumes only after the user explicitly returns control. A
 platform's HTTPS navigation scope permits research and login-handoff preparation only; it does not
 authorize those user actions.
 
-See [Deployment](docs/deployment.md) for lifecycle, persistence, health, logs, backup, and the
-development workflow. The root `.env.example` is the environment-variable reference; project
-entrypoints do not load `.env` automatically.
+See [Deployment](docs/deployment.md) for runtime lifecycle, persistence, health, logs, backup, and
+restore. See [Development](docs/development.md) for the cross-language workspace and checks. The
+root `.env.example` is the environment-variable reference; project entrypoints do not load `.env`
+automatically.
 
 ## Repository checks
 
 Non-draft pull requests targeting `master` run the repository checks automatically. To reproduce
-them locally, install the locked dependencies and run the root check:
+them locally, install the locked Node.js dependencies and the Rust toolchain declared in
+[`rust-toolchain.toml`](rust-toolchain.toml). Linux also requires the native build dependencies
+listed by [Desktop Manager](apps/desktop-manager/README.md). Then run the root check:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm check
+pnpm exec moon exec --plan .moon/check.json
 ```
 
-The root check covers formatting, unused code, dependency boundaries, linting, type checking,
-tests, and production builds.
+The check plan covers formatting, unused code, dependency boundaries, linting, type checking,
+tests, and production builds across the pnpm and Cargo workspaces. To apply formatting, run:
+
+```sh
+pnpm exec moon run repository:format-write cargo-workspace:format-write
+```
+
+[Development](docs/development.md) documents task ownership, dependency authorities, generated
+artifacts, and the CI platform policy.
 
 ## Repository map
 
+- [`.moon/`](.moon/workspace.yml) owns the cross-language project graph, reusable task inputs, and
+  local and CI execution plans.
 - [`apps/`](apps/README.md) contains the product applications.
-- [`docs/`](docs/product-design.md) owns cross-application product design.
+- [`docs/`](docs/README.md) contains cross-application product, deployment, and development
+  documentation.
 - [`packages/`](packages/README.md) contains shared product contracts and the recruiting-platform
   catalog.
 - [`internal/`](internal/README.md) contains private monorepo tooling.

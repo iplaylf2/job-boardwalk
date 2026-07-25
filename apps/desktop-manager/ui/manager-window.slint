@@ -1,0 +1,141 @@
+import { Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
+
+component ManagementBadge inherits Rectangle {
+    in property <string> label;
+
+    border-radius: self.height / 2;
+    background: #eaf2ee;
+    height: 30px;
+    width: status-label.preferred-width + 24px;
+
+    status-label := Text {
+        color: #35634c;
+        font-size: 13px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        text: root.label;
+        vertical-alignment: center;
+    }
+}
+
+component ApplicationRow inherits Rectangle {
+    in property <string> detail;
+    in property <string> application-name;
+    in property <string> management-state;
+
+    background: #ffffff;
+    border-color: #dce3df;
+    border-radius: 12px;
+    border-width: 1px;
+    height: 76px;
+
+    HorizontalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 14px;
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+
+            Text {
+                color: #17231d;
+                font-size: 16px;
+                font-weight: 600;
+                text: root.application-name;
+            }
+
+            Text {
+                color: #637169;
+                font-size: 13px;
+                text: root.detail;
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        ManagementBadge {
+            label: root.management-state;
+        }
+    }
+}
+
+export component ManagerWindow inherits Window {
+    title: "Job Boardwalk";
+    preferred-width: 720px;
+    preferred-height: 520px;
+    min-width: 600px;
+    min-height: 460px;
+    background: #f4f7f5;
+
+    in property <string> dashboard-url: "http://127.0.0.1:54311";
+
+    VerticalBox {
+        padding: 30px;
+        spacing: 20px;
+
+        VerticalLayout {
+            spacing: 6px;
+
+            Text {
+                color: #17231d;
+                font-size: 28px;
+                font-weight: 700;
+                text: "Job Boardwalk";
+            }
+
+            Text {
+                color: #637169;
+                font-size: 14px;
+                text: "Desktop Manager";
+            }
+        }
+
+        VerticalLayout {
+            spacing: 10px;
+
+            ApplicationRow {
+                application-name: "Workspace Service";
+                detail: "Durable local data and recruiting-domain API";
+                management-state: "Controls unavailable";
+            }
+
+            ApplicationRow {
+                application-name: "Browser Session";
+                detail: "Visible recruiting browser and agent handoff";
+                management-state: "Controls unavailable";
+            }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+        }
+
+        Rectangle {
+            background: #e8eeea;
+            height: 1px;
+        }
+
+        HorizontalBox {
+            alignment: end;
+            spacing: 10px;
+
+            Text {
+                color: #637169;
+                font-size: 13px;
+                horizontal-stretch: 1;
+                text: "Service controls are not available in this build.";
+                vertical-alignment: center;
+            }
+
+            Button {
+                text: "Open Dashboard";
+                clicked => {
+                    Platform.open-url(root.dashboard-url);
+                }
+            }
+        }
+    }
+}

@@ -248,6 +248,9 @@ importers:
       '@job-boardwalk/presets':
         specifier: workspace:*
         version: link:internal/presets
+      '@moonrepo/cli':
+        specifier: 2.4.5
+        version: 2.4.5
       '@types/node':
         specifier: 'catalog:'
         version: 26.1.1
@@ -960,6 +963,49 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@moonrepo/cli@2.4.5':
+    resolution: {integrity: sha512-AYdIBRpdTwhzfDgGcFzHexiIMEDxiQoUUmlwcajA64NaLglFM3D4pRv5ZmbR1cK+qMm+szwYCK6lnFJ1l57hOw==}
+    hasBin: true
+
+  '@moonrepo/core-linux-arm64-gnu@2.4.5':
+    resolution: {integrity: sha512-pvcANFo5cYvRlT4pFkwd3qaB536mLoTkaXH+PQeGj+Ox0be3Nfk3xZ9tlisD/OENLsy17vLHifqbJaRY28kkTQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@moonrepo/core-linux-arm64-musl@2.4.5':
+    resolution: {integrity: sha512-s+HIrTMgUt6ekQSmOSJRzDguTxWWYmceMZOGe01wEx6U5a/cka8qJKWjKet2Wgs3sub0GGHguLZcCCVyPW79LA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@moonrepo/core-linux-x64-gnu@2.4.5':
+    resolution: {integrity: sha512-ZOR9EbKuFA40xZeJ4wIAAJRpjin/Vz9uxNDAywYvPw3Uzx1K+m4VeZVuc/0V8x/jWd+UeXB4yKUCDPZG/7UPnQ==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@moonrepo/core-linux-x64-musl@2.4.5':
+    resolution: {integrity: sha512-ocJQvGay5A47pxnM+gY9u//UQWHuLVh1h+mQwOU6gFIY49vyJvPuth6e7Tz3kxnnzTE7Fq1N7AbUV5XpN59JTA==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@moonrepo/core-macos-arm64@2.4.5':
+    resolution: {integrity: sha512-D4EBmxvISKzeR42wzLFfU9Kl0Eg3f8XDxRo9IdQn7cwFx3s4IMhEdoIm0MWmy9w9hYvRCwNIDTZT7U+fuFqOVg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@moonrepo/core-macos-x64@2.4.5':
+    resolution: {integrity: sha512-Ovt7YFiTLWdy+s3RL/PEQxVOMsMgk+f8AIKoJT++aA3HiyM+R46jJ9LgGVq0IjcMOlgAoI07bKRRS0Gd2YFeMQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@moonrepo/core-windows-x64-msvc@2.4.5':
+    resolution: {integrity: sha512-4GS+vVCpBuOCAai+G2vIOM13AmIHAMJ7rFRhodanYBuZqfQgPzxEJd1q4nGac25gsbtv85kGy2idaf93D2v6Jg==}
+    cpu: [x64]
+    os: [win32]
 
   '@napi-rs/wasm-runtime@1.1.6':
     resolution: {integrity: sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==}
@@ -3475,6 +3521,39 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@4.4.3)
     transitivePeerDependencies:
       - supports-color
+
+  '@moonrepo/cli@2.4.5':
+    dependencies:
+      detect-libc: 2.1.2
+    optionalDependencies:
+      '@moonrepo/core-linux-arm64-gnu': 2.4.5
+      '@moonrepo/core-linux-arm64-musl': 2.4.5
+      '@moonrepo/core-linux-x64-gnu': 2.4.5
+      '@moonrepo/core-linux-x64-musl': 2.4.5
+      '@moonrepo/core-macos-arm64': 2.4.5
+      '@moonrepo/core-macos-x64': 2.4.5
+      '@moonrepo/core-windows-x64-msvc': 2.4.5
+
+  '@moonrepo/core-linux-arm64-gnu@2.4.5':
+    optional: true
+
+  '@moonrepo/core-linux-arm64-musl@2.4.5':
+    optional: true
+
+  '@moonrepo/core-linux-x64-gnu@2.4.5':
+    optional: true
+
+  '@moonrepo/core-linux-x64-musl@2.4.5':
+    optional: true
+
+  '@moonrepo/core-macos-arm64@2.4.5':
+    optional: true
+
+  '@moonrepo/core-macos-x64@2.4.5':
+    optional: true
+
+  '@moonrepo/core-windows-x64-msvc@2.4.5':
+    optional: true
 
   '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)':
     dependencies:

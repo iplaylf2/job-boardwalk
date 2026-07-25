@@ -1,0 +1,17 @@
+projects:
+  sources:
+    cargo-workspace: "."
+    repository: ".moon/projects/repository"
+    browser-session: "apps/browser-session"
+    dashboard: "apps/dashboard"
+    workspace-service: "apps/workspace-service"
+    contracts: "packages/contracts"
+    platform-catalog: "packages/platform-catalog"
+    presets: "internal/presets"
+
+telemetry: false
+
+vcs:
+  client: "git"
+  defaultBranch: "master"
+  provider: "github"

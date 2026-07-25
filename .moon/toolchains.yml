@@ -1,0 +1,10 @@
+javascript:
+  dedupeOnLockfileChange: false
+  inferTasksFromScripts: false
+  installDependencies: false
+  packageManager: "pnpm"
+
+node: {}
+pnpm: {}
+rust:
+  syncToolchainConfig: false

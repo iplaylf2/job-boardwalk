@@ -1,0 +1,55 @@
+language: "typescript"
+layer: "application"
+stack: "backend"
+
+tasks:
+  build:
+    command: "pnpm run build"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "src/**/*"
+      - "package.json"
+      - "tsconfig.json"
+      - "vite.config.ts"
+    outputs:
+      - "dist"
+
+  dev:
+    command: "pnpm run dev"
+    preset: "server"
+
+  start:
+    command: "pnpm run start"
+    deps:
+      - "~:build"
+    preset: "server"
+
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "src/**/*"
+      - "test/**/*"
+      - "oxlint.config.ts"
+
+  test:
+    command: "pnpm run test"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "src/**/*"
+      - "test/**/*"
+      - "package.json"
+      - "vite.config.ts"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    deps:
+      - target: "^:typecheck"
+        optional: true
+    inputs:
+      - "src/**/*"
+      - "test/**/*"
+      - "package.json"
+      - "test/tsconfig.json"
+      - "tsconfig.json"

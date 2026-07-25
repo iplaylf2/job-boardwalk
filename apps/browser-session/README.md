@@ -85,14 +85,14 @@ pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
 Then run the service:
 
 ```sh
-pnpm --filter @job-boardwalk/browser-session dev
+pnpm exec moon run browser-session:dev
 ```
 
 For a built run:
 
 ```sh
-pnpm --filter @job-boardwalk/browser-session build
-pnpm --filter @job-boardwalk/browser-session start
+pnpm exec moon run browser-session:build
+pnpm exec moon run browser-session:start
 ```
 
 By default, the dedicated browser profile is stored under the operating system's user data
@@ -223,8 +223,9 @@ Tests cover the public tool contract, URL and origin boundaries, bounded inputs,
 behavior, and lifecycle ownership. Driver internals and reader-facing prose are not test contracts.
 
 ```sh
-pnpm --filter @job-boardwalk/browser-session lint
-pnpm --filter @job-boardwalk/browser-session typecheck
-pnpm --filter @job-boardwalk/browser-session test
-pnpm --filter @job-boardwalk/browser-session build
+pnpm exec moon run \
+  browser-session:lint \
+  browser-session:typecheck \
+  browser-session:test \
+  browser-session:build
 ```

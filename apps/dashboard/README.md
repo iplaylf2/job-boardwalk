@@ -88,8 +88,8 @@ its runtime stage receives only the static `dist/` artifact. Open <http://127.0.
 For source development, run Workspace Service and Dashboard in separate terminals:
 
 ```sh
-pnpm --filter @job-boardwalk/workspace-service dev
-pnpm --filter @job-boardwalk/dashboard dev
+pnpm exec moon run workspace-service:dev
+pnpm exec moon run dashboard:dev
 ```
 
 Open <http://127.0.0.1:54311>. Vite proxies `/api` requests to the Workspace Service at
@@ -100,8 +100,9 @@ Open <http://127.0.0.1:54311>. Vite proxies `/api` requests to the Workspace Ser
 Run the Dashboard checks with:
 
 ```sh
-pnpm --filter @job-boardwalk/dashboard lint
-pnpm --filter @job-boardwalk/dashboard typecheck
-pnpm --filter @job-boardwalk/dashboard test
-pnpm --filter @job-boardwalk/dashboard build
+pnpm exec moon run \
+  dashboard:lint \
+  dashboard:typecheck \
+  dashboard:test \
+  dashboard:build
 ```

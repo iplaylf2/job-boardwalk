@@ -1,0 +1,69 @@
+language: "rust"
+layer: "tool"
+stack: "infrastructure"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+fileGroups:
+  cargoSources:
+    - "apps/*/Cargo.toml"
+    - "apps/*/build.rs"
+    - "apps/*/src/**/*"
+    - "apps/*/ui/**/*"
+    - "Cargo.lock"
+    - "Cargo.toml"
+    - "rust-toolchain.toml"
+
+tasks:
+  build:
+    command: "cargo build --locked --release --workspace"
+    inputs:
+      - "@group(cargoSources)"
+    outputs:
+      - "target/release/job-boardwalk-desktop-manager*"
+    options:
+      mutex: "cargo-workspace"
+
+  run-desktop-manager:
+    command: "cargo run --locked --package job-boardwalk-desktop-manager"
+    inputs:
+      - "@group(cargoSources)"
+    options:
+      mutex: "cargo-workspace"
+    preset: "server"
+
+  typecheck:
+    command: "cargo check --locked --workspace --all-targets"
+    inputs:
+      - "@group(cargoSources)"
+    options:
+      mutex: "cargo-workspace"
+
+  lint:
+    command: "cargo clippy --locked --workspace --all-targets -- -D warnings"
+    inputs:
+      - "@group(cargoSources)"
+    options:
+      mutex: "cargo-workspace"
+
+  test:
+    command: "cargo test --locked --workspace"
+    inputs:
+      - "@group(cargoSources)"
+    options:
+      mutex: "cargo-workspace"
+
+  format:
+    command: "cargo fmt --all --check"
+    inputs:
+      - "@group(cargoSources)"
+
+  format-write:
+    command: "cargo fmt --all"
+    inputs:
+      - "@group(cargoSources)"
+    options:
+      cache: false
+      runInCI: false

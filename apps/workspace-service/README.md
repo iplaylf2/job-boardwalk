@@ -41,7 +41,7 @@ build dependencies, pnpm, and `node_modules` are absent.
 For source development:
 
 ```sh
-pnpm --filter @job-boardwalk/workspace-service dev
+pnpm exec moon run workspace-service:dev
 ```
 
 The development process listens on <http://127.0.0.1:54310> by default.
@@ -308,8 +308,9 @@ drain, and closes SQLite as the scope converges.
 Run the service checks with:
 
 ```sh
-pnpm --filter @job-boardwalk/workspace-service lint
-pnpm --filter @job-boardwalk/workspace-service typecheck
-pnpm --filter @job-boardwalk/workspace-service test
-pnpm --filter @job-boardwalk/workspace-service build
+pnpm exec moon run \
+  workspace-service:lint \
+  workspace-service:typecheck \
+  workspace-service:test \
+  workspace-service:build
 ```

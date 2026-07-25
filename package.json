@@ -4,19 +4,15 @@
   "description": "A local AI job-search secretary for delegated recruiting research.",
   "type": "module",
   "scripts": {
-    "build": "pnpm -r --if-present build",
-    "check": "pnpm format:check && pnpm unused && pnpm depcruise && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "depcruise": "dependency-cruise --config .dependency-cruiser.json --output-type err-long apps internal packages",
+    "boundaries": "dependency-cruise --config .dependency-cruiser.json --output-type err-long apps internal packages",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "lint": "pnpm lint:root && pnpm -r --if-present lint",
-    "lint:root": "oxlint --config oxlint.config.ts .",
-    "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "oxlint --config oxlint.config.ts oxlint.config.ts",
     "unused": "knip"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
+    "@moonrepo/cli": "2.4.5",
     "@types/node": "catalog:",
     "dependency-cruiser": "^18.1.0",
     "knip": "^6.29.0",

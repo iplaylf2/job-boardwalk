@@ -1,0 +1,17 @@
+{
+  "graph": {
+    "upstream": "deep"
+  },
+  "pipeline": {
+    "onFailure": "continue"
+  },
+  "targets": [
+    ":format",
+    ":lint",
+    ":typecheck",
+    ":test",
+    ":build",
+    "repository:unused",
+    "repository:boundaries"
+  ]
+}
