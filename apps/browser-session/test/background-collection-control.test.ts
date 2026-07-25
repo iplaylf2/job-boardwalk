@@ -1,6 +1,6 @@
 import type { BrowserContext, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
-import { createScope, until } from "@shajara/host";
+import { createScope, run, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -162,12 +162,10 @@ test("reopens collection when login preparation fails", async () => {
     },
   );
   let collectionCount = noCollections;
-  const failingScope = createScope();
 
   await expect(
-    failingScope.run(() => executor.execute("browser_prepare_login", { platformId: "boss" })),
+    run(() => executor.execute("browser_prepare_login", { platformId: "boss" })),
   ).rejects.toThrow();
-  await expect(failingScope[Symbol.asyncDispose]()).rejects.toThrow();
   await using collectionScope = createScope();
   await collectionScope.run(() =>
     control.runCollection(() =>

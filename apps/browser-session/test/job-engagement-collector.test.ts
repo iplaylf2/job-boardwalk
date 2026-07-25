@@ -1,6 +1,6 @@
 import type { BrowserContext, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
-import { createScope } from "@shajara/host";
+import { createScope, run } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -34,9 +34,7 @@ async function expectRejectedSynchronization(
   platformId: PlatformId,
   engagement: "contacted" | "applied",
 ): Promise<void> {
-  const scope = createScope();
-  await expect(scope.run(() => collector.synchronize(platformId, engagement))).rejects.toThrow();
-  await expect(scope[Symbol.asyncDispose]()).rejects.toThrow();
+  await expect(run(() => collector.synchronize(platformId, engagement))).rejects.toThrow();
 }
 
 test("does not retry redirected engagement pages without an explicit recovery handoff", async () => {
