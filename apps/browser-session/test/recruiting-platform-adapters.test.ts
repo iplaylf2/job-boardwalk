@@ -23,11 +23,21 @@ test.each([
 });
 
 test.each([
-  "https://www.zhipin.com/web/geek/recommend?tab=2&sub=1&page=1&tag=4",
+  "https://www.zhipin.com/web/geek/recommend?tab=2&page=1&tag=5",
   "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
   "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
 ])("rejects engagement-owned pages from job-card extraction at %s", (url) => {
   expect(() => requireJobCardExtractionConfig(url)).toThrow();
+});
+
+test.each([
+  "https://www.zhipin.com/",
+  "https://www.zhipin.com/gongsi/",
+  "https://www.yupao.com/",
+  "https://www.yupao.com/a2/",
+  "https://www.yupao.com/qiye/",
+])("rejects a platform page outside the explicit job-card collection allowlist at %s", (url) => {
+  expect(() => requireJobCardExtractionConfig(url)).toThrow(/岗位卡片采集范围/u);
 });
 
 test.each([

@@ -3,6 +3,7 @@
   "forbidden": [
     {
       "name": "no-orphans",
+      "comment": "Knip owns unused-file detection; directory-level dependency cruising makes every root graph appear orphaned.",
       "severity": "ignore",
       "from": {},
       "to": {}

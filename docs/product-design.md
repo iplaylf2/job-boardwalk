@@ -132,9 +132,15 @@ both contacted and applied, for example. They are evidence of how the platform c
 when observed, not a reconstructed workflow status or a semantic interpretation of message prose.
 
 Browser Session maps the platform categories to `interested`, `contacted`, `applied`, and
-`interviewed`. The agent explicitly requests one platform and category at a time during a
-user-requested synchronization task. The selected tab is brought to the foreground, and each call
-reads at most one page; repeated explicit calls may accumulate a paginated BOSS list. A redirected
+`interviewed`. A user-requested synchronization task addresses one platform and category at a time.
+Each explicit call brings the selected tab to the foreground, reads one bounded batch from that
+category, and writes the observed evidence. When the platform supports continuation, another call
+for the same platform and category continues the current scan.
+
+A scan accumulates at most 60 distinct jobs. `complete` is true only when the platform-maintained
+total and the captured evidence establish the full category within that bound; otherwise the
+snapshot remains partial. The quantity bound limits collected evidence, not the age of an
+interaction: platform cards do not establish when the underlying action occurred. A redirected
 category tab remains associated with the platform instead of being automatically replaced or
 retried. During user handoff it remains untouched; after control returns, a later explicit call may
 reuse it.
@@ -230,6 +236,15 @@ timeless live guarantee, and it does not open or verify the browser itself.
 Browser research should behave like a continuous user-delegated session, not a stateless bulk
 fetcher. Execution therefore favors a visible browser and reuse of the selected tab and session
 while they remain healthy, low concurrency, and ordinary navigation flow.
+
+The agent observes the page at workflow boundaries and after meaningful page or handoff changes.
+Navigation, paging, refreshes, and retries remain paced and bounded: the agent does not create tight
+polling loops, repeated visible page churn, or retries that continue without new evidence.
+
+The visible browser outcome and the user's observation govern whether an action visibly succeeded.
+A backend URL, page title, tool response, or other automation signal does not override the user's
+report that a different page or window is visible; the agent re-observes and reconciles the live
+page before continuing.
 
 Recovery must preserve the platform's visible access decisions. If a platform presents verification
 or denies access, the agent reports the interruption and waits for the user; it does not report

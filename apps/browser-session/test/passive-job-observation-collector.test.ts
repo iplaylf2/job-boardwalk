@@ -162,12 +162,18 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
   const seedUrl = "https://www.zhipin.com/web/geek/job-recommend";
   const searchUrl = "https://www.zhipin.com/web/geek/jobs?query=TypeScript";
   const detailUrl = "https://www.zhipin.com/job_detail/detail-123.html";
+  const bossHomepageUrl = "https://www.zhipin.com/";
+  const yupaoHomepageUrl = "https://www.yupao.com/a2/";
+  const yupaoCompanyUrl = "https://www.yupao.com/qiye/";
   const engagementUrl = "https://www.yupao.com/user/resume-info/";
   const context = {
     pages: () => [
       jobPage(seedUrl, "后端开发"),
       jobPage(searchUrl, "平台工程师"),
       detailPage(detailUrl, "测试工程师"),
+      jobPage(bossHomepageUrl, "BOSS 首页综合岗位"),
+      jobPage(yupaoHomepageUrl, "鱼泡首页综合岗位"),
+      jobPage(yupaoCompanyUrl, "鱼泡企业页岗位"),
       jobPage(engagementUrl, "鱼泡个人中心侧栏内容"),
       { url: () => "https://example.invalid/jobs" } as Page,
     ],

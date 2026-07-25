@@ -1,9 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
-  "exclude": ["namespaceMembers"],
-  "ignoreExportsUsedInFile": {
-    "interface": true,
-    "type": true,
-  },
-  "tags": ["-preserveSurface"],
+  "treatConfigHintsAsErrors": true,
+  "treatTagHintsAsErrors": true,
 }

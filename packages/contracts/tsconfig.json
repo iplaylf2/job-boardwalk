@@ -2,7 +2,8 @@
   "extends": "@job-boardwalk/presets/tsconfig.json",
   "compilerOptions": {
     "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "types": []
   },
   "include": ["src"]
 }

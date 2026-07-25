@@ -827,7 +827,7 @@ test("synchronizes job engagements and filters the library through HTTP", async 
         ],
         platformId: "boss",
         reason: "test",
-        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=2&sub=1&page=1&tag=4",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=2&page=1&tag=5",
         total: 1,
       }),
       headers: { "content-type": "application/json" },

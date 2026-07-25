@@ -17,8 +17,8 @@ The interface has three primary reader paths:
   library by `interested`, `contacted`, `applied`, or `interviewed` through the optional
   `engagement` query parameter; these are views of one collection, not peer pages. The library also
   provides search, platform filtering, original source links, and server-backed pagination. Source
-  labels show every observed engagement, while each card shows when its platform records were last
-  synchronized. A card with a collected job description offers an action that opens it in a
+  labels show every observed engagement, while each card shows when its platform engagement records
+  were last observed. A card with a collected job description offers an action that opens it in a
   dialog. The dialog reports when Browser Session reached its local text limit and the displayed
   description may be incomplete.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.

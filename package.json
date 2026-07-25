@@ -19,7 +19,7 @@
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",
     "dependency-cruiser": "^18.1.0",
-    "knip": "^6.27.0",
+    "knip": "^6.29.0",
     "oxfmt": "^0.60.0",
     "oxlint": "catalog:",
     "typescript": "catalog:"
@@ -27,7 +27,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "11.15.1",
+      "version": "11.17.0",
       "onFail": "download"
     },
     "runtime": {
@@ -38,6 +38,6 @@
   },
   "engines": {
     "node": ">=26.5.0",
-    "pnpm": ">=11.15.1"
+    "pnpm": ">=11.17.0"
   }
 }

@@ -41,8 +41,9 @@ Available now:
   bounded, structured snapshot of job cards or the main description on an already-open detail page.
   A passive collector preserves evidence from eligible pages that are already open; it never opens
   or navigates research pages. The selected job-search intent guides explicit agent navigation, not
-  background browsing. Interested, contacted, applied, and interviewed lists are synchronized one
-  platform, category, and page at a time only within a user-requested agent task.
+  background browsing. Interested, contacted, applied, and interviewed lists are synchronized for
+  one platform and category at a time, only within a user-requested agent task; supported
+  continuations require another explicit call and remain bounded to 60 distinct jobs.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
   sources, source-specific descriptions, and Markdown research reports. It merges confident
@@ -59,8 +60,9 @@ the applications.
 ## Run Job Boardwalk
 
 Workspace Service and Dashboard require Docker Engine with Docker Compose; building their images
-from source also requires BuildKit. Browser Session requires a graphical host session, Node.js 26.5
-or later, and pnpm 11.13 or later. The project's pnpm configuration downloads its pinned Node.js
+from source also requires BuildKit. Browser Session requires a graphical host session, Patchright
+Chromium, and the Node.js and pnpm toolchain declared in the root
+[`package.json`](package.json). The package-manager configuration downloads its pinned Node.js
 runtime when the host runtime does not match.
 
 Build and start the container-owned services:

@@ -1,6 +1,6 @@
 import type { BrowserContext, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
-import { createScope } from "@shajara/host";
+import { createScope, run } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -34,9 +34,7 @@ async function expectRejectedSynchronization(
   platformId: PlatformId,
   engagement: "contacted" | "applied",
 ): Promise<void> {
-  const scope = createScope();
-  await expect(scope.run(() => collector.synchronize(platformId, engagement))).rejects.toThrow();
-  await expect(scope[Symbol.asyncDispose]()).rejects.toThrow();
+  await expect(run(() => collector.synchronize(platformId, engagement))).rejects.toThrow();
 }
 
 test("does not retry redirected engagement pages without an explicit recovery handoff", async () => {
@@ -127,7 +125,7 @@ test("surfaces a page-opening failure without scheduling a retry", async () => {
 });
 
 test("does not promote a fallback observed count into a complete engagement snapshot", async () => {
-  const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
+  const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&page=1&tag=5";
   const bossPage = {
     evaluate: () =>
       Promise.resolve({
@@ -181,7 +179,7 @@ test("does not promote a fallback observed count into a complete engagement snap
 });
 
 test("surfaces uncertain first-page emptiness instead of advancing the scan", async () => {
-  const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
+  const bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&page=1&tag=5";
   let pageText = "累计沟通职位数量18";
   const bossPage = {
     evaluate: () =>
@@ -214,7 +212,7 @@ test("surfaces uncertain first-page emptiness instead of advancing the scan", as
 });
 
 test("continues an explicitly requested paginated scan before another category", async () => {
-  let bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=1&tag=4";
+  let bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=1&page=1&tag=5";
   const navigations: string[] = [];
   const pages: Page[] = [];
   const bossPage = {
@@ -280,11 +278,9 @@ test("continues an explicitly requested paginated scan before another category",
     { complete: false, engagement: "contacted" },
     { complete: true, engagement: "contacted" },
   ]);
-  expect(navigations).toEqual([
-    "https://www.zhipin.com/web/geek/recommend?tab=1&sub=1&page=2&tag=4",
-  ]);
+  expect(navigations).toEqual(["https://www.zhipin.com/web/geek/recommend?tab=1&page=2&tag=5"]);
 
-  bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=2&sub=1&page=1&tag=4";
+  bossUrl = "https://www.zhipin.com/web/geek/recommend?tab=2&page=1&tag=5";
   await scope.run(() => collector.synchronize("boss", "applied"));
 
   expect(snapshots.at(-onePage)).toEqual({ complete: true, engagement: "applied" });
