@@ -1,4 +1,5 @@
 import { chromium } from "patchright";
+import process from "node:process";
 import type { BrowserContext, Page } from "patchright";
 import type { BrowserRuntimeStatus, PlatformAccessObservation } from "@job-boardwalk/contracts";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
@@ -41,8 +42,12 @@ function retryDelay(failureCount: number): number {
   );
 }
 
-function launchPersistentContext(profilePath: string): Promise<BrowserContext> {
+function launchPersistentContext(
+  profilePath: string,
+  executablePath?: string,
+): Promise<BrowserContext> {
   return chromium.launchPersistentContext(profilePath, {
+    ...(executablePath ? { executablePath } : {}),
     headless: false,
     viewport: null,
   });
@@ -78,10 +83,15 @@ export class ManagedBrowser implements BrowserControl {
   public constructor(
     profilePath: string,
     dependencies: {
+      executablePath?: string;
       jobEngagementWriter: JobEngagementWriter;
       jobObservationWriter: JobObservationWriter;
     },
-    launchContext: PersistentContextLauncher = launchPersistentContext,
+    launchContext: PersistentContextLauncher = (profilePath_) =>
+      launchPersistentContext(
+        profilePath_,
+        dependencies.executablePath ?? process.env["JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH"]?.trim(),
+      ),
   ) {
     this.#profilePath = profilePath;
     this.#jobObservationWriter = dependencies.jobObservationWriter;

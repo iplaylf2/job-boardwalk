@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { cp, glob, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { DesktopDistributionPlan, DistributionComponent } from "#/distribution-layout.ts";
+import type { AssemblyComponent, DesktopAssemblyPlan } from "#/assembly-plan.ts";
 
 const manifestFormatVersion = 1;
 const manifestIndentationSpaces = 2;
@@ -42,7 +42,7 @@ function validateDestination(destination: string): void {
 
 async function copyComponent(
   stagingDirectory: string,
-  component: DistributionComponent,
+  component: AssemblyComponent,
 ): Promise<void> {
   validateDestination(component.destination);
   const destination = path.join(stagingDirectory, component.destination);
@@ -69,7 +69,7 @@ async function describeFile(root: string, relativePath: string): Promise<Manifes
 
 async function createManifest(
   stagingDirectory: string,
-  plan: DesktopDistributionPlan,
+  plan: DesktopAssemblyPlan,
 ): Promise<DistributionManifest> {
   const relativePaths = await listFiles(stagingDirectory);
   const files = await Promise.all(
@@ -87,9 +87,7 @@ async function createManifest(
   };
 }
 
-export async function assembleDesktopDistribution(
-  plan: DesktopDistributionPlan,
-): Promise<AssemblyResult> {
+export async function assembleDesktopProduct(plan: DesktopAssemblyPlan): Promise<AssemblyResult> {
   await mkdir(plan.outputRoot, { recursive: true });
   const temporaryDirectory = await mkdtemp(path.join(plan.outputRoot, ".assemble-"));
   const stagingDirectory = path.join(temporaryDirectory, productDirectoryName);

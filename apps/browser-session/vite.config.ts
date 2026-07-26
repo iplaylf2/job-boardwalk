@@ -1,14 +1,26 @@
-import path from "node:path";
+import { isBuiltin } from "node:module";
 
 import { defineConfig } from "vite";
+import type { Plugin } from "vite";
 
-function isPackageImport(identifier: string): boolean {
-  return (
-    !identifier.startsWith(".") &&
-    !identifier.startsWith("\0") &&
-    !identifier.startsWith("#/") &&
-    !path.isAbsolute(identifier)
-  );
+const unsupportedChromiumBidiModule = "\0job-boardwalk-unsupported-chromium-bidi";
+
+function excludeUnsupportedChromiumBidi(): Plugin {
+  return {
+    load(identifier) {
+      if (identifier === unsupportedChromiumBidiModule) {
+        return "export default {};";
+      }
+      return null;
+    },
+    name: "exclude-unsupported-chromium-bidi",
+    resolveId(identifier) {
+      if (identifier.startsWith("chromium-bidi/")) {
+        return unsupportedChromiumBidiModule;
+      }
+      return null;
+    },
+  };
 }
 
 export default defineConfig({
@@ -17,13 +29,18 @@ export default defineConfig({
       entry: {
         "browser-session": "src/main.ts",
       },
-      fileName: (_format, entryName) => `${entryName}.js`,
-      formats: ["es"],
+      fileName: (_format, entryName) => `${entryName}.cjs`,
+      formats: ["cjs"],
     },
     outDir: "dist",
     rolldownOptions: {
-      external: isPackageImport,
+      external: isBuiltin,
     },
     target: "esnext",
+  },
+  plugins: [excludeUnsupportedChromiumBidi()],
+  resolve: {
+    conditions: ["module", "node", "development|production"],
+    mainFields: ["module", "main"],
   },
 });

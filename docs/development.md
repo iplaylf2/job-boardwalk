@@ -55,10 +55,10 @@ pnpm exec moon run desktop-distribution:assemble
 ```
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
-checks. The assembled Application Runtime is a Node.js single executable that runs Workspace
-Service and Dashboard Host without a system Node.js installation. [Desktop
-distribution](desktop-distribution.md) defines the installed form, build ownership, and remaining
-delivery work.
+checks. The assembled Desktop Runtime is a Node.js single executable that runs Workspace Service,
+Dashboard Host, and the finalized Browser Session payload without a system Node.js installation or
+`node_modules`. [Desktop distribution](desktop-distribution.md) defines the installed form, build
+ownership, and remaining delivery work.
 
 ## Continuous integration
 
@@ -73,5 +73,5 @@ Rust output stays under the root `target/` directory. Node.js applications produ
 `dist/` artifacts, which are never imported as source across the language boundary.
 
 Future Rust applications join the root Cargo workspace. A cross-language protocol must have one
-language-neutral source, generated consumers, and a drift check; neither ecosystem imports the
-other ecosystem's implementation files.
+language-neutral source under [`proto/`](../proto/), standard generators, generated consumers, and
+a drift check; neither ecosystem imports the other ecosystem's implementation files.

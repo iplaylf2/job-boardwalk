@@ -11,32 +11,31 @@ The package owns:
 - assembly of the shared desktop-product layout and its integrity manifest;
 - the explicit allowlist of application-owned build artifacts;
 - build-time validation that resources stay within the product directory contract;
-- platform-packager configuration and invocation;
-- signing, notarization, provenance, and release-input policy.
+- future platform-packager configuration and invocation;
+- release-input, signing, notarization, and provenance policy.
 
 It consumes finalized application artifacts. It does not own their construction or behavior,
 runtime supervision, browser automation, update behavior, or release-channel decisions.
 [`@job-boardwalk/desktop-product-layout`](../../packages/desktop-product-layout/) owns the path
-contract consumed by both this assembler and Application Runtime.
+contract consumed by both this assembler and Desktop Runtime.
 
-Platform archives, installers, signing, and notarization mechanics belong to the selected
-maintained packager.
+Desktop Distribution will configure and invoke a maintained platform packager; archive, installer,
+signing, and notarization mechanics remain inside that packager.
 
 ## Current implementation
 
-The current implementation assembles Desktop Manager, the self-contained Application Runtime,
-Dashboard, Workspace Service, and migrations into a deterministic staging tree and writes its
-integrity manifest. Application Runtime can run the Workspace Service and Dashboard Host boundary
-without Docker or a system Node.js installation.
+The current implementation assembles Desktop Manager, Desktop Runtime, Browser Session, Dashboard,
+Workspace Service, and migrations into a deterministic staging tree and writes its integrity
+manifest. The staged lifecycle runs without Docker, a system Node.js installation, `node_modules`,
+or a bundled browser.
 
-The staging tree remains an engineering artifact because Browser Session packaging and the Desktop
-Manager lifecycle protocol are incomplete. [Desktop
-distribution](../../docs/desktop-distribution.md) tracks the remaining delivery stages and release
-boundary.
+The staging tree remains an engineering artifact.
+[Desktop distribution](../../docs/desktop-distribution.md) owns the installed-form contract,
+release readiness criteria, and remaining delivery work.
 
 Node.js executes the package's TypeScript entrypoints directly, with no generated JavaScript copy.
 Vitest tests the assembly boundary, Cargo supplies structured Rust package metadata, and Node's
-standard library supplies filesystem operations. Application Runtime uses Node.js
+standard library supplies filesystem operations. Desktop Runtime uses Node.js
 single-executable application support for the native runtime artifact.
 
 ## Commands
@@ -50,10 +49,8 @@ pnpm exec moon run desktop-distribution:assemble
 The command writes
 `target/desktop-distribution/<platform>-<architecture>/Job Boardwalk/`.
 
-For engineering validation, `bin/job-boardwalk-runtime` starts Workspace Service and Dashboard
-Host. Run it from an unrelated current working directory; it writes the database only to
-`data/workspace.sqlite`. Stop it with `SIGINT` or `SIGTERM`. This does not make the staging tree a
-supported product topology.
+For engineering validation, run `bin/job-boardwalk-desktop-manager` from the assembled product
+directory. This does not make the staging tree a supported product topology.
 
 Run its direct checks:
 

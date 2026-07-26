@@ -1,13 +1,9 @@
 # Deployment
 
-Job Boardwalk currently runs Workspace Service and Dashboard as separate Docker Compose services,
-while Browser Session runs as a companion in the user's graphical host session. Desktop Manager is
-an optional native application in that same host session. Its current build opens Dashboard but
-does not own service lifecycle.
-
-This is the current runnable topology, not the target installed form. The target
-[desktop distribution](desktop-distribution.md) places the manager, application-specific runtime,
-service payloads, and writable data in one user-selected directory and does not depend on Docker.
+Job Boardwalk's supported deployment topology runs Workspace Service and Dashboard as separate
+Docker Compose services, while Browser Session runs as a companion in the user's graphical host
+session. [Desktop distribution](desktop-distribution.md) documents a separate engineering
+topology and the target installed form; it does not change the Compose lifecycle described here.
 
 The browser is intentionally outside Docker because its visible window and persistent host profile
 are the boundary for login, verification, and other user-controlled actions.
@@ -17,8 +13,6 @@ are the boundary for login, verification, and other user-controlled actions.
 - Container host: Docker Engine with Docker Compose, plus BuildKit when building images from source
 - Graphical host: a repository checkout, Patchright Chromium, and the Node.js and pnpm toolchain
   declared in the root [`package.json`](../package.json)
-- Optional Desktop Manager source build: the Rust toolchain and native dependencies listed in its
-  [README](../apps/desktop-manager/README.md)
 
 The source build uses pinned Node.js, pnpm, and Caddy image versions. Host Node.js and pnpm are
 needed only for Browser Session and source development, not for deploying existing images.
@@ -74,18 +68,6 @@ pnpm exec moon run browser-session:dev
 The agent host connects to <http://127.0.0.1:54312/mcp>. Browser Session uses
 <http://127.0.0.1:54310> for status reports, selected-intent reads, and job writes. It may start
 before the containers: those operations retry without transferring browser ownership to Compose.
-
-## Run Desktop Manager
-
-Desktop Manager currently runs from the repository checkout and opens Dashboard through the
-operating system's URL handler:
-
-```sh
-pnpm exec moon run cargo-workspace:run-desktop-manager
-```
-
-It does not start, stop, or inspect the other applications. Installable packages and their
-platform-specific lifecycle are not yet part of the deployment contract.
 
 ## Observe and update
 
@@ -209,8 +191,6 @@ names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local
 `JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can replace
 them with registry tags or immutable digests.
 
-The target desktop release replaces these OCI images with the directory-contained artifacts
-defined in [Desktop distribution](desktop-distribution.md). The current desktop staging tree can
-run Workspace Service and Dashboard Host through its self-contained Application Runtime, but it
-does not yet package Browser Session or expose lifecycle controls through Desktop Manager. It is
-an engineering artifact, not a supported deployment.
+[Desktop distribution](desktop-distribution.md) defines a separate directory-contained engineering
+artifact and the target desktop release. That work does not alter the Compose artifact contract
+owned by this document.

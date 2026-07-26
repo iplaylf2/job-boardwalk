@@ -4,7 +4,7 @@
     "lib": ["ESNext"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node", "vitest/globals"]
+    "types": ["node"]
   },
-  "include": ["scripts/**/*.ts", "src/**/*.ts", "test/**/*.ts", "vite.config.ts"]
+  "include": ["scripts/**/*.ts"]
 }

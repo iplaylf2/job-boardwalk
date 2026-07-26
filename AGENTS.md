@@ -8,10 +8,13 @@ files. Read a linked source only when its trigger applies.
 - Treat this repository as a pre-release project. Replace contracts directly; do not add legacy
   adapters, fallback fields, dual reads or writes, compatibility aliases, or transitional code
   unless the user explicitly requires compatibility.
-- Preserve shajara as the structured-concurrency model. Long-lived services own one top-level
-  scope, and application coordination interfaces return `RiteCoroutine` rather than hiding an
-  internal Promise call tree. Adapt external Promises with `until(...)` at the leaf that creates
-  them. Use shajara primitives for application-owned waits, races, cancellation, and shutdown.
+- Use shajara only for structured concurrency inside a process. A long-lived service may own one
+  root scope for its internal concurrent work; a scope does not model the product topology, span
+  service processes, own process supervision, or cross a service protocol. Return `RiteCoroutine`
+  only from in-process operations that participate in the caller's structured concurrency. Keep
+  domain and cross-process interfaces independent of shajara. Adapt external Promises with
+  `until(...)` at the leaf that creates them, and use shajara primitives for application-owned
+  in-process waits, races, cancellation, and shutdown.
 - Test observable behavior at the boundary that owns it, including representative accepted and
   rejected cases. Keep tests independent of undocumented routes, reader-facing prose, and
   third-party driver internals.

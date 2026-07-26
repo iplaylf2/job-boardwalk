@@ -37,6 +37,7 @@ catalogMode: prefer
 cleanupUnusedCatalogs: true
 
 allowBuilds:
+  "@bufbuild/buf": true
   "@pnpm/exe": true
   esbuild: true
   oxfmt: true

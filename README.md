@@ -24,12 +24,12 @@ integration to separate applications:
   maintain personal context and select the job-search intent that guides recruiting research. Its
   container serves the production client and proxies its same-origin API requests; it never
   controls the browser.
-- [Application Runtime](apps/application-runtime/) is the directory-contained service coordinator
-  used by desktop staging. Its Node.js single executable supervises Workspace Service and
-  Dashboard Host; it does not yet supervise Browser Session or expose a Desktop Manager protocol.
+- [Desktop Runtime](apps/desktop-runtime/) is the directory-contained service coordinator
+  used by desktop staging. Its Node.js single executable coordinates Workspace Service, Dashboard
+  Host, and Browser Session, and exposes a bounded lifecycle protocol to Desktop Manager.
 - [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
-  boundary. It does not embed a browser engine or take over Browser Session's page-control
-  boundary.
+  boundary. It starts and stops Desktop Runtime, presents lifecycle and system-browser discovery
+  status, opens logs and Dashboard, and never takes over Browser Session's page-control boundary.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -59,12 +59,12 @@ Available now:
   platform filtering, and in-library views for interested, contacted, applied, and interviewed
   records while preserving the original recruiting-platform sources. Its report reader keeps saved
   conclusions available without the agent conversation that produced them.
-- Desktop Manager provides a compiled native window that opens Dashboard in the user's browser. It
-  does not yet observe or supervise the local services.
-- Desktop staging assembles Desktop Manager, Application Runtime, Dashboard, Workspace Service, and
-  migrations into one directory. Application Runtime can run the Workspace Service and Dashboard
-  Host boundary without Docker or a system Node.js installation, but Browser Session and Desktop
-  Manager lifecycle integration remain incomplete.
+- Desktop Manager provides working start, stop, status, log, and Dashboard controls over a
+  versioned local protocol. It presents system-browser discovery separately from Browser Session
+  startup without embedding or controlling recruiting pages itself.
+- Desktop staging assembles Desktop Manager, Desktop Runtime, Browser Session, Dashboard,
+  Workspace Service, and migrations into one directory. The complete local lifecycle runs without
+  Docker, a system Node.js installation, `node_modules`, or a bundled browser.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.
@@ -98,15 +98,19 @@ Browser Session launches a visible browser with a dedicated profile in the opera
 data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
 
-The current Desktop Manager build is optional. After installing the Rust toolchain and platform
-build dependencies described in its [README](apps/desktop-manager/README.md), launch it separately:
+The desktop lifecycle is available as an engineering staging artifact. After installing the Rust
+toolchain and platform build dependencies described in its
+[README](apps/desktop-manager/README.md), assemble and launch the manager from the resulting
+product directory:
 
 ```sh
-pnpm exec moon run cargo-workspace:run-desktop-manager
+pnpm exec moon run desktop-distribution:assemble
+target/desktop-distribution/<platform>-<architecture>/Job\ Boardwalk/bin/job-boardwalk-desktop-manager
 ```
 
-It opens Dashboard through the operating system's URL handler; it does not start or inspect the
-other applications.
+The Start control launches the sibling Desktop Runtime. Its manifest remains `desktop-staging` and
+`releaseReady: false`; [Desktop distribution](docs/desktop-distribution.md) owns the release
+criteria.
 
 When the user requests login, or visible page evidence shows that the requested workflow requires
 authentication and the current session is unauthenticated, the agent proactively opens the
@@ -152,4 +156,6 @@ artifacts, and the CI platform policy.
   documentation.
 - [`packages/`](packages/README.md) contains shared product contracts, the desktop-product layout,
   and the recruiting-platform catalog.
+- [`proto/`](proto/README.md) contains language-neutral Protobuf product protocols and their Buf
+  generation policy.
 - [`internal/`](internal/README.md) contains private monorepo tooling.

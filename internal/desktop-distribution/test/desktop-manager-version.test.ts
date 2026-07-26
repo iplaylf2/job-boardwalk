@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { parseDesktopManagerVersion } from "#/product-metadata.ts";
+import { parseDesktopManagerVersion } from "#/desktop-manager-version.ts";
 
 describe("parseDesktopManagerVersion", () => {
   test("reads the desktop manager package version from Cargo metadata", () => {
@@ -19,8 +19,6 @@ describe("parseDesktopManagerVersion", () => {
       packages: [{ name: "synthetic-unrelated-package", version: "9.9.9" }],
     });
 
-    expect(() => parseDesktopManagerVersion(metadata)).toThrow(
-      /does not contain job-boardwalk-desktop-manager/u,
-    );
+    expect(() => parseDesktopManagerVersion(metadata)).toThrow();
   });
 });

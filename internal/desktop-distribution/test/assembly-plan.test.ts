@@ -2,11 +2,11 @@ import path from "node:path";
 
 import { expect, test } from "vitest";
 
-import { createDesktopDistributionPlan } from "#/distribution-layout.ts";
+import { createDesktopAssemblyPlan } from "#/assembly-plan.ts";
 
 test("defines the product-owned staging inputs and platform output", () => {
   const repositoryRoot = path.join(path.parse(process.cwd()).root, "synthetic-repository");
-  const plan = createDesktopDistributionPlan({
+  const plan = createDesktopAssemblyPlan({
     architecture: "synthetic-arch",
     platform: "win32",
     productVersion: "1.2.3",
@@ -21,8 +21,12 @@ test("defines the product-owned staging inputs and platform output", () => {
         source: path.join(repositoryRoot, "target", "release", "job-boardwalk-desktop-manager.exe"),
       },
       {
-        destination: path.join("bin", "job-boardwalk-runtime.exe"),
-        source: path.join(repositoryRoot, "target", "release", "job-boardwalk-runtime.exe"),
+        destination: path.join("bin", "job-boardwalk-desktop-runtime.exe"),
+        source: path.join(repositoryRoot, "target", "release", "job-boardwalk-desktop-runtime.exe"),
+      },
+      {
+        destination: path.join("payload", "browser-session.cjs"),
+        source: path.join(repositoryRoot, "apps", "browser-session", "dist", "browser-session.cjs"),
       },
       {
         destination: path.join("payload", "dashboard"),

@@ -1,1 +1,6 @@
-{}
+{
+  "ignorePatterns": [
+    "apps/desktop-runtime/src/generated/**",
+    "apps/desktop-manager/src/generated/**"
+  ]
+}

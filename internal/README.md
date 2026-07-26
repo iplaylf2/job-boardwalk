@@ -4,8 +4,7 @@ This directory contains private development support for the monorepo.
 
 - [`presets`](presets/) owns TypeScript and Oxlint configuration shared across workspaces.
 - [`desktop-distribution`](desktop-distribution/) coordinates the desktop-product build boundary:
-  product-tree assembly, integrity metadata, and platform packaging. It is a private build tool,
-  not an application runtime dependency.
+  product-tree assembly, integrity metadata, and platform packaging policy.
 
-Add an internal workspace only when repository tooling has a distinct, shared responsibility that
-does not belong to a product application or reusable product package.
+Internal workspaces are private repository tools, not product runtime dependencies. Add one only
+when its responsibility does not belong to an application or reusable product package.

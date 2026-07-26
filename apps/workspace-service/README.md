@@ -36,7 +36,8 @@ Its SQLite database lives in the `workspace-data` named volume. Compose publishe
 The application build produces a self-contained `dist/` artifact with
 `workspace-service.mjs` and the Drizzle baseline under `migrations/`. The application-owned
 `Dockerfile` copies only that directory into the runtime image; source files, workspace manifests,
-build dependencies, pnpm, and `node_modules` are absent.
+build dependencies, pnpm, and `node_modules` are absent. The `.mjs` file is Vite's finalized ESM
+runtime artifact, not a maintained source script; Workspace Service source remains TypeScript.
 
 For source development:
 
@@ -295,7 +296,7 @@ boundary. Local state is created with owner-only permissions on systems that sup
 `JOB_BOARDWALK_WORKSPACE_SERVICE_PORT` accepts a TCP port and defaults to `54310`. Compose owns both
 production values; users do not need to set them.
 
-In desktop staging, Application Runtime invokes the finalized Workspace Service module with
+In desktop staging, Desktop Runtime invokes the finalized Workspace Service module with
 explicit absolute database and migrations paths plus its loopback listener. Those internal
 command-line arguments take precedence over source-development defaults; directory-contained runs
 do not depend on ambient variables or the launching process's current working directory.

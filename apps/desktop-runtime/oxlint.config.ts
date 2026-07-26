@@ -6,7 +6,15 @@ import testShared from "@job-boardwalk/presets/test.oxlint.shared.ts";
 export default defineConfig({
   env: { node: true },
   extends: [shared],
+  ignorePatterns: ["src/generated/**"],
   overrides: [
+    {
+      files: ["src/desktop-lifecycle-protocol.ts"],
+      rules: {
+        "eslint/no-bitwise": "off",
+        "eslint/no-magic-numbers": "off",
+      },
+    },
     {
       files: ["test/**/*.ts"],
       rules: testShared,

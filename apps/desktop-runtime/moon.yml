@@ -7,25 +7,34 @@ workspace:
     include: []
 
 tasks:
-  build:
-    command: "pnpm run build"
+  build-bundle:
+    command: "pnpm run build:bundle"
     deps:
       - "~:typecheck"
     inputs:
       - "package.json"
-      - "scripts/**/*"
       - "src/**/*"
-      - "tsconfig.json"
       - "vite.config.ts"
     outputs:
       - "dist"
-      - "/target/release/job-boardwalk-runtime*"
+
+  build:
+    command: "pnpm run build:sea"
+    deps:
+      - "~:build-bundle"
+    inputs:
+      - "package.json"
+      - "build/sea.ts"
+      - "dist/desktop-runtime.cjs"
+      - "/package.json"
+    outputs:
+      - "/target/release/job-boardwalk-desktop-runtime*"
 
   lint:
     command: "pnpm run lint"
     inputs:
       - "oxlint.config.ts"
-      - "scripts/**/*"
+      - "build/**/*"
       - "src/**/*"
       - "test/**/*"
 
@@ -46,7 +55,7 @@ tasks:
         optional: true
     inputs:
       - "package.json"
-      - "scripts/**/*"
+      - "build/**/*"
       - "src/**/*"
       - "test/**/*"
       - "tsconfig.json"

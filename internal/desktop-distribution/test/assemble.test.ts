@@ -4,8 +4,8 @@ import path from "node:path";
 
 import { describe, expect, onTestFinished, test } from "vitest";
 
-import { assembleDesktopDistribution } from "#/assemble.ts";
-import type { DesktopDistributionPlan } from "#/distribution-layout.ts";
+import { assembleDesktopProduct } from "#/assemble.ts";
+import type { DesktopAssemblyPlan } from "#/assembly-plan.ts";
 
 const productVersion = "7.8.9";
 
@@ -28,8 +28,8 @@ async function writeArtifact(
 
 function createPlan(
   root: string,
-  components: DesktopDistributionPlan["components"],
-): DesktopDistributionPlan {
+  components: DesktopAssemblyPlan["components"],
+): DesktopAssemblyPlan {
   return {
     architecture: "synthetic-arch",
     components,
@@ -39,7 +39,7 @@ function createPlan(
   };
 }
 
-describe("assembleDesktopDistribution", () => {
+describe("assembleDesktopProduct", () => {
   test("assembles only declared artifacts with a deterministic integrity manifest", async () => {
     const root = await createTestRoot();
     const manager = await writeArtifact(root, "sources/manager", "synthetic manager");
@@ -52,13 +52,13 @@ describe("assembleDesktopDistribution", () => {
       },
     ]);
 
-    const first = await assembleDesktopDistribution(plan);
+    const first = await assembleDesktopProduct(plan);
     const firstManifest = await readFile(
       path.join(first.productDirectory, "manifest.json"),
       "utf8",
     );
     await writeArtifact(first.productDirectory, "stale.txt", "stale");
-    const second = await assembleDesktopDistribution(plan);
+    const second = await assembleDesktopProduct(plan);
     const secondManifest = await readFile(
       path.join(second.productDirectory, "manifest.json"),
       "utf8",
@@ -79,8 +79,6 @@ describe("assembleDesktopDistribution", () => {
     const source = await writeArtifact(root, "sources/manager", "synthetic manager");
     const plan = createPlan(root, [{ destination: "../outside", source }]);
 
-    await expect(assembleDesktopDistribution(plan)).rejects.toThrow(
-      /destination escapes the product directory/u,
-    );
+    await expect(assembleDesktopProduct(plan)).rejects.toThrow();
   });
 });

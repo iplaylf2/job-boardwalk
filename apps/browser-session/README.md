@@ -11,6 +11,12 @@ observe and take over; it is not part of the Compose deployment. Workspace Servi
 run in containers, while Workspace Service's loopback-published port preserves the existing local
 HTTP relationship without giving either container access to the browser profile or desktop.
 
+The desktop staging topology runs the same Browser Session behavior as a Desktop Runtime role.
+That form receives an explicitly discovered system Chrome or Edge executable path and stores the
+dedicated profile under the product's `data/browser-profile/`. Its own startup and health boundary
+determine whether that browser can operate with Patchright. The desktop payload does not bundle a
+browser or require `node_modules`.
+
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
 bounded page evidence lets the agent reconcile automation results with the window the user can see.
@@ -216,6 +222,11 @@ Patchright replaces Playwright at the driver boundary because enabling the Runti
 made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page
 API without enabling that domain. Browser Session also leaves console event collection disabled; do
 not add Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
+
+The desktop payload build excludes Patchright's optional `chromium-bidi` imports because Job
+Boardwalk launches supported Chrome and Edge persistent contexts through the existing CDP path and
+does not expose a BiDi mode. If Browser Session later adopts BiDi, that build constraint must be
+removed and the corresponding runtime dependency must become an explicit packaged artifact.
 
 ## Development
 

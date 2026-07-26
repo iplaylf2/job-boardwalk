@@ -2,10 +2,10 @@
 
 - [Product design](product-design.md) defines intended cross-application behavior and ownership
   boundaries.
-- [Desktop distribution](desktop-distribution.md) defines the target installed form, build
-  ownership, integrity contract, and desktop release boundary.
-- [Deployment](deployment.md) defines the current runtime topology, lifecycle, persistence, and
-  artifact boundaries.
+- [Deployment](deployment.md) defines the supported Compose topology, lifecycle, persistence, and
+  deployment artifacts.
+- [Desktop distribution](desktop-distribution.md) defines the desktop engineering topology, target
+  installed form, integrity contract, and release boundary.
 - [Development](development.md) defines the cross-language workspace, task graph, checks, and CI
   policy.
 

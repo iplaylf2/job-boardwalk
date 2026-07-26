@@ -3,20 +3,20 @@ import path from "node:path";
 
 import { desktopProductRelativePaths } from "@job-boardwalk/desktop-product-layout";
 
-export interface DistributionComponent {
+export interface AssemblyComponent {
   readonly destination: string;
   readonly source: string;
 }
 
-export interface DesktopDistributionPlan {
+export interface DesktopAssemblyPlan {
   readonly architecture: string;
-  readonly components: readonly DistributionComponent[];
+  readonly components: readonly AssemblyComponent[];
   readonly outputRoot: string;
   readonly platform: NodeJS.Platform;
   readonly productVersion: string;
 }
 
-interface CreateDesktopDistributionPlanOptions {
+interface CreateDesktopAssemblyPlanOptions {
   readonly architecture?: string;
   readonly outputRoot?: string;
   readonly platform?: NodeJS.Platform;
@@ -30,24 +30,30 @@ function managerExecutableName(platform: NodeJS.Platform): string {
     : "job-boardwalk-desktop-manager";
 }
 
-function runtimeExecutableName(platform: NodeJS.Platform): string {
-  return platform === "win32" ? "job-boardwalk-runtime.exe" : "job-boardwalk-runtime";
+function desktopRuntimeExecutableName(platform: NodeJS.Platform): string {
+  return platform === "win32"
+    ? "job-boardwalk-desktop-runtime.exe"
+    : "job-boardwalk-desktop-runtime";
 }
 
-function createDistributionComponents(
+function createAssemblyComponents(
   repositoryRoot: string,
   platform: NodeJS.Platform,
-): DistributionComponent[] {
+): AssemblyComponent[] {
   const managerExecutable = managerExecutableName(platform);
-  const runtimeExecutable = runtimeExecutableName(platform);
+  const desktopRuntimeExecutable = desktopRuntimeExecutableName(platform);
   return [
     {
       destination: path.join("bin", managerExecutable),
       source: path.join(repositoryRoot, "target", "release", managerExecutable),
     },
     {
-      destination: path.join("bin", runtimeExecutable),
-      source: path.join(repositoryRoot, "target", "release", runtimeExecutable),
+      destination: path.join("bin", desktopRuntimeExecutable),
+      source: path.join(repositoryRoot, "target", "release", desktopRuntimeExecutable),
+    },
+    {
+      destination: desktopProductRelativePaths.browserSessionModule,
+      source: path.join(repositoryRoot, "apps", "browser-session", "dist", "browser-session.cjs"),
     },
     {
       destination: desktopProductRelativePaths.dashboardDirectory,
@@ -70,15 +76,15 @@ function createDistributionComponents(
   ];
 }
 
-export function createDesktopDistributionPlan(
-  options: CreateDesktopDistributionPlanOptions,
-): DesktopDistributionPlan {
+export function createDesktopAssemblyPlan(
+  options: CreateDesktopAssemblyPlanOptions,
+): DesktopAssemblyPlan {
   const architecture = options.architecture ?? readArchitecture();
   const platform = options.platform ?? readPlatform();
 
   return {
     architecture,
-    components: createDistributionComponents(options.repositoryRoot, platform),
+    components: createAssemblyComponents(options.repositoryRoot, platform),
     outputRoot:
       options.outputRoot ??
       path.join(

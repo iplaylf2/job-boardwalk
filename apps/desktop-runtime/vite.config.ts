@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: "src/main.ts",
-      fileName: () => "application-runtime.cjs",
+      fileName: () => "desktop-runtime.cjs",
       formats: ["cjs"],
     },
     outDir: "dist",

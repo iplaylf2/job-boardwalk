@@ -27,7 +27,7 @@ component ApplicationRow inherits Rectangle {
     border-color: #dce3df;
     border-radius: 12px;
     border-width: 1px;
-    height: 76px;
+    height: 82px;
 
     HorizontalLayout {
         alignment: start;
@@ -48,6 +48,7 @@ component ApplicationRow inherits Rectangle {
             Text {
                 color: #637169;
                 font-size: 13px;
+                overflow: elide;
                 text: root.detail;
             }
         }
@@ -64,13 +65,25 @@ component ApplicationRow inherits Rectangle {
 
 export component ManagerWindow inherits Window {
     title: "Job Boardwalk";
-    preferred-width: 720px;
-    preferred-height: 520px;
-    min-width: 600px;
-    min-height: 460px;
+    preferred-width: 760px;
+    preferred-height: 560px;
+    min-width: 640px;
+    min-height: 500px;
     background: #f4f7f5;
 
     in property <string> dashboard-url: "http://127.0.0.1:54311";
+    in-out property <string> runtime-state: "Stopped";
+    in-out property <string> browser-state: "Not running";
+    in-out property <string> status-detail: "Start Job Boardwalk to make the local workspace available.";
+    in-out property <string> browser-detail: "A system browser is checked at startup.";
+    in-out property <bool> can-start: true;
+    in-out property <bool> can-stop: false;
+    in-out property <bool> dashboard-available: false;
+    in-out property <bool> logs-available: false;
+
+    callback start-requested();
+    callback stop-requested();
+    callback open-log-requested();
 
     VerticalBox {
         padding: 30px;
@@ -89,7 +102,7 @@ export component ManagerWindow inherits Window {
             Text {
                 color: #637169;
                 font-size: 14px;
-                text: "Desktop Manager";
+                text: root.status-detail;
             }
         }
 
@@ -97,15 +110,15 @@ export component ManagerWindow inherits Window {
             spacing: 10px;
 
             ApplicationRow {
-                application-name: "Workspace Service";
-                detail: "Durable local data and recruiting-domain API";
-                management-state: "Controls unavailable";
+                application-name: "Local workspace";
+                detail: "Workspace Service and Dashboard Host";
+                management-state: root.runtime-state;
             }
 
             ApplicationRow {
                 application-name: "Browser Session";
-                detail: "Visible recruiting browser and agent handoff";
-                management-state: "Controls unavailable";
+                detail: root.browser-detail;
+                management-state: root.browser-state;
             }
         }
 
@@ -122,19 +135,30 @@ export component ManagerWindow inherits Window {
             alignment: end;
             spacing: 10px;
 
-            Text {
-                color: #637169;
-                font-size: 13px;
-                horizontal-stretch: 1;
-                text: "Service controls are not available in this build.";
-                vertical-alignment: center;
+            Button {
+                text: "Open Logs";
+                enabled: root.logs-available;
+                clicked => { root.open-log-requested(); }
+            }
+
+            Rectangle { horizontal-stretch: 1; }
+
+            Button {
+                text: "Stop";
+                enabled: root.can-stop;
+                clicked => { root.stop-requested(); }
+            }
+
+            Button {
+                text: "Start";
+                enabled: root.can-start;
+                clicked => { root.start-requested(); }
             }
 
             Button {
                 text: "Open Dashboard";
-                clicked => {
-                    Platform.open-url(root.dashboard-url);
-                }
+                enabled: root.dashboard-available;
+                clicked => { Platform.open-url(root.dashboard-url); }
             }
         }
     }

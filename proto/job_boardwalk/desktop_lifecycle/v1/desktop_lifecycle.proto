@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package job_boardwalk.desktop_lifecycle.v1;
+
+// ProtocolVersion identifies breaking generations of the Desktop Manager and
+// Desktop Runtime lifecycle protocol. Compatible additions remain in V1.
+enum ProtocolVersion {
+  PROTOCOL_VERSION_UNSPECIFIED = 0;
+  PROTOCOL_VERSION_V1 = 1;
+}
+
+message ManagerMessage {
+  ProtocolVersion protocol_version = 1;
+
+  oneof command {
+    ShutdownCommand shutdown = 2;
+  }
+}
+
+message ShutdownCommand {}
+
+message RuntimeMessage {
+  ProtocolVersion protocol_version = 1;
+
+  oneof event {
+    RuntimeStatus status = 2;
+  }
+}
+
+message RuntimeStatus {
+  RuntimeState state = 1;
+  string detail = 2;
+  string log_path = 3;
+  optional string dashboard_url = 4;
+  optional SystemBrowserDiagnostic system_browser = 5;
+}
+
+enum RuntimeState {
+  RUNTIME_STATE_UNSPECIFIED = 0;
+  RUNTIME_STATE_STARTING = 1;
+  RUNTIME_STATE_RUNNING = 2;
+  RUNTIME_STATE_STOPPING = 3;
+  RUNTIME_STATE_FAILED = 4;
+}
+
+message SystemBrowserDiagnostic {
+  SystemBrowserState state = 1;
+  string detail = 2;
+  optional SystemBrowserFamily family = 3;
+  optional string version = 4;
+}
+
+enum SystemBrowserState {
+  SYSTEM_BROWSER_STATE_UNSPECIFIED = 0;
+  SYSTEM_BROWSER_STATE_RECOGNIZED = 1;
+  SYSTEM_BROWSER_STATE_MISSING = 2;
+  SYSTEM_BROWSER_STATE_UNINSPECTABLE = 3;
+}
+
+enum SystemBrowserFamily {
+  SYSTEM_BROWSER_FAMILY_UNSPECIFIED = 0;
+  SYSTEM_BROWSER_FAMILY_CHROME = 1;
+  SYSTEM_BROWSER_FAMILY_EDGE = 2;
+}
