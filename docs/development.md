@@ -51,14 +51,16 @@ inappropriate, including inside application Dockerfiles.
 Build the current application artifacts and assemble the directory-contained staging tree with:
 
 ```sh
-pnpm exec moon run desktop-distribution:assemble
+JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
+  pnpm exec moon run desktop-distribution:assemble
 ```
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
-checks. The assembled Desktop Runtime is a Node.js single executable that runs Workspace Service,
-Dashboard Host, and the finalized Browser Session payload without a system Node.js installation or
-`node_modules`. [Desktop distribution](desktop-distribution.md) defines the installed form, build
-ownership, and remaining delivery work.
+checks. The assembled Desktop Service Host is a Node.js single executable that loads Workspace
+Service or Browser Session without a system Node.js installation or `node_modules`. The explicit
+build input supplies the platform-native Caddy executable used by Dashboard.
+[Desktop distribution](desktop-distribution.md) defines the installed form, build ownership, and
+remaining delivery work.
 
 ## Continuous integration
 
@@ -72,6 +74,8 @@ Windows or macOS build matrices before those artifacts exist.
 Rust output stays under the root `target/` directory. Node.js applications produce their own
 `dist/` artifacts, which are never imported as source across the language boundary.
 
-Future Rust applications join the root Cargo workspace. A cross-language protocol must have one
-language-neutral source under [`proto/`](../proto/), standard generators, generated consumers, and
-a drift check; neither ecosystem imports the other ecosystem's implementation files.
+Future Rust applications join the root Cargo workspace. A necessary cross-language protocol must
+have one language-neutral source, standard generators, generated consumers, and a drift check;
+simple process lifecycle continues to use arguments, health, exit status, logs, and
+service-native graceful shutdown rather than introducing a schema and generation toolchain.
+Neither ecosystem imports the other ecosystem's implementation files.

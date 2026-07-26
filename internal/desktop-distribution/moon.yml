@@ -10,7 +10,7 @@ tasks:
   assemble:
     command: "pnpm run assemble"
     deps:
-      - "desktop-runtime:build"
+      - "desktop-service-host:build"
       - "browser-session:build"
       - "cargo-workspace:build"
       - "dashboard:build"
@@ -23,11 +23,14 @@ tasks:
       - "/Cargo.toml"
       - "/apps/desktop-manager/Cargo.toml"
       - "/apps/dashboard/dist/**/*"
+      - "/apps/dashboard/Caddyfile"
       - "/apps/browser-session/dist/browser-session.cjs"
       - "/apps/workspace-service/dist/workspace-service.mjs"
       - "/apps/workspace-service/dist/migrations/**/*"
       - "/target/release/job-boardwalk-desktop-manager*"
-      - "/target/release/job-boardwalk-desktop-runtime*"
+      - "/target/release/job-boardwalk-desktop-service-host*"
+    env:
+      JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE: "*"
     outputs:
       - "/target/desktop-distribution"
 

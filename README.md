@@ -21,15 +21,15 @@ integration to separate applications:
   operations over HTTP and MCP from an isolated container. It also tracks leased Browser Session
   presence for readers.
 - [Dashboard](apps/dashboard/) presents workspace data and research reports, and lets the user
-  maintain personal context and select the job-search intent that guides recruiting research. Its
-  container serves the production client and proxies its same-origin API requests; it never
-  controls the browser.
-- [Desktop Runtime](apps/desktop-runtime/) is the directory-contained service coordinator
-  used by desktop staging. Its Node.js single executable coordinates Workspace Service, Dashboard
-  Host, and Browser Session, and exposes a bounded lifecycle protocol to Desktop Manager.
+  maintain personal context and select the job-search intent that guides recruiting research. It
+  never controls the browser.
+- [Desktop Service Host](apps/desktop-service-host/) is the directory-contained
+  application-specific Node.js executable. Each invocation loads one finalized service payload; it
+  does not coordinate the product topology.
 - [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
-  boundary. It starts and stops Desktop Runtime, presents lifecycle and system-browser discovery
-  status, opens logs and Dashboard, and never takes over Browser Session's page-control boundary.
+  and desktop-supervision boundary. It starts, checks, observes, and stops Workspace Service,
+  Dashboard's packaged Caddy process, and Browser Session; it opens logs and Dashboard and never
+  takes over Browser Session's page-control boundary.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -59,12 +59,13 @@ Available now:
   platform filtering, and in-library views for interested, contacted, applied, and interviewed
   records while preserving the original recruiting-platform sources. Its report reader keeps saved
   conclusions available without the agent conversation that produced them.
-- Desktop Manager provides working start, stop, status, log, and Dashboard controls over a
-  versioned local protocol. It presents system-browser discovery separately from Browser Session
-  startup without embedding or controlling recruiting pages itself.
-- Desktop staging assembles Desktop Manager, Desktop Runtime, Browser Session, Dashboard,
-  Workspace Service, and migrations into one directory. The complete local lifecycle runs without
-  Docker, a system Node.js installation, `node_modules`, or a bundled browser.
+- Desktop Manager provides working start, stop, status, log, and Dashboard controls while directly
+  supervising the product's isolated service processes. Browser Session failure degrades the
+  browser capability without taking Workspace Service or Dashboard offline.
+- Desktop staging assembles Desktop Manager, Desktop Service Host, Caddy, Browser Session,
+  Dashboard, Workspace Service, and migrations into one directory. The complete local lifecycle
+  runs without Docker, a system Node.js or Caddy installation, `node_modules`, or a bundled
+  browser.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.
@@ -104,13 +105,15 @@ toolchain and platform build dependencies described in its
 product directory:
 
 ```sh
-pnpm exec moon run desktop-distribution:assemble
+JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
+  pnpm exec moon run desktop-distribution:assemble
 target/desktop-distribution/<platform>-<architecture>/Job\ Boardwalk/bin/job-boardwalk-desktop-manager
 ```
 
-The Start control launches the sibling Desktop Runtime. Its manifest remains `desktop-staging` and
-`releaseReady: false`; [Desktop distribution](docs/desktop-distribution.md) owns the release
-criteria.
+The build input must be a platform-native Caddy executable that can load the product Caddyfile.
+The resulting manifest identifies an engineering staging artifact, not a supported desktop
+release. [Desktop distribution](docs/desktop-distribution.md) defines the installed form and
+remaining release work.
 
 When the user requests login, or visible page evidence shows that the requested workflow requires
 authentication and the current session is unauthenticated, the agent proactively opens the
@@ -154,8 +157,6 @@ artifacts, and the CI platform policy.
 - [`apps/`](apps/README.md) contains the product applications.
 - [`docs/`](docs/README.md) contains cross-application product, deployment, and development
   documentation.
-- [`packages/`](packages/README.md) contains shared product contracts, the desktop-product layout,
-  and the recruiting-platform catalog.
-- [`proto/`](proto/README.md) contains language-neutral Protobuf product protocols and their Buf
-  generation policy.
+- [`packages/`](packages/README.md) contains shared product contracts and the recruiting-platform
+  catalog.
 - [`internal/`](internal/README.md) contains private monorepo tooling.

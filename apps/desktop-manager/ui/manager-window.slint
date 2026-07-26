@@ -72,10 +72,10 @@ export component ManagerWindow inherits Window {
     background: #f4f7f5;
 
     in property <string> dashboard-url: "http://127.0.0.1:54311";
-    in-out property <string> runtime-state: "Stopped";
+    in-out property <string> workspace-state: "Stopped";
     in-out property <string> browser-state: "Not running";
     in-out property <string> status-detail: "Start Job Boardwalk to make the local workspace available.";
-    in-out property <string> browser-detail: "A system browser is checked at startup.";
+    in-out property <string> browser-detail: "A system browser is checked when services start.";
     in-out property <bool> can-start: true;
     in-out property <bool> can-stop: false;
     in-out property <bool> dashboard-available: false;
@@ -111,8 +111,8 @@ export component ManagerWindow inherits Window {
 
             ApplicationRow {
                 application-name: "Local workspace";
-                detail: "Workspace Service and Dashboard Host";
-                management-state: root.runtime-state;
+                detail: "Workspace Service and Dashboard";
+                management-state: root.workspace-state;
             }
 
             ApplicationRow {

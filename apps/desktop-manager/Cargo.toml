@@ -5,8 +5,9 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-prost.workspace = true
+open.workspace = true
 slint.workspace = true
+ureq.workspace = true
 
 [build-dependencies]
 slint-build.workspace = true

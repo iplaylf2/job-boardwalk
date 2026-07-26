@@ -80,14 +80,11 @@ Dashboard's production runtime is the root Compose deployment:
 docker compose -f compose.yaml -f deploy/compose.build.yaml up --build --detach
 ```
 
-Its production image uses Caddy to serve the built client, apply a restrictive browser security
-policy, provide SPA route fallback, and proxy `/api` to Workspace Service over the private Compose
-network. The application-owned `Dockerfile` builds only Dashboard and its workspace dependencies;
-its runtime stage receives only the static `dist/` artifact. Open <http://127.0.0.1:54311>.
-
-The desktop staging topology serves the same finalized `dist/` artifact through Desktop Runtime's
-Dashboard Host. That host preserves the browser-security headers, SPA fallback, and `/api` boundary
-while replacing Caddy inside the directory-contained product.
+The application-owned [`Caddyfile`](Caddyfile) defines Dashboard's production HTTP boundary. It
+serves the built client, applies the restrictive browser security policy, handles SPA fallback,
+and proxies `/api` to Workspace Service. Compose and desktop distribution run the same Caddyfile;
+each release supplies its platform-native Caddy binary through the owning build boundary. Open
+<http://127.0.0.1:54311>.
 
 For source development, run Workspace Service and Dashboard in separate terminals:
 

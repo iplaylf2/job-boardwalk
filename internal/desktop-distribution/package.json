@@ -15,9 +15,6 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@job-boardwalk/desktop-product-layout": "workspace:*"
-  },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",

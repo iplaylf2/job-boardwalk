@@ -57,11 +57,15 @@ conversation.
 
 The **Desktop Manager** owns the native local-runtime control surface and operating-system
 integration. It is not a WebView host: Dashboard remains a browser application, and recruiting
-pages remain in Browser Session's visible persistent browser. Lifecycle coordination crosses a
-bounded local protocol to Desktop Runtime, which owns child-process startup, readiness, failure
-reporting, and ordered shutdown. Service-internal concurrency remains an implementation detail of
-each process. The native GUI does not import recruiting policy, access workspace persistence, or
-control recruiting pages.
+pages remain in Browser Session's visible persistent browser. It directly owns child-process
+startup, readiness, failure containment, and ordered shutdown through each application's process
+contract. Service-internal concurrency remains an implementation detail of each process. The
+native GUI does not import recruiting policy, access workspace persistence, or control recruiting
+pages.
+
+The **Desktop Service Host** loads one finalized Node service payload per invocation. It may
+prepare host-specific inputs for that payload, but it does not derive the installed layout,
+coordinate sibling processes, or own application behavior.
 
 The **agent** coordinates the browser and workspace service boundaries and owns the human-handoff
 state in its conversation with the user. Browser tools produce live evidence; workspace tools
@@ -70,19 +74,10 @@ may derive an authentication assessment from a real top-level navigation respons
 page snapshot when it has a conclusive platform-specific rule. The agent interprets evidence not
 covered by an adapter.
 
-The target installed topology follows those ownership boundaries inside one directory-contained
-desktop product. Desktop Manager controls Desktop Runtime, which coordinates Workspace Service,
-Dashboard Host, and Browser Session without Docker or a system Node.js installation. Dashboard
-Host is a runtime role that serves the built Dashboard and proxies its local API boundary; it does
-not own Dashboard behavior or workspace state.
-
-Browser Session uses a recognized system Chrome or Edge candidate with a dedicated profile inside
-the product data directory; it does not bundle a browser or use the user's normal profile.
-Desktop Runtime discovers and inspects the candidate, while Browser Session startup establishes
-whether it is operational. When no recognized browser candidate is found, Desktop Manager reports
-the requirement while keeping diagnostics available. The Compose topology remains the supported
-deployment path. [Desktop distribution](desktop-distribution.md) owns the installed form, runtime
-packaging, and desktop release boundary.
+The Compose deployment and target desktop distribution preserve these application boundaries.
+[Deployment](deployment.md) owns the supported Compose topology; [Desktop
+distribution](desktop-distribution.md) owns the target installed form, runtime packaging, and
+desktop release status.
 
 A virtual desktop or remote desktop transport is not part of the product: a host without a
 user-observable graphical session cannot run Browser Session.

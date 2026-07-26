@@ -61,8 +61,7 @@ services:
       test:
         - CMD
         - wget
-        - --no-verbose
-        - --tries=1
+        - --quiet
         - --spider
         - http://127.0.0.1:8080/health
       interval: 5s

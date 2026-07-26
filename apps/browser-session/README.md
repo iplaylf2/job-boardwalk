@@ -11,11 +11,11 @@ observe and take over; it is not part of the Compose deployment. Workspace Servi
 run in containers, while Workspace Service's loopback-published port preserves the existing local
 HTTP relationship without giving either container access to the browser profile or desktop.
 
-The desktop staging topology runs the same Browser Session behavior as a Desktop Runtime role.
-That form receives an explicitly discovered system Chrome or Edge executable path and stores the
-dedicated profile under the product's `data/browser-profile/`. Its own startup and health boundary
-determine whether that browser can operate with Patchright. The desktop payload does not bundle a
-browser or require `node_modules`.
+The desktop staging topology runs the same Browser Session behavior through Desktop Service Host.
+The host supplies an explicitly discovered system Chrome or Edge executable path while Desktop
+Manager supplies the dedicated profile under the product's `data/browser-profile/`. Browser
+Session's startup and health boundary determine whether that browser can operate with Patchright.
+The desktop payload does not bundle a browser or require `node_modules`.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their

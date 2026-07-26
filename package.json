@@ -11,8 +11,6 @@
     "unused": "knip"
   },
   "devDependencies": {
-    "@bufbuild/buf": "1.72.0",
-    "@bufbuild/protoc-gen-es": "2.13.0",
     "@job-boardwalk/presets": "workspace:*",
     "@moonrepo/cli": "2.4.5",
     "@types/node": "catalog:",

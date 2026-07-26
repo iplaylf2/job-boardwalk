@@ -32,7 +32,8 @@ RUN pnpm --filter @job-boardwalk/dashboard build
 FROM docker.io/library/caddy:2.11.4-alpine
 
 ENV XDG_CONFIG_HOME=/tmp/caddy-config \
-    XDG_DATA_HOME=/tmp/caddy-data
+    XDG_DATA_HOME=/tmp/caddy-data \
+    JOB_BOARDWALK_DASHBOARD_DIRECTORY=/srv
 
 RUN setcap -r /usr/bin/caddy && \
     addgroup -S -g 10001 caddy && \

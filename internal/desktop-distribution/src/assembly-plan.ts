@@ -1,8 +1,6 @@
 import { arch as readArchitecture, platform as readPlatform } from "node:os";
 import path from "node:path";
 
-import { desktopProductRelativePaths } from "@job-boardwalk/desktop-product-layout";
-
 export interface AssemblyComponent {
   readonly destination: string;
   readonly source: string;
@@ -18,6 +16,7 @@ export interface DesktopAssemblyPlan {
 
 interface CreateDesktopAssemblyPlanOptions {
   readonly architecture?: string;
+  readonly caddyExecutable: string;
   readonly outputRoot?: string;
   readonly platform?: NodeJS.Platform;
   readonly productVersion: string;
@@ -30,37 +29,51 @@ function managerExecutableName(platform: NodeJS.Platform): string {
     : "job-boardwalk-desktop-manager";
 }
 
-function desktopRuntimeExecutableName(platform: NodeJS.Platform): string {
+function desktopServiceHostExecutableName(platform: NodeJS.Platform): string {
   return platform === "win32"
-    ? "job-boardwalk-desktop-runtime.exe"
-    : "job-boardwalk-desktop-runtime";
+    ? "job-boardwalk-desktop-service-host.exe"
+    : "job-boardwalk-desktop-service-host";
+}
+
+function caddyExecutableName(platform: NodeJS.Platform): string {
+  return platform === "win32" ? "caddy.exe" : "caddy";
 }
 
 function createAssemblyComponents(
+  caddyExecutable: string,
   repositoryRoot: string,
   platform: NodeJS.Platform,
 ): AssemblyComponent[] {
+  const caddyExecutableDestination = caddyExecutableName(platform);
   const managerExecutable = managerExecutableName(platform);
-  const desktopRuntimeExecutable = desktopRuntimeExecutableName(platform);
+  const desktopServiceHostExecutable = desktopServiceHostExecutableName(platform);
   return [
     {
       destination: path.join("bin", managerExecutable),
       source: path.join(repositoryRoot, "target", "release", managerExecutable),
     },
     {
-      destination: path.join("bin", desktopRuntimeExecutable),
-      source: path.join(repositoryRoot, "target", "release", desktopRuntimeExecutable),
+      destination: path.join("bin", desktopServiceHostExecutable),
+      source: path.join(repositoryRoot, "target", "release", desktopServiceHostExecutable),
     },
     {
-      destination: desktopProductRelativePaths.browserSessionModule,
+      destination: path.join("bin", caddyExecutableDestination),
+      source: caddyExecutable,
+    },
+    {
+      destination: path.join("payload", "Caddyfile"),
+      source: path.join(repositoryRoot, "apps", "dashboard", "Caddyfile"),
+    },
+    {
+      destination: path.join("payload", "browser-session.cjs"),
       source: path.join(repositoryRoot, "apps", "browser-session", "dist", "browser-session.cjs"),
     },
     {
-      destination: desktopProductRelativePaths.dashboardDirectory,
+      destination: path.join("payload", "dashboard"),
       source: path.join(repositoryRoot, "apps", "dashboard", "dist"),
     },
     {
-      destination: desktopProductRelativePaths.workspaceServiceModule,
+      destination: path.join("payload", "workspace-service.mjs"),
       source: path.join(
         repositoryRoot,
         "apps",
@@ -70,7 +83,7 @@ function createAssemblyComponents(
       ),
     },
     {
-      destination: desktopProductRelativePaths.migrationsDirectory,
+      destination: path.join("payload", "migrations"),
       source: path.join(repositoryRoot, "apps", "workspace-service", "dist", "migrations"),
     },
   ];
@@ -84,7 +97,7 @@ export function createDesktopAssemblyPlan(
 
   return {
     architecture,
-    components: createAssemblyComponents(options.repositoryRoot, platform),
+    components: createAssemblyComponents(options.caddyExecutable, options.repositoryRoot, platform),
     outputRoot:
       options.outputRoot ??
       path.join(

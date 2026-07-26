@@ -15,7 +15,8 @@ slint = { version = "1.17.1", default-features = false, features = [
   "std",
 ] }
 slint-build = "1.17.1"
-prost = "0.14.4"
+open = "5.4.0"
+ureq = { version = "3.3.0", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

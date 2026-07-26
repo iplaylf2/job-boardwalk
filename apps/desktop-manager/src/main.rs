@@ -3,19 +3,20 @@
     windows_subsystem = "windows"
 )]
 
-mod desktop_lifecycle_protocol;
+mod product_layout;
+mod service_plan;
+mod service_supervisor;
 
 use std::env;
 use std::error::Error;
-use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufReader};
+use std::io;
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::Duration;
 
-use desktop_lifecycle_protocol::{read_runtime_message, runtime_status, wire, write_shutdown};
+use product_layout::{ProductLayout, resolve_product_layout};
+use service_supervisor::{RunningServices, ServiceExit, start_services};
 
 slint::include_modules!();
 
@@ -25,28 +26,6 @@ enum ControllerCommand {
     Start,
     Stop,
     Exit,
-}
-
-struct RuntimeProcess {
-    child: Child,
-    stdin: ChildStdin,
-}
-
-fn runtime_executable_path() -> Result<PathBuf, String> {
-    if let Some(configured) = env::var_os("JOB_BOARDWALK_DESKTOP_RUNTIME_EXECUTABLE") {
-        return Ok(PathBuf::from(configured));
-    }
-    let manager = env::current_exe()
-        .map_err(|error| format!("Cannot locate Desktop Manager executable: {error}"))?;
-    let executable_name = if cfg!(target_os = "windows") {
-        "job-boardwalk-desktop-runtime.exe"
-    } else {
-        "job-boardwalk-desktop-runtime"
-    };
-    Ok(manager
-        .parent()
-        .ok_or_else(|| "Desktop Manager executable has no parent directory.".to_owned())?
-        .join(executable_name))
 }
 
 fn update_window(
@@ -61,138 +40,87 @@ fn update_window(
     });
 }
 
-fn runtime_state_label(state: &wire::RuntimeState) -> &'static str {
-    match state {
-        wire::RuntimeState::Unspecified => "Unknown",
-        wire::RuntimeState::Starting => "Starting",
-        wire::RuntimeState::Running => "Running",
-        wire::RuntimeState::Stopping => "Stopping",
-        wire::RuntimeState::Failed => "Failed",
-    }
-}
-
-fn system_browser_state_label(state: &wire::SystemBrowserState) -> &'static str {
-    match state {
-        wire::SystemBrowserState::Unspecified => "Unknown",
-        wire::SystemBrowserState::Recognized => "Detected",
-        wire::SystemBrowserState::Missing => "Browser required",
-        wire::SystemBrowserState::Uninspectable => "Browser unavailable",
-    }
-}
-
-fn apply_status(weak_window: &slint::Weak<ManagerWindow>, status: wire::RuntimeStatus) {
-    let state =
-        wire::RuntimeState::try_from(status.state).unwrap_or(wire::RuntimeState::Unspecified);
+fn apply_running_state(
+    weak_window: &slint::Weak<ManagerWindow>,
+    browser_running: bool,
+    browser_detail: String,
+) {
     update_window(weak_window, move |window| {
-        let running = matches!(state, wire::RuntimeState::Running);
-        window.set_runtime_state(runtime_state_label(&state).into());
-        window.set_status_detail(status.detail.into());
-        window.set_dashboard_available(running && status.dashboard_url.is_some());
-        window.set_logs_available(!status.log_path.is_empty());
-        if let Some(system_browser) = status.system_browser {
-            let system_browser_state = wire::SystemBrowserState::try_from(system_browser.state)
-                .unwrap_or(wire::SystemBrowserState::Unspecified);
-            window.set_browser_state(system_browser_state_label(&system_browser_state).into());
-            window.set_browser_detail(system_browser.detail.into());
-        }
+        window.set_can_stop(true);
+        window.set_dashboard_available(true);
+        window.set_workspace_state("Running".into());
+        window.set_status_detail(if browser_running {
+            "Workspace, Dashboard, and Browser Session are running.".into()
+        } else {
+            "Workspace and Dashboard are running; Browser Session is unavailable.".into()
+        });
+        window.set_browser_state(if browser_running {
+            "Running".into()
+        } else {
+            "Unavailable".into()
+        });
+        window.set_browser_detail(browser_detail.into());
     });
 }
 
-fn report_status_channel_failure(weak_window: &slint::Weak<ManagerWindow>, error: String) {
+fn apply_stopped_state(
+    weak_window: &slint::Weak<ManagerWindow>,
+    state: &'static str,
+    detail: String,
+) {
     update_window(weak_window, move |window| {
-        window.set_runtime_state("Failed".into());
-        window.set_status_detail(format!("Desktop Runtime status channel failed: {error}").into());
+        window.set_can_start(true);
+        window.set_can_stop(false);
         window.set_dashboard_available(false);
+        window.set_workspace_state(state.into());
+        window.set_status_detail(detail.into());
+        window.set_browser_state("Not running".into());
     });
 }
 
-fn stream_runtime_status(
-    stdout: impl std::io::Read + Send + 'static,
-    weak_window: slint::Weak<ManagerWindow>,
+fn handle_service_exit(
+    running: &mut Option<RunningServices>,
+    weak_window: &slint::Weak<ManagerWindow>,
 ) {
-    let _ = thread::spawn(move || {
-        let mut reader = BufReader::new(stdout);
-        loop {
-            match read_runtime_message(&mut reader) {
-                Ok(Some(message)) => match runtime_status(message) {
-                    Ok(status) => apply_status(&weak_window, status),
-                    Err(error) => {
-                        report_status_channel_failure(&weak_window, error);
-                        return;
-                    }
-                },
-                Ok(None) => return,
-                Err(error) => {
-                    report_status_channel_failure(&weak_window, error);
-                    return;
-                }
-            }
-        }
-    });
-}
-
-fn stream_runtime_log(
-    stderr: impl std::io::Read + Send + 'static,
-    mut log: File,
-    weak_window: slint::Weak<ManagerWindow>,
-) {
-    let _ = thread::spawn(move || {
-        if let Err(error) = io::copy(&mut BufReader::new(stderr), &mut log) {
-            update_window(&weak_window, move |window| {
-                window.set_logs_available(false);
-                window.set_status_detail(format!("Runtime log unavailable: {error}").into());
+    let Some(services) = running else {
+        return;
+    };
+    match services.poll_exit() {
+        Ok(Some(ServiceExit::Optional { name, status })) => {
+            update_window(weak_window, move |window| {
+                window.set_browser_state("Unavailable".into());
+                window.set_browser_detail(
+                    format!("{name} exited unexpectedly with {status}.").into(),
+                );
+                window.set_status_detail(
+                    "Workspace and Dashboard remain available; Browser Session has stopped.".into(),
+                );
             });
         }
-    });
-}
-
-fn start_runtime(
-    weak_window: &slint::Weak<ManagerWindow>,
-    log_path: &Path,
-) -> Result<RuntimeProcess, String> {
-    if let Some(log_directory) = log_path.parent() {
-        fs::create_dir_all(log_directory)
-            .map_err(|error| format!("Cannot create runtime log directory: {error}"))?;
+        Ok(Some(ServiceExit::Mandatory { name, status })) => {
+            services.stop();
+            *running = None;
+            apply_stopped_state(
+                weak_window,
+                "Failed",
+                format!("{name} exited unexpectedly with {status}."),
+            );
+        }
+        Err(error) => {
+            services.stop();
+            *running = None;
+            apply_stopped_state(weak_window, "Failed", error);
+        }
+        Ok(None) => {}
     }
-    let log = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_path)
-        .map_err(|error| format!("Cannot open runtime log: {error}"))?;
-    let executable = runtime_executable_path()?;
-    let mut child = Command::new(&executable)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| format!("Cannot start {}: {error}", executable.display()))?;
-    let stdin = child
-        .stdin
-        .take()
-        .expect("runtime stdin was configured as piped");
-    let stdout = child
-        .stdout
-        .take()
-        .expect("runtime stdout was configured as piped");
-    let stderr = child
-        .stderr
-        .take()
-        .expect("runtime stderr was configured as piped");
-    stream_runtime_status(stdout, weak_window.clone());
-    stream_runtime_log(stderr, log, weak_window.clone());
-    Ok(RuntimeProcess { child, stdin })
-}
-
-fn request_runtime_shutdown(runtime: &mut RuntimeProcess) -> Result<(), String> {
-    write_shutdown(&mut runtime.stdin)
 }
 
 fn controller_loop(
     receiver: Receiver<ControllerCommand>,
     weak_window: slint::Weak<ManagerWindow>,
-    log_path: PathBuf,
+    layout: ProductLayout,
 ) {
-    let mut runtime: Option<RuntimeProcess> = None;
+    let mut running: Option<RunningServices> = None;
     loop {
         let command = match receiver.recv_timeout(PROCESS_POLL_INTERVAL) {
             Ok(command) => Some(command),
@@ -200,117 +128,54 @@ fn controller_loop(
             Err(RecvTimeoutError::Disconnected) => Some(ControllerCommand::Exit),
         };
         match command {
-            Some(ControllerCommand::Start) if runtime.is_none() => {
+            Some(ControllerCommand::Start) if running.is_none() => {
                 update_window(&weak_window, |window| {
                     window.set_can_start(false);
-                    window.set_runtime_state("Starting".into());
-                    window.set_status_detail("Launching Desktop Runtime".into());
+                    window.set_logs_available(true);
+                    window.set_workspace_state("Starting".into());
+                    window.set_status_detail("Starting local services.".into());
                 });
-                match start_runtime(&weak_window, &log_path) {
-                    Ok(process) => {
-                        runtime = Some(process);
-                        update_window(&weak_window, |window| {
-                            window.set_can_stop(true);
-                        });
+                match start_services(&layout) {
+                    Ok(startup) => {
+                        apply_running_state(
+                            &weak_window,
+                            startup.browser_running,
+                            startup.browser_detail,
+                        );
+                        running = Some(startup.services);
                     }
-                    Err(error) => update_window(&weak_window, move |window| {
-                        window.set_can_start(true);
-                        window.set_can_stop(false);
-                        window.set_runtime_state("Failed".into());
-                        window.set_status_detail(error.into());
-                    }),
+                    Err(error) => apply_stopped_state(&weak_window, "Failed", error),
                 }
             }
             Some(ControllerCommand::Stop) => {
-                if let Some(process) = &mut runtime {
-                    let shutdown_error = request_runtime_shutdown(process).err();
-                    if shutdown_error.is_some() {
-                        let _ = process.child.kill();
-                    }
-                    update_window(&weak_window, move |window| {
+                if let Some(mut services) = running.take() {
+                    update_window(&weak_window, |window| {
                         window.set_can_stop(false);
-                        window.set_runtime_state("Stopping".into());
-                        window.set_status_detail(shutdown_error.map_or_else(
-                            || "Stopping desktop services".into(),
-                            |error| {
-                                format!(
-                                    "Graceful shutdown failed; terminating Desktop Runtime: {error}"
-                                )
-                                .into()
-                            },
-                        ));
+                        window.set_workspace_state("Stopping".into());
+                        window.set_status_detail("Stopping local services.".into());
                     });
+                    services.stop();
+                    apply_stopped_state(
+                        &weak_window,
+                        "Stopped",
+                        "Local services are stopped.".to_owned(),
+                    );
                 }
             }
             Some(ControllerCommand::Exit) => {
-                if let Some(process) = &mut runtime {
-                    if request_runtime_shutdown(process).is_err() {
-                        let _ = process.child.kill();
-                    }
-                    let _ = process.child.wait();
+                if let Some(mut services) = running.take() {
+                    services.stop();
                 }
                 return;
             }
             Some(ControllerCommand::Start) | None => {}
         }
-
-        match runtime.as_mut().map(|process| process.child.try_wait()) {
-            Some(Ok(Some(status))) => {
-                runtime = None;
-                update_window(&weak_window, move |window| {
-                    window.set_can_start(true);
-                    window.set_can_stop(false);
-                    window.set_dashboard_available(false);
-                    window.set_runtime_state(if status.success() {
-                        "Stopped".into()
-                    } else {
-                        "Failed".into()
-                    });
-                    window.set_status_detail(if status.success() {
-                        "Desktop services are stopped.".into()
-                    } else {
-                        format!("Desktop Runtime exited with {status}.").into()
-                    });
-                });
-            }
-            Some(Err(error)) => {
-                if let Some(mut process) = runtime.take() {
-                    let _ = process.child.kill();
-                    let _ = process.child.wait();
-                }
-                update_window(&weak_window, move |window| {
-                    window.set_can_start(true);
-                    window.set_can_stop(false);
-                    window.set_dashboard_available(false);
-                    window.set_runtime_state("Failed".into());
-                    window.set_status_detail(
-                        format!("Cannot inspect Desktop Runtime process: {error}").into(),
-                    );
-                });
-            }
-            Some(Ok(None)) | None => {}
-        }
+        handle_service_exit(&mut running, &weak_window);
     }
 }
 
-fn product_log_path() -> io::Result<PathBuf> {
-    let manager = env::current_exe()?;
-    let product_root = manager
-        .parent()
-        .and_then(Path::parent)
-        .ok_or_else(|| io::Error::other("Desktop Manager is outside the product layout."))?;
-    Ok(product_root.join("data").join("logs").join("runtime.log"))
-}
-
-fn open_log(log_path: &Path) -> io::Result<()> {
-    let mut command = if cfg!(target_os = "windows") {
-        Command::new("explorer")
-    } else if cfg!(target_os = "macos") {
-        Command::new("open")
-    } else {
-        Command::new("xdg-open")
-    };
-    command.arg(log_path).spawn().map(|_| ())
+fn open_service_log(log_path: &Path) -> io::Result<()> {
+    open::that(log_path).map_err(io::Error::other)
 }
 
 fn install_callbacks(
@@ -328,21 +193,22 @@ fn install_callbacks(
         let _ = stop_sender.send(ControllerCommand::Stop);
     });
     window.on_open_log_requested(move || {
-        if let Err(error) = open_log(&log_path) {
+        if let Err(error) = open_service_log(&log_path) {
             update_window(&weak_window, move |window| {
-                window.set_status_detail(format!("Cannot open runtime log: {error}").into());
+                window.set_status_detail(format!("Cannot open service log: {error}").into());
             });
         }
     });
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let manager_executable = env::current_exe()?;
+    let layout = resolve_product_layout(&manager_executable)?;
     let window = ManagerWindow::new()?;
-    let log_path = product_log_path()?;
     let (sender, receiver) = mpsc::channel();
-    install_callbacks(&window, &sender, log_path.clone());
+    install_callbacks(&window, &sender, layout.log_path.clone());
     let weak_window = window.as_weak();
-    let controller = thread::spawn(move || controller_loop(receiver, weak_window, log_path));
+    let controller = thread::spawn(move || controller_loop(receiver, weak_window, layout));
     let result = window.run();
     let _ = sender.send(ControllerCommand::Exit);
     let _ = controller.join();

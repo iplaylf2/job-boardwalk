@@ -5,10 +5,11 @@ and does not embed Dashboard, recruiting pages, a browser engine, or a WebView. 
 browser application; Browser Session remains the only owner of the visible recruiting browser and
 its dedicated profile.
 
-The manager starts the sibling Desktop Runtime, sends its bounded shutdown command, consumes
-versioned status events, and presents runtime and system-browser discovery state. It provides
-Start, Stop, Open Logs, and Open Dashboard controls. Desktop Runtime's standard error is appended
-to `data/logs/runtime.log`; the GUI does not read workspace persistence or service-private APIs.
+The manager starts Workspace Service and Browser Session through the sibling Desktop Service Host,
+and starts the packaged Caddy executable for Dashboard. It waits on their HTTP health endpoints
+and presents aggregate runtime state. It provides Start, Stop, Open Logs, and Open Dashboard
+controls. Service output is appended to `data/logs/services.log`; the GUI does not read workspace
+persistence or service-private APIs.
 
 ## Run
 
@@ -21,26 +22,30 @@ Build the desktop staging tree, then run Desktop Manager from that product direc
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm exec moon run desktop-distribution:assemble
+JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
+  pnpm exec moon run desktop-distribution:assemble
 target/desktop-distribution/<platform>-<architecture>/Job\ Boardwalk/bin/job-boardwalk-desktop-manager
 ```
 
-Desktop Manager resolves Desktop Runtime beside itself under `bin/`. Source development may set
-`JOB_BOARDWALK_DESKTOP_RUNTIME_EXECUTABLE` to an assembled runtime explicitly; an installed run
-does not depend on that override.
+The build input must be a platform-native Caddy executable that can load the product Caddyfile.
+Desktop Manager resolves Caddy and Desktop Service Host beside itself under `bin/`. Source
+development may set
+`JOB_BOARDWALK_DESKTOP_SERVICE_HOST_EXECUTABLE` to an assembled host explicitly; an installed run
+does not depend on that override. [Desktop distribution](../../docs/desktop-distribution.md)
+defines release-input and packaging policy.
 
 ## Lifecycle boundary
 
-The protocol is a stream of length-delimited Protobuf messages over the child process's standard
-input and output. Its language-neutral source is
-[`desktop_lifecycle.proto`](../../proto/job_boardwalk/desktop_lifecycle/v1/desktop_lifecycle.proto);
-Buf generates the checked-in Protobuf-ES and Prost consumers and the repository checks them for
-drift. Service logs use stderr, so they cannot be mistaken for protocol events.
+Desktop Manager is the only owner of the desktop process topology. It starts Workspace Service,
+Caddy, and Browser Session in dependency order, checks their HTTP readiness, observes unexpected
+exits, and stops them in reverse order. Closing the service host's standard input requests graceful
+Node-service shutdown; Caddy shuts down through its loopback-only admin endpoint. Manager
+terminates a child only when it exceeds the bounded shutdown period.
 
-Desktop Manager owns the Desktop Runtime process and operating-system handoffs. Desktop Runtime
-owns service startup, readiness, failure reporting, and ordered shutdown. Desktop Manager does not
-expose a tray, install the application, perform updates, read workspace persistence, or control
-recruiting pages.
+No manager protocol or coordinator process sits between Manager and the services. The service
+process contract consists of explicit arguments, health endpoints, process exit, log streams, and
+the service's graceful-shutdown mechanism. Desktop Manager does not expose a tray, install the
+application, perform updates, read workspace persistence, or control recruiting pages.
 
 [Desktop distribution](../../docs/desktop-distribution.md) defines the directory-contained,
 Docker-free installed form and remaining release boundary. Desktop Manager is the lifecycle

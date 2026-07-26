@@ -2,8 +2,7 @@
 
 Job Boardwalk's supported deployment topology runs Workspace Service and Dashboard as separate
 Docker Compose services, while Browser Session runs as a companion in the user's graphical host
-session. [Desktop distribution](desktop-distribution.md) documents a separate engineering
-topology and the target installed form; it does not change the Compose lifecycle described here.
+session. Caddy serves the finalized Dashboard client from its container.
 
 The browser is intentionally outside Docker because its visible window and persistent host profile
 are the boundary for login, verification, and other user-controlled actions.
@@ -14,8 +13,8 @@ are the boundary for login, verification, and other user-controlled actions.
 - Graphical host: a repository checkout, Patchright Chromium, and the Node.js and pnpm toolchain
   declared in the root [`package.json`](../package.json)
 
-The source build uses pinned Node.js, pnpm, and Caddy image versions. Host Node.js and pnpm are
-needed only for Browser Session and source development, not for deploying existing images.
+The source build uses pinned Node.js and pnpm versions. Host Node.js and pnpm are needed only for
+Browser Session and source development, not for deploying existing images.
 
 ## Build from source
 
@@ -130,8 +129,9 @@ pnpm exec moon run workspace-service:dev
 pnpm exec moon run dashboard:dev
 ```
 
-These development servers retain the same loopback ports and API boundaries. In the current
-container topology, Vite's proxy is a development tool and Caddy serves the production Dashboard.
+These development servers retain the same loopback ports and API boundaries. Vite's proxy remains
+a development tool; Dashboard's Caddyfile owns the production boundary for Compose and desktop
+packaging.
 
 ## Runtime boundaries
 
@@ -139,9 +139,9 @@ The `workspace-service` container is read-only apart from `/tmp` and the `worksp
 volume. It runs as the unprivileged Node.js image user, drops Linux capabilities, and accepts
 traffic only from the private Compose network and the loopback-published host port.
 
-The `dashboard` container is read-only apart from `/tmp` and runs as the unprivileged Caddy user.
-Caddy serves the built static client, sends its browser security policy, handles SPA route fallback,
-and proxies `/api` to Workspace Service. Dashboard does not receive the browser profile, Docker
+The `dashboard` container is read-only apart from `/tmp` and runs as an unprivileged Caddy user.
+Caddy serves the built static client, sends its browser security policy, handles SPA route
+fallback, and proxies `/api` to Workspace Service. It does not receive the browser profile, Docker
 socket, Workspace volume, or Browser Session MCP endpoint.
 
 The Compose network is internal. The containers do not need outbound internet access at runtime;
@@ -157,15 +157,14 @@ directory:
   require source files or pnpm at the deployment host.
 - `deploy/compose.build.yaml` is the optional source-build overlay. It connects each Compose service
   to its application-owned Dockerfile without making source builds part of the deployment model.
-- `apps/dashboard/Dockerfile` and `apps/workspace-service/Dockerfile` belong to their independently
-  deployable applications. Each has a colocated `Dockerfile.dockerignore` that excludes unrelated
-  applications from its build context.
+- `apps/dashboard/Dockerfile` and `apps/workspace-service/Dockerfile` belong to their
+  independently deployable applications. Each has a colocated `Dockerfile.dockerignore` that
+  excludes unrelated applications from its build context. Dashboard's runtime stage uses the
+  pinned Caddy image and its application-owned Caddyfile.
 - Both Dockerfiles use the repository as their build context because their builder stages compile
   workspace-owned packages. The Dockerfile location and build context express different
   boundaries: image ownership belongs to the application, while source dependency resolution
   belongs to the workspace.
-- `apps/dashboard/Caddyfile` stays with Dashboard because it defines that application's production
-  HTTP boundary, not a shared deployment concern.
 
 The `x-container-runtime-policy` Compose fragment names the security, lifecycle, and logging policy
 shared by both containers. Each service declaration then describes only its own image reference,
@@ -176,20 +175,21 @@ port, storage, dependencies, and readiness behavior.
 pnpm and the monorepo exist only in each image's builder stage. Each application build produces a
 complete deployment artifact under its own `dist/` directory:
 
-- Dashboard produces static HTML, CSS, and JavaScript.
+- Dashboard produces static HTML, CSS, and JavaScript; its runtime image combines them with pinned
+  Caddy and the application-owned Caddyfile.
 - Workspace Service produces `workspace-service.mjs` and the complete Drizzle migration baseline
   under `migrations/`.
 
 The runtime stages copy only those artifact directories. They do not contain pnpm, `node_modules`,
 workspace manifests, `workspace:*` references, or source paths from another application. The
 Workspace Service artifact can run from an otherwise empty directory with a compatible Node.js
-runtime; the Dashboard artifact can be served by any static HTTP server that preserves its SPA and
-API-routing contract.
+runtime. The same Caddyfile accompanies the desktop staging tree, so routing and security policy do
+not fork by deployment topology.
 
 The resulting OCI images are the deployment artifacts. `compose.yaml` defaults to the local image
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the
-`JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can replace
-them with registry tags or immutable digests.
+`JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can
+replace them with registry tags or immutable digests.
 
 [Desktop distribution](desktop-distribution.md) defines a separate directory-contained engineering
 artifact and the target desktop release. That work does not alter the Compose artifact contract

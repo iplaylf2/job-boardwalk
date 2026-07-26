@@ -1,9 +1,0 @@
-{
-  "extends": "@job-boardwalk/presets/tsconfig.json",
-  "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "types": ["node", "vitest/globals"]
-  },
-  "include": ["src", "test", "vitest.config.ts"]
-}

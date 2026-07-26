@@ -6,10 +6,10 @@
   recruiting-domain APIs.
 - [`dashboard`](dashboard/) presents workspace state and lets the user maintain personal context
   and job-search intents.
-- [`desktop-runtime`](desktop-runtime/) coordinates the services inside the directory-contained
-  desktop product.
-- [`desktop-manager`](desktop-manager/) owns the native desktop control surface and
-  operating-system handoffs.
+- [`desktop-service-host`](desktop-service-host/) loads one finalized service payload per desktop
+  child process.
+- [`desktop-manager`](desktop-manager/) owns the native desktop control surface, process topology,
+  and operating-system handoffs.
 
 Each application README documents that application's operation and maintenance. Cross-application
 behavior belongs in [Product design](../docs/product-design.md); the supported Compose topology

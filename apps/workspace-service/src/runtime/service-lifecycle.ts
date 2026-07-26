@@ -38,7 +38,16 @@ function closeHttpServer(httpServer: ServerType): Promise<void> {
 function installShutdownHandlers(requestShutdown: () => void): () => void {
   process.once("SIGINT", requestShutdown);
   process.once("SIGTERM", requestShutdown);
+  const shutdownOnStdinEnd = process.argv.includes("--shutdown-on-stdin-end");
+  if (shutdownOnStdinEnd) {
+    process.stdin.once("end", requestShutdown);
+    process.stdin.resume();
+  }
   return () => {
+    if (shutdownOnStdinEnd) {
+      process.stdin.pause();
+      process.stdin.removeListener("end", requestShutdown);
+    }
     process.removeListener("SIGINT", requestShutdown);
     process.removeListener("SIGTERM", requestShutdown);
   };

@@ -25,10 +25,10 @@ tasks:
     inputs:
       - "package.json"
       - "build/sea.ts"
-      - "dist/desktop-runtime.cjs"
+      - "dist/desktop-service-host.cjs"
       - "/package.json"
     outputs:
-      - "/target/release/job-boardwalk-desktop-runtime*"
+      - "/target/release/job-boardwalk-desktop-service-host*"
 
   lint:
     command: "pnpm run lint"

@@ -1,10 +1,10 @@
 {
-	admin off
+	admin {$JOB_BOARDWALK_CADDY_ADMIN:off}
 	auto_https off
 	persist_config off
 }
 
-:8080 {
+{$JOB_BOARDWALK_DASHBOARD_ADDRESS:0.0.0.0:8080} {
 	encode zstd gzip
 
 	header {
@@ -15,7 +15,7 @@
 	}
 
 	handle /api/* {
-		reverse_proxy workspace-service:54310
+		reverse_proxy {$JOB_BOARDWALK_WORKSPACE_SERVICE_ADDRESS:workspace-service:54310}
 	}
 
 	handle /health {
@@ -23,7 +23,7 @@
 	}
 
 	handle {
-		root * /srv
+		root * {env.JOB_BOARDWALK_DASHBOARD_DIRECTORY}
 		try_files {path} /index.html
 		file_server
 	}

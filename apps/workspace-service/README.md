@@ -296,10 +296,10 @@ boundary. Local state is created with owner-only permissions on systems that sup
 `JOB_BOARDWALK_WORKSPACE_SERVICE_PORT` accepts a TCP port and defaults to `54310`. Compose owns both
 production values; users do not need to set them.
 
-In desktop staging, Desktop Runtime invokes the finalized Workspace Service module with
-explicit absolute database and migrations paths plus its loopback listener. Those internal
-command-line arguments take precedence over source-development defaults; directory-contained runs
-do not depend on ambient variables or the launching process's current working directory.
+In desktop staging, Desktop Manager invokes the finalized Workspace Service module through Desktop
+Service Host with explicit absolute database and migrations paths plus its loopback listener. Those
+process arguments take precedence over source-development defaults; directory-contained runs do
+not depend on ambient variables or the launching process's current working directory.
 
 ## Concurrency model
 
