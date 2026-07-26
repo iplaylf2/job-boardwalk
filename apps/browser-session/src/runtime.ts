@@ -16,40 +16,31 @@ import {
 import { createWorkspaceServiceClients } from "./workspace-service/dependencies.js";
 
 const browserSessionPort = 54_312;
+const serverNotRunningErrorCode = "ERR_SERVER_NOT_RUNNING";
+
+interface HttpServerAddress {
+  readonly hostname: string;
+  readonly port: number;
+}
 
 export interface BrowserSessionProcessOptions {
   readonly browserExecutablePath?: string;
+  readonly httpServerAddress?: HttpServerAddress;
   readonly profilePath?: string;
+  readonly shutdownSignal?: AbortSignal;
+  readonly workspaceServiceUrl?: URL;
 }
 
-function closeHttpServer(httpServer: ServerType): Promise<void> {
+export function closeHttpServer(httpServer: ServerType): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     httpServer.close((error?: Error) => {
-      if (error) {
+      if (error && (error as NodeJS.ErrnoException).code !== serverNotRunningErrorCode) {
         reject(error);
       } else {
         resolve();
       }
     });
   });
-}
-
-function installShutdownHandlers(requestShutdown: () => void): () => void {
-  process.once("SIGINT", requestShutdown);
-  process.once("SIGTERM", requestShutdown);
-  const shutdownOnStdinEnd = process.argv.includes("--shutdown-on-stdin-end");
-  if (shutdownOnStdinEnd) {
-    process.stdin.once("end", requestShutdown);
-    process.stdin.resume();
-  }
-  return () => {
-    if (shutdownOnStdinEnd) {
-      process.stdin.pause();
-      process.stdin.removeListener("end", requestShutdown);
-    }
-    process.removeListener("SIGINT", requestShutdown);
-    process.removeListener("SIGTERM", requestShutdown);
-  };
 }
 
 function errorDetail(error: Error): string {
@@ -64,12 +55,24 @@ function reportWorkspaceStatusError(error: Error): void {
   process.stderr.write(`[Browser Session → Workspace Service] ${errorDetail(error)}\n`);
 }
 
+function connectShutdownSignal(
+  signal: AbortSignal | undefined,
+  requestShutdown: () => void,
+): () => void {
+  if (signal?.aborted) {
+    requestShutdown();
+  } else {
+    signal?.addEventListener("abort", requestShutdown, { once: true });
+  }
+  return () => signal?.removeEventListener("abort", requestShutdown);
+}
+
 function* runBrowserSession(
   serviceScope: Scope,
   options: BrowserSessionProcessOptions,
 ): RiteCoroutine<void> {
   const profilePath = yield* prepareBrowserProfilePath(options.profilePath);
-  const workspaceServiceUrl = resolveWorkspaceServiceUrl();
+  const workspaceServiceUrl = options.workspaceServiceUrl ?? resolveWorkspaceServiceUrl();
   const browserControl = new ManagedBrowser(profilePath, {
     ...createWorkspaceServiceClients(workspaceServiceUrl),
     ...(options.browserExecutablePath ? { executablePath: options.browserExecutablePath } : {}),
@@ -84,13 +87,22 @@ function* runBrowserSession(
     serviceScope,
   });
   const httpServer = serve(
-    { fetch: httpApp.fetch, hostname: "127.0.0.1", port: browserSessionPort },
+    {
+      fetch: httpApp.fetch,
+      ...(options.httpServerAddress ?? {
+        hostname: "127.0.0.1",
+        port: browserSessionPort,
+      }),
+    },
     (info) => {
       process.stdout.write(`Browser Session: http://${info.address}:${info.port}\n`);
     },
   );
   const shutdown = yield* completer<true>();
-  const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
+  function requestShutdown(): void {
+    shutdown.resolve(true);
+  }
+  const disconnectShutdownSignal = connectShutdownSignal(options.shutdownSignal, requestShutdown);
   try {
     yield* race([
       () => browserControl.supervise(reportBrowserError),
@@ -98,7 +110,7 @@ function* runBrowserSession(
       () => wait(shutdown.future),
     ]);
   } finally {
-    removeShutdownHandlers();
+    disconnectShutdownSignal();
     yield* until(() => closeHttpServer(httpServer));
   }
 }

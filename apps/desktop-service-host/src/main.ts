@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import process from "node:process";
 
+import { installStdinShutdown } from "#/stdin-shutdown.js";
 import { discoverSystemBrowser } from "#/system-browser-discovery.js";
 
 const userArgumentStartIndex = 2;
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
     await prepareBrowserSession();
   }
   createRequire(process.execPath)(readRequiredArgument(userArguments, "module"));
+  installStdinShutdown();
 }
 
 // oxlint-disable-next-line unicorn/prefer-top-level-await -- Node SEA embeds a CommonJS entry script.

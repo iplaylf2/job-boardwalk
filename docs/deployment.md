@@ -121,8 +121,8 @@ database and the single Drizzle baseline together.
 
 ## Source development
 
-Container deployment is the current runtime contract. For fast source iteration, developers may
-run Workspace Service and Dashboard directly:
+Compose deployment is the supported runtime topology. For fast source iteration, developers may run
+Workspace Service and Dashboard directly:
 
 ```sh
 pnpm exec moon run workspace-service:dev
@@ -146,6 +146,31 @@ socket, Workspace volume, or Browser Session MCP endpoint.
 
 The Compose network is internal. The containers do not need outbound internet access at runtime;
 Dashboard uses system font stacks and loads no third-party assets.
+
+## Service process contract
+
+The finalized Workspace Service and Browser Session artifacts share a small, distribution-neutral
+process contract: runtime paths, listener addresses, and addresses of other services enter through
+process configuration; HTTP health endpoints report readiness; standard streams carry operational
+output; `SIGINT` and `SIGTERM` request shutdown; and exit status reports failure. The runtime
+integration supplies its layout and supervision without changing service behavior.
+
+The repository supplies that contract in three runtime contexts:
+
+- Compose supplies container paths and listener values for Workspace Service, mounts persistence,
+  creates the private network, publishes loopback ports, checks health, and supervises containers.
+  Browser Session remains a host companion.
+- Desktop Manager derives installed paths and supplies explicit arguments, while Desktop Service
+  Host converts Manager's stdin-based child supervision to `SIGTERM`. Packaged Caddy owns the
+  desktop HTTP boundary.
+- Source development supplies defaults and optional environment overrides without defining a
+  release topology.
+
+Concrete ports, process order, storage placement, executable discovery, and restart policy belong
+to each runtime integration. Cross-language coordination stays on the process and HTTP contract.
+If a future integration needs structured coordination that this contract cannot express,
+[Development](development.md#generated-artifacts-and-language-boundaries) defines the threshold for
+introducing a language-neutral schema and drift check.
 
 ## Deployment file ownership
 

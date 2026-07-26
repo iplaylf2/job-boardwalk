@@ -22,7 +22,6 @@ pub(crate) fn service_plan(layout: &ProductLayout) -> Vec<ServiceSpec> {
         ServiceSpec {
             arguments: vec![
                 "--role=workspace-service".to_owned(),
-                "--shutdown-on-stdin-end".to_owned(),
                 format!("--module={}", layout.workspace_service_module.display()),
                 format!(
                     "--workspace-database-path={}",
@@ -85,12 +84,14 @@ pub(crate) fn service_plan(layout: &ProductLayout) -> Vec<ServiceSpec> {
         ServiceSpec {
             arguments: vec![
                 "--role=browser-session".to_owned(),
-                "--shutdown-on-stdin-end".to_owned(),
                 format!("--module={}", layout.browser_session_module.display()),
                 format!(
                     "--browser-profile-path={}",
                     layout.browser_profile_directory.display()
                 ),
+                "--hostname=127.0.0.1".to_owned(),
+                "--port=54312".to_owned(),
+                "--workspace-service-url=http://127.0.0.1:54310".to_owned(),
             ],
             environment: Vec::new(),
             executable: layout.service_host_executable.clone(),
@@ -100,4 +101,38 @@ pub(crate) fn service_plan(layout: &ProductLayout) -> Vec<ServiceSpec> {
             shutdown: ShutdownMethod::CloseStdin,
         },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+    use crate::product_layout::resolve_product_layout;
+
+    #[test]
+    fn desktop_plan_supplies_browser_session_listener_and_workspace_endpoint() {
+        let manager = Path::new("/synthetic/Job Boardwalk/bin/job-boardwalk-desktop-manager");
+        let layout =
+            resolve_product_layout(manager).expect("synthetic product layout should resolve");
+        let plan = service_plan(&layout);
+        let browser_session = plan
+            .iter()
+            .find(|service| service.name == "Browser Session")
+            .expect("Browser Session should be in the desktop service plan");
+
+        for expected in [
+            "--hostname=127.0.0.1",
+            "--port=54312",
+            "--workspace-service-url=http://127.0.0.1:54310",
+        ] {
+            assert!(
+                browser_session
+                    .arguments
+                    .iter()
+                    .any(|argument| argument == expected),
+                "Browser Session is missing {expected}"
+            );
+        }
+    }
 }

@@ -11,9 +11,13 @@ The host supports two roles:
   version, passes it to the finalized Browser Session module, and uses the dedicated product
   profile supplied by Desktop Manager. Browser Session startup remains the compatibility check.
 
-Every role receives its module and runtime paths as explicit absolute arguments. The host does not
-derive the product layout, supervise sibling processes, expose a manager protocol, or use shajara
-to model process topology.
+Desktop Manager supplies each role's module and runtime paths as explicit absolute arguments. The
+host does not derive the product layout, supervise sibling processes, expose a manager protocol, or
+use shajara to model process topology.
+
+After loading a service module, the host converts stdin EOF from Desktop Manager to `SIGTERM`.
+Workspace Service and Browser Session handle normal process signals and remain independent of
+Manager's stdin protocol.
 
 ## Build and checks
 

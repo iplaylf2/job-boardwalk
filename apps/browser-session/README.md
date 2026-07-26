@@ -101,6 +101,12 @@ pnpm exec moon run browser-session:build
 pnpm exec moon run browser-session:start
 ```
 
+The finalized artifact accepts explicit process arguments for the browser executable, profile
+directory, listener hostname and port, and Workspace Service URL. The desktop runtime supplies
+these values from its directory layout and browser discovery; source development uses the
+documented environment overrides and loopback defaults. Distribution-specific layout and
+supervision remain outside Browser Session.
+
 By default, the dedicated browser profile is stored under the operating system's user data
 directory. Set `JOB_BOARDWALK_BROWSER_PROFILE_PATH` to choose an exact path. Browser Session does
 not share this path or profile with another service. Project entrypoints do not load `.env`

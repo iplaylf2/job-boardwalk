@@ -74,8 +74,9 @@ Windows or macOS build matrices before those artifacts exist.
 Rust output stays under the root `target/` directory. Node.js applications produce their own
 `dist/` artifacts, which are never imported as source across the language boundary.
 
-Future Rust applications join the root Cargo workspace. A necessary cross-language protocol must
-have one language-neutral source, standard generators, generated consumers, and a drift check;
-simple process lifecycle continues to use arguments, health, exit status, logs, and
-service-native graceful shutdown rather than introducing a schema and generation toolchain.
+Future Rust applications join the root Cargo workspace. Arguments, health endpoints, exit status,
+logs, and process signals are sufficient for the current cross-language lifecycle and need no
+generated schema. If a future protocol requires structured data across languages, it must have one
+language-neutral source, standard generators, generated consumers, and a drift check. A
+runtime-specific supervisor adapts its shutdown mechanism at its process-host boundary.
 Neither ecosystem imports the other ecosystem's implementation files.

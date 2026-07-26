@@ -38,14 +38,14 @@ defines release-input and packaging policy.
 
 Desktop Manager is the only owner of the desktop process topology. It starts Workspace Service,
 Caddy, and Browser Session in dependency order, checks their HTTP readiness, observes unexpected
-exits, and stops them in reverse order. Closing the service host's standard input requests graceful
-Node-service shutdown; Caddy shuts down through its loopback-only admin endpoint. Manager
-terminates a child only when it exceeds the bounded shutdown period.
+exits, and stops them in reverse order. To stop a Node.js service, Manager closes the child host's
+standard input; Desktop Service Host converts that EOF to `SIGTERM`. Caddy shuts down through its
+loopback-only admin endpoint. Manager terminates a child only when it exceeds the bounded shutdown
+period.
 
-No manager protocol or coordinator process sits between Manager and the services. The service
-process contract consists of explicit arguments, health endpoints, process exit, log streams, and
-the service's graceful-shutdown mechanism. Desktop Manager does not expose a tray, install the
-application, perform updates, read workspace persistence, or control recruiting pages.
+The services expose no manager-specific control protocol. Manager relies on explicit arguments,
+health endpoints, exit status, and log streams. It does not expose a tray, install the application,
+perform updates, read workspace persistence, or control recruiting pages.
 
 [Desktop distribution](../../docs/desktop-distribution.md) defines the directory-contained,
 Docker-free installed form and remaining release boundary. Desktop Manager is the lifecycle

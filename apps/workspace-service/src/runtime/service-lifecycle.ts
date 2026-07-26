@@ -15,18 +15,20 @@ import { resolveHttpServerAddress } from "#/runtime/http-server-address.js";
 import type { HttpServerAddress } from "#/runtime/http-server-address.js";
 
 const privateFileCreationMask = 0o077;
+const serverNotRunningErrorCode = "ERR_SERVER_NOT_RUNNING";
 process.umask(privateFileCreationMask);
 
 export interface WorkspaceServiceOptions {
   readonly databasePath?: string;
   readonly httpServerAddress?: HttpServerAddress;
   readonly migrationsDirectory?: string;
+  readonly shutdownSignal?: AbortSignal;
 }
 
-function closeHttpServer(httpServer: ServerType): Promise<void> {
+export function closeHttpServer(httpServer: ServerType): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     httpServer.close((error?: Error) => {
-      if (error) {
+      if (error && (error as NodeJS.ErrnoException).code !== serverNotRunningErrorCode) {
         reject(error);
       } else {
         resolve();
@@ -35,22 +37,16 @@ function closeHttpServer(httpServer: ServerType): Promise<void> {
   });
 }
 
-function installShutdownHandlers(requestShutdown: () => void): () => void {
-  process.once("SIGINT", requestShutdown);
-  process.once("SIGTERM", requestShutdown);
-  const shutdownOnStdinEnd = process.argv.includes("--shutdown-on-stdin-end");
-  if (shutdownOnStdinEnd) {
-    process.stdin.once("end", requestShutdown);
-    process.stdin.resume();
+function connectShutdownSignal(
+  signal: AbortSignal | undefined,
+  requestShutdown: () => void,
+): () => void {
+  if (signal?.aborted) {
+    requestShutdown();
+  } else {
+    signal?.addEventListener("abort", requestShutdown, { once: true });
   }
-  return () => {
-    if (shutdownOnStdinEnd) {
-      process.stdin.pause();
-      process.stdin.removeListener("end", requestShutdown);
-    }
-    process.removeListener("SIGINT", requestShutdown);
-    process.removeListener("SIGTERM", requestShutdown);
-  };
+  return () => signal?.removeEventListener("abort", requestShutdown);
 }
 
 export function* runWorkspaceService(
@@ -72,11 +68,14 @@ export function* runWorkspaceService(
     process.stdout.write(`Workspace Service: http://${info.address}:${info.port}\n`);
   });
   const shutdown = yield* completer<true>();
-  const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
+  function requestShutdown(): void {
+    shutdown.resolve(true);
+  }
+  const disconnectShutdownSignal = connectShutdownSignal(options.shutdownSignal, requestShutdown);
   try {
     yield* wait(shutdown.future);
   } finally {
-    removeShutdownHandlers();
+    disconnectShutdownSignal();
     try {
       yield* until(() => closeHttpServer(httpServer));
     } finally {

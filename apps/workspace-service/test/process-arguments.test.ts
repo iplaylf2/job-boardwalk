@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 
 import { parseWorkspaceServiceArguments } from "#/runtime/process-arguments.js";
 
-test("accepts a complete set of installed runtime paths and listener arguments", () => {
+test("accepts explicit installed Workspace Service process arguments", () => {
   const root = path.join(path.parse(process.cwd()).root, "Synthetic Job Boardwalk");
 
   expect(
@@ -24,7 +24,7 @@ test("accepts a complete set of installed runtime paths and listener arguments",
   });
 });
 
-test("rejects relative installed paths and partial listener configuration", () => {
+test("rejects relative installed paths and partial listener addresses", () => {
   expect(() =>
     parseWorkspaceServiceArguments(["--workspace-database-path=data/workspace.sqlite"]),
   ).toThrow(/absolute path/u);
