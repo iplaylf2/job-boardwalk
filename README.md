@@ -115,6 +115,10 @@ The resulting manifest identifies an engineering staging artifact, not a support
 release. [Desktop distribution](docs/desktop-distribution.md) defines the installed form and
 remaining release work.
 
+The same staging tree can be packaged as a Linux `.tar.gz` or Windows `.zip`.
+[Desktop Distribution](internal/desktop-distribution/README.md) documents the archive command; the
+result remains a pre-release engineering artifact.
+
 When the user requests login, or visible page evidence shows that the requested workflow requires
 authentication and the current session is unauthenticated, the agent proactively opens the
 platform login interface. The agent then pauses browser input so the user can enter credentials and

@@ -34,6 +34,17 @@ tasks:
     outputs:
       - "/target/desktop-distribution"
 
+  package:
+    command: "pnpm run package"
+    deps:
+      - "~:assemble"
+    inputs:
+      - "src/**/*"
+      - "package.json"
+      - "/target/desktop-distribution"
+    options:
+      cache: false
+
   lint:
     command: "pnpm run lint"
     inputs:

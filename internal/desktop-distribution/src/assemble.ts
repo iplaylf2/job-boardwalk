@@ -2,11 +2,11 @@ import { createHash } from "node:crypto";
 import { cp, glob, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { productDirectoryName } from "#/assembly-plan.ts";
 import type { AssemblyComponent, DesktopAssemblyPlan } from "#/assembly-plan.ts";
 
 const manifestFormatVersion = 1;
 const manifestIndentationSpaces = 2;
-const productDirectoryName = "Job Boardwalk";
 
 interface ManifestFile {
   readonly path: string;

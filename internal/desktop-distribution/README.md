@@ -11,13 +11,13 @@ The package owns:
 - assembly of the documented desktop-product layout and its integrity manifest;
 - the explicit allowlist of application-owned build artifacts;
 - build-time validation that resources stay within the product directory contract;
-- future platform-packager configuration and invocation;
-- release-input, signing, notarization, and provenance policy.
+- selection and invocation of the native archive tool.
 
 It consumes finalized application artifacts. It does not own their construction or behavior,
-runtime supervision, browser automation, update behavior, or release-channel decisions. The
-installed layout in [Desktop distribution](../../docs/desktop-distribution.md) is the product
-contract; assembly tests and Desktop Manager tests independently verify their owned sides of that
+runtime supervision, browser automation, update behavior, release version selection, checksums,
+signing credentials, provenance, license policy, or release-channel decisions.
+[Desktop distribution](../../docs/desktop-distribution.md) owns the installed layout and release
+boundary; assembly tests and Desktop Manager tests independently verify their owned sides of that
 contract.
 
 ## Current implementation
@@ -27,13 +27,14 @@ executable, Browser Session, Dashboard, Workspace Service, and migrations into a
 staging tree and writes its integrity manifest. The staged lifecycle runs without Docker, a system
 Node.js or Caddy installation, `node_modules`, or a bundled browser.
 
-The staging tree remains an engineering artifact.
-[Desktop distribution](../../docs/desktop-distribution.md) owns the installed-form contract,
-release readiness criteria, and remaining delivery work.
+On native Linux or Windows, the package task creates a portable archive from the assembled product.
+
+The staging tree and archives remain engineering artifacts.
 
 Node.js executes the package's TypeScript entrypoints directly, with no generated JavaScript copy.
-Vitest tests the assembly boundary, Cargo supplies structured Rust package metadata, and Node's
-standard library supplies filesystem operations.
+Vitest tests the assembly and archive-coordination boundaries, Cargo supplies structured Rust
+package metadata, and Node's standard library coordinates filesystem and process work around the
+native archive tools.
 
 ## Commands
 
@@ -45,14 +46,23 @@ JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
 ```
 
 The input must be a platform-native Caddy executable that can load the product Caddyfile. The
-assembler verifies that compatibility before copying it. The desktop distribution contract defines
-the remaining release-input and packaging responsibilities.
+assembler verifies that compatibility before copying it.
 
 The command writes
 `target/desktop-distribution/<platform>-<architecture>/Job Boardwalk/`.
 
 For engineering validation, run `bin/job-boardwalk-desktop-manager` from the assembled product
 directory. This does not make the staging tree a supported product topology.
+
+Create the native portable archive on Linux or Windows:
+
+```sh
+JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
+  pnpm exec moon run desktop-distribution:package
+```
+
+The command writes a Linux `.tar.gz` or Windows `.zip` under
+`target/desktop-distribution/releases/`.
 
 Run its direct checks:
 

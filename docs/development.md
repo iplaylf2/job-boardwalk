@@ -62,12 +62,21 @@ build input supplies the platform-native Caddy executable used by Dashboard.
 [Desktop distribution](desktop-distribution.md) defines the installed form, build ownership, and
 remaining delivery work.
 
+On Linux or Windows, assemble and create the native portable archive with:
+
+```sh
+JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
+  pnpm exec moon run desktop-distribution:package
+```
+
+The package task writes the portable archive under `target/desktop-distribution/releases/`.
+
 ## Continuous integration
 
 Non-draft pull requests targeting `master` run the affected CI plan on Ubuntu. A change that affects
-Desktop Manager receives one representative native build. Platform-specific jobs belong with the
-packaging, signing, or operating-system behavior they validate; the repository does not run empty
-Windows or macOS build matrices before those artifacts exist.
+Desktop Manager receives one representative native build. The pull-request workflow does not build
+portable archives. Platform-specific jobs belong in the future publication workflow that produces
+those artifacts and validates their packaging, signing, or operating-system behavior.
 
 ## Generated artifacts and language boundaries
 

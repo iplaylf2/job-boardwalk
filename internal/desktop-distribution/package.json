@@ -12,6 +12,7 @@
   "scripts": {
     "assemble": "node src/cli.ts",
     "lint": "oxlint --config oxlint.config.ts .",
+    "package": "node src/package-cli.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

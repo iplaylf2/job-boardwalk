@@ -11,11 +11,14 @@ product-directory boundary. It includes the service host, packaged Caddy boundar
 process supervision described below. Desktop Manager exposes working lifecycle, status, log, and
 Dashboard controls; Browser Session failure leaves Workspace Service and Dashboard available.
 
-The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. Native
-release smoke tests and platform artifacts remain outstanding in
-[Delivery sequence](#delivery-sequence), so [Deployment](deployment.md) remains the supported
-topology. [Desktop Distribution](../internal/desktop-distribution/README.md) documents how to build
-and inspect the staging tree.
+The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
+command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
+platform. The Windows path has not yet been validated on Windows; publication, signing, license
+collection, backup, and atomic updates also remain outstanding in
+[Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore remains the
+supported topology.
+[Desktop Distribution](../internal/desktop-distribution/README.md) documents how to build and
+inspect the staging tree.
 
 ## Installed product contract
 
@@ -118,13 +121,13 @@ An update stages and verifies replacement resources before switching them into p
 
 Build responsibilities follow the boundary that owns each artifact:
 
-| Owner                                                                               | Responsibility                                                                                                                 |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Application projects                                                                | Produce finalized native, service, and web artifacts.                                                                          |
-| Desktop Manager                                                                     | Resolve installed paths and own the desktop process topology.                                                                  |
-| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Declare allowed components, assemble and validate the product tree, emit integrity metadata, and configure platform packaging. |
-| Platform packager                                                                   | Produce archives, application bundles, and installers and integrate platform signing and notarization.                         |
-| Moon                                                                                | Schedule the application builds, distribution work, and repository checks.                                                     |
+| Owner                                                                               | Responsibility                                                                                                                                        |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Application projects                                                                | Produce finalized native, service, and web artifacts.                                                                                                 |
+| Desktop Manager                                                                     | Resolve installed paths and own the desktop process topology.                                                                                         |
+| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Declare allowed components, enforce the product-directory boundary, assemble the product tree, emit its manifest, and invoke the native archive tool. |
+| Platform packager                                                                   | Implement archive, application-bundle, installer, signing, and notarization mechanics for its platform.                                               |
+| Moon                                                                                | Schedule the application builds, distribution work, and repository checks.                                                                            |
 
 Desktop Distribution runs only during development and release; packaged applications do not depend
 on it. Platform packaging mechanics belong to the selected maintained packager rather than to
@@ -149,6 +152,10 @@ provenance, and license policy. The installed product does not use a host Caddy 
    stops the isolated services. The Browser Session role recognizes a system-browser candidate and
    receives the in-directory profile; its failure degrades browser capability without taking the
    workspace or Dashboard offline.
-4. **Platform releases.** Add native smoke tests, portable archives, signing, notarization,
-   provenance, licenses, backup, and atomic in-directory updates. The desktop release becomes the
+4. **Linux and Windows archive construction — implemented.** On the target operating system, emit
+   the assembled product as a `.tar.gz` or `.zip`.
+5. **Native release publication.** When release inputs and channels are settled, build and validate
+   artifacts in a publication-triggered Linux and Windows workflow. Add Windows signing, release
+   provenance, license collection, backup, and atomic in-directory updates. Add Linux signing when
+   the selected publication channel defines its trust mechanism. The desktop release becomes the
    supported product topology when it covers the complete observable lifecycle.

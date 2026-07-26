@@ -1,6 +1,12 @@
 import { arch as readArchitecture, platform as readPlatform } from "node:os";
 import path from "node:path";
 
+export const productDirectoryName = "Job Boardwalk";
+
+export function desktopDistributionRoot(repositoryRoot: string): string {
+  return path.join(repositoryRoot, "target", "desktop-distribution");
+}
+
 export interface AssemblyComponent {
   readonly destination: string;
   readonly source: string;
@@ -100,12 +106,7 @@ export function createDesktopAssemblyPlan(
     components: createAssemblyComponents(options.caddyExecutable, options.repositoryRoot, platform),
     outputRoot:
       options.outputRoot ??
-      path.join(
-        options.repositoryRoot,
-        "target",
-        "desktop-distribution",
-        `${platform}-${architecture}`,
-      ),
+      path.join(desktopDistributionRoot(options.repositoryRoot), `${platform}-${architecture}`),
     platform,
     productVersion: options.productVersion,
   };
