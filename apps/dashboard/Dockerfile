@@ -1,14 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-FROM ghcr.io/pnpm/pnpm:11.18.0 AS pnpm
-
-FROM docker.io/library/node:26.5.0-bookworm-slim AS build
-
-ENV PNPM_HOME=/pnpm
-
-COPY --from=pnpm /opt/pnpm /opt/pnpm
-
-RUN ln -s /opt/pnpm/pnpm /usr/local/bin/pnpm
+# This image only bootstraps the toolchain selected by package.json and pnpm-lock.yaml.
+FROM ghcr.io/pnpm/pnpm:latest AS build
 
 WORKDIR /workspace
 

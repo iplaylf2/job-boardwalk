@@ -75,8 +75,8 @@ the applications.
 Workspace Service and Dashboard require Docker Engine with Docker Compose; building their images
 from source also requires BuildKit. Browser Session requires a graphical host session, Patchright
 Chromium, and the Node.js and pnpm toolchain declared in the root
-[`package.json`](package.json). The package-manager configuration downloads its pinned Node.js
-runtime when the host runtime does not match.
+[`package.json`](package.json) and resolved in [`pnpm-lock.yaml`](pnpm-lock.yaml). The
+package-manager configuration selects those locked versions, downloading them when needed.
 
 Build and start the container-owned services:
 

@@ -9,10 +9,10 @@ runtime topology and deployable artifacts.
 Each ecosystem retains its native dependency and workspace authority:
 
 - `pnpm-workspace.yaml` defines the Node.js workspace and shared dependency requirements.
-  `pnpm-lock.yaml` records the exact resolution.
+  Root `package.json` declares the Node.js and pnpm toolchain requirements used by development, CI,
+  and source image builds. `pnpm-lock.yaml` records the exact dependency and toolchain resolutions.
 - Root `Cargo.toml` defines the Rust workspace and compatible dependency requirements. `Cargo.lock`
   records the exact resolution.
-- Root `package.json` declares the Node.js and pnpm versions used by development and CI.
 - `rust-toolchain.toml` pins the Rust compiler and required components. The project does not
   currently publish a minimum-supported-Rust-version contract.
 

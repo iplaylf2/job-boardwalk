@@ -13,8 +13,8 @@ are the boundary for login, verification, and other user-controlled actions.
 - Graphical host: a repository checkout, Patchright Chromium, and the Node.js and pnpm toolchain
   declared in the root [`package.json`](../package.json)
 
-The source build uses pinned Node.js and pnpm versions. Host Node.js and pnpm are needed only for
-Browser Session and source development, not for deploying existing images.
+Source image builds bootstrap their own toolchain. Host Node.js and pnpm are needed only for Browser
+Session and source development, not for building or deploying the images.
 
 ## Build from source
 
@@ -27,6 +27,13 @@ docker compose ps
 
 The build overlay is needed only when producing images from this repository. Subsequent lifecycle
 commands use the root Compose model.
+
+The Dockerfiles start from pnpm's standalone image, which bootstraps the pnpm version requirement
+declared by `devEngines.packageManager`. The frozen install then resolves `devEngines.runtime` and
+runs application scripts with the locked Node.js version. Workspace Service also uses pnpm's public
+`runtime set` command to export that Node.js executable into its runtime image. The exact toolchain
+resolutions and checksums remain in `pnpm-lock.yaml`, so a Node.js or pnpm update changes the root
+toolchain declaration and lockfile rather than either Dockerfile.
 
 ## Deploy existing images
 
@@ -200,16 +207,17 @@ port, storage, dependencies, and readiness behavior.
 pnpm and the monorepo exist only in each image's builder stage. Each application build produces a
 complete deployment artifact under its own `dist/` directory:
 
-- Dashboard produces static HTML, CSS, and JavaScript; its runtime image combines them with pinned
-  Caddy and the application-owned Caddyfile.
+- Dashboard produces static HTML, CSS, and JavaScript.
 - Workspace Service produces `workspace-service.mjs` and the complete Drizzle migration baseline
   under `migrations/`.
 
-The runtime stages copy only those artifact directories. They do not contain pnpm, `node_modules`,
-workspace manifests, `workspace:*` references, or source paths from another application. The
-Workspace Service artifact can run from an otherwise empty directory with a compatible Node.js
-runtime. The same Caddyfile accompanies the desktop staging tree, so routing and security policy do
-not fork by deployment topology.
+The runtime stages combine those artifacts only with their runtime-owned inputs: Dashboard adds its
+Caddyfile and built client to the pinned Caddy image, while Workspace Service adds its built
+artifact and locked Node.js executable to the Node.js runtime image. They do not contain pnpm,
+`node_modules`, workspace manifests, `workspace:*` references, or source paths from another
+application. The Workspace Service artifact can run from an otherwise empty directory with a
+compatible Node.js runtime. The same Caddyfile accompanies the desktop staging tree, so routing and
+security policy do not fork by deployment topology.
 
 The resulting OCI images are the deployment artifacts. `compose.yaml` defaults to the local image
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the
