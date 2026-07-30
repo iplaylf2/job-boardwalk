@@ -8,8 +8,9 @@ boundaries; [Deployment](deployment.md) documents the supported Compose topology
 
 The repository currently assembles a deterministic, runnable staging tree inside the documented
 product-directory boundary. It includes the service host, packaged Caddy boundary, and direct
-process supervision described below. Desktop Manager exposes working lifecycle, status, log, and
-Dashboard controls; Browser Session failure leaves Workspace Service and Dashboard available.
+process supervision described below. Desktop Manager exposes working lifecycle and status controls
+alongside the Dashboard address and service log path; Browser Session failure leaves Workspace
+Service and Dashboard available.
 
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
@@ -49,10 +50,15 @@ Job Boardwalk/
 ├── payload/
 │   ├── Caddyfile
 │   ├── dashboard/
-│   ├── browser-session.cjs
-│   ├── migrations/
+│   ├── browser-session/
+│   │   ├── package.json
+│   │   ├── dist/
+│   │   │   └── index.cjs
+│   │   └── node_modules/
 │   ├── licenses/
-│   └── workspace-service.mjs
+│   └── workspace-service/
+│       ├── index.mjs
+│       └── migrations/
 ├── data/
 │   ├── browser-profile/
 │   ├── caddy/
@@ -74,15 +80,21 @@ variables or the current working directory.
 
 The target release contains an application-specific service-host executable built with Node.js
 single-executable application support and a small role dispatcher. Finalized Workspace Service and
-Browser Session modules remain product payload resources. The product does not ship a
-general-purpose Node.js distribution or `node_modules`.
+Browser Session artifacts remain application-owned under the product payload.
+Workspace Service exposes `index.mjs`; Browser Session is a pnpm-produced portable application
+package exposing `dist/index.cjs`. Desktop Manager resolves those entrypoints from the installed
+product layout. Desktop Distribution places each complete artifact without selecting or relocating
+individual dependencies. Browser Session therefore retains Patchright's published package layout.
+The product does not ship a general-purpose Node.js distribution, package manager, development
+dependency tree, or source workspace.
 
 Desktop Manager invokes the host in one explicit role for each isolated Node service process. The
-host loads the selected finalized module and, for Browser Session, discovers a system Chrome or
-Edge candidate with a recognizable version. It does not derive layout paths or coordinate sibling
-processes. Dashboard instead runs on the packaged Caddy executable. Compose and desktop
-distribution share the same Caddyfile, so static serving, security headers, SPA fallback,
-compression, and `/api` proxying have one configuration and one maintained server implementation.
+host loads the selected entry module directly and, for Browser Session, discovers a system Chrome
+or Edge candidate with a recognizable version. It does not derive layout paths, inspect service
+contents, or coordinate sibling processes. Dashboard instead runs on the packaged Caddy executable.
+Compose and desktop distribution share the same Caddyfile, so static serving, security headers, SPA
+fallback, compression, and `/api` proxying have one configuration and one maintained server
+implementation.
 
 Packaged service endpoints bind only to loopback. Their concrete addresses remain private runtime
 details coordinated among product-owned components.
@@ -95,9 +107,10 @@ its absolute path to Browser Session, which uses the dedicated profile under
 `data/browser-profile/`. It never launches the user's normal browser profile.
 
 Discovery recognizes a browser candidate; it does not establish compatibility with every system
-browser build. Browser Session's runtime status is the operational compatibility boundary; a launch
-failure remains visible through Dashboard and the service log while Browser Session continues its
-recovery loop. Downloading or installing a browser is outside the default product lifecycle.
+browser build. Browser Session readiness is the operational compatibility boundary. If browser
+discovery or startup fails, Desktop Manager marks Browser Session unavailable while leaving
+Workspace Service and Dashboard running; the service log contains the detailed error. Downloading
+or installing a browser is outside the default product lifecycle.
 
 [Product design](product-design.md) remains authoritative for Browser Session ownership, visible
 browser behavior, user handoff, credentials, verification, applications, messages, and account
@@ -107,7 +120,10 @@ control.
 
 Every assembled product tree contains a versioned manifest with the product version, target
 platform and architecture, relative file paths, byte sizes, and SHA-256 digests. Paths use forward
-slashes and remain sorted so identical inputs produce identical manifests.
+slashes and remain sorted so identical inputs produce identical manifests. Finalized application
+artifacts may contain package-manager-owned relative symbolic links. Assembly materializes them
+into regular installed files so the manifest accounts for every installed byte without depending
+on link resolution or archive-specific link behavior.
 
 Each release target must be built and tested on its native operating system. Release validation
 must run the assembled directory outside the repository and from an unrelated current working
@@ -123,7 +139,7 @@ Build responsibilities follow the boundary that owns each artifact:
 
 | Owner                                                                               | Responsibility                                                                                                                                        |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Application projects                                                                | Produce finalized native, service, and web artifacts.                                                                                                 |
+| Application projects                                                                | Produce finalized native, Node service, and web artifacts.                                                                                            |
 | Desktop Manager                                                                     | Resolve installed paths and own the desktop process topology.                                                                                         |
 | [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Declare allowed components, enforce the product-directory boundary, assemble the product tree, emit its manifest, and invoke the native archive tool. |
 | Platform packager                                                                   | Implement archive, application-bundle, installer, signing, and notarization mechanics for its platform.                                               |
@@ -142,12 +158,13 @@ provenance, and license policy. The installed product does not use a host Caddy 
 
 1. **Staging boundary — implemented.** Assemble an explicit allowlist of finalized application
    artifacts into the deterministic product tree, then emit the integrity manifest. The staging
-   tree contains no Docker files, browser binary, general-purpose Node.js distribution,
-   `node_modules`, or source checkout.
+   tree contains no Docker files, browser binary, general-purpose Node.js distribution, package
+   manager, development dependency tree, or source checkout.
 2. **Self-contained service host — implemented.** The application-specific Node.js single
-   executable loads one finalized Node service payload per invocation. Workspace Service and
-   Browser Session consume product-root-derived resources and run without Docker, a system Node.js
-   installation, `node_modules`, or a source checkout; packaged Caddy owns Dashboard HTTP.
+   executable is shared by isolated Node service processes and loads one finalized payload per
+   invocation. Workspace Service and Browser Session consume product-root-derived resources and run
+   without Docker, a system Node.js installation, or a source checkout. Browser Session owns its
+   production dependency closure; packaged Caddy owns Dashboard HTTP.
 3. **Desktop lifecycle — implemented.** Desktop Manager directly starts, checks, observes, and
    stops the isolated services. The Browser Session role recognizes a system-browser candidate and
    receives the in-directory profile; its failure degrades browser capability without taking the

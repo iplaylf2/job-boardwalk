@@ -14,8 +14,8 @@ The package owns:
 - selection and invocation of the native archive tool.
 
 It consumes finalized application artifacts. It does not own their construction or behavior,
-runtime supervision, browser automation, update behavior, release version selection, checksums,
-signing credentials, provenance, license policy, or release-channel decisions.
+runtime supervision, browser automation, update behavior, release version selection, release-file
+checksums, signing credentials, provenance, license policy, or release-channel decisions.
 [Desktop distribution](../../docs/desktop-distribution.md) owns the installed layout and release
 boundary; assembly tests and Desktop Manager tests independently verify their owned sides of that
 contract.
@@ -23,9 +23,11 @@ contract.
 ## Current implementation
 
 The current implementation assembles Desktop Manager, Desktop Service Host, a build-supplied Caddy
-executable, Browser Session, Dashboard, Workspace Service, and migrations into a deterministic
+executable, Browser Session, Dashboard, and Workspace Service into a deterministic
 staging tree and writes its integrity manifest. The staged lifecycle runs without Docker, a system
-Node.js or Caddy installation, `node_modules`, or a bundled browser.
+Node.js or Caddy installation, a source checkout, or a bundled browser. Both Node services arrive
+as finalized runtime directories; Desktop Distribution does not interpret their entry modules or
+dependency graphs.
 
 On native Linux or Windows, the package task creates a portable archive from the assembled product.
 

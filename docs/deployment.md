@@ -204,20 +204,28 @@ port, storage, dependencies, and readiness behavior.
 
 ## Artifact boundaries
 
-pnpm and the monorepo exist only in each image's builder stage. Each application build produces a
-complete deployment artifact under its own `dist/` directory:
+pnpm and the monorepo exist only in each image's builder stage. Each container application build
+produces a complete deployment artifact under its own `dist/` directory:
 
 - Dashboard produces static HTML, CSS, and JavaScript.
-- Workspace Service produces `workspace-service.mjs` and the complete Drizzle migration baseline
-  under `migrations/`.
+- Workspace Service produces a runtime directory with its finalized ESM entry and complete Drizzle
+  migration baseline.
 
 The runtime stages combine those artifacts only with their runtime-owned inputs: Dashboard adds its
-Caddyfile and built client to the pinned Caddy image, while Workspace Service adds its built
-artifact and locked Node.js executable to the Node.js runtime image. They do not contain pnpm,
-`node_modules`, workspace manifests, `workspace:*` references, or source paths from another
-application. The Workspace Service artifact can run from an otherwise empty directory with a
-compatible Node.js runtime. The same Caddyfile accompanies the desktop staging tree, so routing and
-security policy do not fork by deployment topology.
+Caddyfile and built client to the pinned Caddy image, while Workspace Service copies the completed
+Node service directory unchanged and adds the locked Node.js executable and system libraries. The
+desktop product consumes the same Workspace Service directory through its shared Node host. Its
+public runtime entrypoint is `index.mjs`; the service artifact contains no pnpm, `node_modules`,
+workspace manifests, `workspace:*` references, or source paths because its dependencies are
+bundled.
+
+Browser Session separately produces a portable Node.js application package for host and desktop
+runtimes. Its [application README](../apps/browser-session/README.md#run-browser-session) owns that
+artifact's build and layout; [Desktop distribution](desktop-distribution.md) owns its installed
+placement.
+
+The same Caddyfile accompanies the desktop staging tree, so routing and security policy do not fork
+by deployment topology.
 
 The resulting OCI images are the deployment artifacts. `compose.yaml` defaults to the local image
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the

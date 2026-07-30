@@ -24,9 +24,8 @@ tasks:
       - "/apps/desktop-manager/Cargo.toml"
       - "/apps/dashboard/dist/**/*"
       - "/apps/dashboard/Caddyfile"
-      - "/apps/browser-session/dist/browser-session.cjs"
-      - "/apps/workspace-service/dist/workspace-service.mjs"
-      - "/apps/workspace-service/dist/migrations/**/*"
+      - "/target/service-artifacts/browser-session/**/*"
+      - "/apps/workspace-service/dist/workspace-service/**/*"
       - "/target/release/job-boardwalk-desktop-manager*"
       - "/target/release/job-boardwalk-desktop-service-host*"
     env:

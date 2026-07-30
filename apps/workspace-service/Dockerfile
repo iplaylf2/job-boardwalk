@@ -41,7 +41,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /opt/job-boardwalk/node /usr/local/bin/node
-COPY --from=build --chown=node:node /workspace/apps/workspace-service/dist/ ./
+COPY --from=build --chown=node:node /workspace/apps/workspace-service/dist/workspace-service/ ./
 
 RUN install -d -o node -g node -m 0700 /var/lib/job-boardwalk
 
@@ -49,4 +49,4 @@ USER node
 
 EXPOSE 54310
 
-CMD ["node", "workspace-service.mjs"]
+CMD ["node", "index.mjs"]

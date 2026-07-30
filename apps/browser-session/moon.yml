@@ -12,8 +12,11 @@ tasks:
       - "package.json"
       - "tsconfig.json"
       - "vite.config.ts"
+      - "/pnpm-lock.yaml"
+      - "/pnpm-workspace.yaml"
     outputs:
       - "dist"
+      - "/target/service-artifacts/browser-session"
 
   dev:
     command: "pnpm run dev"

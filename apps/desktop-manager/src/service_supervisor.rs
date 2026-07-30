@@ -186,7 +186,7 @@ pub(crate) fn start_services(layout: &ProductLayout) -> Result<StartupResult, St
     let mut running = RunningServices {
         services: Vec::new(),
     };
-    let mut browser_detail = "Browser Session is running.".to_owned();
+    let mut browser_detail = "Browser Session is ready with the system browser.".to_owned();
     let mut browser_running = true;
 
     for spec in service_plan(layout) {
@@ -197,7 +197,7 @@ pub(crate) fn start_services(layout: &ProductLayout) -> Result<StartupResult, St
             stop_service(&mut service);
             if optional {
                 browser_running = false;
-                browser_detail = error;
+                browser_detail = format!("{error} See the service log for details.");
                 continue;
             }
             return Err(error);

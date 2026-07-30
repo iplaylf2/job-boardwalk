@@ -1,4 +1,4 @@
-import { Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Button, LineEdit, VerticalBox } from "std-widgets.slint";
 
 component ManagementBadge inherits Rectangle {
     in property <string> label;
@@ -63,6 +63,41 @@ component ApplicationRow inherits Rectangle {
     }
 }
 
+component ResourceLocation inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+
+    background: #ffffff;
+    border-color: #dce3df;
+    border-radius: 10px;
+    border-width: 1px;
+    height: 54px;
+
+    HorizontalLayout {
+        alignment: center;
+        padding-bottom: 10px;
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 10px;
+        spacing: 12px;
+
+        Text {
+            color: #637169;
+            font-size: 13px;
+            font-weight: 600;
+            text: root.label;
+            width: 124px;
+        }
+
+        LineEdit {
+            font-size: 13px;
+            horizontal-stretch: 1;
+            read-only: true;
+            text: root.value;
+        }
+    }
+}
+
 export component ManagerWindow inherits Window {
     title: "Job Boardwalk";
     preferred-width: 760px;
@@ -71,19 +106,17 @@ export component ManagerWindow inherits Window {
     min-height: 500px;
     background: #f4f7f5;
 
-    in property <string> dashboard-url: "http://127.0.0.1:54311";
+    in property <string> dashboard-url;
+    in property <string> log-path;
     in-out property <string> workspace-state: "Stopped";
-    in-out property <string> browser-state: "Not running";
+    in-out property <string> browser-state: "Stopped";
     in-out property <string> status-detail: "Start Job Boardwalk to make the local workspace available.";
-    in-out property <string> browser-detail: "A system browser is checked when services start.";
+    in-out property <string> browser-detail: "Chrome or Edge will be checked when services start.";
     in-out property <bool> can-start: true;
     in-out property <bool> can-stop: false;
-    in-out property <bool> dashboard-available: false;
-    in-out property <bool> logs-available: false;
 
     callback start-requested();
     callback stop-requested();
-    callback open-log-requested();
 
     VerticalBox {
         padding: 30px;
@@ -122,6 +155,20 @@ export component ManagerWindow inherits Window {
             }
         }
 
+        VerticalLayout {
+            spacing: 8px;
+
+            ResourceLocation {
+                label: "Dashboard address";
+                value: root.dashboard-url;
+            }
+
+            ResourceLocation {
+                label: "Service log path";
+                value: root.log-path;
+            }
+        }
+
         Rectangle {
             vertical-stretch: 1;
         }
@@ -131,17 +178,9 @@ export component ManagerWindow inherits Window {
             height: 1px;
         }
 
-        HorizontalBox {
+        HorizontalLayout {
             alignment: end;
             spacing: 10px;
-
-            Button {
-                text: "Open Logs";
-                enabled: root.logs-available;
-                clicked => { root.open-log-requested(); }
-            }
-
-            Rectangle { horizontal-stretch: 1; }
 
             Button {
                 text: "Stop";
@@ -153,12 +192,6 @@ export component ManagerWindow inherits Window {
                 text: "Start";
                 enabled: root.can-start;
                 clicked => { root.start-requested(); }
-            }
-
-            Button {
-                text: "Open Dashboard";
-                enabled: root.dashboard-available;
-                clicked => { Platform.open-url(root.dashboard-url); }
             }
         }
     }

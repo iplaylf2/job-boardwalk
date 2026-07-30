@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use crate::product_layout::ProductLayout;
 
+pub(crate) const DASHBOARD_URL: &str = "http://127.0.0.1:54311";
+
 pub(crate) struct ServiceSpec {
     pub(crate) arguments: Vec<String>,
     pub(crate) environment: Vec<(String, String)>,
@@ -22,7 +24,10 @@ pub(crate) fn service_plan(layout: &ProductLayout) -> Vec<ServiceSpec> {
         ServiceSpec {
             arguments: vec![
                 "--role=workspace-service".to_owned(),
-                format!("--module={}", layout.workspace_service_module.display()),
+                format!(
+                    "--service-entrypoint={}",
+                    layout.workspace_service_entrypoint.display()
+                ),
                 format!(
                     "--workspace-database-path={}",
                     layout.workspace_database.display()
@@ -54,7 +59,7 @@ pub(crate) fn service_plan(layout: &ProductLayout) -> Vec<ServiceSpec> {
                 ),
                 (
                     "JOB_BOARDWALK_DASHBOARD_ADDRESS".to_owned(),
-                    "http://127.0.0.1:54311".to_owned(),
+                    DASHBOARD_URL.to_owned(),
                 ),
                 (
                     "JOB_BOARDWALK_DASHBOARD_DIRECTORY".to_owned(),
@@ -84,7 +89,10 @@ pub(crate) fn service_plan(layout: &ProductLayout) -> Vec<ServiceSpec> {
         ServiceSpec {
             arguments: vec![
                 "--role=browser-session".to_owned(),
-                format!("--module={}", layout.browser_session_module.display()),
+                format!(
+                    "--service-entrypoint={}",
+                    layout.browser_session_entrypoint.display()
+                ),
                 format!(
                     "--browser-profile-path={}",
                     layout.browser_profile_directory.display()
@@ -120,6 +128,16 @@ mod tests {
             .iter()
             .find(|service| service.name == "Browser Session")
             .expect("Browser Session should be in the desktop service plan");
+        let entrypoint_argument = format!(
+            "--service-entrypoint={}",
+            layout.browser_session_entrypoint.display()
+        );
+        assert!(
+            browser_session
+                .arguments
+                .iter()
+                .any(|argument| argument == &entrypoint_argument)
+        );
 
         for expected in [
             "--hostname=127.0.0.1",

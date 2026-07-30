@@ -9,13 +9,12 @@ mod service_supervisor;
 
 use std::env;
 use std::error::Error;
-use std::io;
-use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::Duration;
 
 use product_layout::{ProductLayout, resolve_product_layout};
+use service_plan::DASHBOARD_URL;
 use service_supervisor::{RunningServices, ServiceExit, start_services};
 
 slint::include_modules!();
@@ -47,13 +46,8 @@ fn apply_running_state(
 ) {
     update_window(weak_window, move |window| {
         window.set_can_stop(true);
-        window.set_dashboard_available(true);
         window.set_workspace_state("Running".into());
-        window.set_status_detail(if browser_running {
-            "Workspace, Dashboard, and Browser Session are running.".into()
-        } else {
-            "Workspace and Dashboard are running; Browser Session is unavailable.".into()
-        });
+        window.set_status_detail("Workspace Service and Dashboard are running.".into());
         window.set_browser_state(if browser_running {
             "Running".into()
         } else {
@@ -71,10 +65,12 @@ fn apply_stopped_state(
     update_window(weak_window, move |window| {
         window.set_can_start(true);
         window.set_can_stop(false);
-        window.set_dashboard_available(false);
         window.set_workspace_state(state.into());
         window.set_status_detail(detail.into());
-        window.set_browser_state("Not running".into());
+        window.set_browser_state("Stopped".into());
+        window.set_browser_detail(
+            "Chrome or Edge will be checked the next time services start.".into(),
+        );
     });
 }
 
@@ -90,10 +86,10 @@ fn handle_service_exit(
             update_window(weak_window, move |window| {
                 window.set_browser_state("Unavailable".into());
                 window.set_browser_detail(
-                    format!("{name} exited unexpectedly with {status}.").into(),
-                );
-                window.set_status_detail(
-                    "Workspace and Dashboard remain available; Browser Session has stopped.".into(),
+                    format!(
+                        "{name} exited unexpectedly with {status}. See the service log for details."
+                    )
+                    .into(),
                 );
             });
         }
@@ -103,7 +99,9 @@ fn handle_service_exit(
             apply_stopped_state(
                 weak_window,
                 "Failed",
-                format!("{name} exited unexpectedly with {status}."),
+                format!(
+                    "{name} exited unexpectedly with {status}. See the service log for details."
+                ),
             );
         }
         Err(error) => {
@@ -131,9 +129,10 @@ fn controller_loop(
             Some(ControllerCommand::Start) if running.is_none() => {
                 update_window(&weak_window, |window| {
                     window.set_can_start(false);
-                    window.set_logs_available(true);
                     window.set_workspace_state("Starting".into());
                     window.set_status_detail("Starting local services.".into());
+                    window.set_browser_state("Starting".into());
+                    window.set_browser_detail("Checking Chrome or Edge.".into());
                 });
                 match start_services(&layout) {
                     Ok(startup) => {
@@ -153,6 +152,8 @@ fn controller_loop(
                         window.set_can_stop(false);
                         window.set_workspace_state("Stopping".into());
                         window.set_status_detail("Stopping local services.".into());
+                        window.set_browser_state("Stopping".into());
+                        window.set_browser_detail("Stopping Browser Session.".into());
                     });
                     services.stop();
                     apply_stopped_state(
@@ -174,16 +175,7 @@ fn controller_loop(
     }
 }
 
-fn open_service_log(log_path: &Path) -> io::Result<()> {
-    open::that(log_path).map_err(io::Error::other)
-}
-
-fn install_callbacks(
-    window: &ManagerWindow,
-    sender: &Sender<ControllerCommand>,
-    log_path: PathBuf,
-) {
-    let weak_window = window.as_weak();
+fn install_callbacks(window: &ManagerWindow, sender: &Sender<ControllerCommand>) {
     let start_sender = sender.clone();
     window.on_start_requested(move || {
         let _ = start_sender.send(ControllerCommand::Start);
@@ -192,21 +184,16 @@ fn install_callbacks(
     window.on_stop_requested(move || {
         let _ = stop_sender.send(ControllerCommand::Stop);
     });
-    window.on_open_log_requested(move || {
-        if let Err(error) = open_service_log(&log_path) {
-            update_window(&weak_window, move |window| {
-                window.set_status_detail(format!("Cannot open service log: {error}").into());
-            });
-        }
-    });
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let manager_executable = env::current_exe()?;
     let layout = resolve_product_layout(&manager_executable)?;
     let window = ManagerWindow::new()?;
+    window.set_dashboard_url(DASHBOARD_URL.into());
+    window.set_log_path(layout.log_path.display().to_string().into());
     let (sender, receiver) = mpsc::channel();
-    install_callbacks(&window, &sender, layout.log_path.clone());
+    install_callbacks(&window, &sender);
     let weak_window = window.as_weak();
     let controller = thread::spawn(move || controller_loop(receiver, weak_window, layout));
     let result = window.run();

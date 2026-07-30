@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { cp, glob, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { productDirectoryName } from "#/assembly-plan.ts";
@@ -47,15 +47,33 @@ async function copyComponent(
   validateDestination(component.destination);
   const destination = path.join(stagingDirectory, component.destination);
   await mkdir(path.dirname(destination), { recursive: true });
-  await cp(component.source, destination, { recursive: true });
+  await cp(component.source, destination, { dereference: true, recursive: true });
 }
 
 async function listFiles(root: string): Promise<string[]> {
-  const entries = await Array.fromAsync(glob("**/*", { cwd: root, withFileTypes: true }));
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => path.relative(root, path.join(entry.parentPath, entry.name)))
-    .toSorted();
+  const files: string[] = [];
+
+  async function visit(relativeDirectory: string): Promise<void> {
+    const directory = path.join(root, relativeDirectory);
+    const entries = await readdir(directory, { withFileTypes: true });
+    await Promise.all(
+      entries.map(async (entry) => {
+        const relativePath = path.join(relativeDirectory, entry.name);
+        if (entry.isDirectory()) {
+          await visit(relativePath);
+        } else if (entry.isFile()) {
+          files.push(relativePath);
+        } else {
+          throw new Error(
+            `Product artifacts must be regular files or directories: ${relativePath}`,
+          );
+        }
+      }),
+    );
+  }
+
+  await visit("");
+  return files.toSorted();
 }
 
 async function describeFile(root: string, relativePath: string): Promise<ManifestFile> {

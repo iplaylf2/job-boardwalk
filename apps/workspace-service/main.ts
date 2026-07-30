@@ -1,4 +1,5 @@
 import { createScope } from "@shajara/host";
+import { inspect } from "node:util";
 
 import { parseWorkspaceServiceArguments } from "./src/runtime/process-arguments.js";
 import { runWorkspaceService } from "./src/runtime/service-lifecycle.js";
@@ -6,7 +7,22 @@ import { runWorkspaceService } from "./src/runtime/service-lifecycle.js";
 const userArgumentStartIndex = 2;
 
 function errorDetail(error: unknown): string {
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+  if (Array.isArray(error)) {
+    return error.map(errorDetail).join("\n");
+  }
+  if (error instanceof Error) {
+    const details = [error.stack ?? error.message];
+    const { cause } = error;
+    const { suppressed } = error as Error & { suppressed?: unknown };
+    if (cause) {
+      details.push(`Caused by: ${errorDetail(cause)}`);
+    }
+    if (suppressed) {
+      details.push(`Suppressed during disposal: ${errorDetail(suppressed)}`);
+    }
+    return details.join("\n");
+  }
+  return inspect(error, { depth: 5 });
 }
 
 function installTerminationSignalHandlers(controller: AbortController): () => void {

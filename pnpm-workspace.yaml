@@ -5,6 +5,7 @@ packages:
 
 nodeVersion: 26.5.0
 engineStrict: true
+injectWorkspacePackages: true
 
 strictPeerDependencies: true
 

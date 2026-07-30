@@ -6,14 +6,16 @@ not this executable, owns service order, readiness, failure containment, and shu
 
 The host supports two roles:
 
-- `workspace-service` loads the finalized Workspace Service module.
+- `workspace-service` loads the finalized Workspace Service entry module.
 - `browser-session` discovers a system Chrome or Edge executable that reports a recognizable
-  version, passes it to the finalized Browser Session module, and uses the dedicated product
-  profile supplied by Desktop Manager. Browser Session startup remains the compatibility check.
+  version, passes its path to the finalized Browser Session entry module, and loads that module
+  with the dedicated product profile supplied by Desktop Manager. Browser Session startup remains
+  the compatibility check.
 
-Desktop Manager supplies each role's module and runtime paths as explicit absolute arguments. The
-host does not derive the product layout, supervise sibling processes, expose a manager protocol, or
-use shajara to model process topology.
+Desktop Manager supplies each role's public entry module and runtime paths as explicit absolute
+arguments. The host loads that file directly. It does not derive the product layout, inspect the
+service's dependency or resource layout, supervise sibling processes, expose a manager protocol,
+or use shajara to model process topology.
 
 After loading a service module, the host converts stdin EOF from Desktop Manager to `SIGTERM`.
 Workspace Service and Browser Session handle normal process signals and remain independent of
@@ -29,7 +31,10 @@ pnpm exec moon run desktop-service-host:build
 
 The resulting executable is
 `target/release/job-boardwalk-desktop-service-host` or its platform equivalent. It is an
-application-specific runtime host, not a general-purpose Node.js distribution.
+application-specific runtime host, not a general-purpose Node.js distribution. The executable is
+shared by the isolated Node service processes. A finalized artifact may load production
+dependencies from its own application-owned directory; it never relies on a system Node.js
+installation or the source workspace.
 
 Run focused checks with:
 

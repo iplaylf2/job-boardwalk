@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -44,11 +44,20 @@ describe("assembleDesktopProduct", () => {
     const root = await createTestRoot();
     const manager = await writeArtifact(root, "sources/manager", "synthetic manager");
     const service = await writeArtifact(root, "sources/service/index.js", "synthetic service");
+    const hiddenMetadata = await writeArtifact(
+      root,
+      "sources/service/.runtime/metadata.json",
+      "synthetic metadata",
+    );
     const plan = createPlan(root, [
       { destination: "bin/manager", source: manager },
       {
         destination: "payload/service/index.js",
         source: service,
+      },
+      {
+        destination: "payload/service/.runtime/metadata.json",
+        source: hiddenMetadata,
       },
     ]);
 
@@ -67,6 +76,7 @@ describe("assembleDesktopProduct", () => {
     expect(secondManifest).toBe(firstManifest);
     expect(second.manifest.files.map((file) => file.path)).toEqual([
       "bin/manager",
+      "payload/service/.runtime/metadata.json",
       "payload/service/index.js",
     ]);
     const dataDirectory = await stat(path.join(second.productDirectory, "data"));
@@ -81,4 +91,38 @@ describe("assembleDesktopProduct", () => {
 
     await expect(assembleDesktopProduct(plan)).rejects.toThrow();
   });
+
+  test.skipIf(process.platform === "win32")(
+    "materializes artifact symlinks in the installed product tree",
+    async () => {
+      const root = await createTestRoot();
+      const executable = await writeArtifact(
+        root,
+        "sources/service/node_modules/tool/cli.js",
+        "synthetic executable",
+      );
+      const executableLink = path.join(root, "sources/service/node_modules/.bin/synthetic-tool");
+      await mkdir(path.dirname(executableLink), { recursive: true });
+      await symlink(path.relative(path.dirname(executableLink), executable), executableLink);
+      const plan = createPlan(root, [
+        {
+          destination: "payload/service",
+          source: path.join(root, "sources/service"),
+        },
+      ]);
+
+      const result = await assembleDesktopProduct(plan);
+      const installedLink = path.join(
+        result.productDirectory,
+        "payload/service/node_modules/.bin/synthetic-tool",
+      );
+
+      const installedLinkMetadata = await stat(installedLink);
+      expect(installedLinkMetadata.isFile()).toBe(true);
+      expect(await readFile(installedLink, "utf8")).toBe("synthetic executable");
+      expect(result.manifest.files.map((file) => file.path)).toContain(
+        "payload/service/node_modules/.bin/synthetic-tool",
+      );
+    },
+  );
 });

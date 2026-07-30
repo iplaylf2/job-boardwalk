@@ -56,9 +56,7 @@ JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
 ```
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
-checks. The assembled Desktop Service Host is a Node.js single executable that loads Workspace
-Service or Browser Session without a system Node.js installation or `node_modules`. The explicit
-build input supplies the platform-native Caddy executable used by Dashboard.
+checks. The explicit build input supplies the platform-native Caddy executable used by Dashboard.
 [Desktop distribution](desktop-distribution.md) defines the installed form, build ownership, and
 remaining delivery work.
 
@@ -81,7 +79,11 @@ those artifacts and validates their packaging, signing, or operating-system beha
 ## Generated artifacts and language boundaries
 
 Rust output stays under the root `target/` directory. Node.js applications produce their own
-`dist/` artifacts, which are never imported as source across the language boundary.
+compiled output, which is never imported as source across the language boundary. Each application
+owns its stable entrypoint, runtime resources, and finalized artifact. Runtime integrations consume
+those public artifacts without reconstructing their dependency contents. The application READMEs
+document their different finalization strategies: Workspace Service uses its Vite output directly,
+while Browser Session adds a pnpm-produced production dependency closure.
 
 Future Rust applications join the root Cargo workspace. Arguments, health endpoints, exit status,
 logs, and process signals are sufficient for the current cross-language lifecycle and need no

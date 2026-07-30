@@ -40,7 +40,7 @@ async function main(): Promise<void> {
   if (role === "browser-session") {
     await prepareBrowserSession();
   }
-  createRequire(process.execPath)(readRequiredArgument(userArguments, "module"));
+  createRequire(process.execPath)(readRequiredArgument(userArguments, "service-entrypoint"));
   installStdinShutdown();
 }
 

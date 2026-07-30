@@ -71,26 +71,16 @@ function createAssemblyComponents(
       source: path.join(repositoryRoot, "apps", "dashboard", "Caddyfile"),
     },
     {
-      destination: path.join("payload", "browser-session.cjs"),
-      source: path.join(repositoryRoot, "apps", "browser-session", "dist", "browser-session.cjs"),
+      destination: path.join("payload", "browser-session"),
+      source: path.join(repositoryRoot, "target", "service-artifacts", "browser-session"),
     },
     {
       destination: path.join("payload", "dashboard"),
       source: path.join(repositoryRoot, "apps", "dashboard", "dist"),
     },
     {
-      destination: path.join("payload", "workspace-service.mjs"),
-      source: path.join(
-        repositoryRoot,
-        "apps",
-        "workspace-service",
-        "dist",
-        "workspace-service.mjs",
-      ),
-    },
-    {
-      destination: path.join("payload", "migrations"),
-      source: path.join(repositoryRoot, "apps", "workspace-service", "dist", "migrations"),
+      destination: path.join("payload", "workspace-service"),
+      source: path.join(repositoryRoot, "apps", "workspace-service", "dist", "workspace-service"),
     },
   ];
 }

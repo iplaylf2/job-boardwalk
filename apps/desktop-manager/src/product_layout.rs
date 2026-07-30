@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 #[derive(Clone)]
 pub(crate) struct ProductLayout {
     pub(crate) browser_profile_directory: PathBuf,
-    pub(crate) browser_session_module: PathBuf,
+    pub(crate) browser_session_entrypoint: PathBuf,
     pub(crate) caddy_executable: PathBuf,
     pub(crate) caddy_config_home: PathBuf,
     pub(crate) caddy_data_home: PathBuf,
@@ -14,7 +14,7 @@ pub(crate) struct ProductLayout {
     pub(crate) migrations_directory: PathBuf,
     pub(crate) service_host_executable: PathBuf,
     pub(crate) workspace_database: PathBuf,
-    pub(crate) workspace_service_module: PathBuf,
+    pub(crate) workspace_service_entrypoint: PathBuf,
 }
 
 fn executable_name(base: &str) -> String {
@@ -39,19 +39,22 @@ pub(crate) fn resolve_product_layout(manager_executable: &Path) -> Result<Produc
 
     Ok(ProductLayout {
         browser_profile_directory: data.join("browser-profile"),
-        browser_session_module: payload.join("browser-session.cjs"),
+        browser_session_entrypoint: payload
+            .join("browser-session")
+            .join("dist")
+            .join("index.cjs"),
         caddy_config_home: data.join("caddy").join("config"),
         caddy_data_home: data.join("caddy").join("data"),
         caddy_executable: binary_directory.join(executable_name("caddy")),
         caddyfile: payload.join("Caddyfile"),
         dashboard_directory: payload.join("dashboard"),
         log_path: data.join("logs").join("services.log"),
-        migrations_directory: payload.join("migrations"),
+        migrations_directory: payload.join("workspace-service").join("migrations"),
         service_host_executable: configured_service_host.unwrap_or_else(|| {
             binary_directory.join(executable_name("job-boardwalk-desktop-service-host"))
         }),
         workspace_database: data.join("workspace.sqlite"),
-        workspace_service_module: payload.join("workspace-service.mjs"),
+        workspace_service_entrypoint: payload.join("workspace-service").join("index.mjs"),
     })
 }
 
@@ -80,6 +83,13 @@ mod tests {
             layout.service_host_executable,
             root.join("bin")
                 .join(executable_name("job-boardwalk-desktop-service-host"))
+        );
+        assert_eq!(
+            layout.browser_session_entrypoint,
+            root.join("payload")
+                .join("browser-session")
+                .join("dist")
+                .join("index.cjs")
         );
         assert_eq!(
             layout.workspace_database,

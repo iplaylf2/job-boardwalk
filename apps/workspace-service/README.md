@@ -33,11 +33,13 @@ docker compose -f compose.yaml -f deploy/compose.build.yaml up --build --detach 
 
 Its SQLite database lives in the `workspace-data` named volume. Compose publishes
 <http://127.0.0.1:54310> without exposing the service on LAN interfaces.
-The application build produces a self-contained `dist/` artifact with
-`workspace-service.mjs` and the Drizzle baseline under `migrations/`. The application-owned
-`Dockerfile` copies only that directory into the runtime image; source files, workspace manifests,
-build dependencies, pnpm, and `node_modules` are absent. The `.mjs` file is Vite's finalized ESM
-runtime artifact, not a maintained source script; Workspace Service source remains TypeScript.
+
+The application build produces its Node service artifact under `dist/workspace-service/`, with the
+public runtime entrypoint at `index.mjs` and the Drizzle baseline under `migrations/`. The
+application-owned Dockerfile copies that same directory into the runtime image; Desktop
+Distribution copies it unchanged into the desktop product. Source files, workspace manifests,
+build dependencies, pnpm, and `node_modules` are absent because Vite finalizes all non-built-in
+dependencies into the ESM entry.
 
 For source development:
 
@@ -271,8 +273,9 @@ Browser Session's profile location.
 The Drizzle schema lives in `src/persistence/schema.ts`. The `migrations/` directory contains
 exactly one complete baseline for the current model, not an upgrade chain. Existing databases from
 earlier exploratory models are unsupported and must be deleted before starting this version.
-The Vite build emits this directory as runtime assets under `dist/migrations`; the source directory
-remains the schema generation target and source of truth.
+The application build emits this directory as runtime assets under
+`dist/workspace-service/migrations`; the source directory remains the schema generation target and
+source of truth.
 
 During exploration, a schema change replaces both the database and the baseline. Remove the local
 database and current migration directory, then generate one new baseline from the complete schema.
@@ -296,11 +299,11 @@ boundary. Local state is created with owner-only permissions on systems that sup
 `JOB_BOARDWALK_WORKSPACE_SERVICE_PORT` accepts a TCP port and defaults to `54310`. Compose owns both
 production values; users do not need to set them.
 
-For desktop staging, Desktop Manager starts the finalized Workspace Service module through Desktop
-Service Host and supplies absolute database and migration paths plus the loopback listener address.
-These arguments override source-development defaults, so a directory-contained run does not depend
-on environment variables or the launcher's working directory. Workspace Service handles `SIGINT`
-and `SIGTERM`; Desktop Service Host converts Manager's stdin closure to `SIGTERM`.
+For desktop staging, Desktop Manager starts the finalized Workspace Service artifact through
+Desktop Service Host and supplies absolute database and migration paths plus the loopback listener
+address. These arguments override source-development defaults, so a directory-contained run does
+not depend on environment variables or the launcher's working directory. Workspace Service handles
+`SIGINT` and `SIGTERM`; Desktop Service Host converts Manager's stdin closure to `SIGTERM`.
 
 ## Concurrency model
 

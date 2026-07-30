@@ -28,8 +28,8 @@ integration to separate applications:
   does not coordinate the product topology.
 - [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
   and desktop-supervision boundary. It starts, checks, observes, and stops Workspace Service,
-  Dashboard's packaged Caddy process, and Browser Session; it opens logs and Dashboard and never
-  takes over Browser Session's page-control boundary.
+  Dashboard's packaged Caddy process, and Browser Session; it displays the Dashboard address and
+  service log path and never takes over Browser Session's page-control boundary.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -59,13 +59,15 @@ Available now:
   platform filtering, and in-library views for interested, contacted, applied, and interviewed
   records while preserving the original recruiting-platform sources. Its report reader keeps saved
   conclusions available without the agent conversation that produced them.
-- Desktop Manager provides working start, stop, status, log, and Dashboard controls while directly
-  supervising the product's isolated service processes. Browser Session failure degrades the
-  browser capability without taking Workspace Service or Dashboard offline.
-- Desktop staging assembles Desktop Manager, Desktop Service Host, Caddy, Browser Session,
-  Dashboard, Workspace Service, and migrations into one directory. The complete local lifecycle
-  runs without Docker, a system Node.js or Caddy installation, `node_modules`, or a bundled
-  browser.
+- Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
+  address and service log path and directly supervising the product's isolated service processes.
+  Browser Session failure degrades the browser capability without taking Workspace Service or
+  Dashboard offline.
+- Desktop engineering staging assembles Desktop Manager, Desktop Service Host, Caddy, Browser
+  Session, Dashboard, Workspace Service, and migrations into one portable directory. It runs
+  without Docker, a system Node.js or Caddy installation, a source checkout, or a bundled browser.
+  [Desktop distribution](docs/desktop-distribution.md) defines the installed form and remaining
+  release work.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.

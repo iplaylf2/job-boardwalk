@@ -15,7 +15,9 @@ The desktop staging topology runs the same Browser Session behavior through Desk
 The host supplies an explicitly discovered system Chrome or Edge executable path while Desktop
 Manager supplies the dedicated profile under the product's `data/browser-profile/`. Browser
 Session's startup and health boundary determine whether that browser can operate with Patchright.
-The desktop payload does not bundle a browser or require `node_modules`.
+The desktop payload does not bundle a browser. Its finalized Browser Session directory contains the
+application entry module and the locked production dependency closure needed by the shared Node.js
+host.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
@@ -101,11 +103,19 @@ pnpm exec moon run browser-session:build
 pnpm exec moon run browser-session:start
 ```
 
-The finalized artifact accepts explicit process arguments for the browser executable, profile
-directory, listener hostname and port, and Workspace Service URL. The desktop runtime supplies
-these values from its directory layout and browser discovery; source development uses the
-documented environment overrides and loopback defaults. Distribution-specific layout and
-supervision remain outside Browser Session.
+The build has two application-owned stages. Vite compiles application and workspace code to
+`dist/index.cjs` and leaves third-party packages as ordinary Node.js runtime dependencies. Then
+`pnpm deploy --prod` creates the portable package at
+`target/service-artifacts/browser-session/`, containing the application manifest,
+`dist/index.cjs`, and the locked production `node_modules`. Patchright therefore retains its
+published modules and runtime resources. `dist/index.cjs` is the package's public runtime
+entrypoint.
+
+The package accepts explicit process arguments for the browser executable, profile directory,
+listener hostname and port, and Workspace Service URL. The desktop runtime supplies these values
+from its installed layout and browser discovery; source development uses the documented environment
+overrides and loopback defaults. Distribution-specific layout and supervision remain outside
+Browser Session.
 
 By default, the dedicated browser profile is stored under the operating system's user data
 directory. Set `JOB_BOARDWALK_BROWSER_PROFILE_PATH` to choose an exact path. Browser Session does
@@ -229,10 +239,9 @@ made BOSS navigate itself to `about:blank` during live testing. Patchright keeps
 API without enabling that domain. Browser Session also leaves console event collection disabled; do
 not add Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
 
-The desktop payload build excludes Patchright's optional `chromium-bidi` imports because Job
-Boardwalk launches supported Chrome and Edge persistent contexts through the existing CDP path and
-does not expose a BiDi mode. If Browser Session later adopts BiDi, that build constraint must be
-removed and the corresponding runtime dependency must become an explicit packaged artifact.
+Patchright remains an external runtime dependency so its generated modules and package-relative
+resources stay together. A Patchright upgrade must preserve that package boundary and pass both the
+Browser Session artifact build and desktop assembly checks.
 
 ## Development
 

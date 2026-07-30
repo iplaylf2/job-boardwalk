@@ -202,6 +202,7 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
+  injectWorkspacePackages: true
 
 catalogs:
   default:
@@ -278,12 +279,6 @@ importers:
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.0.12(hono@4.12.32)
-      '@job-boardwalk/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@job-boardwalk/platform-catalog':
-        specifier: workspace:*
-        version: link:../../packages/platform-catalog
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(supports-color@7.2.0)(zod@4.4.3)
@@ -300,6 +295,12 @@ importers:
         specifier: 1.61.1
         version: 1.61.1
     devDependencies:
+      '@job-boardwalk/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@job-boardwalk/platform-catalog':
+        specifier: workspace:*
+        version: link:../../packages/platform-catalog
       '@job-boardwalk/presets':
         specifier: workspace:*
         version: link:../../internal/presets

@@ -7,9 +7,10 @@ its dedicated profile.
 
 The manager starts Workspace Service and Browser Session through the sibling Desktop Service Host,
 and starts the packaged Caddy executable for Dashboard. It waits on their HTTP health endpoints
-and presents aggregate runtime state. It provides Start, Stop, Open Logs, and Open Dashboard
-controls. Service output is appended to `data/logs/services.log`; the GUI does not read workspace
-persistence or service-private APIs.
+and presents aggregate runtime state. It provides Start and Stop controls and displays the
+Dashboard address and absolute service log path so users can copy either value even when no
+operating-system URL or file handler is available. Service output is appended to
+`data/logs/services.log`; the GUI does not read workspace persistence or service-private APIs.
 
 ## Run
 
