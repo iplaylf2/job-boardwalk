@@ -5,12 +5,28 @@ and does not embed Dashboard, recruiting pages, a browser engine, or a WebView. 
 browser application; Browser Session remains the only owner of the visible recruiting browser and
 its dedicated profile.
 
-The manager starts Workspace Service and Browser Session through the sibling Desktop Service Host,
-and starts the packaged Caddy executable for Dashboard. It waits on their HTTP health endpoints
-and presents aggregate runtime state. It provides Start and Stop controls and displays the
-Dashboard address and absolute service log path so users can copy either value even when no
-operating-system URL or file handler is available. Service output is appended to
+## Product behavior
+
+The Manager presents Job Boardwalk as one local application. Its Start and Stop controls operate
+the complete local runtime, while the service overview distinguishes core availability from the
+optional browser capability. A missing browser leaves the workspace and Dashboard running and puts
+the application in a limited state with an actionable explanation.
+
+The main window also exposes the Dashboard address and absolute service log path so either can be
+copied without operating-system URL or file integration. Service output is appended to
 `data/logs/services.log`; the GUI does not read workspace persistence or service-private APIs.
+
+When services are stopped, Settings configures the three product loopback ports and an optional
+absolute browser executable override. A blank override discovers Chrome, Edge, or Chromium in the
+platform's common system locations. Manager validates distinct, non-zero ports and the configured
+file before writing `data/settings.json`; saved settings apply on the next start. Product-owned
+executables, payloads, persistence, profile paths, and lifecycle control channels remain derived
+from the installed product directory and are not user-configurable.
+
+Engineering staging may provide the browser override through
+`JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`. This development convenience is neither persisted nor part
+of installed-product discovery. [Desktop distribution](../../docs/desktop-distribution.md) owns
+the complete installed-browser policy.
 
 ## Run
 
@@ -37,12 +53,14 @@ defines release-input and packaging policy.
 
 ## Lifecycle boundary
 
-Desktop Manager is the only owner of the desktop process topology. It starts Workspace Service,
-Caddy, and Browser Session in dependency order, checks their HTTP readiness, observes unexpected
-exits, and stops them in reverse order. To stop a Node.js service, Manager closes the child host's
-standard input; Desktop Service Host converts that EOF to `SIGTERM`. Caddy shuts down through its
-loopback-only admin endpoint. Manager terminates a child only when it exceeds the bounded shutdown
-period.
+Desktop Manager is the desktop composition root. It resolves the browser override or system
+installation, starts Workspace Service, Caddy, and Browser Session in dependency order, checks
+their HTTP readiness, translates their state into the product UI, observes unexpected exits, and
+stops them in reverse order. To stop a Node.js service, Manager closes the child host's
+standard input; Desktop Service Host converts that EOF to `SIGTERM`. Caddy shuts down on every
+platform through a private, start-scoped loopback admin endpoint selected by Manager. The endpoint
+is never displayed or persisted. Manager forcibly terminates a child only when it exceeds the
+bounded shutdown period.
 
 The services expose no manager-specific control protocol. Manager relies on explicit arguments,
 health endpoints, exit status, and log streams. It does not expose a tray, install the application,

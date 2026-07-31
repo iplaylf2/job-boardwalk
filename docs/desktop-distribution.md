@@ -9,8 +9,8 @@ boundaries; [Deployment](deployment.md) documents the supported Compose topology
 The repository currently assembles a deterministic, runnable staging tree inside the documented
 product-directory boundary. It includes the service host, packaged Caddy boundary, and direct
 process supervision described below. Desktop Manager exposes working lifecycle and status controls
-alongside the Dashboard address and service log path; Browser Session failure leaves Workspace
-Service and Dashboard available.
+alongside the Dashboard address and service log path. A missing browser leaves Workspace Service
+and Dashboard available and puts the desktop application in a limited state.
 
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
@@ -63,6 +63,7 @@ Job Boardwalk/
 │   ├── browser-profile/
 │   ├── caddy/
 │   ├── logs/
+│   ├── settings.json       # created after settings are first saved
 │   └── workspace.sqlite
 └── manifest.json
 ```
@@ -89,28 +90,43 @@ The product does not ship a general-purpose Node.js distribution, package manage
 dependency tree, or source workspace.
 
 Desktop Manager invokes the host in one explicit role for each isolated Node service process. The
-host loads the selected entry module directly and, for Browser Session, discovers a system Chrome
-or Edge candidate with a recognizable version. It does not derive layout paths, inspect service
-contents, or coordinate sibling processes. Dashboard instead runs on the packaged Caddy executable.
+host loads the selected entry module directly. It does not derive layout paths, inspect service
+contents, discover browsers, or coordinate sibling processes. Desktop Manager resolves the
+configured browser override or a common system Chrome, Edge, or Chromium installation and passes
+the exact path to Browser Session. Dashboard instead runs on the packaged Caddy executable.
 Compose and desktop distribution share the same Caddyfile, so static serving, security headers, SPA
 fallback, compression, and `/api` proxying have one configuration and one maintained server
 implementation.
 
 Packaged service endpoints bind only to loopback. Their concrete addresses remain private runtime
-details coordinated among product-owned components.
+details coordinated among product-owned components. Desktop Manager Settings owns the three
+product endpoint ports and persists them in `data/settings.json`; all ports must be non-zero and
+distinct. Settings also accepts an optional absolute browser executable override. Product
+payload, executable, database, profile, log, and lifecycle-control paths continue to derive from
+the product directory and cannot be redirected through user settings.
 
-## System browser dependency
+Desktop Manager starts Caddy with a private loopback admin endpoint selected for that process at
+startup and uses it as the single cross-platform graceful-shutdown contract. That endpoint exists
+only in Manager's in-memory lifecycle state and is neither a product endpoint nor a persisted
+setting. Shutdown retains a bounded wait and forced-exit fallback.
 
-The target release does not bundle Chromium. Desktop Service Host's Browser Session invocation
-discovers an installed Chrome or Edge executable that reports a recognizable version and passes
-its absolute path to Browser Session, which uses the dedicated profile under
-`data/browser-profile/`. It never launches the user's normal browser profile.
+## Browser runtime dependency
+
+The desktop product does not bundle or download a browser. When no executable override is selected
+in Desktop Manager Settings, Manager checks the platform's common Chrome, Edge, and Chromium
+locations. When an absolute path is selected, it checks only that executable. Engineering staging
+may provide an explicit development override through `JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`; the
+Patchright development cache is not a product discovery source. A candidate must report a
+recognizable version before Manager passes its absolute path to Browser Session, which uses the
+dedicated profile under `data/browser-profile/`. It never launches the user's normal browser
+profile.
 
 Discovery recognizes a browser candidate; it does not establish compatibility with every system
-browser build. Browser Session readiness is the operational compatibility boundary. If browser
-discovery or startup fails, Desktop Manager marks Browser Session unavailable while leaving
-Workspace Service and Dashboard running; the service log contains the detailed error. Downloading
-or installing a browser is outside the default product lifecycle.
+browser build. Browser Session owns browser launch, runtime compatibility, and recovery. Discovery
+failure prevents only the browser process from starting; Desktop Manager keeps Workspace Service
+and Dashboard running and presents an actionable limited state. If the Browser Session process
+exits, Manager reports the failure and points to the service log. The desktop product never
+downloads or installs browser software.
 
 [Product design](product-design.md) remains authoritative for Browser Session ownership, visible
 browser behavior, user handoff, credentials, verification, applications, messages, and account
@@ -166,9 +182,9 @@ provenance, and license policy. The installed product does not use a host Caddy 
    without Docker, a system Node.js installation, or a source checkout. Browser Session owns its
    production dependency closure; packaged Caddy owns Dashboard HTTP.
 3. **Desktop lifecycle — implemented.** Desktop Manager directly starts, checks, observes, and
-   stops the isolated services. The Browser Session role recognizes a system-browser candidate and
-   receives the in-directory profile; its failure degrades browser capability without taking the
-   workspace or Dashboard offline.
+   stops the isolated services. Manager recognizes a configured or system-browser candidate, and
+   Browser Session receives its exact path and the in-directory profile; browser failure degrades
+   that capability without taking the workspace or Dashboard offline.
 4. **Linux and Windows archive construction — implemented.** On the target operating system, emit
    the assembled product as a `.tar.gz` or `.zip`.
 5. **Native release publication.** When release inputs and channels are settled, build and validate

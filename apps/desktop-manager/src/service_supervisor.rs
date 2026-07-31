@@ -3,6 +3,9 @@ use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::browser_discovery::discover_browser;
+use crate::caddy_lifecycle::CaddyLifecycle;
+use crate::desktop_settings::DesktopSettings;
 use crate::product_layout::ProductLayout;
 use crate::service_plan::{ServiceSpec, ShutdownMethod, service_plan};
 
@@ -118,16 +121,11 @@ fn wait_for_readiness(service: &mut ManagedService, health_url: &str) -> Result<
 
 fn stop_service(service: &mut ManagedService) {
     match &service.shutdown {
+        ShutdownMethod::Caddy(lifecycle) => {
+            let _ = lifecycle.request_shutdown();
+        }
         ShutdownMethod::CloseStdin => {
             service.stdin.take();
-        }
-        ShutdownMethod::PostAdminEndpoint { url } => {
-            let agent = ureq::Agent::config_builder()
-                .timeout_global(Some(Duration::from_secs(1)))
-                .proxy(None)
-                .build()
-                .new_agent();
-            let _ = agent.post(*url).send_empty();
         }
     }
     let deadline = Instant::now() + SERVICE_SHUTDOWN_TIMEOUT;
@@ -181,19 +179,29 @@ impl Drop for RunningServices {
     }
 }
 
-pub(crate) fn start_services(layout: &ProductLayout) -> Result<StartupResult, String> {
+pub(crate) fn start_services(
+    layout: &ProductLayout,
+    settings: &DesktopSettings,
+) -> Result<StartupResult, String> {
+    let caddy_lifecycle = CaddyLifecycle::prepare()?;
     let log = open_log_file(layout)?;
     let mut running = RunningServices {
         services: Vec::new(),
     };
-    let mut browser_detail = "Browser Session is ready with the system browser.".to_owned();
-    let mut browser_running = true;
+    let browser = discover_browser(settings.browser_executable.as_deref());
+    let (browser, mut browser_running, mut browser_detail) = match browser {
+        Ok(browser) => {
+            let detail = browser.detail.clone();
+            (Some(browser), true, detail)
+        }
+        Err(error) => (None, false, error),
+    };
 
-    for spec in service_plan(layout) {
-        let health_url = spec.health_url;
+    for spec in service_plan(layout, settings, caddy_lifecycle.clone(), browser.as_ref()) {
+        let health_url = spec.health_url.clone();
         let optional = spec.optional;
         let mut service = spawn_service(spec, &log)?;
-        if let Err(error) = wait_for_readiness(&mut service, health_url) {
+        if let Err(error) = wait_for_readiness(&mut service, &health_url) {
             stop_service(&mut service);
             if optional {
                 browser_running = false;

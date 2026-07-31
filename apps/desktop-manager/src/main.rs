@@ -3,18 +3,23 @@
     windows_subsystem = "windows"
 )]
 
+mod browser_discovery;
+mod caddy_lifecycle;
+mod desktop_settings;
 mod product_layout;
 mod service_plan;
 mod service_supervisor;
 
+use std::cell::RefCell;
 use std::env;
 use std::error::Error;
+use std::rc::Rc;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::Duration;
 
+use desktop_settings::DesktopSettings;
 use product_layout::{ProductLayout, resolve_product_layout};
-use service_plan::DASHBOARD_URL;
 use service_supervisor::{RunningServices, ServiceExit, start_services};
 
 slint::include_modules!();
@@ -22,7 +27,7 @@ slint::include_modules!();
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 enum ControllerCommand {
-    Start,
+    Start(DesktopSettings),
     Stop,
     Exit,
 }
@@ -46,8 +51,13 @@ fn apply_running_state(
 ) {
     update_window(weak_window, move |window| {
         window.set_can_stop(true);
+        window.set_can_configure(false);
         window.set_workspace_state("Running".into());
-        window.set_status_detail("Workspace Service and Dashboard are running.".into());
+        window.set_status_detail(if browser_running {
+            "Core services and browser access are available.".into()
+        } else {
+            "Core services are running, but browser actions are unavailable.".into()
+        });
         window.set_browser_state(if browser_running {
             "Running".into()
         } else {
@@ -65,11 +75,12 @@ fn apply_stopped_state(
     update_window(weak_window, move |window| {
         window.set_can_start(true);
         window.set_can_stop(false);
+        window.set_can_configure(true);
         window.set_workspace_state(state.into());
         window.set_status_detail(detail.into());
         window.set_browser_state("Stopped".into());
         window.set_browser_detail(
-            "Chrome or Edge will be checked the next time services start.".into(),
+            "A compatible browser will be detected the next time services start.".into(),
         );
     });
 }
@@ -86,10 +97,7 @@ fn handle_service_exit(
             update_window(weak_window, move |window| {
                 window.set_browser_state("Unavailable".into());
                 window.set_browser_detail(
-                    format!(
-                        "{name} exited unexpectedly with {status}. See the service log for details."
-                    )
-                    .into(),
+                    format!("{name} stopped unexpectedly ({status}). See the service log.").into(),
                 );
             });
         }
@@ -126,15 +134,16 @@ fn controller_loop(
             Err(RecvTimeoutError::Disconnected) => Some(ControllerCommand::Exit),
         };
         match command {
-            Some(ControllerCommand::Start) if running.is_none() => {
+            Some(ControllerCommand::Start(settings)) if running.is_none() => {
                 update_window(&weak_window, |window| {
                     window.set_can_start(false);
+                    window.set_can_configure(false);
                     window.set_workspace_state("Starting".into());
                     window.set_status_detail("Starting local services.".into());
                     window.set_browser_state("Starting".into());
-                    window.set_browser_detail("Checking Chrome or Edge.".into());
+                    window.set_browser_detail("Checking for a compatible browser.".into());
                 });
-                match start_services(&layout) {
+                match start_services(&layout, &settings) {
                     Ok(startup) => {
                         apply_running_state(
                             &weak_window,
@@ -150,10 +159,11 @@ fn controller_loop(
                 if let Some(mut services) = running.take() {
                     update_window(&weak_window, |window| {
                         window.set_can_stop(false);
+                        window.set_can_configure(false);
                         window.set_workspace_state("Stopping".into());
                         window.set_status_detail("Stopping local services.".into());
                         window.set_browser_state("Stopping".into());
-                        window.set_browser_detail("Stopping Browser Session.".into());
+                        window.set_browser_detail("Stopping browser.".into());
                     });
                     services.stop();
                     apply_stopped_state(
@@ -169,20 +179,96 @@ fn controller_loop(
                 }
                 return;
             }
-            Some(ControllerCommand::Start) | None => {}
+            Some(ControllerCommand::Start(_)) | None => {}
         }
         handle_service_exit(&mut running, &weak_window);
     }
 }
 
-fn install_callbacks(window: &ManagerWindow, sender: &Sender<ControllerCommand>) {
+fn apply_settings_to_window(window: &ManagerWindow, settings: &DesktopSettings) {
+    window.set_workspace_port(settings.workspace_port.to_string().into());
+    window.set_dashboard_port(settings.dashboard_port.to_string().into());
+    window.set_browser_port(settings.browser_port.to_string().into());
+    window.set_browser_executable_path(
+        settings
+            .browser_executable
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_default()
+            .into(),
+    );
+    window.set_dashboard_url(settings.dashboard_url().into());
+}
+
+fn settings_from_window(window: &ManagerWindow) -> Result<DesktopSettings, String> {
+    DesktopSettings::from_fields(
+        window.get_workspace_port().as_str(),
+        window.get_dashboard_port().as_str(),
+        window.get_browser_port().as_str(),
+        window.get_browser_executable_path().as_str(),
+    )
+}
+
+fn install_callbacks(
+    window: &ManagerWindow,
+    sender: &Sender<ControllerCommand>,
+    layout: &ProductLayout,
+    settings: Rc<RefCell<DesktopSettings>>,
+) {
     let start_sender = sender.clone();
+    let start_settings = Rc::clone(&settings);
     window.on_start_requested(move || {
-        let _ = start_sender.send(ControllerCommand::Start);
+        let _ = start_sender.send(ControllerCommand::Start(start_settings.borrow().clone()));
     });
     let stop_sender = sender.clone();
     window.on_stop_requested(move || {
         let _ = stop_sender.send(ControllerCommand::Stop);
+    });
+
+    let settings_window = window.as_weak();
+    window.on_settings_requested(move || {
+        if let Some(window) = settings_window.upgrade() {
+            window.set_settings_detail("".into());
+            window.set_settings_has_error(false);
+            window.set_settings_visible(true);
+        }
+    });
+
+    let cancel_window = window.as_weak();
+    let cancel_settings = Rc::clone(&settings);
+    window.on_settings_cancel_requested(move || {
+        if let Some(window) = cancel_window.upgrade() {
+            apply_settings_to_window(&window, &cancel_settings.borrow());
+            window.set_settings_has_error(false);
+            window.set_settings_visible(false);
+        }
+    });
+
+    let save_window = window.as_weak();
+    let save_settings = settings;
+    let settings_path = layout.settings_path.clone();
+    window.on_settings_save_requested(move || {
+        let Some(window) = save_window.upgrade() else {
+            return;
+        };
+        match settings_from_window(&window).and_then(|candidate| {
+            candidate.save(&settings_path)?;
+            Ok(candidate)
+        }) {
+            Ok(candidate) => {
+                apply_settings_to_window(&window, &candidate);
+                *save_settings.borrow_mut() = candidate;
+                window.set_can_start(true);
+                window.set_settings_has_error(false);
+                window.set_settings_visible(false);
+                window
+                    .set_status_detail("Settings saved. Start Job Boardwalk to apply them.".into());
+            }
+            Err(error) => {
+                window.set_settings_has_error(true);
+                window.set_settings_detail(error.into());
+            }
+        }
     });
 }
 
@@ -190,10 +276,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let manager_executable = env::current_exe()?;
     let layout = resolve_product_layout(&manager_executable)?;
     let window = ManagerWindow::new()?;
-    window.set_dashboard_url(DASHBOARD_URL.into());
+    let (settings, settings_error) = match DesktopSettings::load(&layout.settings_path) {
+        Ok(settings) => (settings, None),
+        Err(error) => (DesktopSettings::default(), Some(error)),
+    };
+    apply_settings_to_window(&window, &settings);
     window.set_log_path(layout.log_path.display().to_string().into());
+    if let Some(error) = settings_error {
+        window.set_can_start(false);
+        window.set_workspace_state("Failed".into());
+        window.set_status_detail(format!("{error} Open Settings and save valid values.").into());
+    }
     let (sender, receiver) = mpsc::channel();
-    install_callbacks(&window, &sender);
+    install_callbacks(&window, &sender, &layout, Rc::new(RefCell::new(settings)));
     let weak_window = window.as_weak();
     let controller = thread::spawn(move || controller_loop(receiver, weak_window, layout));
     let result = window.run();

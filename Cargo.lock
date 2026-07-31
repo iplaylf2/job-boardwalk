@@ -2528,6 +2528,8 @@ dependencies = [
 name = "job-boardwalk-desktop-manager"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "slint",
  "slint-build",
  "ureq",

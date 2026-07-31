@@ -27,7 +27,8 @@ executable, Browser Session, Dashboard, and Workspace Service into a determinist
 staging tree and writes its integrity manifest. The staged lifecycle runs without Docker, a system
 Node.js or Caddy installation, a source checkout, or a bundled browser. Both Node services arrive
 as finalized runtime directories; Desktop Distribution does not interpret their entry modules or
-dependency graphs.
+dependency graphs. Desktop Manager uses an installed system browser or an explicit executable
+override as defined by the product contract.
 
 On native Linux or Windows, the package task creates a portable archive from the assembled product.
 

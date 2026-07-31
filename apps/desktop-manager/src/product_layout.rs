@@ -13,6 +13,7 @@ pub(crate) struct ProductLayout {
     pub(crate) log_path: PathBuf,
     pub(crate) migrations_directory: PathBuf,
     pub(crate) service_host_executable: PathBuf,
+    pub(crate) settings_path: PathBuf,
     pub(crate) workspace_database: PathBuf,
     pub(crate) workspace_service_entrypoint: PathBuf,
 }
@@ -53,6 +54,7 @@ pub(crate) fn resolve_product_layout(manager_executable: &Path) -> Result<Produc
         service_host_executable: configured_service_host.unwrap_or_else(|| {
             binary_directory.join(executable_name("job-boardwalk-desktop-service-host"))
         }),
+        settings_path: data.join("settings.json"),
         workspace_database: data.join("workspace.sqlite"),
         workspace_service_entrypoint: payload.join("workspace-service").join("index.mjs"),
     })
@@ -94,6 +96,10 @@ mod tests {
         assert_eq!(
             layout.workspace_database,
             root.join("data").join("workspace.sqlite")
+        );
+        assert_eq!(
+            layout.settings_path,
+            root.join("data").join("settings.json")
         );
     }
 }

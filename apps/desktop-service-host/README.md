@@ -7,15 +7,13 @@ not this executable, owns service order, readiness, failure containment, and shu
 The host supports two roles:
 
 - `workspace-service` loads the finalized Workspace Service entry module.
-- `browser-session` discovers a system Chrome or Edge executable that reports a recognizable
-  version, passes its path to the finalized Browser Session entry module, and loads that module
-  with the dedicated product profile supplied by Desktop Manager. Browser Session startup remains
-  the compatibility check.
+- `browser-session` loads the finalized Browser Session entry module. Desktop Manager supplies the
+  browser executable selected by the desktop integration layer and the dedicated product profile.
 
 Desktop Manager supplies each role's public entry module and runtime paths as explicit absolute
 arguments. The host loads that file directly. It does not derive the product layout, inspect the
-service's dependency or resource layout, supervise sibling processes, expose a manager protocol,
-or use shajara to model process topology.
+service's dependency or resource layout, discover browsers, supervise sibling processes, expose a
+manager protocol, or use shajara to model process topology.
 
 After loading a service module, the host converts stdin EOF from Desktop Manager to `SIGTERM`.
 Workspace Service and Browser Session handle normal process signals and remain independent of

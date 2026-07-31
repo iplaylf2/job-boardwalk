@@ -2,7 +2,6 @@ import { createRequire } from "node:module";
 import process from "node:process";
 
 import { installStdinShutdown } from "#/stdin-shutdown.js";
-import { discoverSystemBrowser } from "#/system-browser-discovery.js";
 
 const userArgumentStartIndex = 2;
 
@@ -26,26 +25,17 @@ function readRequiredArgument(arguments_: readonly string[], name: string): stri
   return value;
 }
 
-async function prepareBrowserSession(): Promise<void> {
-  const systemBrowser = await discoverSystemBrowser();
-  if (systemBrowser.state !== "recognized") {
-    throw new Error(systemBrowser.detail);
-  }
-  process.argv.push(`--browser-executable-path=${systemBrowser.executablePath}`);
-}
-
-async function main(): Promise<void> {
+function main(): void {
   const userArguments = process.argv.slice(userArgumentStartIndex);
-  const role = parseDesktopServiceRole(userArguments);
-  if (role === "browser-session") {
-    await prepareBrowserSession();
-  }
-  createRequire(process.execPath)(readRequiredArgument(userArguments, "service-entrypoint"));
+  parseDesktopServiceRole(userArguments);
+  const serviceEntrypoint = readRequiredArgument(userArguments, "service-entrypoint");
+  createRequire(process.execPath)(serviceEntrypoint);
   installStdinShutdown();
 }
 
-// oxlint-disable-next-line unicorn/prefer-top-level-await -- Node SEA embeds a CommonJS entry script.
-main().catch((error: unknown) => {
+try {
+  main();
+} catch (error) {
   process.stderr.write(`[Desktop Service Host] ${String(error)}\n`);
   process.exitCode = 1;
-});
+}

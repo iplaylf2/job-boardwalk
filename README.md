@@ -28,8 +28,8 @@ integration to separate applications:
   does not coordinate the product topology.
 - [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
   and desktop-supervision boundary. It starts, checks, observes, and stops Workspace Service,
-  Dashboard's packaged Caddy process, and Browser Session; it displays the Dashboard address and
-  service log path and never takes over Browser Session's page-control boundary.
+  Dashboard's packaged Caddy process, and Browser Session. It selects the desktop browser,
+  presents aggregate product status, and never takes over Browser Session's page-control boundary.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -61,8 +61,8 @@ Available now:
   conclusions available without the agent conversation that produced them.
 - Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
   address and service log path and directly supervising the product's isolated service processes.
-  Browser Session failure degrades the browser capability without taking Workspace Service or
-  Dashboard offline.
+  A missing browser or Browser Session process failure puts the application in a limited state
+  without taking Workspace Service or Dashboard offline.
 - Desktop engineering staging assembles Desktop Manager, Desktop Service Host, Caddy, Browser
   Session, Dashboard, Workspace Service, and migrations into one portable directory. It runs
   without Docker, a system Node.js or Caddy installation, a source checkout, or a bundled browser.
@@ -116,6 +116,11 @@ The build input must be a platform-native Caddy executable that can load the pro
 The resulting manifest identifies an engineering staging artifact, not a supported desktop
 release. [Desktop distribution](docs/desktop-distribution.md) defines the installed form and
 remaining release work.
+
+Desktop staging discovers system Chrome, Edge, or Chromium and does not automatically reuse the
+Patchright browser installed for source development. To exercise staging with that browser, launch
+Desktop Manager with its absolute executable path in
+`JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`. Installed users can select an override in Settings.
 
 The same staging tree can be packaged as a Linux `.tar.gz` or Windows `.zip`.
 [Desktop Distribution](internal/desktop-distribution/README.md) documents the archive command; the
