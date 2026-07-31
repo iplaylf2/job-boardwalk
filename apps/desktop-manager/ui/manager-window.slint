@@ -1,110 +1,98 @@
-import { Button, LineEdit, VerticalBox } from "std-widgets.slint";
+import { LineEdit } from "std-widgets.slint";
 
-component ManagementBadge inherits Rectangle {
+component PrimaryAction inherits Rectangle {
     in property <string> label;
+    in property <bool> enabled: true;
+    in property <bool> stop-action: false;
+    callback clicked();
 
-    border-radius: self.height / 2;
-    background: #eaf2ee;
-    height: 30px;
-    width: status-label.preferred-width + 24px;
+    background: !root.enabled ? #dfe5e2 :
+        root.stop-action ? (action-area.has-hover ? #eef2f0 : #ffffff) :
+        (action-area.has-hover ? #167d55 : #1d9a67);
+    border-color: root.stop-action ? #ced8d3 : #00000000;
+    border-radius: 10px;
+    border-width: 1px;
+    height: 46px;
+    width: 168px;
 
-    status-label := Text {
-        color: #35634c;
+    Text {
+        color: !root.enabled ? #929d98 : root.stop-action ? #33463d : #ffffff;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 700;
         horizontal-alignment: center;
         text: root.label;
         vertical-alignment: center;
     }
-}
 
-component ApplicationRow inherits Rectangle {
-    in property <string> detail;
-    in property <string> application-name;
-    in property <string> management-state;
-
-    background: #ffffff;
-    border-color: #dce3df;
-    border-radius: 12px;
-    border-width: 1px;
-    height: 82px;
-
-    HorizontalLayout {
-        alignment: start;
-        padding: 16px;
-        spacing: 14px;
-
-        VerticalLayout {
-            alignment: center;
-            spacing: 4px;
-
-            Text {
-                color: #17231d;
-                font-size: 16px;
-                font-weight: 600;
-                text: root.application-name;
-            }
-
-            Text {
-                color: #637169;
-                font-size: 13px;
-                overflow: elide;
-                text: root.detail;
-            }
-        }
-
-        Rectangle {
-            horizontal-stretch: 1;
-        }
-
-        ManagementBadge {
-            label: root.management-state;
-        }
+    action-area := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
     }
 }
 
-component ResourceLocation inherits Rectangle {
+component ServiceState inherits HorizontalLayout {
+    in property <string> service-name;
+    in property <string> state;
+    private property <bool> is-positive: root.state == "Running";
+    private property <bool> is-working: root.state == "Starting" || root.state == "Stopping";
+    private property <bool> is-negative: root.state == "Failed" || root.state == "Unavailable";
+
+    alignment: start;
+    cross-axis-alignment: center;
+    horizontal-stretch: 1;
+    spacing: 20px;
+
+    Text {
+        color: #293b32;
+        font-size: 12px;
+        font-weight: 650;
+        text: root.service-name;
+        width: 132px;
+    }
+
+    Text {
+        color: root.is-positive ? #16794f :
+            root.is-working ? #98610e :
+            root.is-negative ? #ad4038 : #7b8781;
+        font-size: 12px;
+        font-weight: 600;
+        text: root.state;
+    }
+}
+
+component UtilityValue inherits HorizontalLayout {
     in property <string> label;
     in property <string> value;
 
-    background: #ffffff;
-    border-color: #dce3df;
-    border-radius: 10px;
-    border-width: 1px;
-    height: 54px;
+    alignment: start;
+    cross-axis-alignment: center;
+    horizontal-stretch: 1;
+    spacing: 10px;
 
-    HorizontalLayout {
-        alignment: center;
-        padding-bottom: 10px;
-        padding-left: 14px;
-        padding-right: 14px;
-        padding-top: 10px;
-        spacing: 12px;
+    Text {
+        color: #84908a;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text: root.label;
+        width: 70px;
+    }
 
-        Text {
-            color: #637169;
-            font-size: 13px;
-            font-weight: 600;
-            text: root.label;
-            width: 124px;
-        }
-
-        LineEdit {
-            font-size: 13px;
-            horizontal-stretch: 1;
-            read-only: true;
-            text: root.value;
-        }
+    LineEdit {
+        font-size: 11px;
+        horizontal-stretch: 1;
+        read-only: true;
+        text: root.value;
     }
 }
 
 export component ManagerWindow inherits Window {
     title: "Job Boardwalk";
-    preferred-width: 760px;
-    preferred-height: 560px;
-    min-width: 640px;
+    preferred-width: 720px;
+    preferred-height: 500px;
+    min-width: 720px;
     min-height: 500px;
-    background: #f4f7f5;
+    background: #f7f9f8;
 
     in property <string> dashboard-url;
     in property <string> log-path;
@@ -115,83 +103,155 @@ export component ManagerWindow inherits Window {
     in-out property <bool> can-start: true;
     in-out property <bool> can-stop: false;
 
+    private property <bool> is-running: root.workspace-state == "Running";
+    private property <bool> is-starting: root.workspace-state == "Starting";
+    private property <bool> is-stopping: root.workspace-state == "Stopping";
+    private property <bool> has-error: root.workspace-state == "Failed";
+
     callback start-requested();
     callback stop-requested();
 
-    VerticalBox {
-        padding: 30px;
-        spacing: 20px;
+    VerticalLayout {
+        spacing: 0px;
+
+        Rectangle {
+            background: #ffffff;
+            height: 60px;
+
+            HorizontalLayout {
+                alignment: center;
+                padding-left: 56px;
+                padding-right: 56px;
+
+                Text {
+                    color: #1a2c23;
+                    font-size: 14px;
+                    font-weight: 700;
+                    text: "Job Boardwalk";
+                }
+
+                Rectangle { horizontal-stretch: 1; }
+            }
+
+            Rectangle {
+                background: #e5ebe8;
+                height: 1px;
+                y: parent.height - 1px;
+            }
+        }
 
         VerticalLayout {
-            spacing: 6px;
+            padding-left: 56px;
+            padding-right: 56px;
+            padding-top: 40px;
+            spacing: 0px;
 
             Text {
-                color: #17231d;
-                font-size: 28px;
+                color: #1d9a67;
+                font-size: 11px;
                 font-weight: 700;
-                text: "Job Boardwalk";
+                letter-spacing: 1px;
+                text: root.is-running ? "READY" :
+                    root.is-starting ? "STARTING" :
+                    root.is-stopping ? "STOPPING" :
+                    root.has-error ? "ACTION NEEDED" : "STOPPED";
             }
+
+            Rectangle { height: 10px; }
 
             Text {
-                color: #637169;
-                font-size: 14px;
+                color: #172a21;
+                font-size: 27px;
+                font-weight: 700;
+                text: root.is-running ? "Job Boardwalk is running" :
+                    root.is-starting ? "Starting Job Boardwalk…" :
+                    root.is-stopping ? "Stopping Job Boardwalk…" :
+                    root.has-error ? "Job Boardwalk could not start" :
+                    "Job Boardwalk is stopped";
+            }
+
+            Rectangle { height: 8px; }
+
+            Text {
+                color: #748079;
+                font-size: 13px;
                 text: root.status-detail;
-            }
-        }
-
-        VerticalLayout {
-            spacing: 10px;
-
-            ApplicationRow {
-                application-name: "Local workspace";
-                detail: "Workspace Service and Dashboard";
-                management-state: root.workspace-state;
+                wrap: word-wrap;
             }
 
-            ApplicationRow {
-                application-name: "Browser Session";
-                detail: root.browser-detail;
-                management-state: root.browser-state;
-            }
-        }
+            Rectangle { height: 26px; }
 
-        VerticalLayout {
-            spacing: 8px;
-
-            ResourceLocation {
-                label: "Dashboard address";
-                value: root.dashboard-url;
+            if root.can-start: PrimaryAction {
+                label: "Start";
+                enabled: root.can-start;
+                clicked => { root.start-requested(); }
             }
 
-            ResourceLocation {
-                label: "Service log path";
-                value: root.log-path;
-            }
-        }
-
-        Rectangle {
-            vertical-stretch: 1;
-        }
-
-        Rectangle {
-            background: #e8eeea;
-            height: 1px;
-        }
-
-        HorizontalLayout {
-            alignment: end;
-            spacing: 10px;
-
-            Button {
-                text: "Stop";
+            if root.can-stop: PrimaryAction {
+                label: "Stop";
                 enabled: root.can-stop;
+                stop-action: true;
                 clicked => { root.stop-requested(); }
             }
 
-            Button {
-                text: "Start";
-                enabled: root.can-start;
-                clicked => { root.start-requested(); }
+            Rectangle { height: 38px; }
+
+            Rectangle {
+                background: #e3e9e6;
+                height: 1px;
+            }
+
+            Rectangle { height: 18px; }
+
+            VerticalLayout {
+                spacing: 12px;
+
+                ServiceState {
+                    service-name: "Core services";
+                    state: root.workspace-state;
+                }
+
+                ServiceState {
+                    service-name: "Browser session";
+                    state: root.browser-state;
+                }
+            }
+
+            if root.browser-state == "Unavailable": Text {
+                color: #a94a43;
+                font-size: 11px;
+                text: root.browser-detail;
+                wrap: word-wrap;
+            }
+
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        Rectangle {
+            background: #eef2f0;
+            height: 88px;
+
+            VerticalLayout {
+                padding-bottom: 12px;
+                padding-left: 56px;
+                padding-right: 56px;
+                padding-top: 12px;
+                spacing: 6px;
+
+                UtilityValue {
+                    label: "DASHBOARD";
+                    value: root.dashboard-url;
+                }
+
+                UtilityValue {
+                    label: "SERVICE LOG";
+                    value: root.log-path;
+                }
+            }
+
+            Rectangle {
+                background: #dfe6e2;
+                height: 1px;
             }
         }
     }
