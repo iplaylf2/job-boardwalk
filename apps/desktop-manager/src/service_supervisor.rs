@@ -12,6 +12,8 @@ use crate::service_plan::{ServiceSpec, ShutdownMethod, service_plan};
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
 const SERVICE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 const SERVICE_STARTUP_TIMEOUT: Duration = Duration::from_secs(20);
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 struct ManagedService {
     child: Child,
@@ -62,20 +64,25 @@ fn spawn_service(spec: ServiceSpec, log: &File) -> Result<ManagedService, String
         .try_clone()
         .map_err(|error| format!("Cannot clone service log handle: {error}"))?;
     let executable = spec.executable;
-    let mut child = Command::new(&executable)
+    let mut command = Command::new(&executable);
+    command
         .args(spec.arguments)
         .envs(spec.environment)
         .stdin(Stdio::piped())
         .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
-        .spawn()
-        .map_err(|error| {
-            format!(
-                "Cannot start {} with {}: {error}",
-                spec.name,
-                executable.display()
-            )
-        })?;
+        .stderr(Stdio::from(stderr));
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    let mut child = command.spawn().map_err(|error| {
+        format!(
+            "Cannot start {} with {}: {error}",
+            spec.name,
+            executable.display()
+        )
+    })?;
     let stdin = child
         .stdin
         .take()

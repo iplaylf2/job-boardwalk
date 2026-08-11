@@ -106,6 +106,8 @@ host loads the selected entry module directly. It does not derive layout paths, 
 contents, discover browsers, or coordinate sibling processes. Desktop Manager resolves the
 configured browser override or a common system Chrome, Edge, or Chromium installation and passes
 the exact path to Browser Session. Dashboard instead runs on the packaged Caddy executable.
+On Windows, Manager starts all private service processes without console windows; the Manager GUI
+and `data/logs/services.log` remain their user-facing status and diagnostic surfaces.
 Compose and desktop distribution share the same Caddyfile, so static serving, security headers, SPA
 fallback, compression, and `/api` proxying have one configuration and one maintained server
 implementation.
@@ -128,9 +130,9 @@ The desktop product does not bundle or download a browser. When no executable ov
 in Desktop Manager Settings, Manager checks the platform's common Chrome, Edge, and Chromium
 locations. When an absolute path is selected, it checks only that executable. Engineering staging
 may provide an explicit development override through `JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`; the
-Patchright development cache is not a product discovery source. A candidate must report a
-recognizable version before Manager passes its absolute path to Browser Session, which uses the
-dedicated profile under `data/browser-profile/`. It never launches the user's normal browser
+Patchright development cache is not a product discovery source. Manager passes the first existing
+candidate's absolute path to Browser Session, which owns launch and compatibility checks and uses
+the dedicated profile under `data/browser-profile/`. It never launches the user's normal browser
 profile.
 
 Discovery recognizes a browser candidate; it does not establish compatibility with every system

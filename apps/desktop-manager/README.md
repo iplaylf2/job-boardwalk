@@ -14,7 +14,9 @@ the application in a limited state with an actionable explanation.
 
 The main window also exposes the Dashboard address and absolute service log path so either can be
 copied without operating-system URL or file integration. Service output is appended to
-`data/logs/services.log`; the GUI does not read workspace persistence or service-private APIs.
+`data/logs/services.log`; the GUI does not read workspace persistence or service-private APIs. On
+Windows, Manager starts its private service processes without console windows; their lifecycle and
+failure state remain owned by the GUI.
 
 When services are stopped, Settings configures the three product loopback ports and an optional
 absolute browser executable override. A blank override discovers Chrome, Edge, or Chromium in the

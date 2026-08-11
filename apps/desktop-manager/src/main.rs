@@ -80,7 +80,7 @@ fn apply_stopped_state(
         window.set_status_detail(detail.into());
         window.set_browser_state("Stopped".into());
         window.set_browser_detail(
-            "A compatible browser will be detected the next time services start.".into(),
+            "A browser installation will be detected the next time services start.".into(),
         );
     });
 }
@@ -141,7 +141,7 @@ fn controller_loop(
                     window.set_workspace_state("Starting".into());
                     window.set_status_detail("Starting local services.".into());
                     window.set_browser_state("Starting".into());
-                    window.set_browser_detail("Checking for a compatible browser.".into());
+                    window.set_browser_detail("Checking for a browser installation.".into());
                 });
                 match start_services(&layout, &settings) {
                     Ok(startup) => {
