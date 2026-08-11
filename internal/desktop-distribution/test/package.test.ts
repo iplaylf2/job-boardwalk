@@ -30,12 +30,13 @@ async function writeArtifact(
 async function assembleSyntheticNativeProduct(root: string): Promise<string> {
   const managerName =
     platform() === "win32" ? "job-boardwalk-desktop-manager.exe" : "job-boardwalk-desktop-manager";
+  const installedManagerName = platform() === "win32" ? "job-boardwalk.exe" : "job-boardwalk";
   const manager = await writeArtifact(root, `sources/${managerName}`, "synthetic manager");
   const payload = await writeArtifact(root, "sources/payload.txt", "synthetic payload");
   const plan: DesktopAssemblyPlan = {
     architecture: arch(),
     components: [
-      { destination: `bin/${managerName}`, source: manager },
+      { destination: installedManagerName, source: manager },
       { destination: "payload/synthetic.txt", source: payload },
     ],
     outputRoot: path.join(root, "assembled"),

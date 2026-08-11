@@ -41,23 +41,30 @@ Build the desktop staging tree, then run Desktop Manager from that product direc
 pnpm install --frozen-lockfile
 JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
   pnpm exec moon run desktop-distribution:assemble
-target/desktop-distribution/<platform>-<architecture>/Job\ Boardwalk/bin/job-boardwalk-desktop-manager
+target/desktop-distribution/<platform>-<architecture>/job-boardwalk/job-boardwalk
 ```
 
+The final line is the Linux entrypoint. On Windows, launch
+`target\desktop-distribution\win32-<architecture>\job-boardwalk\job-boardwalk.exe`. The complete
+platform-specific assembly and packaging commands belong to
+[Desktop Distribution](../../internal/desktop-distribution/README.md#commands).
+
 The build input must be a platform-native Caddy executable that can load the product Caddyfile.
-Desktop Manager resolves Caddy and Desktop Service Host beside itself under `bin/`. Source
-development may set
-`JOB_BOARDWALK_DESKTOP_SERVICE_HOST_EXECUTABLE` to an assembled host explicitly; an installed run
-does not depend on that override. [Desktop distribution](../../docs/desktop-distribution.md)
-defines release-input and packaging policy.
+Desktop Manager runs as the root product entrypoint and resolves Caddy and the shared Node.js
+service host under `runtime/`. Source development may set
+`JOB_BOARDWALK_NODE_SERVICE_HOST_EXECUTABLE` to an assembled host explicitly; an installed run does
+not depend on that override. Manager selects Slint's software renderer so the control surface does
+not require GPU acceleration in remote-desktop, virtual-machine, or GPU-limited sessions.
+[Desktop distribution](../../docs/desktop-distribution.md) defines release-input and packaging
+policy.
 
 ## Lifecycle boundary
 
 Desktop Manager is the desktop composition root. It resolves the browser override or system
 installation, starts Workspace Service, Caddy, and Browser Session in dependency order, checks
 their HTTP readiness, translates their state into the product UI, observes unexpected exits, and
-stops them in reverse order. To stop a Node.js service, Manager closes the child host's
-standard input; Desktop Service Host converts that EOF to `SIGTERM`. Caddy shuts down on every
+stops them in reverse order. To stop a Node.js service, Manager closes the child host's standard
+input; the shared Node.js Service Host converts that EOF to `SIGTERM`. Caddy shuts down on every
 platform through a private, start-scoped loopback admin endpoint selected by Manager. The endpoint
 is never displayed or persisted. Manager forcibly terminates a child only when it exceeds the
 bounded shutdown period.

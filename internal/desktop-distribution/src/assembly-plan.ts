@@ -1,7 +1,7 @@
 import { arch as readArchitecture, platform as readPlatform } from "node:os";
 import path from "node:path";
 
-export const productDirectoryName = "Job Boardwalk";
+export const productDirectoryName = "job-boardwalk";
 
 export function desktopDistributionRoot(repositoryRoot: string): string {
   return path.join(repositoryRoot, "target", "desktop-distribution");
@@ -29,16 +29,18 @@ interface CreateDesktopAssemblyPlanOptions {
   readonly repositoryRoot: string;
 }
 
-function managerExecutableName(platform: NodeJS.Platform): string {
+function installedManagerExecutableName(platform: NodeJS.Platform): string {
+  return platform === "win32" ? "job-boardwalk.exe" : "job-boardwalk";
+}
+
+function builtManagerExecutableName(platform: NodeJS.Platform): string {
   return platform === "win32"
     ? "job-boardwalk-desktop-manager.exe"
     : "job-boardwalk-desktop-manager";
 }
 
-function desktopServiceHostExecutableName(platform: NodeJS.Platform): string {
-  return platform === "win32"
-    ? "job-boardwalk-desktop-service-host.exe"
-    : "job-boardwalk-desktop-service-host";
+function nodeServiceHostExecutableName(platform: NodeJS.Platform): string {
+  return platform === "win32" ? "node-service-host.exe" : "node-service-host";
 }
 
 function caddyExecutableName(platform: NodeJS.Platform): string {
@@ -51,23 +53,23 @@ function createAssemblyComponents(
   platform: NodeJS.Platform,
 ): AssemblyComponent[] {
   const caddyExecutableDestination = caddyExecutableName(platform);
-  const managerExecutable = managerExecutableName(platform);
-  const desktopServiceHostExecutable = desktopServiceHostExecutableName(platform);
+  const builtManagerExecutable = builtManagerExecutableName(platform);
+  const nodeServiceHostExecutable = nodeServiceHostExecutableName(platform);
   return [
     {
-      destination: path.join("bin", managerExecutable),
-      source: path.join(repositoryRoot, "target", "release", managerExecutable),
+      destination: installedManagerExecutableName(platform),
+      source: path.join(repositoryRoot, "target", "release", builtManagerExecutable),
     },
     {
-      destination: path.join("bin", desktopServiceHostExecutable),
-      source: path.join(repositoryRoot, "target", "release", desktopServiceHostExecutable),
+      destination: path.join("runtime", nodeServiceHostExecutable),
+      source: path.join(repositoryRoot, "target", "release", nodeServiceHostExecutable),
     },
     {
-      destination: path.join("bin", caddyExecutableDestination),
+      destination: path.join("runtime", caddyExecutableDestination),
       source: caddyExecutable,
     },
     {
-      destination: path.join("payload", "Caddyfile"),
+      destination: path.join("payload", "caddyfile"),
       source: path.join(repositoryRoot, "apps", "dashboard", "Caddyfile"),
     },
     {

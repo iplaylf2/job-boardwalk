@@ -109,8 +109,13 @@ product directory:
 ```sh
 JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
   pnpm exec moon run desktop-distribution:assemble
-target/desktop-distribution/<platform>-<architecture>/Job\ Boardwalk/bin/job-boardwalk-desktop-manager
+target/desktop-distribution/<platform>-<architecture>/job-boardwalk/job-boardwalk
 ```
+
+The final line launches the Linux entrypoint. On Windows, launch
+`target\desktop-distribution\win32-<architecture>\job-boardwalk\job-boardwalk.exe`; see
+[Desktop Distribution](internal/desktop-distribution/README.md#commands) for the PowerShell build
+command.
 
 The build input must be a platform-native Caddy executable that can load the product Caddyfile.
 The resulting manifest identifies an engineering staging artifact, not a supported desktop

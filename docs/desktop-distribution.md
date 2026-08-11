@@ -14,16 +14,15 @@ and Dashboard available and puts the desktop application in a limited state.
 
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
-platform. The Windows path has not yet been validated on Windows; publication, signing, license
-collection, backup, and atomic updates also remain outstanding in
-[Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore remains the
+platform. Publication, signing, license collection, backup, and atomic updates remain outstanding
+in [Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore remains the
 supported topology.
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents how to build and
 inspect the staging tree.
 
 ## Installed product contract
 
-The target release is installed by placing one complete `Job Boardwalk` directory in a
+The target release is installed by placing one complete `job-boardwalk` directory in a
 user-selected, writable location. The directory may be extracted from an archive, copied, placed
 through drag-and-drop, or written by a thin installer. Running the installed product must not
 require Docker, a system Node.js runtime, pnpm, Cargo, or a source checkout.
@@ -42,13 +41,13 @@ Desktop Manager derives the product root from its executable or application-bund
 from the launching process's current working directory. The target logical layout is:
 
 ```text
-Job Boardwalk/
-├── bin/
-│   ├── job-boardwalk-desktop-manager
-│   ├── job-boardwalk-desktop-service-host
+job-boardwalk/
+├── job-boardwalk
+├── runtime/
+│   ├── node-service-host
 │   └── caddy
 ├── payload/
-│   ├── Caddyfile
+│   ├── caddyfile
 │   ├── dashboard/
 │   ├── browser-session/
 │   │   ├── package.json
@@ -68,10 +67,16 @@ Job Boardwalk/
 └── manifest.json
 ```
 
-Platform packaging may wrap Desktop Manager in a signed application bundle or add executable
-suffixes, but one writable outer product directory must contain the immutable resources and the
-`data/` directory. Signed bundle contents remain immutable; runtime data is a sibling under the
-outer product root, never a child of the signed bundle.
+Windows adds `.exe` to the root `job-boardwalk` entrypoint and the private runtime executables.
+Platform packaging may wrap Desktop Manager in a signed application bundle, but one writable outer
+product directory must contain the immutable resources and the `data/` directory. Signed bundle
+contents remain immutable; runtime data is a sibling under the outer product root, never a child of
+the signed bundle.
+
+Distribution-owned path segments use lowercase kebab-case. Finalized application payloads retain
+the entrypoint, package metadata, dependency, and migration names defined by their owning build
+tools and runtime contracts; Desktop Distribution does not rename contents such as `package.json`,
+`index.cjs`, or package-manager-owned dependency files.
 
 Packaged services receive absolute, product-root-derived paths. Source development may override
 paths through environment variables, but an installed run cannot depend on ambient environment
@@ -79,9 +84,16 @@ variables or the current working directory.
 
 ## Runtime payload
 
-The target release contains an application-specific service-host executable built with Node.js
-single-executable application support and a small role dispatcher. Finalized Workspace Service and
-Browser Session artifacts remain application-owned under the product payload.
+The root `job-boardwalk` executable is the only user-facing launch surface. Private executable
+dependencies live under `runtime/`; application code and static resources live under `payload/`.
+
+The target release contains `runtime/node-service-host`, an application-specific service-host
+executable built with Node.js single-executable application support and a small role dispatcher.
+Its name reflects that restricted role: the executable accepts only product-owned roles and
+explicit service entrypoints and is not a general Node.js command. The Node.js runtime is embedded
+in that shared executable; it is not installed under either service payload, and the product does
+not contain a standalone `node` command. Finalized Workspace Service and Browser Session artifacts
+remain application-owned under the product payload.
 Workspace Service exposes `index.mjs`; Browser Session is a pnpm-produced portable application
 package exposing `dist/index.cjs`. Desktop Manager resolves those entrypoints from the installed
 product layout. Desktop Distribution places each complete artifact without selecting or relocating

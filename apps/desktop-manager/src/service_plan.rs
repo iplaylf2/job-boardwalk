@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn desktop_plan_uses_configured_ports_and_browser_executable() {
-        let manager = Path::new("/synthetic/Job Boardwalk/bin/job-boardwalk-desktop-manager");
+        let manager = Path::new("/synthetic/job-boardwalk/job-boardwalk");
         let layout =
             resolve_product_layout(manager).expect("synthetic product layout should resolve");
         let settings = DesktopSettings {
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn desktop_plan_omits_browser_when_discovery_failed() {
-        let manager = Path::new("/synthetic/Job Boardwalk/bin/job-boardwalk-desktop-manager");
+        let manager = Path::new("/synthetic/job-boardwalk/job-boardwalk");
         let layout =
             resolve_product_layout(manager).expect("synthetic product layout should resolve");
         let caddy_lifecycle =

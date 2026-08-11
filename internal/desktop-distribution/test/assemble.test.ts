@@ -50,7 +50,7 @@ describe("assembleDesktopProduct", () => {
       "synthetic metadata",
     );
     const plan = createPlan(root, [
-      { destination: "bin/manager", source: manager },
+      { destination: "job-boardwalk", source: manager },
       {
         destination: "payload/service/index.js",
         source: service,
@@ -62,6 +62,7 @@ describe("assembleDesktopProduct", () => {
     ]);
 
     const first = await assembleDesktopProduct(plan);
+    expect(path.basename(first.productDirectory)).toBe("job-boardwalk");
     const firstManifest = await readFile(
       path.join(first.productDirectory, "manifest.json"),
       "utf8",
@@ -75,7 +76,7 @@ describe("assembleDesktopProduct", () => {
 
     expect(secondManifest).toBe(firstManifest);
     expect(second.manifest.files.map((file) => file.path)).toEqual([
-      "bin/manager",
+      "job-boardwalk",
       "payload/service/.runtime/metadata.json",
       "payload/service/index.js",
     ]);

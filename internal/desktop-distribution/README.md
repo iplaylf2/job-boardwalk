@@ -22,13 +22,13 @@ contract.
 
 ## Current implementation
 
-The current implementation assembles Desktop Manager, Desktop Service Host, a build-supplied Caddy
-executable, Browser Session, Dashboard, and Workspace Service into a deterministic
-staging tree and writes its integrity manifest. The staged lifecycle runs without Docker, a system
-Node.js or Caddy installation, a source checkout, or a bundled browser. Both Node services arrive
-as finalized runtime directories; Desktop Distribution does not interpret their entry modules or
-dependency graphs. Desktop Manager uses an installed system browser or an explicit executable
-override as defined by the product contract.
+The current implementation assembles the root Desktop Manager entrypoint, a private shared Node.js
+service host, a build-supplied Caddy executable, Browser Session, Dashboard, and Workspace Service
+into a deterministic staging tree and writes its integrity manifest. The staged lifecycle runs
+without Docker or a system installation of Node.js or Caddy. It also requires no source checkout or
+bundled browser. Both Node services arrive as finalized runtime directories; Desktop Distribution
+does not interpret their entry modules or dependency graphs. Desktop Manager uses an installed
+system browser or an explicit executable override as defined by the product contract.
 
 On native Linux or Windows, the package task creates a portable archive from the assembled product.
 
@@ -48,14 +48,23 @@ JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
   pnpm exec moon run desktop-distribution:assemble
 ```
 
+In PowerShell on Windows, set the build input and run the same task with:
+
+```powershell
+$env:JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE = "C:\absolute\path\to\caddy.exe"
+pnpm exec moon run desktop-distribution:assemble
+```
+
 The input must be a platform-native Caddy executable that can load the product Caddyfile. The
 assembler verifies that compatibility before copying it.
 
-The command writes
-`target/desktop-distribution/<platform>-<architecture>/Job Boardwalk/`.
+The command writes the product tree to
+`target/desktop-distribution/<platform>-<architecture>/job-boardwalk/`.
 
-For engineering validation, run `bin/job-boardwalk-desktop-manager` from the assembled product
-directory. This does not make the staging tree a supported product topology.
+For engineering validation, launch `job-boardwalk` from the product root on Linux or
+`job-boardwalk.exe` from the product root on Windows. Private Caddy and Node.js host executables
+remain under `runtime/`; the Node.js runtime is embedded in the host rather than either service
+payload. This does not make the staging tree a supported product topology.
 
 Create the native portable archive on Linux or Windows:
 
@@ -63,6 +72,9 @@ Create the native portable archive on Linux or Windows:
 JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
   pnpm exec moon run desktop-distribution:package
 ```
+
+On Windows, use the PowerShell environment-variable assignment shown above, then run
+`pnpm exec moon run desktop-distribution:package`.
 
 The command writes a Linux `.tar.gz` or Windows `.zip` under
 `target/desktop-distribution/releases/`.

@@ -27,12 +27,12 @@ Node.js builds the bundled CommonJS entry into a single executable application:
 pnpm exec moon run desktop-service-host:build
 ```
 
-The resulting executable is
-`target/release/job-boardwalk-desktop-service-host` or its platform equivalent. It is an
-application-specific runtime host, not a general-purpose Node.js distribution. The executable is
-shared by the isolated Node service processes. A finalized artifact may load production
-dependencies from its own application-owned directory; it never relies on a system Node.js
-installation or the source workspace.
+The resulting executable is `target/release/node-service-host` on Linux and
+`target/release/node-service-host.exe` on Windows. It is an application-specific runtime host, not
+a general-purpose Node.js distribution. Desktop Manager starts a separate host process for each
+Node service. The selected payload resolves production dependencies from its own application-owned
+directory; neither the host nor the payload relies on a system Node.js installation or the source
+workspace.
 
 Run focused checks with:
 

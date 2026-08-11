@@ -56,7 +56,8 @@ JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
 ```
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
-checks. The explicit build input supplies the platform-native Caddy executable used by Dashboard.
+checks, including the PowerShell form of the commands. The explicit build input supplies the
+platform-native Caddy executable used by Dashboard.
 [Desktop distribution](desktop-distribution.md) defines the installed form, build ownership, and
 remaining delivery work.
 

@@ -28,7 +28,7 @@ tasks:
       - "dist/desktop-service-host.cjs"
       - "/package.json"
     outputs:
-      - "/target/release/job-boardwalk-desktop-service-host*"
+      - "/target/release/node-service-host*"
 
   lint:
     command: "pnpm run lint"

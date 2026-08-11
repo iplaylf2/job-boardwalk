@@ -6,10 +6,7 @@ import { promisify } from "node:util";
 
 const serviceHostDirectory = path.resolve(import.meta.dirname, "..");
 const repositoryRoot = path.resolve(serviceHostDirectory, "../..");
-const executableName =
-  process.platform === "win32"
-    ? "job-boardwalk-desktop-service-host.exe"
-    : "job-boardwalk-desktop-service-host";
+const executableName = process.platform === "win32" ? "node-service-host.exe" : "node-service-host";
 const executablePath = path.join(repositoryRoot, "target", "release", executableName);
 const seaConfigPath = path.join(serviceHostDirectory, "dist", "sea-config.json");
 const bundledRuntimePath = path.join(serviceHostDirectory, "dist", "desktop-service-host.cjs");

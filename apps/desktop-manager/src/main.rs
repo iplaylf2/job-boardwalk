@@ -275,6 +275,10 @@ fn install_callbacks(
 fn main() -> Result<(), Box<dyn Error>> {
     let manager_executable = env::current_exe()?;
     let layout = resolve_product_layout(&manager_executable)?;
+    slint::BackendSelector::new()
+        .backend_name("winit".into())
+        .renderer_name("software".into())
+        .select()?;
     let window = ManagerWindow::new()?;
     let (settings, settings_error) = match DesktopSettings::load(&layout.settings_path) {
         Ok(settings) => (settings, None),

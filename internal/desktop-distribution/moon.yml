@@ -28,7 +28,7 @@ tasks:
       - "/target/service-artifacts/browser-session/**/*"
       - "/apps/workspace-service/dist/workspace-service/**/*"
       - "/target/release/job-boardwalk-desktop-manager*"
-      - "/target/release/job-boardwalk-desktop-service-host*"
+      - "/target/release/node-service-host*"
     env:
       JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE: "*"
     outputs:
