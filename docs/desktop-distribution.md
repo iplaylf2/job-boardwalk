@@ -43,6 +43,7 @@ from the launching process's current working directory. The target logical layou
 ```text
 job-boardwalk/
 ├── job-boardwalk
+├── readme.md
 ├── runtime/
 │   ├── node-service-host
 │   └── caddy
@@ -54,7 +55,7 @@ job-boardwalk/
 │   │   ├── dist/
 │   │   │   └── index.cjs
 │   │   └── node_modules/
-│   ├── licenses/
+│   ├── licenses/           # added before release publication
 │   └── workspace-service/
 │       ├── index.mjs
 │       └── migrations/
@@ -66,6 +67,10 @@ job-boardwalk/
 │   └── workspace.sqlite
 └── manifest.json
 ```
+
+The assembler creates `data/` as an empty writable boundary. Desktop Manager and its services
+create the listed children when they are first needed. License collection is not implemented in
+the current staging artifact; `payload/licenses/` belongs to the target release layout.
 
 Windows adds `.exe` to the root `job-boardwalk` entrypoint and the private runtime executables.
 Platform packaging may wrap Desktop Manager in a signed application bundle, but one writable outer

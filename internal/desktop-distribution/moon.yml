@@ -17,6 +17,7 @@ tasks:
       - "dashboard:build"
       - "workspace-service:build"
     inputs:
+      - "assets/**/*"
       - "src/**/*"
       - "package.json"
       - "tsconfig.json"

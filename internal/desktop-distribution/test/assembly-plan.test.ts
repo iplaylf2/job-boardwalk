@@ -39,6 +39,21 @@ test("places complete Node service artifacts without inspecting their contents",
   });
 });
 
+test("places the distribution-owned readme at the product root", () => {
+  const repositoryRoot = path.join(path.parse(process.cwd()).root, "synthetic-job-boardwalk");
+  const plan = createDesktopAssemblyPlan({
+    caddyExecutable: path.join(repositoryRoot, "inputs", "caddy"),
+    platform: "linux",
+    productVersion: "7.8.9",
+    repositoryRoot,
+  });
+
+  expect(plan.components).toContainEqual({
+    destination: "readme.md",
+    source: path.join(repositoryRoot, "internal", "desktop-distribution", "assets", "readme.md"),
+  });
+});
+
 test("exposes the Windows GUI at the product root and keeps executables under runtime", () => {
   const repositoryRoot = path.join(path.parse(process.cwd()).root, "synthetic-job-boardwalk");
   const plan = createDesktopAssemblyPlan({

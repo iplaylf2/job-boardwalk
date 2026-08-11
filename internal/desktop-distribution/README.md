@@ -9,7 +9,8 @@ the product-specific assembly and packaging boundary defined by
 The package owns:
 
 - assembly of the documented desktop-product layout and its integrity manifest;
-- the explicit allowlist of application-owned build artifacts;
+- the explicit allowlist of installed components;
+- the product-root readme shipped with an extracted desktop build;
 - build-time validation that resources stay within the product directory contract;
 - selection and invocation of the native archive tool.
 
@@ -22,13 +23,14 @@ contract.
 
 ## Current implementation
 
-The current implementation assembles the root Desktop Manager entrypoint, a private shared Node.js
-service host, a build-supplied Caddy executable, Browser Session, Dashboard, and Workspace Service
-into a deterministic staging tree and writes its integrity manifest. The staged lifecycle runs
-without Docker or a system installation of Node.js or Caddy. It also requires no source checkout or
-bundled browser. Both Node services arrive as finalized runtime directories; Desktop Distribution
-does not interpret their entry modules or dependency graphs. Desktop Manager uses an installed
-system browser or an explicit executable override as defined by the product contract.
+The current implementation assembles a product-root user readme alongside Desktop Manager, a
+private shared Node.js service host, a build-supplied Caddy executable, Browser Session, Dashboard,
+and Workspace Service. It writes the result as a deterministic staging tree with an integrity
+manifest. The staged lifecycle runs without Docker or a system installation of Node.js or Caddy.
+It also requires no source checkout or bundled browser. Both Node services arrive as finalized
+runtime directories; Desktop Distribution does not interpret their entry modules or dependency
+graphs. Desktop Manager uses an installed system browser or an explicit executable override as
+defined by the product contract.
 
 On native Linux or Windows, the package task creates a portable archive from the assembled product.
 
@@ -61,7 +63,7 @@ assembler verifies that compatibility before copying it.
 The command writes the product tree to
 `target/desktop-distribution/<platform>-<architecture>/job-boardwalk/`.
 
-For engineering validation, launch `job-boardwalk` from the product root on Linux or
+For engineering validation, launch `./job-boardwalk` from the product root on Linux or
 `job-boardwalk.exe` from the product root on Windows. Private Caddy and Node.js host executables
 remain under `runtime/`; the Node.js runtime is embedded in the host rather than either service
 payload. This does not make the staging tree a supported product topology.

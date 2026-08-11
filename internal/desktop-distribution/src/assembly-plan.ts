@@ -61,6 +61,10 @@ function createAssemblyComponents(
       source: path.join(repositoryRoot, "target", "release", builtManagerExecutable),
     },
     {
+      destination: "readme.md",
+      source: path.join(repositoryRoot, "internal", "desktop-distribution", "assets", "readme.md"),
+    },
+    {
       destination: path.join("runtime", nodeServiceHostExecutable),
       source: path.join(repositoryRoot, "target", "release", nodeServiceHostExecutable),
     },
