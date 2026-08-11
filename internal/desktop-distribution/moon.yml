@@ -9,6 +9,7 @@ workspace:
 tasks:
   assemble:
     command: "pnpm run assemble"
+    type: "run"
     deps:
       - "desktop-service-host:build"
       - "browser-session:build"
@@ -35,6 +36,7 @@ tasks:
 
   package:
     command: "pnpm run package"
+    type: "run"
     deps:
       - "~:assemble"
     inputs:

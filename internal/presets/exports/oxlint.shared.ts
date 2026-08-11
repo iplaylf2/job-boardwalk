@@ -27,6 +27,7 @@ export default defineConfig({
     ],
     "eslint/no-ternary": "off",
     "eslint/no-use-before-define": "off",
+    "eslint/one-var": "off",
     "eslint/sort-imports": "off",
     "import/exports-last": "off",
     "import/group-exports": "off",
