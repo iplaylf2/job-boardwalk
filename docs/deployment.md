@@ -154,30 +154,21 @@ socket, Workspace volume, or Browser Session MCP endpoint.
 The Compose network is internal. The containers do not need outbound internet access at runtime;
 Dashboard uses system font stacks and loads no third-party assets.
 
-## Service process contract
+## Compose process contract
 
-The finalized Workspace Service and Browser Session artifacts share a small, distribution-neutral
-process contract: runtime paths, listener addresses, and addresses of other services enter through
-process configuration; HTTP health endpoints report readiness; standard streams carry operational
-output; `SIGINT` and `SIGTERM` request shutdown; and exit status reports failure. The runtime
-integration supplies its layout and supervision without changing service behavior.
+The finalized Workspace Service accepts runtime paths and listener values through process
+configuration, reports health over HTTP, writes operational output to standard streams, handles
+`SIGINT` and `SIGTERM`, and reports failure through its exit status. Compose supplies the container
+paths and listener values, mounts persistence, creates the private network, publishes the loopback
+port, checks health, and supervises the process.
 
-The repository supplies that contract in three runtime contexts:
-
-- Compose supplies container paths and listener values for Workspace Service, mounts persistence,
-  creates the private network, publishes loopback ports, checks health, and supervises containers.
-  Browser Session remains a host companion.
-- Desktop Manager derives installed paths and supplies explicit arguments, while Desktop Service
-  Host converts Manager's stdin-based child supervision to `SIGTERM`. Packaged Caddy owns the
-  desktop HTTP boundary.
-- Source development supplies defaults and optional environment overrides without defining a
-  release topology.
-
-Concrete ports, process order, storage placement, executable discovery, and restart policy belong
-to each runtime integration. Cross-language coordination stays on the process and HTTP contract.
-If a future integration needs structured coordination that this contract cannot express,
-[Development](development.md#generated-artifacts-and-language-boundaries) defines the threshold for
-introducing a language-neutral schema and drift check.
+Browser Session follows the same small process contract as a host companion but remains outside
+the Compose network and container lifecycle. Source-development defaults and environment overrides
+belong to its [application README](../apps/browser-session/README.md#run-browser-session-from-source).
+The directory-contained desktop adaptation belongs to
+[Desktop distribution](desktop-distribution.md#runtime-payload).
+[Development](development.md#generated-artifacts-and-language-boundaries) defines when this
+process-and-HTTP boundary would require a language-neutral schema.
 
 ## Deployment file ownership
 

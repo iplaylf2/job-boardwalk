@@ -62,8 +62,8 @@ Available now:
   conclusions available without the agent conversation that produced them.
 - Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
   address and service log path and directly supervising the product's isolated service processes.
-  A missing browser or Browser Session process failure puts the application in a limited state
-  without taking Workspace Service or Dashboard offline.
+  Browser discovery or launch failure, or a later Browser Session process exit, puts the
+  application in a limited state without taking Workspace Service or Dashboard offline.
 - Portable desktop prereleases package Job Boardwalk into one directory for Linux x64 and Windows
   x64. They run without installing Docker or Node.js and without a source checkout, and they use an
   installed Chrome, Edge, or Chromium browser. [Desktop distribution](docs/desktop-distribution.md)

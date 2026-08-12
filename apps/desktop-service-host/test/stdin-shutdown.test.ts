@@ -1,8 +1,22 @@
 import { expect, test } from "vitest";
 
-import { installStdinShutdown } from "#/stdin-shutdown.js";
+import { installStdinShutdown, requestServiceTermination } from "#/stdin-shutdown.js";
 
-test("adapts Desktop Manager stdin closure to standard process termination", () => {
+test("dispatches termination through the process's SIGTERM event", () => {
+  const observed: { event?: string; signal?: string } = {};
+
+  requestServiceTermination({
+    emit: (event, signal) => {
+      observed.event = event;
+      observed.signal = signal;
+      return true;
+    },
+  });
+
+  expect(observed).toEqual({ event: "SIGTERM", signal: "SIGTERM" });
+});
+
+test("adapts Desktop Manager stdin closure to service termination", () => {
   const observed: {
     stdinEndListener?: () => void;
     stdinResumed: boolean;

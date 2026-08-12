@@ -303,7 +303,8 @@ For desktop staging, Desktop Manager starts the finalized Workspace Service arti
 Desktop Service Host and supplies absolute database and migration paths plus the loopback listener
 address. These arguments override source-development defaults, so a directory-contained run does
 not depend on environment variables or the launcher's working directory. Workspace Service handles
-`SIGINT` and `SIGTERM`; Desktop Service Host converts Manager's stdin closure to `SIGTERM`.
+`SIGINT` and `SIGTERM`; Desktop Service Host routes Manager's stdin closure through the same
+`SIGTERM` handler.
 
 ## Concurrency model
 

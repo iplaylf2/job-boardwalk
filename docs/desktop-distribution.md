@@ -9,8 +9,8 @@ boundaries; [Deployment](deployment.md) documents the supported Compose topology
 The repository currently assembles a deterministic, runnable staging tree inside the documented
 product-directory boundary. It includes the service host, packaged Caddy boundary, and direct
 process supervision described below. Desktop Manager exposes working lifecycle and status controls
-alongside the Dashboard address and service log path. A missing browser leaves Workspace Service
-and Dashboard available and puts the desktop application in a limited state.
+alongside the Dashboard address and service log path. An unavailable browser capability leaves
+Workspace Service and Dashboard available and puts the desktop application in a limited state.
 
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
@@ -125,6 +125,7 @@ explicit service entrypoints and is not a general Node.js command. The Node.js r
 in that shared executable; it is not installed under either service payload, and the product does
 not contain a standalone `node` command. Finalized Workspace Service and Browser Session artifacts
 remain application-owned under the product payload.
+
 Workspace Service exposes `index.mjs`; Browser Session is a pnpm-produced portable application
 package exposing `dist/index.cjs`. Desktop Manager resolves those entrypoints from the installed
 product layout. Desktop Distribution places each complete artifact without selecting or relocating
@@ -134,11 +135,18 @@ dependency tree, or source workspace.
 
 Desktop Manager invokes the host in one explicit role for each isolated Node service process. The
 host loads the selected entry module directly. It does not derive layout paths, inspect service
-contents, discover browsers, or coordinate sibling processes. Desktop Manager resolves the
-configured browser override or a common system Chrome, Edge, or Chromium installation and passes
-the exact path to Browser Session. Dashboard instead runs on the packaged Caddy executable.
+contents, discover browsers, or coordinate sibling processes. Manager retains the child's standard
+input as its lifecycle channel. Closing that channel produces EOF in the host, which dispatches the
+Node.js process's `SIGTERM` event so the loaded service performs its ordinary resource cleanup on
+every platform. Forced termination remains a bounded fallback owned by Manager.
+
+Desktop Manager resolves the configured browser override or a common system Chrome, Edge, or
+Chromium installation and passes the exact path to Browser Session. Dashboard instead runs on the
+packaged Caddy executable.
+
 On Windows, Manager starts all private service processes without console windows; the Manager GUI
 and `data/logs/services.log` remain their user-facing status and diagnostic surfaces.
+
 Compose and desktop distribution share the same Caddyfile, so static serving, security headers, SPA
 fallback, compression, and `/api` proxying have one configuration and one maintained server
 implementation.
@@ -167,11 +175,12 @@ the dedicated profile under `data/browser-profile/`. It never launches the user'
 profile.
 
 Discovery recognizes a browser candidate; it does not establish compatibility with every system
-browser build. Browser Session owns browser launch, runtime compatibility, and recovery. Discovery
-failure prevents only the browser process from starting; Desktop Manager keeps Workspace Service
-and Dashboard running and presents an actionable limited state. If the Browser Session process
-exits, Manager reports the failure and points to the service log. The desktop product never
-downloads or installs browser software.
+browser build. Browser Session owns browser launch, runtime compatibility, and recovery. Manager
+does not mark browser access available until Browser Session reports a launch-ready browser. A
+failure to discover or launch a compatible browser leaves Workspace Service and Dashboard running
+and produces an actionable limited state. If the Browser Session process exits, Manager reports the
+failure and points to the service log. The desktop product never downloads or installs browser
+software.
 
 [Product design](product-design.md) remains authoritative for Browser Session ownership, visible
 browser behavior, user handoff, credentials, verification, applications, messages, and account

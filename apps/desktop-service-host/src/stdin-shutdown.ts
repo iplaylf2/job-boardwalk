@@ -6,11 +6,17 @@ interface StdinShutdownDependencies {
   readonly resumeStdin: () => void;
 }
 
+interface TerminationSignalEmitter {
+  readonly emit: (event: "SIGTERM", signal: "SIGTERM") => boolean;
+}
+
+export function requestServiceTermination(signalEmitter: TerminationSignalEmitter = process): void {
+  signalEmitter.emit("SIGTERM", "SIGTERM");
+}
+
 const defaultDependencies: StdinShutdownDependencies = {
   onStdinEnd: (listener) => process.stdin.once("end", listener),
-  requestTermination: () => {
-    process.kill(process.pid, "SIGTERM");
-  },
+  requestTermination: requestServiceTermination,
   resumeStdin: () => process.stdin.resume(),
 };
 

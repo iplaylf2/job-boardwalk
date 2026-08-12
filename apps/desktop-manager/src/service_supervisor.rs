@@ -3,11 +3,13 @@ use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use serde::Deserialize;
+
 use crate::browser_discovery::discover_browser;
 use crate::caddy_lifecycle::CaddyLifecycle;
 use crate::desktop_settings::DesktopSettings;
 use crate::product_layout::ProductLayout;
-use crate::service_plan::{ServiceSpec, ShutdownMethod, service_plan};
+use crate::service_plan::{Readiness, ServiceSpec, ShutdownMethod, service_plan};
 
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
 const SERVICE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
@@ -96,7 +98,27 @@ fn spawn_service(spec: ServiceSpec, log: &File) -> Result<ManagedService, String
     })
 }
 
-fn wait_for_readiness(service: &mut ManagedService, health_url: &str) -> Result<(), String> {
+#[derive(Deserialize)]
+struct BrowserHealth {
+    browser: BrowserHealthStatus,
+}
+
+#[derive(Deserialize)]
+struct BrowserHealthStatus {
+    available: bool,
+}
+
+fn browser_health_is_ready(body: &str) -> bool {
+    serde_json::from_str::<BrowserHealth>(body)
+        .ok()
+        .is_some_and(|health| health.browser.available)
+}
+
+fn wait_for_readiness(
+    service: &mut ManagedService,
+    health_url: &str,
+    readiness: Readiness,
+) -> Result<(), String> {
     let deadline = Instant::now() + SERVICE_STARTUP_TIMEOUT;
     let agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(1)))
@@ -114,8 +136,19 @@ fn wait_for_readiness(service: &mut ManagedService, health_url: &str) -> Result<
                 service.name
             ));
         }
-        if agent.get(health_url).call().is_ok() {
-            return Ok(());
+        if let Ok(mut response) = agent.get(health_url).call() {
+            match readiness {
+                Readiness::HttpAvailable => return Ok(()),
+                Readiness::BrowserAvailable => {
+                    if response
+                        .body_mut()
+                        .read_to_string()
+                        .is_ok_and(|body| browser_health_is_ready(&body))
+                    {
+                        return Ok(());
+                    }
+                }
+            }
         }
         thread::sleep(PROCESS_POLL_INTERVAL);
     }
@@ -207,8 +240,9 @@ pub(crate) fn start_services(
     for spec in service_plan(layout, settings, caddy_lifecycle.clone(), browser.as_ref()) {
         let health_url = spec.health_url.clone();
         let optional = spec.optional;
+        let readiness = spec.readiness;
         let mut service = spawn_service(spec, &log)?;
-        if let Err(error) = wait_for_readiness(&mut service, &health_url) {
+        if let Err(error) = wait_for_readiness(&mut service, &health_url, readiness) {
             stop_service(&mut service);
             if optional {
                 browser_running = false;
@@ -224,4 +258,27 @@ pub(crate) fn start_services(
         browser_running,
         services: running,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::browser_health_is_ready;
+
+    #[test]
+    fn accepts_browser_health_only_when_browser_actions_are_available() {
+        assert!(browser_health_is_ready(
+            r#"{"browser":{"available":true,"tabCount":0},"status":"ok"}"#
+        ));
+    }
+
+    #[test]
+    fn rejects_http_health_without_browser_availability() {
+        for body in [
+            r#"{"browser":{"available":false},"status":"ok"}"#,
+            r#"{"status":"ok"}"#,
+            "not-json",
+        ] {
+            assert!(!browser_health_is_ready(body));
+        }
+    }
 }

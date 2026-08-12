@@ -2,7 +2,8 @@
 
 Desktop Service Host is the application-specific Node.js executable in the directory-contained
 desktop product. It starts exactly one finalized service payload per invocation. Desktop Manager,
-not this executable, owns service order, readiness, failure containment, and shutdown.
+not this executable, owns service order, readiness, failure containment, and ordered shutdown. Each
+loaded service remains responsible for closing its own resources.
 
 The host supports two roles:
 
@@ -15,9 +16,13 @@ arguments. The host loads that file directly. It does not derive the product lay
 service's dependency or resource layout, discover browsers, supervise sibling processes, expose a
 manager protocol, or use shajara to model process topology.
 
-After loading a service module, the host converts stdin EOF from Desktop Manager to `SIGTERM`.
-Workspace Service and Browser Session handle normal process signals and remain independent of
-Manager's stdin protocol.
+After loading a service module, the host converts stdin EOF from Desktop Manager into an in-process
+`SIGTERM` event. This invokes the service's ordinary signal handler without using Windows'
+terminating `process.kill()` signal emulation. Workspace Service and Browser Session therefore
+remain independent of Manager's stdin protocol.
+
+[Desktop distribution](../../docs/desktop-distribution.md#runtime-payload) owns the installed
+process topology that connects Manager, this host, and the finalized service payloads.
 
 ## Build and checks
 

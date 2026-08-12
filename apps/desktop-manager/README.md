@@ -9,14 +9,14 @@ its dedicated profile.
 
 The Manager presents Job Boardwalk as one local application. Its Start and Stop controls operate
 the complete local runtime, while the service overview distinguishes core availability from the
-optional browser capability. A missing browser leaves the workspace and Dashboard running and puts
-the application in a limited state with an actionable explanation.
+optional browser capability. When that capability is unavailable, the workspace and Dashboard keep
+running while the application presents an actionable limited state.
 
 The main window also exposes the Dashboard address and absolute service log path so either can be
 copied without operating-system URL or file integration. Service output is appended to
 `data/logs/services.log`; the GUI does not read workspace persistence or service-private APIs. On
-Windows, Manager starts its private service processes without console windows; their lifecycle and
-failure state remain owned by the GUI.
+Windows, Manager starts its private service processes without console windows; their process
+lifecycle and failure state remain visible through the GUI.
 
 When services are stopped, Settings configures the three product loopback ports and an optional
 absolute browser executable override. A blank override discovers Chrome, Edge, or Chromium in the
@@ -64,12 +64,13 @@ policy.
 
 Desktop Manager is the desktop composition root. It resolves the browser override or system
 installation, starts Workspace Service, Caddy, and Browser Session in dependency order, checks
-their HTTP readiness, translates their state into the product UI, observes unexpected exits, and
-stops them in reverse order. To stop a Node.js service, Manager closes the child host's standard
-input; the shared Node.js Service Host converts that EOF to `SIGTERM`. Caddy shuts down on every
-platform through a private, start-scoped loopback admin endpoint selected by Manager. The endpoint
-is never displayed or persisted. Manager forcibly terminates a child only when it exceeds the
-bounded shutdown period.
+Workspace Service and Dashboard HTTP availability and Browser Session's reported browser
+availability, translates their state into the product UI, observes unexpected exits, and stops them
+in reverse order. To stop a Node.js service, Manager closes the child host's standard input; the
+shared Node.js Service Host routes that EOF through the service's ordinary `SIGTERM` handler on
+every platform. Caddy shuts down through a private, start-scoped loopback admin endpoint selected
+by Manager. The endpoint is never displayed or persisted. Manager forcibly terminates a child only
+when it exceeds the bounded shutdown period.
 
 The services expose no manager-specific control protocol. Manager relies on explicit arguments,
 health endpoints, exit status, and log streams. It does not expose a tray, install the application,
@@ -77,7 +78,8 @@ perform updates, read workspace persistence, or control recruiting pages.
 
 [Desktop distribution](../../docs/desktop-distribution.md) defines the directory-contained,
 Docker-free installed form and remaining release boundary. Desktop Manager is the lifecycle
-control surface, not the installer.
+control surface, not the installer. [Desktop Service Host](../desktop-service-host/) documents the
+Node service-host side of the shutdown adapter.
 
 [Product design](../../docs/product-design.md) owns the cross-application boundary.
 [Development](../../docs/development.md) owns the polyglot workspace and CI model.

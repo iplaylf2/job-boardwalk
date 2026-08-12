@@ -34,8 +34,8 @@ graphs. Desktop Manager uses an installed system browser or an explicit executab
 defined by the product contract.
 
 On native Linux or Windows, the package task creates a portable archive from the assembled product.
-
-The staging tree and archives remain engineering artifacts.
+The staging tree and unsigned prerelease archives remain engineering artifacts rather than the
+supported deployment topology.
 
 Node.js executes the package's TypeScript entrypoints directly, with no generated JavaScript copy.
 Vitest tests the assembly and archive-coordination boundaries. This package's version is the

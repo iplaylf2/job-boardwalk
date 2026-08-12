@@ -12,7 +12,14 @@ pub(crate) struct ServiceSpec {
     pub(crate) health_url: String,
     pub(crate) name: &'static str,
     pub(crate) optional: bool,
+    pub(crate) readiness: Readiness,
     pub(crate) shutdown: ShutdownMethod,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Readiness {
+    BrowserAvailable,
+    HttpAvailable,
 }
 
 pub(crate) enum ShutdownMethod {
@@ -54,6 +61,7 @@ pub(crate) fn service_plan(
             health_url: format!("{workspace_url}/health"),
             name: "Workspace Service",
             optional: false,
+            readiness: Readiness::HttpAvailable,
             shutdown: ShutdownMethod::CloseStdin,
         },
         ServiceSpec {
@@ -89,6 +97,7 @@ pub(crate) fn service_plan(
             health_url: format!("{dashboard_url}/health"),
             name: "Dashboard",
             optional: false,
+            readiness: Readiness::HttpAvailable,
             shutdown: ShutdownMethod::Caddy(caddy_lifecycle),
         },
     ];
@@ -114,6 +123,7 @@ pub(crate) fn service_plan(
             health_url: format!("{browser_url}/health"),
             name: "Browser",
             optional: true,
+            readiness: Readiness::BrowserAvailable,
             shutdown: ShutdownMethod::CloseStdin,
         });
     }
@@ -159,6 +169,10 @@ mod tests {
             workspace_service.health_url,
             "http://127.0.0.1:55310/health"
         );
+        assert!(matches!(
+            workspace_service.readiness,
+            Readiness::HttpAvailable
+        ));
 
         let dashboard = plan
             .iter()
@@ -179,6 +193,7 @@ mod tests {
             );
         }
         assert_eq!(dashboard.health_url, "http://127.0.0.1:55311/health");
+        assert!(matches!(dashboard.readiness, Readiness::HttpAvailable));
         assert!(matches!(dashboard.shutdown, ShutdownMethod::Caddy(_)));
         assert!(
             dashboard.environment.iter().any(|entry| {
@@ -218,6 +233,10 @@ mod tests {
         }
         assert!(browser_session.environment.is_empty());
         assert_eq!(browser_session.health_url, "http://127.0.0.1:55312/health");
+        assert!(matches!(
+            browser_session.readiness,
+            Readiness::BrowserAvailable
+        ));
     }
 
     #[test]

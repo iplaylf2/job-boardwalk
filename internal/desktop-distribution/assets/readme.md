@@ -14,7 +14,8 @@ Desktop Manager displays the Dashboard address and the service log path.
 
 Job Boardwalk uses an installed Chrome, Edge, or Chromium browser and does not bundle or download
 one. If automatic discovery does not find a browser, stop the services and select its executable in
-Settings.
+Settings. If browser access remains unavailable, inspect the service log and try another Chrome,
+Edge, or Chromium installation.
 
 Docker and development tools are not required to run this directory.
 
