@@ -64,16 +64,20 @@ Available now:
   address and service log path and directly supervising the product's isolated service processes.
   A missing browser or Browser Session process failure puts the application in a limited state
   without taking Workspace Service or Dashboard offline.
-- Desktop engineering staging assembles Desktop Manager, Desktop Service Host, Caddy, Browser
-  Session, Dashboard, Workspace Service, and migrations into one portable directory. It runs
-  without Docker, a system Node.js or Caddy installation, a source checkout, or a bundled browser.
-  [Desktop distribution](docs/desktop-distribution.md) defines the installed form and remaining
-  release work.
+- Portable desktop prereleases package Job Boardwalk into one directory for Linux x64 and Windows
+  x64. They run without installing Docker or Node.js and without a source checkout, and they use an
+  installed Chrome, Edge, or Chromium browser. [Desktop distribution](docs/desktop-distribution.md)
+  explains how to use these unsigned builds and what remains before a supported desktop release.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.
 
 ## Run Job Boardwalk
+
+The supported deployment uses Docker Compose. Unsigned portable desktop builds are also available
+for prerelease evaluation.
+
+### Supported Compose deployment
 
 Workspace Service and Dashboard require Docker Engine with Docker Compose; building their images
 from source also requires BuildKit. Browser Session requires a graphical host session, Patchright
@@ -102,35 +106,20 @@ Browser Session launches a visible browser with a dedicated profile in the opera
 data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
 
-The desktop lifecycle is available as an engineering staging artifact. After installing the Rust
-toolchain and platform build dependencies described in its
-[README](apps/desktop-manager/README.md), assemble and launch the manager from the resulting
-product directory:
+### Portable desktop prerelease
 
-```sh
-JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
-  pnpm exec moon run desktop-distribution:assemble
-target/desktop-distribution/<platform>-<architecture>/job-boardwalk/job-boardwalk
-```
+[GitHub Releases](https://github.com/iplaylf2/job-boardwalk/releases) provides unsigned Linux x64
+and Windows x64 archives for prerelease evaluation. Download the archive for your operating system,
+verify it against the release's `SHA256SUMS`, and extract the complete `job-boardwalk` directory to
+a writable location. The desktop build requires an installed Chrome, Edge, or Chromium browser but
+does not require installing Docker or Node.js and does not require a source checkout.
 
-The final line launches the Linux entrypoint. On Windows, launch
-`target\desktop-distribution\win32-<architecture>\job-boardwalk\job-boardwalk.exe`; see
-[Desktop Distribution](internal/desktop-distribution/README.md#commands) for the PowerShell build
-command.
-
-The build input must be a platform-native Caddy executable that can load the product Caddyfile.
-The resulting manifest identifies an engineering staging artifact, not a supported desktop
-release. [Desktop distribution](docs/desktop-distribution.md) defines the installed form and
-remaining release work.
-
-Desktop staging discovers system Chrome, Edge, or Chromium and does not automatically reuse the
-Chromium installed by Patchright for source development. To exercise staging with that browser,
-launch Desktop Manager with its absolute executable path in
-`JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`. Installed users can select an override in Settings.
-
-The same staging tree can be packaged as a Linux `.tar.gz` or Windows `.zip`.
-[Desktop Distribution](internal/desktop-distribution/README.md) documents the archive command; the
-result remains a pre-release engineering artifact.
+The archive's `readme.md` explains how to start the application and where it stores data. The
+prerelease does not yet provide automatic updates or a supported backup-and-restore workflow, and
+the existing Compose deployment remains the supported topology. See
+[Desktop distribution](docs/desktop-distribution.md#use-a-desktop-prerelease) for the complete
+prerelease limitations. Developers who need to build an archive from source should follow
+[Development](docs/development.md#desktop-distribution-staging).
 
 When the user requests login, or visible page evidence shows that the requested workflow requires
 authentication and the current session is unauthenticated, the agent proactively opens the

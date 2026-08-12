@@ -15,13 +15,36 @@ and Dashboard available and puts the desktop application in a limited state.
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
 platform. Changesets-managed releases publish both unsigned archives as GitHub prereleases with
-checksums and build-provenance attestations. Operating-system signing, license collection, backup,
-atomic updates, and promotion to a supported release channel remain outstanding in
-[Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore remains the supported
-topology.
+checksums and build-provenance attestations. Operating-system signing, license collection,
+integrated backup and restore, atomic updates, and promotion to a supported release channel remain
+outstanding in [Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore
+remains the supported topology.
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents how to build and
 inspect the staging tree.
+
+## Use a desktop prerelease
+
+Each desktop prerelease on [GitHub Releases](https://github.com/iplaylf2/job-boardwalk/releases)
+provides a Linux x64 `.tar.gz`, a Windows x64 `.zip`, and `SHA256SUMS`. GitHub also records a
+build-provenance attestation for each archive. Download the archive for the current operating
+system, verify its checksum, and extract the complete `job-boardwalk` directory to a user-selected,
+writable location. Do not run the application from inside the archive or separate files from the
+extracted directory.
+
+On Linux, run `./job-boardwalk` from the extracted directory. On Windows, run
+`job-boardwalk.exe`. Desktop Manager starts and stops the local services and displays the Dashboard
+address and service log path. Job Boardwalk uses an installed Chrome, Edge, or Chromium browser; if
+automatic discovery fails while the services are stopped, select the browser executable in
+Settings.
+
+These archives are unsigned prerelease builds. The operating system may warn before opening them,
+and they are not the supported deployment topology. They do not provide automatic updates or a
+supported backup, restore, or cross-version migration workflow. Keep each build in its own product
+directory, stop Job Boardwalk before copying `data/` as a precautionary backup, and do not move that
+data into another version unless its release notes explicitly declare compatibility. Removing the
+product directory also removes its workspace database, dedicated browser profile, settings, and
+logs.
 
 ## Installed product contract
 
@@ -213,7 +236,8 @@ provenance, and license policy. The installed product does not use a host Caddy 
    Linux and Windows builds, release checksums, provenance attestations, and publication of both
    archives under a `v<version>` GitHub prerelease. Other `master` pushes do not build or publish
    desktop distributions.
-6. **Supported native release.** Add Windows code signing, license collection, backup, and atomic
-   in-directory updates. Add Linux signing when the selected publication channel defines its trust
-   mechanism, then promote the prerelease through that channel. The desktop release becomes the
-   supported product topology when it covers the complete observable lifecycle.
+6. **Supported native release.** Add Windows code signing, license collection, integrated backup
+   and restore, and atomic in-directory updates. Add Linux signing when the selected publication
+   channel defines its trust mechanism, then promote the prerelease through that channel. The
+   desktop release becomes the supported product topology when it covers the complete observable
+   lifecycle.

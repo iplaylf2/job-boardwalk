@@ -220,9 +220,9 @@ workspace manifests, `workspace:*` references, or source paths because its depen
 bundled.
 
 Browser Session separately produces a portable Node.js application package for host and desktop
-runtimes. Its [application README](../apps/browser-session/README.md#run-browser-session) owns that
-artifact's build and layout; [Desktop distribution](desktop-distribution.md) owns its installed
-placement.
+runtimes. Its [application README](../apps/browser-session/README.md#run-browser-session-from-source)
+owns that artifact's build and layout; [Desktop distribution](desktop-distribution.md) owns its
+installed placement.
 
 The same Caddyfile accompanies the desktop staging tree, so routing and security policy do not fork
 by deployment topology.

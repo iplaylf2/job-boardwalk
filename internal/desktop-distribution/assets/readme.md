@@ -1,7 +1,8 @@
 # Job Boardwalk Desktop
 
-This directory is a pre-release engineering artifact. Keep the complete directory together in a
-writable location; Job Boardwalk runs from this directory and stores its data here.
+This directory contains an unsigned prerelease build. Keep the complete directory together in a
+writable location; Job Boardwalk runs from this directory and stores its data here. The operating
+system may warn before opening an unsigned application.
 
 ## Start Job Boardwalk
 
@@ -15,16 +16,17 @@ Job Boardwalk uses an installed Chrome, Edge, or Chromium browser and does not b
 one. If automatic discovery does not find a browser, stop the services and select its executable in
 Settings.
 
-Docker, Node.js, Caddy, pnpm, Cargo, and a source checkout are not required to run this directory.
+Docker and development tools are not required to run this directory.
 
 ## Preserve or remove your data
 
 The `data/` directory contains the workspace database, dedicated browser profile, settings, and
-service logs. Use Stop before copying the complete `data/` directory for a backup.
+service logs. Use Stop before copying the complete `data/` directory as a precautionary backup.
+This prerelease does not provide a supported restore or cross-version migration workflow. Do not
+copy saved data into another version unless its release notes explicitly declare compatibility.
 
 To uninstall this portable build, use Stop, close Desktop Manager, and remove the complete product
-directory. Removing it also removes everything under `data/`, so make a backup first if you want to
-retain your workspace or browser profile.
+directory. Removing it also removes everything under `data/`.
 
 ## Troubleshooting
 
