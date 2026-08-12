@@ -18,7 +18,7 @@ const supportedPlatformLabels = platformIds
   .map((platformId) => platformCatalog[platformId].label)
   .join("、");
 const browserServerInstructions = [
-  `Browser Session 管理可见的 Patchright 浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
+  `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
   "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
   "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
   "用户交接：需要打开登录界面时，使用 browser_prepare_login 准备交接；界面打开后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",

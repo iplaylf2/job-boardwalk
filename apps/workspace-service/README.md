@@ -14,8 +14,8 @@ references. The service does not store recruiting pages or historical page snaps
 research reports as Markdown with structured lifecycle metadata and optional expiration.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
-which owns the visible persistent Patchright browser. The agent coordinates that live browser work
-with the durable workspace exposed by this service.
+which owns the visible persistent browser. The agent coordinates that live browser work with the
+durable workspace exposed by this service.
 
 Browser Session also sends status reports directly to Workspace Service. An in-memory presence
 tracker renews a short lease for each accepted status report and makes the result available to

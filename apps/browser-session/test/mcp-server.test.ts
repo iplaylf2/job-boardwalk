@@ -72,7 +72,7 @@ async function connectedClient(
   };
 }
 
-test("always exposes the project-owned Patchright browser tools", async () => {
+test("always exposes the project-owned browser tools", async () => {
   await using serviceScope = createScope();
   const browserControl = fakeBrowserControl();
   const mcpServer = createBrowserSessionMcpServer(browserControl, serviceScope);

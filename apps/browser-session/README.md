@@ -1,10 +1,10 @@
 # Browser Session
 
 Browser Session is Job Boardwalk's long-lived loopback HTTP MCP service for a visible persistent
-browser. It launches Patchright Chromium, owns the dedicated profile and browser process,
-coordinates tabs and page actions, and derives authentication observations from top-level
-navigation responses and bounded snapshots when a platform adapter has a conclusive rule. Page
-meaning not covered by an adapter remains with the agent.
+browser. It drives a Chromium-based browser through Patchright, owns the dedicated profile and
+browser process, coordinates tabs and page actions, and derives authentication observations from
+top-level navigation responses and bounded snapshots when a platform adapter has a conclusive
+rule. Page meaning not covered by an adapter remains with the agent.
 
 Browser Session is a host companion by design. It runs in the same graphical session the user can
 observe and take over; it is not part of the Compose deployment. Workspace Service and Dashboard
@@ -12,12 +12,11 @@ run in containers, while Workspace Service's loopback-published port preserves t
 HTTP relationship without giving either container access to the browser profile or desktop.
 
 The desktop staging topology runs the same Browser Session behavior through Desktop Service Host.
-The host supplies an explicitly discovered system Chrome or Edge executable path while Desktop
-Manager supplies the dedicated profile under the product's `data/browser-profile/`. Browser
-Session's startup and health boundary determine whether that browser can operate with Patchright.
-The desktop payload does not bundle a browser. Its finalized Browser Session directory contains the
-application entry module and the locked production dependency closure needed by the shared Node.js
-host.
+The host supplies the system Chrome, Edge, or Chromium executable selected by Desktop Manager and
+the dedicated profile under the product's `data/browser-profile/`. Browser Session's startup and
+health boundary determine whether the selected browser can operate with Patchright. The desktop
+payload does not bundle a browser. Its finalized Browser Session directory contains the application
+entry module and the locked production dependency closure needed by the shared Node.js host.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
@@ -78,7 +77,7 @@ and `interviewed` relations preserve historical observations even when a later p
 them. [Product design](../../docs/product-design.md#engagement-tracking) defines the
 cross-application meaning of engagements and complete or partial snapshots.
 
-## Run Browser Session
+## Run Browser Session from source
 
 Browser Session requires a graphical desktop session and Patchright's Chromium binary. It does not
 require a particular operating system, shell, VM, or editor, but it must not run in the headless
@@ -114,7 +113,8 @@ entrypoint.
 The package accepts explicit process arguments for the browser executable, profile directory,
 listener hostname and port, and Workspace Service URL. The desktop runtime supplies these values
 from its installed layout and browser discovery; source development uses the documented environment
-overrides and loopback defaults. Distribution-specific layout and supervision remain outside
+overrides and loopback defaults. Selecting an executable supplies a launch candidate, not a
+compatibility guarantee. Distribution-specific discovery, layout, and supervision remain outside
 Browser Session.
 
 By default, the dedicated browser profile is stored under the operating system's user data
@@ -234,10 +234,26 @@ identity.
 Cross-application navigation origins and destinations remain in the platform catalog; page-specific
 job-link shapes remain inside Browser Session.
 
+### Driver and launch boundary
+
 Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
 made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page
 API without enabling that domain. Browser Session also leaves console event collection disabled; do
 not add Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
+
+Browser Session explicitly enables Chromium's process sandbox for every launch. Patchright
+otherwise passes `--no-sandbox` by default; do not restore that default to work around host setup or
+to silence a browser warning. A browser that cannot launch with its process sandbox is incompatible
+with Browser Session and must fail at the launch boundary. The same launch policy applies to the
+Chromium installed by Patchright for source development and every executable selected by Desktop
+Manager.
+
+Patchright owns its other default command-line switches, including
+`--disable-blink-features=AutomationControlled`. Some branded Chromium-based browsers may report
+such a switch as unsupported. Do not hide that warning with another switch or host policy, and do
+not filter a Patchright default in isolation. Identify the reported switch first; a change to driver
+defaults requires representative compatibility evidence for the Chromium installed by Patchright
+and the Chrome, Edge, and Chromium candidates supported by desktop discovery.
 
 Patchright remains an external runtime dependency so its generated modules and package-relative
 resources stay together. A Patchright upgrade must preserve that package boundary and pass both the

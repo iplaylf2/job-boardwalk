@@ -14,9 +14,10 @@ account changes, applications, and communication always remain under user contro
 Job Boardwalk assigns browser execution, durable state, web presentation, and native desktop
 integration to separate applications:
 
-- [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that owns a
-  visible persistent Patchright browser in the user's graphical session and exposes project-owned
-  browser tools to the agent. It is a host companion, not a container workload.
+- [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that drives a
+  visible persistent Chromium-based browser through Patchright in the user's graphical session
+  and exposes project-owned browser tools to the agent. It is a host companion, not a container
+  workload.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP from an isolated container. It also tracks leased Browser Session
   presence for readers.
@@ -123,8 +124,8 @@ release. [Desktop distribution](docs/desktop-distribution.md) defines the instal
 remaining release work.
 
 Desktop staging discovers system Chrome, Edge, or Chromium and does not automatically reuse the
-Patchright browser installed for source development. To exercise staging with that browser, launch
-Desktop Manager with its absolute executable path in
+Chromium installed by Patchright for source development. To exercise staging with that browser,
+launch Desktop Manager with its absolute executable path in
 `JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`. Installed users can select an override in Settings.
 
 The same staging tree can be packaged as a Linux `.tar.gz` or Windows `.zip`.

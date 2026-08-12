@@ -10,7 +10,7 @@ are the boundary for login, verification, and other user-controlled actions.
 ## Requirements
 
 - Container host: Docker Engine with Docker Compose, plus BuildKit when building images from source
-- Graphical host: a repository checkout, Patchright Chromium, and the Node.js and pnpm toolchain
+- Graphical host: a repository checkout, Chromium installed by Patchright, and the Node.js and pnpm toolchain
   declared in the root [`package.json`](../package.json)
 
 Source image builds bootstrap their own toolchain. Host Node.js and pnpm are needed only for Browser

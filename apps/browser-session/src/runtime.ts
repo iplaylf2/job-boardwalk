@@ -75,7 +75,9 @@ function* runBrowserSession(
   const workspaceServiceUrl = options.workspaceServiceUrl ?? resolveWorkspaceServiceUrl();
   const browserControl = new ManagedBrowser(profilePath, {
     ...createWorkspaceServiceClients(workspaceServiceUrl),
-    ...(options.browserExecutablePath ? { executablePath: options.browserExecutablePath } : {}),
+    ...(options.browserExecutablePath
+      ? { browserExecutablePath: options.browserExecutablePath }
+      : {}),
   });
   const statusReporter = new BrowserSessionStatusReporter(
     workspaceServiceUrl,
