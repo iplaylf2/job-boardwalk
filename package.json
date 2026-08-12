@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "boundaries": "dependency-cruise --config .dependency-cruiser.json --output-type err-long apps internal packages",
+    "changeset": "changeset",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --config oxlint.config.ts oxlint.config.ts",
     "unused": "knip"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.0",
     "@job-boardwalk/presets": "workspace:*",
     "@moonrepo/cli": "2.4.6",
     "@types/node": "catalog:",

@@ -17,6 +17,7 @@ The package owns:
 It consumes finalized application artifacts. It does not own their construction or behavior,
 runtime supervision, browser automation, update behavior, release version selection, release-file
 checksums, signing credentials, provenance, license policy, or release-channel decisions.
+
 [Desktop distribution](../../docs/desktop-distribution.md) owns the installed layout and release
 boundary; assembly tests and Desktop Manager tests independently verify their owned sides of that
 contract.
@@ -37,9 +38,10 @@ On native Linux or Windows, the package task creates a portable archive from the
 The staging tree and archives remain engineering artifacts.
 
 Node.js executes the package's TypeScript entrypoints directly, with no generated JavaScript copy.
-Vitest tests the assembly and archive-coordination boundaries, Cargo supplies structured Rust
-package metadata, and Node's standard library coordinates filesystem and process work around the
-native archive tools.
+Vitest tests the assembly and archive-coordination boundaries. This package's version is the
+desktop product version consumed by the manifest and archive names; Changesets manages its release
+increments and changelog. Node's standard library coordinates filesystem and process work around
+the native archive tools.
 
 ## Commands
 

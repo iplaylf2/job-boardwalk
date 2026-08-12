@@ -57,9 +57,9 @@ JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
 checks, including the PowerShell form of the commands. The explicit build input supplies the
-platform-native Caddy executable used by Dashboard.
-[Desktop distribution](desktop-distribution.md) defines the installed form, build ownership, and
-remaining delivery work.
+platform-native Caddy executable used by Dashboard. The
+[desktop distribution specification](desktop-distribution.md) defines the installed form, build
+ownership, and remaining delivery work.
 
 On Linux or Windows, assemble and create the native portable archive with:
 
@@ -73,9 +73,31 @@ The package task writes the portable archive under `target/desktop-distribution/
 ## Continuous integration
 
 Non-draft pull requests targeting `master` run the affected CI plan on Ubuntu. A change that affects
-Desktop Manager receives one representative native build. The pull-request workflow does not build
-portable archives. Platform-specific jobs belong in the future publication workflow that produces
-those artifacts and validates their packaging, signing, or operating-system behavior.
+Desktop Manager receives one representative native build. Portable Linux and Windows distributions
+are built only for a Changesets-managed desktop release, not for every pull request.
+
+Workflow actions use verified published release tags. Desktop release runner versions are explicit
+so their image migrations happen as reviewed repository changes.
+
+Record desktop release intent with `pnpm changeset` as described in the
+[Changesets contributor guide](../.changeset/README.md). The current release unit is
+`@job-boardwalk/desktop-distribution`; its package version supplies the product manifest, archive
+names, tag, and GitHub release. Other workspaces are not versioned independently.
+
+One release workflow follows the Changesets custom-publishing model. A `master` push with pending
+changesets creates or updates the version pull request. Merging that pull request changes the
+product version and removes the consumed changesets, which opens the Linux and Windows packaging
+matrix. Each native job verifies its pinned Caddy input, builds the portable archive, and records
+provenance for that archive. After both jobs pass, the workflow creates `SHA256SUMS` and publishes
+both archives as a `v<version>` GitHub prerelease using the Changesets changelog.
+
+The repository setting that permits Actions to create pull requests must be enabled. Configure
+`CHANGESETS_GITHUB_TOKEN` with a GitHub App or fine-grained token when version pull requests must
+trigger other workflows automatically; the built-in token remains the fallback.
+
+The GitHub prerelease remains an engineering artifact. The
+[desktop delivery sequence](desktop-distribution.md#delivery-sequence) owns the work required to
+promote it to a supported release channel.
 
 ## Generated artifacts and language boundaries
 

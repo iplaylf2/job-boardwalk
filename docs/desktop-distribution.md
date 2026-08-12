@@ -14,9 +14,12 @@ and Dashboard available and puts the desktop application in a limited state.
 
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
-platform. Publication, signing, license collection, backup, and atomic updates remain outstanding
-in [Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore remains the
-supported topology.
+platform. Changesets-managed releases publish both unsigned archives as GitHub prereleases with
+checksums and build-provenance attestations. Operating-system signing, license collection, backup,
+atomic updates, and promotion to a supported release channel remain outstanding in
+[Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore remains the supported
+topology.
+
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents how to build and
 inspect the staging tree.
 
@@ -160,10 +163,9 @@ artifacts may contain package-manager-owned relative symbolic links. Assembly ma
 into regular installed files so the manifest accounts for every installed byte without depending
 on link resolution or archive-specific link behavior.
 
-Each release target must be built and tested on its native operating system. Release validation
-must run the assembled directory outside the repository and from an unrelated current working
-directory before platform signing or notarization. Portable archives are the primary artifacts. A
-native installer is acceptable only when it preserves the same product-directory boundary.
+Each release target must be built on its native operating system. Portable archives are the primary
+artifacts. A native installer is acceptable only when it preserves the same product-directory
+boundary.
 
 An update stages and verifies replacement resources before switching them into place. It preserves
 `data/`; partial in-place replacement is not a valid update path.
@@ -186,7 +188,7 @@ custom assembly code.
 
 The desktop build receives an absolute `JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE` path. The assembler
 verifies that the platform-native binary can load the product Caddyfile and records the copied bytes
-in the product manifest. Release automation separately owns version selection, checksum,
+in the product manifest. Release automation separately owns version selection, release checksums,
 provenance, and license policy. The installed product does not use a host Caddy installation.
 
 ## Delivery sequence
@@ -206,8 +208,12 @@ provenance, and license policy. The installed product does not use a host Caddy 
    that capability without taking the workspace or Dashboard offline.
 4. **Linux and Windows archive construction — implemented.** On the target operating system, emit
    the assembled product as a `.tar.gz` or `.zip`.
-5. **Native release publication.** When release inputs and channels are settled, build and validate
-   artifacts in a publication-triggered Linux and Windows workflow. Add Windows signing, release
-   provenance, license collection, backup, and atomic in-directory updates. Add Linux signing when
-   the selected publication channel defines its trust mechanism. The desktop release becomes the
+5. **Changesets GitHub prereleases — implemented.** One release workflow maintains the Changesets
+   version pull request. Merging it changes the product version and changelog, which triggers native
+   Linux and Windows builds, release checksums, provenance attestations, and publication of both
+   archives under a `v<version>` GitHub prerelease. Other `master` pushes do not build or publish
+   desktop distributions.
+6. **Supported native release.** Add Windows code signing, license collection, backup, and atomic
+   in-directory updates. Add Linux signing when the selected publication channel defines its trust
+   mechanism, then promote the prerelease through that channel. The desktop release becomes the
    supported product topology when it covers the complete observable lifecycle.
