@@ -24,9 +24,9 @@ integration to separate applications:
 - [Dashboard](apps/dashboard/) presents workspace data and research reports, and lets the user
   maintain personal context and select the job-search intent that guides recruiting research. It
   never controls the browser.
-- [Desktop Service Host](apps/desktop-service-host/) is the directory-contained
-  application-specific Node.js executable. Each invocation loads one finalized service payload; it
-  does not coordinate the product topology.
+- [Desktop Service Host](apps/desktop-service-host/) is the private, application-specific Node.js
+  executable bundled with the desktop product. Each invocation loads one finalized service
+  payload and exits when that service ends; it does not coordinate the product topology.
 - [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
   and desktop-supervision boundary. It starts, checks, observes, and stops Workspace Service,
   Dashboard's packaged Caddy process, and Browser Session. It selects the desktop browser,

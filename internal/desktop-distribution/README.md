@@ -24,14 +24,14 @@ contract.
 
 ## Current implementation
 
-The current implementation assembles a product-root user readme alongside Desktop Manager, a
-private shared Node.js service host, a build-supplied Caddy executable, Browser Session, Dashboard,
-and Workspace Service. It writes the result as a deterministic staging tree with an integrity
-manifest. The staged lifecycle runs without Docker or a system installation of Node.js or Caddy.
-It also requires no source checkout or bundled browser. Both Node services arrive as finalized
-runtime directories; Desktop Distribution does not interpret their entry modules or dependency
-graphs. Desktop Manager uses an installed system browser or an explicit executable override as
-defined by the product contract.
+The current implementation assembles a product-root user readme alongside Desktop Manager, the
+private Desktop Service Host, a build-supplied Caddy executable, Browser Session, Dashboard, and
+Workspace Service. It writes the result as a deterministic staging tree with an integrity manifest.
+The staged lifecycle runs without Docker, a system installation of Node.js or Caddy, a source
+checkout, or a bundled browser. Both Node services arrive as finalized runtime directories;
+Desktop Distribution does not interpret their entry modules or dependency graphs. Desktop Manager
+uses an installed system browser or an explicit executable override as defined by the product
+contract.
 
 On native Linux or Windows, the package task creates a portable archive from the assembled product.
 The staging tree and unsigned prerelease archives remain engineering artifacts rather than the

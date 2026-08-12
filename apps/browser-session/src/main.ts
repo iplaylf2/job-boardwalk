@@ -20,13 +20,14 @@ function installTerminationSignalHandlers(controller: AbortController): () => vo
 const shutdownController = new AbortController();
 const removeTerminationSignalHandlers = installTerminationSignalHandlers(shutdownController);
 
-// oxlint-disable-next-line unicorn/prefer-top-level-await -- The desktop payload is a loadable CommonJS role module.
-runBrowserSessionProcess({
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- The host must receive the pending lifecycle promise.
+export const serviceCompletion = runBrowserSessionProcess({
   ...parseBrowserSessionArguments(process.argv.slice(userArgumentStartIndex)),
   shutdownSignal: shutdownController.signal,
-})
-  .catch((error: unknown) => {
-    process.stderr.write(`[Browser Session] ${String(error)}\n`);
-    process.exitCode = 1;
-  })
-  .finally(removeTerminationSignalHandlers);
+}).finally(removeTerminationSignalHandlers);
+
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- Preserve source-run error reporting without replacing the exported promise.
+serviceCompletion.catch((error: unknown) => {
+  process.stderr.write(`[Browser Session] ${String(error)}\n`);
+  process.exitCode = 1;
+});

@@ -63,9 +63,11 @@ contract. Service-internal concurrency remains an implementation detail of each 
 native GUI does not import recruiting policy, access workspace persistence, or control recruiting
 pages.
 
-The **Desktop Service Host** loads one finalized Node service payload per invocation. It may
-prepare host-specific inputs for that payload, but it does not derive the installed layout,
-coordinate sibling processes, or own application behavior.
+The **Desktop Service Host** loads one finalized Node service payload per invocation. Desktop
+Manager supplies the role, entrypoint, and runtime arguments. The service entrypoint exposes the
+completion of its application-owned lifecycle, so the host exits after normal completion or
+failure. The host adapts Manager's shutdown channel to the service's ordinary signal handlers; it
+does not derive the installed layout, coordinate sibling processes, or own application behavior.
 
 The **agent** coordinates the browser and workspace service boundaries and owns the human-handoff
 state in its conversation with the user. Browser tools produce live evidence; workspace tools

@@ -52,8 +52,8 @@ platform-specific assembly and packaging commands belong to
 [Desktop Distribution](../../internal/desktop-distribution/README.md#commands).
 
 The build input must be a platform-native Caddy executable that can load the product Caddyfile.
-Desktop Manager runs as the root product entrypoint and resolves Caddy and the shared Node.js
-service host under `runtime/`. Source development may set
+Desktop Manager runs as the root product entrypoint and resolves Caddy and Desktop Service Host
+under `runtime/`. Source development may set
 `JOB_BOARDWALK_NODE_SERVICE_HOST_EXECUTABLE` to an assembled host explicitly; an installed run does
 not depend on that override. Manager selects Slint's software renderer so the control surface does
 not require GPU acceleration in remote-desktop, virtual-machine, or GPU-limited sessions.
@@ -67,10 +67,11 @@ installation, starts Workspace Service, Caddy, and Browser Session in dependency
 Workspace Service and Dashboard HTTP availability and Browser Session's reported browser
 availability, translates their state into the product UI, observes unexpected exits, and stops them
 in reverse order. To stop a Node.js service, Manager closes the child host's standard input; the
-shared Node.js Service Host routes that EOF through the service's ordinary `SIGTERM` handler on
-every platform. Caddy shuts down through a private, start-scoped loopback admin endpoint selected
-by Manager. The endpoint is never displayed or persisted. Manager forcibly terminates a child only
-when it exceeds the bounded shutdown period.
+Desktop Service Host routes that EOF through the service's ordinary `SIGTERM` handler on every
+platform. The host exits when the loaded service's exported lifecycle completion settles, so
+Manager can observe failures that occur before or after readiness. Caddy shuts down through a
+private, start-scoped loopback admin endpoint selected by Manager. The endpoint is never displayed
+or persisted. Manager forcibly terminates a child only when it exceeds the bounded shutdown period.
 
 The services expose no manager-specific control protocol. Manager relies on explicit arguments,
 health endpoints, exit status, and log streams. It does not expose a tray, install the application,

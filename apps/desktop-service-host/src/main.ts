@@ -1,7 +1,6 @@
-import { createRequire } from "node:module";
 import process from "node:process";
 
-import { installStdinShutdown } from "#/stdin-shutdown.js";
+import { runServiceRole } from "#/service-role.js";
 
 const userArgumentStartIndex = 2;
 
@@ -25,16 +24,18 @@ function readRequiredArgument(arguments_: readonly string[], name: string): stri
   return value;
 }
 
-function main(): void {
+function main(): Promise<void> {
   const userArguments = process.argv.slice(userArgumentStartIndex);
   parseDesktopServiceRole(userArguments);
   const serviceEntrypoint = readRequiredArgument(userArguments, "service-entrypoint");
-  createRequire(process.execPath)(serviceEntrypoint);
-  installStdinShutdown();
+  return runServiceRole(serviceEntrypoint);
 }
 
 try {
-  main();
+  // oxlint-disable-next-line unicorn/prefer-top-level-await -- SEA executes this bundled CommonJS entrypoint.
+  main().catch(() => {
+    process.exitCode = 1;
+  });
 } catch (error) {
   process.stderr.write(`[Desktop Service Host] ${String(error)}\n`);
   process.exitCode = 1;

@@ -16,7 +16,9 @@ The host supplies the system Chrome, Edge, or Chromium executable selected by De
 the dedicated profile under the product's `data/browser-profile/`. Browser Session's startup and
 health boundary determine whether the selected browser can operate with Patchright. The desktop
 payload does not bundle a browser. Its finalized Browser Session directory contains the application
-entry module and the locked production dependency closure needed by the shared Node.js host.
+entry module and the locked production dependency closure needed by Desktop Service Host. The entry
+module exports `serviceCompletion` for its application-owned lifecycle so the host exits when
+Browser Session ends, including when startup or later supervision fails.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their

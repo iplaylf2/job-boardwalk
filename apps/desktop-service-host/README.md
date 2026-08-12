@@ -1,25 +1,33 @@
 # Desktop Service Host
 
 Desktop Service Host is the application-specific Node.js executable in the directory-contained
-desktop product. It starts exactly one finalized service payload per invocation. Desktop Manager,
-not this executable, owns service order, readiness, failure containment, and ordered shutdown. Each
-loaded service remains responsible for closing its own resources.
+desktop product. It loads exactly one finalized service payload per invocation. Desktop Manager,
+not the host, owns service order, readiness, failure containment, and ordered shutdown. The loaded
+service owns its application lifecycle and resource cleanup.
 
-The host supports two roles:
+## Runtime contract
+
+The host accepts two product-owned roles:
 
 - `workspace-service` loads the finalized Workspace Service entry module.
 - `browser-session` loads the finalized Browser Session entry module. Desktop Manager supplies the
   browser executable selected by the desktop integration layer and the dedicated product profile.
 
 Desktop Manager supplies each role's public entry module and runtime paths as explicit absolute
-arguments. The host loads that file directly. It does not derive the product layout, inspect the
-service's dependency or resource layout, discover browsers, supervise sibling processes, expose a
-manager protocol, or use shajara to model process topology.
+arguments. The host loads that module directly and requires a `serviceCompletion` promise export.
+The promise represents the complete application-owned service lifecycle, not startup readiness.
+While it is pending, the host keeps its standard-input shutdown adapter active. When it fulfills or
+rejects, the host removes that adapter and exits, allowing Desktop Manager to observe the service
+outcome through the child process.
 
-After loading a service module, the host converts stdin EOF from Desktop Manager into an in-process
-`SIGTERM` event. This invokes the service's ordinary signal handler without using Windows'
-terminating `process.kill()` signal emulation. Workspace Service and Browser Session therefore
-remain independent of Manager's stdin protocol.
+Standard-input EOF from Desktop Manager emits an in-process `SIGTERM` event. This invokes the
+service's ordinary signal handler without using Windows' terminating `process.kill()` signal
+emulation. Workspace Service and Browser Session therefore remain independent of Manager's stdin
+protocol and retain responsibility for their own graceful cleanup.
+
+The host does not derive the product layout, inspect dependency or resource trees, discover
+browsers, supervise sibling processes, expose a Manager-specific protocol, or use shajara to model
+process topology.
 
 [Desktop distribution](../../docs/desktop-distribution.md#runtime-payload) owns the installed
 process topology that connects Manager, this host, and the finalized service payloads.

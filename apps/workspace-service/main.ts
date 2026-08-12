@@ -49,10 +49,13 @@ async function main(shutdownSignal: AbortSignal): Promise<void> {
 const shutdownController = new AbortController();
 const removeTerminationSignalHandlers = installTerminationSignalHandlers(shutdownController);
 
-// oxlint-disable-next-line unicorn/prefer-top-level-await -- SEA loads this finalized ESM artifact through createRequire.
-main(shutdownController.signal)
-  .catch((error: unknown) => {
-    process.stderr.write(`[Workspace Service] ${errorDetail(error)}\n`);
-    process.exitCode = 1;
-  })
-  .finally(removeTerminationSignalHandlers);
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- The host must receive the pending lifecycle promise.
+export const serviceCompletion = main(shutdownController.signal).finally(
+  removeTerminationSignalHandlers,
+);
+
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- Preserve source-run error reporting without replacing the exported promise.
+serviceCompletion.catch((error: unknown) => {
+  process.stderr.write(`[Workspace Service] ${errorDetail(error)}\n`);
+  process.exitCode = 1;
+});

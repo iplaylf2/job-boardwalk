@@ -302,9 +302,10 @@ production values; users do not need to set them.
 For desktop staging, Desktop Manager starts the finalized Workspace Service artifact through
 Desktop Service Host and supplies absolute database and migration paths plus the loopback listener
 address. These arguments override source-development defaults, so a directory-contained run does
-not depend on environment variables or the launcher's working directory. Workspace Service handles
-`SIGINT` and `SIGTERM`; Desktop Service Host routes Manager's stdin closure through the same
-`SIGTERM` handler.
+not depend on environment variables or the launcher's working directory. The entry module exports
+`serviceCompletion` for its application-owned lifecycle so Desktop Service Host exits when
+Workspace Service ends. Workspace Service handles `SIGINT` and `SIGTERM`; the host routes Manager's
+stdin closure through the same `SIGTERM` handler.
 
 ## Concurrency model
 

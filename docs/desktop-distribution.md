@@ -134,11 +134,16 @@ The product does not ship a general-purpose Node.js distribution, package manage
 dependency tree, or source workspace.
 
 Desktop Manager invokes the host in one explicit role for each isolated Node service process. The
-host loads the selected entry module directly. It does not derive layout paths, inspect service
-contents, discover browsers, or coordinate sibling processes. Manager retains the child's standard
-input as its lifecycle channel. Closing that channel produces EOF in the host, which dispatches the
-Node.js process's `SIGTERM` event so the loaded service performs its ordinary resource cleanup on
-every platform. Forced termination remains a bounded fallback owned by Manager.
+host loads the selected entry module directly and waits for its exported `serviceCompletion`
+promise. When that promise settles, the host releases its standard-input adapter and exits, so
+Manager observes both normal completion and failure through the child process status. The host does
+not derive layout paths, inspect service contents, discover browsers, or coordinate sibling
+processes.
+
+Manager retains the child's standard input as its shutdown channel. Closing that channel produces
+EOF in the host, which dispatches the Node.js process's `SIGTERM` event so the loaded service
+performs its ordinary resource cleanup on every platform. Forced termination remains a bounded
+fallback owned by Manager.
 
 Desktop Manager resolves the configured browser override or a common system Chrome, Edge, or
 Chromium installation and passes the exact path to Browser Session. Dashboard instead runs on the
