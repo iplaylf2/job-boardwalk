@@ -21,9 +21,10 @@ lifecycle and failure state remain visible through the GUI.
 When services are stopped, Settings configures the three product loopback ports and an optional
 absolute browser executable override. A blank override discovers Chrome, Edge, or Chromium in the
 platform's common system locations. Manager validates distinct, non-zero ports and the configured
-file before writing `data/settings.json`; saved settings apply on the next start. Product-owned
-executables, payloads, persistence, profile paths, and lifecycle control channels remain derived
-from the installed product directory and are not user-configurable.
+file before atomically replacing `data/settings.json`, so saving never exposes a partially written
+settings file. Saved settings apply on the next start. Product-owned executables,
+payloads, persistence, profile paths, and lifecycle control channels remain derived from the
+installed product directory and are not user-configurable.
 
 Engineering staging may provide the browser override through
 `JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`. This development convenience is neither persisted nor part
@@ -35,7 +36,7 @@ the complete installed-browser policy.
 Install the root pnpm dependencies and the Rust toolchain declared in
 [`rust-toolchain.toml`](../../rust-toolchain.toml). On Linux, building the Winit backend also
 requires a C toolchain and the development packages for the host's X11 or Wayland stack,
-xkbcommon, OpenGL, and fontconfig.
+xkbcommon, and fontconfig.
 
 Build the desktop staging tree, then run Desktop Manager from that product directory:
 
@@ -70,8 +71,9 @@ in reverse order. To stop a Node.js service, Manager closes the child host's sta
 Desktop Service Host routes that EOF through the service's ordinary `SIGTERM` handler on every
 platform. The host exits when the loaded service's exported lifecycle completion settles, so
 Manager can observe failures that occur before or after readiness. Caddy shuts down through a
-private, start-scoped loopback admin endpoint selected by Manager. The endpoint is never displayed
-or persisted. Manager forcibly terminates a child only when it exceeds the bounded shutdown period.
+private, start-scoped loopback admin endpoint selected by Manager. Manager reserves that address
+until it hands the endpoint to Caddy at process launch; the address is never displayed or
+persisted. Manager forcibly terminates a child only when it exceeds the bounded shutdown period.
 
 The services expose no manager-specific control protocol. Manager relies on explicit arguments,
 health endpoints, exit status, and log streams. It does not expose a tray, install the application,

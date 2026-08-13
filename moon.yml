@@ -17,6 +17,16 @@ fileGroups:
     - "rust-toolchain.toml"
 
 tasks:
+  advisories:
+    command: "cargo deny check advisories"
+    inputs:
+      - "/apps/*/Cargo.toml"
+      - "/Cargo.lock"
+      - "/Cargo.toml"
+      - "/deny.toml"
+    options:
+      cache: false
+
   build:
     command: "cargo build --locked --release --workspace"
     inputs:

@@ -86,7 +86,7 @@ fn open_log_file(layout: &ProductLayout) -> Result<File, String> {
         .map_err(|error| format!("Cannot open service log: {error}"))
 }
 
-fn spawn_service(spec: ServiceSpec, log: &File) -> Result<ManagedService, String> {
+fn spawn_service(mut spec: ServiceSpec, log: &File) -> Result<ManagedService, String> {
     let stdout = log
         .try_clone()
         .map_err(|error| format!("Cannot clone service log handle: {error}"))?;
@@ -105,6 +105,9 @@ fn spawn_service(spec: ServiceSpec, log: &File) -> Result<ManagedService, String
     {
         use std::os::windows::process::CommandExt;
         command.creation_flags(CREATE_NO_WINDOW);
+    }
+    if let ShutdownMethod::Caddy(lifecycle) = &mut spec.shutdown {
+        lifecycle.release_reservation();
     }
     let mut child = command.spawn().map_err(|error| {
         format!(
@@ -337,7 +340,7 @@ pub(crate) fn start_services(
         Err(error) => (None, false, error),
     };
 
-    for spec in service_plan(layout, settings, caddy_lifecycle.clone(), browser.as_ref()) {
+    for spec in service_plan(layout, settings, caddy_lifecycle, browser.as_ref()) {
         if cancellation_requested() {
             return Ok(StartupOutcome::Cancelled);
         }
@@ -432,7 +435,7 @@ mod tests {
     fn reports_browser_availability_loss_and_recovery_from_health_responses() {
         let mut tracker = BrowserAvailabilityTracker {
             available: true,
-            available_detail: "Configured Chromium is ready.".to_owned(),
+            available_detail: "synthetic available detail".to_owned(),
         };
 
         let loss = tracker
@@ -466,7 +469,7 @@ mod tests {
             ServiceEvent::BrowserAvailabilityChanged {
                 available: true,
                 detail,
-            } if detail == "Configured Chromium is ready."
+            } if detail == "synthetic available detail"
         ));
     }
 }

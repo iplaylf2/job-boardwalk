@@ -53,7 +53,6 @@ jobs:
           sudo apt-get install --yes \
             build-essential \
             libfontconfig1-dev \
-            libgl1-mesa-dev \
             libwayland-dev \
             libx11-xcb-dev \
             libxkbcommon-dev \
@@ -61,6 +60,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check Rust dependency advisories
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: pnpm exec moon run cargo-workspace:advisories
 
       - name: Run repository checks
         run: pnpm exec moon exec --plan .moon/ci.json

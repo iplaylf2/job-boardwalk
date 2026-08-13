@@ -43,6 +43,10 @@ production builds across the pnpm and Cargo workspaces. Apply repository and Rus
 pnpm exec moon run repository:format-write cargo-workspace:format-write
 ```
 
+Run the time-dependent Rust advisory check on demand with
+`pnpm exec moon run cargo-workspace:advisories`. Moon provisions the repository-pinned cargo-deny
+version when the task first needs it; no separate local installation is required.
+
 Package scripts and Cargo commands remain valid leaf operations when Moon is unavailable or
 inappropriate, including inside application Dockerfiles.
 
@@ -73,8 +77,10 @@ The package task writes the portable archive under `target/desktop-distribution/
 ## Continuous integration
 
 Non-draft pull requests targeting `master` run the affected CI plan on Ubuntu. A change that affects
-Desktop Manager receives one representative native build. Portable Linux and Windows distributions
-are built only for a Changesets-managed desktop release, not for every pull request.
+Desktop Manager receives one representative native build. Merge checks also reject Rust
+dependencies covered by RustSec security or soundness advisories. An unmaintained dependency blocks
+a merge only when a workspace package depends on it directly. Portable Linux and Windows
+distributions are built only for a Changesets-managed desktop release, not for every pull request.
 
 Workflow actions use verified published release tags. Desktop release runner versions are explicit
 so their image migrations happen as reviewed repository changes.

@@ -139,7 +139,6 @@ jobs:
           sudo apt-get install --yes \
             build-essential \
             libfontconfig1-dev \
-            libgl1-mesa-dev \
             libwayland-dev \
             libx11-xcb-dev \
             libxkbcommon-dev \

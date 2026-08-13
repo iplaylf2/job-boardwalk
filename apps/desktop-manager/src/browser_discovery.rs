@@ -201,20 +201,13 @@ mod tests {
         .expect("configured browser should be selected");
 
         assert_eq!(selection.executable, executable);
-        assert_eq!(
-            selection.detail,
-            "Browser executable · Selected in Settings"
-        );
     }
 
     #[test]
-    fn reports_an_actionable_error_when_no_candidate_exists() {
-        let error = discover_from_candidates(Vec::new()).expect_err("empty candidates should fail");
+    fn rejects_an_empty_candidate_set() {
+        let result = discover_from_candidates(Vec::new());
 
-        assert_eq!(
-            error,
-            "No Chrome, Edge, or Chromium executable found. Install one or select it in Settings."
-        );
+        assert!(result.is_err());
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]

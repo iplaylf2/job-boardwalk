@@ -258,7 +258,9 @@ fn apply_settings_to_window(window: &ManagerWindow, settings: &DesktopSettings) 
     window.set_dashboard_url(settings.dashboard_url().into());
 }
 
-fn settings_from_window(window: &ManagerWindow) -> Result<DesktopSettings, String> {
+fn settings_from_window(
+    window: &ManagerWindow,
+) -> Result<DesktopSettings, desktop_settings::DesktopSettingsError> {
     DesktopSettings::from_fields(
         window.get_workspace_port().as_str(),
         window.get_dashboard_port().as_str(),
@@ -324,7 +326,7 @@ fn install_callbacks(
             }
             Err(error) => {
                 window.set_settings_has_error(true);
-                window.set_settings_detail(error.into());
+                window.set_settings_detail(error.to_string().into());
             }
         }
     });
