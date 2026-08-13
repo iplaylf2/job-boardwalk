@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - master
+    paths:
+      - internal/desktop-distribution/package.json
   workflow_dispatch:
     inputs:
       release_version:
-        description: Existing desktop product version to retry
+        description: Current desktop product version to retry
         required: true
         type: string
 
@@ -17,67 +19,23 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  changesets:
-    name: Maintain version pull request
-    if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
-    outputs:
-      has_changesets: ${{ steps.changesets.outputs['has-changesets'] }}
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          package_json_file: package.json
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Create or update version pull request
-        id: changesets
-        uses: changesets/action@v2
-        with:
-          github-token: ${{ secrets.CHANGESETS_GITHUB_TOKEN || github.token }}
-          version-script: pnpm exec changeset version
-          commit-message: "chore: version desktop product"
-          pr-title: "chore: version desktop product"
-          pr-base-branch: master
-
-  release:
-    name: Select desktop release
-    needs: changesets
-    if: >-
-      always() &&
-      (github.event_name == 'workflow_dispatch' ||
-      needs.changesets.outputs.has_changesets == 'false')
+  resolve:
+    name: Resolve desktop release
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     outputs:
-      required: ${{ steps.detect.outputs.required }}
-      tag: ${{ steps.detect.outputs.tag }}
-      version: ${{ steps.detect.outputs.version }}
+      should_release: ${{ steps.resolve.outputs.should_release }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Select desktop product version
-        id: detect
+      - name: Resolve desktop release
+        id: resolve
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
@@ -99,7 +57,7 @@ jobs:
               echo "Requested desktop version $RETRY_VERSION does not match manifest version $product_version." >&2
               exit 1
             fi
-            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
             echo "tag=v$product_version" >> "$GITHUB_OUTPUT"
             echo "version=$product_version" >> "$GITHUB_OUTPUT"
             exit 0
@@ -107,18 +65,18 @@ jobs:
           previous_package_manifest="$RUNNER_TEMP/previous-desktop-distribution-package.json"
           git show "$BEFORE_SHA:$package_manifest" > "$previous_package_manifest"
           previous_product_version="$(jq --raw-output '.version // empty' "$previous_package_manifest")"
-          echo "required=false" >> "$GITHUB_OUTPUT"
+          echo "should_release=false" >> "$GITHUB_OUTPUT"
           if [ "$previous_product_version" = "$product_version" ]; then
             exit 0
           fi
-          echo "required=true" >> "$GITHUB_OUTPUT"
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
           echo "tag=v$product_version" >> "$GITHUB_OUTPUT"
           echo "version=$product_version" >> "$GITHUB_OUTPUT"
 
   package:
     name: Package (${{ matrix.platform }})
-    needs: release
-    if: needs.release.outputs.required == 'true'
+    needs: resolve
+    if: needs.resolve.outputs.should_release == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
@@ -193,7 +151,7 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-path: ${{ matrix.archive_path }}
-          subject-version: ${{ needs.release.outputs.version }}
+          subject-version: ${{ needs.resolve.outputs.version }}
 
       - name: Upload portable archive
         uses: actions/upload-artifact@v7
@@ -206,9 +164,9 @@ jobs:
   publish:
     name: Publish GitHub prerelease
     needs:
-      - release
+      - resolve
       - package
-    if: needs.release.outputs.required == 'true'
+    if: needs.resolve.outputs.should_release == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -225,7 +183,7 @@ jobs:
       - name: Create release notes
         shell: bash
         env:
-          VERSION: ${{ needs.release.outputs.version }}
+          VERSION: ${{ needs.resolve.outputs.version }}
         run: |
           awk -v version="$VERSION" '
             $0 == "## " version { found = 1; next }
@@ -242,17 +200,17 @@ jobs:
             sha256sum -- *.tar.gz *.zip > SHA256SUMS
           )
 
-      - name: Publish release
+      - name: Publish GitHub prerelease
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.release.outputs.tag }}
-          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"
             if [ "$is_draft" != "true" ]; then
-              echo "Release $RELEASE_TAG already exists and is not a draft." >&2
+              echo "GitHub release $RELEASE_TAG already exists and is not a draft; refusing to replace it." >&2
               exit 1
             fi
             gh release edit "$RELEASE_TAG" \

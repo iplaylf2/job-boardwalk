@@ -15,9 +15,10 @@ The package owns:
 - selection and invocation of the native archive tool.
 
 It consumes finalized application artifacts and does not own their construction or behavior,
-runtime supervision, browser automation, or update behavior. Release automation separately owns
-desktop version selection, the `SHA256SUMS` published for completed Job Boardwalk archives,
-attestations, signing credentials, license policy, and release-channel decisions.
+runtime supervision, browser automation, or update behavior. Release workflows separately own
+maintenance of the version pull request, release gating, the `SHA256SUMS` published for completed
+Job Boardwalk archives, attestations, signing credentials, license policy, and release-channel
+decisions.
 
 This package does own the third-party executable inputs copied into the desktop product.
 [`aqua.yaml`](aqua.yaml) selects the Caddy release and pins Aqua's standard registry. That registry

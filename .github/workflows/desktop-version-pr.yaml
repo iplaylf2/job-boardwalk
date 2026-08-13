@@ -1,0 +1,47 @@
+name: Desktop version PR
+
+on:
+  push:
+    branches:
+      - master
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  version:
+    name: Maintain desktop version pull request
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create or update version pull request
+        uses: changesets/action@v2
+        with:
+          github-token: ${{ secrets.CHANGESETS_GITHUB_TOKEN || github.token }}
+          version-script: pnpm exec changeset version
+          commit-message: "chore: version desktop product"
+          pr-title: "chore: version desktop product"
+          pr-base-branch: master

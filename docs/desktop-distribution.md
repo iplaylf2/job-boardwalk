@@ -14,7 +14,7 @@ Workspace Service and Dashboard available and puts the desktop application in a 
 
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
-platform. Changesets-managed releases publish both unsigned archives as GitHub prereleases with
+platform. Automated desktop releases publish both unsigned archives as GitHub prereleases with
 checksums and build-provenance attestations. Operating-system signing, license collection,
 integrated backup and restore, atomic in-directory product updates, and promotion to a supported
 release channel remain outstanding in [Delivery sequence](#delivery-sequence).
@@ -253,11 +253,11 @@ pins the native desktop executable. Neither declaration is authoritative for the
    that capability without taking the workspace or Dashboard offline.
 4. **Linux and Windows archive construction — implemented.** On the target operating system, emit
    the assembled product as a `.tar.gz` or `.zip`.
-5. **Changesets GitHub prereleases — implemented.** One release workflow maintains the Changesets
-   version pull request. Merging it changes the product version and changelog, which triggers native
-   Linux and Windows builds, release checksums, provenance attestations, and publication of both
-   archives under a `v<version>` GitHub prerelease. Other `master` pushes do not build or publish
-   desktop distributions.
+5. **Versioned GitHub prereleases — implemented.** Merging a Changesets version pull request
+   triggers native Linux and Windows builds, release checksums, provenance attestations, and
+   publication of both archives under a `v<version>` GitHub prerelease. Other `master` pushes do
+   not build or publish desktop distributions. [Development](development.md#desktop-releases) owns
+   the automation and retry procedure.
 6. **Supported native release.** Add Windows code signing, license collection, integrated backup
    and restore, and atomic in-directory updates. Add Linux signing when the selected publication
    channel defines its trust mechanism, then promote the prerelease through that channel. The

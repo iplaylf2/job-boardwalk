@@ -105,36 +105,45 @@ migrations happen as reviewed repository changes.
 ### Desktop releases
 
 Portable Linux and Windows distributions are built only for a Changesets-managed desktop release,
-not for every pull request.
+not for ordinary pull requests or `master` pushes.
 
 Record desktop release intent with `pnpm changeset` as described in the
 [Changesets contributor guide](../.changeset/README.md). The current release unit is
-`@job-boardwalk/desktop-distribution`; its package version supplies the product manifest, archive
-names, tag, and GitHub release. Other workspaces are not versioned independently.
+`@job-boardwalk/desktop-distribution`; its package version appears in the product manifest, archive
+names, Git tag, and GitHub release. Other workspaces are not versioned independently.
 
-One release workflow follows the Changesets custom-publishing model. A `master` push with pending
-changesets creates or updates the version pull request. Merging that pull request changes the
-product version and removes the consumed changesets, which opens the Linux and Windows packaging
-matrix. Each matrix row owns only its native runner and expected product archive path. Desktop
-Distribution's [Aqua configuration](../internal/desktop-distribution/aqua.yaml) selects Caddy and
-pins the registry that maps each runner to its native asset. The checked-in
+The [desktop version PR workflow](../.github/workflows/desktop-version-pr.yaml) and
+[desktop release workflow](../.github/workflows/desktop-release.yaml) have separate
+responsibilities. On each `master` push, the version workflow uses Changesets to create or update a
+version pull request when release intent is pending. Merging that pull request updates the product
+version and changelog and consumes the changesets. The resulting package-manifest change triggers
+the release workflow, which confirms that the version changed before starting the Linux and Windows
+packaging jobs.
+
+Each packaging job runs on its target operating system and expects only that platform's archive.
+The [Aqua configuration](../internal/desktop-distribution/aqua.yaml) owned by Desktop Distribution
+selects Caddy and pins the registry that maps each runner to its native asset. The checked-in
 [checksum file](../internal/desktop-distribution/aqua-checksums.json) records the SHA-512 digest for
 both assets. Aqua installs and verifies the selected archive, and the workflow passes its resolved
-executable path into the Moon package graph. Because the version detector has already decided that
-packaging is required, the release command bypasses Moon's general-purpose CI affected checks.
-After both jobs pass, the workflow creates a separate `SHA256SUMS` for the completed Job Boardwalk
-archives and publishes them as a `v<version>` GitHub prerelease using the Changesets changelog.
+executable path into the Moon package graph. Once the release resolver confirms a version change or
+valid retry, packaging bypasses Moon's general-purpose CI affected checks. After both platform jobs
+pass, the workflow creates `SHA256SUMS` for the completed Job Boardwalk archives and publishes them
+as a `v<version>` GitHub prerelease using the Changesets changelog.
 
-If packaging or publication fails after a version commit, rerun the repaired workflow manually
-from `master` with that existing desktop version. The workflow rejects a retry whose requested
-version does not match the current Desktop Distribution manifest, and it does not replace an
-existing non-draft release.
+If packaging or publication fails after a version commit, manually dispatch **Desktop release**
+from `master` and enter the current desktop product version. The workflow rejects a different
+version and refuses to replace an existing non-draft release.
+
+The workflows deny token permissions by default. The version job alone receives `contents: write`
+and `pull-requests: write`. Release jobs receive `contents: read`, `attestations: write`, and
+`id-token: write` only where needed; the publication job receives `contents: write`. A manual retry
+never runs Changesets.
 
 The repository setting that permits Actions to create pull requests must be enabled. Configure
 `CHANGESETS_GITHUB_TOKEN` with a GitHub App or fine-grained token when version pull requests must
 trigger other workflows automatically; the built-in token remains the fallback.
 
-The GitHub prerelease remains an engineering artifact. The
+Each GitHub prerelease remains an engineering artifact. The
 [desktop delivery sequence](desktop-distribution.md#delivery-sequence) owns the work required to
 promote it to a supported release channel.
 
