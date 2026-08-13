@@ -19,6 +19,8 @@ Each ecosystem retains its native dependency and workspace authority:
 moon owns the cross-language project graph, task graph, affected-file selection, scheduling, and
 task cache. It invokes Cargo and pnpm commands without replacing either dependency manager:
 
+- [`.moon/toolchains.yml`](../.moon/toolchains.yml) pins the Cargo command-line tools that Moon
+  provisions for repository tasks.
 - `cargo-workspace` owns workspace-wide Rust tasks. Cargo commands run once for the workspace and
   share one mutex because the workspace has one lockfile and build directory.
 - `repository` owns cross-ecosystem formatting, unused-code analysis, and dependency-boundary
@@ -80,16 +82,26 @@ Non-draft pull requests targeting `master` run the [affected CI plan](../.moon/c
 Changes that affect Desktop Manager receive one representative native build.
 
 Merge checks reject Rust dependencies covered by RustSec security or soundness advisories. An
-unmaintained dependency blocks a merge only when a workspace package depends on it directly. Rust
-checks reuse downloaded and compiled third-party dependencies across compatible runs; workspace
-crates and incremental artifacts remain uncached, so project code is still compiled in every
-affected run.
+unmaintained dependency blocks a merge only when a workspace package depends on it directly. The
+advisory result remains uncached because its database changes independently of the repository.
+
+CI caches Cargo downloads and repository-pinned command-line tools. Rust compilation uses sccache
+with GitHub Actions as its cache backend. The complete Cargo `target/` tree is excluded because it
+also contains unrelated application staging artifacts. These caches accelerate work without
+bypassing Cargo's dependency graph or moon's task graph.
+
+To avoid compiling cargo-binstall during every merge check, the workflow downloads a prebuilt binary
+for the version declared in [`.moon/toolchains.yml`](../.moon/toolchains.yml). Moon then provisions
+the remaining Cargo tools from the same configuration.
+
+Workflow actions use maintainer-published major release tags when available and exact release tags
+otherwise. Installed project tools take their versions from the repository configuration that owns
+them; CI-only setup helpers use their action's supported default unless the repository needs a
+specific compatibility constraint. Desktop release runner versions are explicit so their image
+migrations happen as reviewed repository changes.
 
 Portable Linux and Windows distributions are built only for a Changesets-managed desktop release,
 not for every pull request.
-
-Workflow actions use verified published release tags. Desktop release runner versions are explicit
-so their image migrations happen as reviewed repository changes.
 
 Record desktop release intent with `pnpm changeset` as described in the
 [Changesets contributor guide](../.changeset/README.md). The current release unit is

@@ -47,10 +47,29 @@ jobs:
           cargo clippy --version
           rustfmt --version
 
-      - name: Cache Cargo dependencies
+      - name: Cache Cargo dependencies and tools
         uses: Swatinem/rust-cache@v2
         with:
-          cache-bin: false
+          cache-targets: false
+
+      - name: Set up Rust compilation cache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Read cargo-binstall version
+        id: cargo_binstall
+        shell: bash
+        run: |
+          version=$(sed -n 's/^  binstallVersion: "\([^"]*\)"$/\1/p' .moon/toolchains.yml)
+          if [[ -z "$version" ]]; then
+            echo "Could not read rust.binstallVersion from .moon/toolchains.yml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.21.1
+        with:
+          version: ${{ steps.cargo_binstall.outputs.version }}
 
       - name: Install Slint Linux build dependencies
         run: |
@@ -72,4 +91,7 @@ jobs:
         run: pnpm exec moon run cargo-workspace:advisories
 
       - name: Run repository checks
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
         run: pnpm exec moon exec --plan .moon/ci.json
