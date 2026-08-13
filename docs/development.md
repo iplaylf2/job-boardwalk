@@ -121,22 +121,23 @@ the release workflow, which confirms that the push tip introduced the version be
 Linux and Windows packaging jobs. A batch push that places later commits after the version change
 is rejected rather than packaging those changes under the new version.
 
-Each packaging job runs on its target operating system and expects only that platform's archive.
-It runs Desktop Distribution's native-input preparation command, which uses the package's
-[Aqua configuration](../internal/desktop-distribution/aqua.yaml) and checked-in
-[checksum file](../internal/desktop-distribution/aqua-checksums.json) to select and verify Caddy for
-the runner. The workflow passes the resolved executable path into the Moon package graph. Once the
-release resolver confirms the version change, packaging bypasses Moon's general-purpose CI affected
-checks. After both platform jobs pass, the workflow creates `SHA256SUMS` for the completed Job
-Boardwalk archives and publishes them as a `v<version>` GitHub prerelease using the Changesets
-changelog.
+Each packaging job runs on its target operating system and invokes Desktop Distribution's
+package-owned native-input preparation before passing the resolved Caddy path into the Moon package
+graph. The [package README](../internal/desktop-distribution/README.md) owns the Aqua configuration,
+checksums, and maintenance commands. Once the release resolver confirms the version change,
+packaging bypasses Moon's general-purpose CI affected checks. Each matrix row builds and attests one
+native archive, then uploads it under a distinct platform artifact name. Publication downloads only
+those desktop artifacts, merges their differently named archives into the release asset directory,
+creates `SHA256SUMS`, and publishes the archives and checksum file as a `v<version>` GitHub
+prerelease using the Changesets changelog.
 
 If packaging or publication fails, rerun the original **Desktop release** workflow. Use
 **Re-run failed jobs** while successful platform artifacts remain within their seven-day retention;
 use **Re-run all jobs** when those artifacts must be rebuilt. GitHub preserves the original run's
 Git ref and commit, so either path rebuilds the same source without running Changesets. Artifact
-upload is configured to replace an earlier artifact from the same run. Publication may replace an
-existing draft release but never a non-draft release.
+upload is configured to replace only the rerun platform's earlier artifact from the same run, so a
+failed Windows rerun cannot replace the retained Linux artifact or vice versa. Publication may
+replace an existing draft release but never a non-draft release.
 
 The workflows deny token permissions by default. The version job alone receives `contents: write`
 and `pull-requests: write`. Release jobs receive `contents: read`, `attestations: write`, and

@@ -211,25 +211,25 @@ An update stages and verifies replacement resources before switching them into p
 
 Build responsibilities follow the boundary that owns each artifact:
 
-| Owner                                                                               | Responsibility                                                                                                                                                                       |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Application projects                                                                | Produce finalized native, Node service, and web artifacts.                                                                                                                           |
-| Desktop Manager                                                                     | Resolve installed paths and own the desktop process topology.                                                                                                                        |
-| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Pin third-party native inputs, declare allowed components, enforce the product-directory boundary, assemble the product tree, emit its manifest, and invoke the native archive tool. |
-| Platform packager                                                                   | Implement archive, application-bundle, installer, signing, and notarization mechanics for its platform.                                                                              |
-| Moon                                                                                | Schedule the application builds, distribution work, and repository checks.                                                                                                           |
+| Owner                                                                               | Responsibility                                                                                                   |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Application projects                                                                | Produce finalized native, Node service, and web artifacts.                                                       |
+| Desktop Manager                                                                     | Resolve installed paths and own the desktop process topology.                                                    |
+| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Own third-party native inputs, the component allowlist, product assembly, the integrity manifest, and archiving. |
+| Platform packager                                                                   | Implement platform-specific archive, bundle, installer, signing, and notarization mechanics.                     |
+| Moon                                                                                | Schedule application builds, distribution work, and repository checks.                                           |
 
 Desktop Distribution runs only during development and release; packaged applications do not depend
 on it. Platform packaging mechanics belong to the selected maintained packager rather than to
 custom assembly code.
 
-Desktop Distribution selects and verifies the third-party native executables copied into the
-product. Release automation supplies the verified platform-native Caddy executable through Desktop
-Distribution's declared build input. The assembler verifies that the executable can load the
-product Caddyfile and records the copied bytes in the product manifest. Release automation
-separately owns product version selection, the checksums and attestations for completed Job
-Boardwalk archives, and release-channel policy. The installed product neither fetches native inputs
-nor depends on a host Caddy installation.
+Desktop Distribution declares and verifies the third-party native executables copied into the
+product. Release automation invokes that package-owned preparation boundary and passes the resolved
+platform-native Caddy path through Desktop Distribution's declared build input. The assembler
+verifies that the executable can load the product Caddyfile and records the copied bytes in the
+product manifest. Release automation separately owns product version selection, the checksums and
+attestations for completed Job Boardwalk archives, and release-channel policy. The installed
+product neither fetches native inputs nor depends on a host Caddy installation.
 
 The Compose and desktop artifacts share Dashboard's Caddyfile but not a binary supply chain.
 Dashboard's Dockerfile pins the Compose Caddy image; Desktop Distribution pins the native desktop

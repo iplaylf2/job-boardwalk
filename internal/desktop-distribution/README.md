@@ -23,9 +23,9 @@ decisions.
 
 For Caddy, [`aqua.yaml`](aqua.yaml) selects the release and pins Aqua's standard registry. That
 registry defines the native asset mapping and upstream verification policy; the checked-in
-[`aqua-checksums.json`](aqua-checksums.json) records the selected Linux and Windows archive digests.
-These input digests are distinct from the release checksums published for completed Job Boardwalk
-archives.
+[`aqua-checksums.json`](aqua-checksums.json) records SHA-512 digests for the selected Linux and
+Windows archives and a SHA-256 digest for the registry definition. These input digests are distinct
+from the release checksums published for completed Job Boardwalk archives.
 
 [Desktop distribution](../../docs/desktop-distribution.md) owns the installed layout and release
 boundary; assembly tests and Desktop Manager tests independently verify their owned sides of that
@@ -55,23 +55,26 @@ the native archive tools.
 ## Commands
 
 Run these commands from the repository root. For a release-equivalent build, install
-[Aqua](https://aquaproj.github.io/) and prepare the repository-pinned native inputs:
+[Aqua](https://aquaproj.github.io/), then install and verify the repository-pinned native input:
 
 ```sh
 pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
+```
+
+Expose the installed Caddy path to the build tasks. In a POSIX shell, run:
+
+```sh
 export JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE="$(aqua which --config internal/desktop-distribution/aqua.yaml caddy)"
 ```
 
-In PowerShell on Windows, prepare the same inputs with:
+In PowerShell, run:
 
 ```powershell
-pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
 $env:JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE = aqua which --config internal/desktop-distribution/aqua.yaml caddy
 ```
 
 The preparation command installs the native Caddy archive selected by `aqua.yaml` and verifies it
-against the checked-in SHA-512 digest. Aqua's pinned registry also defines the Cosign identity used
-to verify Caddy's upstream checksum manifest when the checksum file is regenerated.
+against the platform's checked-in SHA-512 digest.
 
 Build the application dependencies and assemble the current staging tree:
 
@@ -108,8 +111,9 @@ aqua update-checksum --config internal/desktop-distribution/aqua.yaml --prune
 ```
 
 Asset naming, platform selection, download, verification, and extraction remain Aqua
-responsibilities rather than project code. The release workflow pins and provisions Aqua, calls
-the same preparation script, resolves the installed Caddy path, and invokes Moon directly.
+responsibilities rather than project code. The release workflow provisions its pinned Aqua
+version, invokes the same package-owned preparation boundary, and passes the resolved Caddy path to
+Moon.
 
 Run its direct checks:
 

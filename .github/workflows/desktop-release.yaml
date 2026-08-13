@@ -49,8 +49,8 @@ jobs:
 
           parent_version="$(git show "$GITHUB_SHA^1:$package_manifest" | jq --raw-output '.version // empty')"
           if [ "$parent_version" = "$product_version" ]; then
-            echo "Desktop version $product_version changed before the final commit in this push." >&2
-            echo "The commit that introduces a desktop version must reach master as the push tip so provenance identifies the released source." >&2
+            echo "Desktop version $product_version was introduced before the push tip." >&2
+            echo "The version-introducing commit must reach master as the push tip so release provenance identifies exactly that source." >&2
             exit 1
           fi
 
@@ -74,9 +74,11 @@ jobs:
         include:
           - platform: Linux x64
             runner: ubuntu-24.04
+            artifact_name: desktop-linux-x64
             archive_path: target/desktop-distribution/releases/*.tar.gz
           - platform: Windows x64
             runner: windows-2025
+            artifact_name: desktop-windows-x64
             archive_path: target/desktop-distribution/releases/*.zip
 
     steps:
@@ -141,6 +143,7 @@ jobs:
       - name: Upload portable archive
         uses: actions/upload-artifact@v7
         with:
+          name: ${{ matrix.artifact_name }}
           path: ${{ matrix.archive_path }}
           if-no-files-found: error
           retention-days: 7
@@ -163,6 +166,7 @@ jobs:
       - name: Download portable archives
         uses: actions/download-artifact@v8
         with:
+          pattern: desktop-*-x64
           path: release-assets
           merge-multiple: true
 
