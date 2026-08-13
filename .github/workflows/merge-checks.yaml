@@ -24,18 +24,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6.0.10
+        uses: pnpm/action-setup@v6
         with:
           package_json_file: package.json
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7.0.0
+        uses: actions/setup-node@v7
         with:
           node-version-file: package.json
           cache: pnpm
@@ -47,13 +47,36 @@ jobs:
           cargo clippy --version
           rustfmt --version
 
+      - name: Cache Cargo dependencies and tools
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: false
+
+      - name: Set up Rust compilation cache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Read cargo-binstall version
+        id: cargo_binstall
+        shell: bash
+        run: |
+          version=$(sed -n 's/^  binstallVersion: "\([^"]*\)"$/\1/p' .moon/toolchains.yml)
+          if [[ -z "$version" ]]; then
+            echo "Could not read rust.binstallVersion from .moon/toolchains.yml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.21.1
+        with:
+          version: ${{ steps.cargo_binstall.outputs.version }}
+
       - name: Install Slint Linux build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install --yes \
             build-essential \
             libfontconfig1-dev \
-            libgl1-mesa-dev \
             libwayland-dev \
             libx11-xcb-dev \
             libxkbcommon-dev \
@@ -62,5 +85,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check Rust dependency advisories
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: pnpm exec moon run cargo-workspace:advisories
+
       - name: Run repository checks
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
         run: pnpm exec moon exec --plan .moon/ci.json

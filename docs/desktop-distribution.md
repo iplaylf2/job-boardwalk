@@ -16,9 +16,9 @@ The manifest identifies this artifact as `desktop-staging` with `releaseReady: f
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
 platform. Changesets-managed releases publish both unsigned archives as GitHub prereleases with
 checksums and build-provenance attestations. Operating-system signing, license collection,
-integrated backup and restore, atomic updates, and promotion to a supported release channel remain
-outstanding in [Delivery sequence](#delivery-sequence). [Deployment](deployment.md) therefore
-remains the supported topology.
+integrated backup and restore, atomic in-directory product updates, and promotion to a supported
+release channel remain outstanding in [Delivery sequence](#delivery-sequence).
+[Deployment](deployment.md) therefore remains the supported topology.
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents how to build and
 inspect the staging tree.

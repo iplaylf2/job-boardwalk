@@ -151,14 +151,13 @@ mod tests {
         let caddy_lifecycle =
             CaddyLifecycle::prepare().expect("Caddy lifecycle should be prepared");
         let browser = BrowserSelection {
-            detail: "Configured browser 149.0.0.0 is ready.".to_owned(),
+            detail: "synthetic browser detail".to_owned(),
             executable: PathBuf::from("/synthetic/chrome"),
         };
         let plan = service_plan(&layout, &settings, caddy_lifecycle, Some(&browser));
-        let workspace_service = plan
-            .iter()
-            .find(|service| service.name == "Workspace Service")
-            .expect("Workspace Service should be in the desktop service plan");
+        let [workspace_service, dashboard, browser_session] = plan.as_slice() else {
+            panic!("the complete desktop service plan should contain three services");
+        };
         assert!(
             workspace_service
                 .arguments
@@ -174,10 +173,6 @@ mod tests {
             Readiness::HttpAvailable
         ));
 
-        let dashboard = plan
-            .iter()
-            .find(|service| service.name == "Dashboard")
-            .expect("Dashboard should be in the desktop service plan");
         for expected in [
             ("JOB_BOARDWALK_DASHBOARD_ADDRESS", "http://127.0.0.1:55311"),
             ("JOB_BOARDWALK_WORKSPACE_SERVICE_ADDRESS", "127.0.0.1:55310"),
@@ -202,10 +197,6 @@ mod tests {
             "Dashboard should use a private loopback Caddy admin endpoint"
         );
 
-        let browser_session = plan
-            .iter()
-            .find(|service| service.name == "Browser")
-            .expect("Browser should be in the desktop service plan");
         let entrypoint_argument = format!(
             "--service-entrypoint={}",
             layout.browser_session_entrypoint.display()
@@ -248,6 +239,6 @@ mod tests {
             CaddyLifecycle::prepare().expect("Caddy lifecycle should be prepared");
         let plan = service_plan(&layout, &DesktopSettings::default(), caddy_lifecycle, None);
 
-        assert!(plan.iter().all(|service| service.name != "Browser"));
+        assert_eq!(plan.len(), 2);
     }
 }

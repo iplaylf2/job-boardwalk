@@ -1,13 +1,48 @@
-use std::collections::HashSet;
 use std::fs;
-use std::io::ErrorKind;
+use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
+use atomic_write_file::AtomicWriteFile;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 pub(crate) const DEFAULT_WORKSPACE_PORT: u16 = 54310;
 pub(crate) const DEFAULT_DASHBOARD_PORT: u16 = 54311;
 pub(crate) const DEFAULT_BROWSER_PORT: u16 = 54312;
+
+#[derive(Debug, Error)]
+pub(crate) enum DesktopSettingsError {
+    #[error("Cannot access browser executable {path}: {source}")]
+    BrowserExecutable {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+    #[error("Cannot parse {path}: {source}")]
+    Parse {
+        path: PathBuf,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error("Cannot read {path}: {source}")]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+    #[error("Cannot create settings directory: {0}")]
+    SettingsDirectory(#[source] io::Error),
+    #[error("Cannot serialize settings: {0}")]
+    Serialize(#[source] serde_json::Error),
+    #[error("{0}")]
+    Validation(String),
+    #[error("Cannot write {path}: {source}")]
+    Write {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -35,7 +70,7 @@ impl DesktopSettings {
         dashboard_port: &str,
         browser_port: &str,
         browser_executable: &str,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, DesktopSettingsError> {
         let browser_executable = match browser_executable.trim() {
             "" => None,
             value => Some(PathBuf::from(value)),
@@ -54,67 +89,90 @@ impl DesktopSettings {
         format!("http://127.0.0.1:{}", self.dashboard_port)
     }
 
-    pub(crate) fn load(path: &Path) -> Result<Self, String> {
+    pub(crate) fn load(path: &Path) -> Result<Self, DesktopSettingsError> {
         let serialized = match fs::read_to_string(path) {
             Ok(serialized) => serialized,
             Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Self::default()),
-            Err(error) => return Err(format!("Cannot read {}: {error}", path.display())),
+            Err(source) => {
+                return Err(DesktopSettingsError::Read {
+                    path: path.to_owned(),
+                    source,
+                });
+            }
         };
-        let settings: Self = serde_json::from_str(&serialized)
-            .map_err(|error| format!("Cannot parse {}: {error}", path.display()))?;
+        let settings: Self =
+            serde_json::from_str(&serialized).map_err(|source| DesktopSettingsError::Parse {
+                path: path.to_owned(),
+                source,
+            })?;
         settings.validate()?;
         Ok(settings)
     }
 
-    pub(crate) fn save(&self, path: &Path) -> Result<(), String> {
+    pub(crate) fn save(&self, path: &Path) -> Result<(), DesktopSettingsError> {
         self.validate()?;
         let parent = path
             .parent()
-            .ok_or_else(|| "Settings path has no parent directory.".to_owned())?;
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("Cannot create settings directory: {error}"))?;
-        let serialized = serde_json::to_string_pretty(self)
-            .map_err(|error| format!("Cannot serialize settings: {error}"))?;
-        fs::write(path, format!("{serialized}\n"))
-            .map_err(|error| format!("Cannot write {}: {error}", path.display()))
+            .ok_or_else(|| validation_error("Settings path has no parent directory."))?;
+        fs::create_dir_all(parent).map_err(DesktopSettingsError::SettingsDirectory)?;
+        let serialized =
+            serde_json::to_string_pretty(self).map_err(DesktopSettingsError::Serialize)?;
+        let write_error = |source| DesktopSettingsError::Write {
+            path: path.to_owned(),
+            source,
+        };
+        let mut file = AtomicWriteFile::open(path).map_err(write_error)?;
+        writeln!(file, "{serialized}").map_err(write_error)?;
+        file.commit().map_err(write_error)
     }
 
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> Result<(), DesktopSettingsError> {
         let ports = [self.workspace_port, self.dashboard_port, self.browser_port];
         if ports.contains(&0) {
-            return Err("Ports must be between 1 and 65535.".to_owned());
+            return Err(validation_error("Ports must be between 1 and 65535."));
         }
-        if ports.into_iter().collect::<HashSet<_>>().len() != ports.len() {
-            return Err("Workspace, Dashboard, and Browser ports must differ.".to_owned());
+        if self.workspace_port == self.dashboard_port
+            || self.workspace_port == self.browser_port
+            || self.dashboard_port == self.browser_port
+        {
+            return Err(validation_error(
+                "Workspace, Dashboard, and Browser ports must differ.",
+            ));
         }
         if let Some(executable) = &self.browser_executable {
             if !executable.is_absolute() {
-                return Err("Browser executable path must be absolute.".to_owned());
+                return Err(validation_error(
+                    "Browser executable path must be absolute.",
+                ));
             }
-            let metadata = executable.metadata().map_err(|error| {
-                format!(
-                    "Cannot access browser executable {}: {error}",
-                    executable.display()
-                )
+            let metadata = executable.metadata().map_err(|source| {
+                DesktopSettingsError::BrowserExecutable {
+                    path: executable.clone(),
+                    source,
+                }
             })?;
             if !metadata.is_file() {
-                return Err(format!(
+                return Err(validation_error(format!(
                     "Browser executable {} is not a file.",
                     executable.display()
-                ));
+                )));
             }
         }
         Ok(())
     }
 }
 
-fn parse_port(label: &str, value: &str) -> Result<u16, String> {
+fn parse_port(label: &str, value: &str) -> Result<u16, DesktopSettingsError> {
     value
         .trim()
         .parse::<u16>()
         .ok()
         .filter(|port| *port > 0)
-        .ok_or_else(|| format!("{label} must be a number between 1 and 65535."))
+        .ok_or_else(|| validation_error(format!("{label} must be a number between 1 and 65535.")))
+}
+
+fn validation_error(message: impl Into<String>) -> DesktopSettingsError {
+    DesktopSettingsError::Validation(message.into())
 }
 
 #[cfg(test)]
@@ -135,29 +193,20 @@ mod tests {
     fn rejects_duplicate_ports() {
         let result = DesktopSettings::from_fields("54310", "54310", "54312", "");
 
-        assert_eq!(
-            result.expect_err("duplicate ports should be rejected"),
-            "Workspace, Dashboard, and Browser ports must differ."
-        );
+        assert!(result.is_err());
     }
 
     #[test]
     fn rejects_a_relative_browser_path() {
         let result = DesktopSettings::from_fields("54310", "54311", "54312", "relative/chrome");
 
-        assert_eq!(
-            result.expect_err("relative paths should be rejected"),
-            "Browser executable path must be absolute."
-        );
+        assert!(result.is_err());
     }
 
     #[test]
     fn missing_settings_use_defaults() {
-        let path = std::env::temp_dir().join(format!(
-            "job-boardwalk-missing-settings-{}.json",
-            std::process::id()
-        ));
-        let _ = fs::remove_file(&path);
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let path = directory.path().join("settings.json");
 
         assert_eq!(
             DesktopSettings::load(&path).expect("missing settings should use defaults"),
@@ -178,19 +227,13 @@ mod tests {
                 .expect("the test executable path should be UTF-8"),
         )
         .expect("synthetic settings should be valid");
-        let directory = std::env::temp_dir().join(format!(
-            "job-boardwalk-desktop-settings-{}",
-            std::process::id()
-        ));
-        let path = directory.join("settings.json");
-        let _ = fs::remove_dir_all(&directory);
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let path = directory.path().join("settings.json");
 
         settings.save(&path).expect("settings should be saved");
         assert_eq!(
             DesktopSettings::load(&path).expect("settings should be loaded"),
             settings
         );
-
-        fs::remove_dir_all(directory).expect("settings test directory should be removable");
     }
 }

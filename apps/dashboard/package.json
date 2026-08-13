@@ -17,9 +17,9 @@
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@shajara/host": "catalog:",
-    "@solidjs/web": "2.0.0-beta.32",
-    "markdown-it": "15.0.0",
-    "solid-js": "2.0.0-beta.32"
+    "@solidjs/web": "^2.0.0-rc.0",
+    "markdown-it": "^15.0.0",
+    "solid-js": "^2.0.0-rc.0"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
@@ -27,7 +27,7 @@
     "oxlint": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "3.0.0-next.24",
+    "vite-plugin-solid": "^3.0.0-next.27",
     "vitest": "catalog:"
   }
 }
