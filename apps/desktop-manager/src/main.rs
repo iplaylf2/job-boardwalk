@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use desktop_settings::DesktopSettings;
 use product_layout::{ProductLayout, resolve_product_layout};
-use service_supervisor::{RunningServices, ServiceExit, start_services};
+use service_supervisor::{RunningServices, ServiceEvent, start_services};
 
 slint::include_modules!();
 
@@ -67,6 +67,26 @@ fn apply_running_state(
     });
 }
 
+fn apply_browser_availability(
+    weak_window: &slint::Weak<ManagerWindow>,
+    available: bool,
+    detail: String,
+) {
+    update_window(weak_window, move |window| {
+        window.set_status_detail(if available {
+            "Core services and browser access are available.".into()
+        } else {
+            "Core services are running, but browser actions are unavailable.".into()
+        });
+        window.set_browser_state(if available {
+            "Running".into()
+        } else {
+            "Unavailable".into()
+        });
+        window.set_browser_detail(detail.into());
+    });
+}
+
 fn apply_stopped_state(
     weak_window: &slint::Weak<ManagerWindow>,
     state: &'static str,
@@ -85,23 +105,25 @@ fn apply_stopped_state(
     });
 }
 
-fn handle_service_exit(
+fn handle_service_event(
     running: &mut Option<RunningServices>,
     weak_window: &slint::Weak<ManagerWindow>,
 ) {
     let Some(services) = running else {
         return;
     };
-    match services.poll_exit() {
-        Ok(Some(ServiceExit::Optional { name, status })) => {
-            update_window(weak_window, move |window| {
-                window.set_browser_state("Unavailable".into());
-                window.set_browser_detail(
-                    format!("{name} stopped unexpectedly ({status}). See the service log.").into(),
-                );
-            });
+    match services.poll_event() {
+        Ok(Some(ServiceEvent::BrowserAvailabilityChanged { available, detail })) => {
+            apply_browser_availability(weak_window, available, detail);
         }
-        Ok(Some(ServiceExit::Mandatory { name, status })) => {
+        Ok(Some(ServiceEvent::OptionalExit { name, status })) => {
+            apply_browser_availability(
+                weak_window,
+                false,
+                format!("{name} stopped unexpectedly ({status}). See the service log."),
+            );
+        }
+        Ok(Some(ServiceEvent::MandatoryExit { name, status })) => {
             services.stop();
             *running = None;
             apply_stopped_state(
@@ -181,7 +203,7 @@ fn controller_loop(
             }
             Some(ControllerCommand::Start(_)) | None => {}
         }
-        handle_service_exit(&mut running, &weak_window);
+        handle_service_event(&mut running, &weak_window);
     }
 }
 

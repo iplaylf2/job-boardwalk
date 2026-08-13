@@ -12,6 +12,7 @@ use crate::product_layout::ProductLayout;
 use crate::service_plan::{Readiness, ServiceSpec, ShutdownMethod, service_plan};
 
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const BROWSER_HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 const SERVICE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 const SERVICE_STARTUP_TIMEOUT: Duration = Duration::from_secs(20);
 #[cfg(windows)]
@@ -26,6 +27,7 @@ struct ManagedService {
 }
 
 pub(crate) struct RunningServices {
+    browser_health: Option<BrowserHealthMonitor>,
     services: Vec<ManagedService>,
 }
 
@@ -35,15 +37,31 @@ pub(crate) struct StartupResult {
     pub(crate) services: RunningServices,
 }
 
-pub(crate) enum ServiceExit {
-    Mandatory {
+pub(crate) enum ServiceEvent {
+    BrowserAvailabilityChanged {
+        available: bool,
+        detail: String,
+    },
+    MandatoryExit {
         name: &'static str,
         status: ExitStatus,
     },
-    Optional {
+    OptionalExit {
         name: &'static str,
         status: ExitStatus,
     },
+}
+
+struct BrowserHealthMonitor {
+    agent: ureq::Agent,
+    health_url: String,
+    next_poll: Instant,
+    tracker: BrowserAvailabilityTracker,
+}
+
+struct BrowserAvailabilityTracker {
+    available: bool,
+    available_detail: String,
 }
 
 fn open_log_file(layout: &ProductLayout) -> Result<File, String> {
@@ -109,9 +127,72 @@ struct BrowserHealthStatus {
 }
 
 fn browser_health_is_ready(body: &str) -> bool {
+    browser_health_availability(body).is_ok_and(|available| available)
+}
+
+fn browser_health_availability(body: &str) -> Result<bool, String> {
     serde_json::from_str::<BrowserHealth>(body)
-        .ok()
-        .is_some_and(|health| health.browser.available)
+        .map(|health| health.browser.available)
+        .map_err(|error| format!("Browser Session returned invalid health data: {error}"))
+}
+
+fn health_agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(1)))
+        .proxy(None)
+        .build()
+        .new_agent()
+}
+
+impl BrowserHealthMonitor {
+    fn new(health_url: String, available_detail: String) -> Self {
+        Self {
+            agent: health_agent(),
+            health_url,
+            next_poll: Instant::now() + BROWSER_HEALTH_POLL_INTERVAL,
+            tracker: BrowserAvailabilityTracker {
+                available: true,
+                available_detail,
+            },
+        }
+    }
+
+    fn poll(&mut self) -> Option<ServiceEvent> {
+        if Instant::now() < self.next_poll {
+            return None;
+        }
+        self.next_poll = Instant::now() + BROWSER_HEALTH_POLL_INTERVAL;
+        let observation = self
+            .agent
+            .get(&self.health_url)
+            .call()
+            .map_err(|error| format!("Cannot reach Browser Session health endpoint: {error}"))
+            .and_then(|mut response| {
+                response.body_mut().read_to_string().map_err(|error| {
+                    format!("Cannot read Browser Session health response: {error}")
+                })
+            })
+            .and_then(|body| browser_health_availability(&body));
+        self.tracker.observe(observation)
+    }
+}
+
+impl BrowserAvailabilityTracker {
+    fn observe(&mut self, observation: Result<bool, String>) -> Option<ServiceEvent> {
+        let (available, detail) = match observation {
+            Ok(true) => (true, self.available_detail.clone()),
+            Ok(false) => (
+                false,
+                "Browser Session is running, but browser actions are unavailable.".to_owned(),
+            ),
+            Err(error) => (false, error),
+        };
+        if available == self.available {
+            return None;
+        }
+        self.available = available;
+        Some(ServiceEvent::BrowserAvailabilityChanged { available, detail })
+    }
 }
 
 fn wait_for_readiness(
@@ -120,11 +201,7 @@ fn wait_for_readiness(
     readiness: Readiness,
 ) -> Result<(), String> {
     let deadline = Instant::now() + SERVICE_STARTUP_TIMEOUT;
-    let agent = ureq::Agent::config_builder()
-        .timeout_global(Some(Duration::from_secs(1)))
-        .proxy(None)
-        .build()
-        .new_agent();
+    let agent = health_agent();
     while Instant::now() < deadline {
         if let Some(status) = service
             .child
@@ -188,7 +265,7 @@ impl RunningServices {
         self.services.clear();
     }
 
-    pub(crate) fn poll_exit(&mut self) -> Result<Option<ServiceExit>, String> {
+    pub(crate) fn poll_event(&mut self) -> Result<Option<ServiceEvent>, String> {
         for (index, service) in self.services.iter_mut().enumerate() {
             let status = service
                 .child
@@ -197,19 +274,23 @@ impl RunningServices {
             if let Some(status) = status {
                 let service = self.services.remove(index);
                 return Ok(Some(if service.optional {
-                    ServiceExit::Optional {
+                    self.browser_health = None;
+                    ServiceEvent::OptionalExit {
                         name: service.name,
                         status,
                     }
                 } else {
-                    ServiceExit::Mandatory {
+                    ServiceEvent::MandatoryExit {
                         name: service.name,
                         status,
                     }
                 }));
             }
         }
-        Ok(None)
+        Ok(self
+            .browser_health
+            .as_mut()
+            .and_then(BrowserHealthMonitor::poll))
     }
 }
 
@@ -226,6 +307,7 @@ pub(crate) fn start_services(
     let caddy_lifecycle = CaddyLifecycle::prepare()?;
     let log = open_log_file(layout)?;
     let mut running = RunningServices {
+        browser_health: None,
         services: Vec::new(),
     };
     let browser = discover_browser(settings.browser_executable.as_deref());
@@ -251,6 +333,12 @@ pub(crate) fn start_services(
             }
             return Err(error);
         }
+        if matches!(readiness, Readiness::BrowserAvailable) {
+            running.browser_health = Some(BrowserHealthMonitor::new(
+                health_url,
+                browser_detail.clone(),
+            ));
+        }
         running.services.push(service);
     }
     Ok(StartupResult {
@@ -262,7 +350,10 @@ pub(crate) fn start_services(
 
 #[cfg(test)]
 mod tests {
-    use super::browser_health_is_ready;
+    use super::{
+        BrowserAvailabilityTracker, ServiceEvent, browser_health_availability,
+        browser_health_is_ready,
+    };
 
     #[test]
     fn accepts_browser_health_only_when_browser_actions_are_available() {
@@ -280,5 +371,47 @@ mod tests {
         ] {
             assert!(!browser_health_is_ready(body));
         }
+    }
+
+    #[test]
+    fn reports_browser_availability_loss_and_recovery_from_health_responses() {
+        let mut tracker = BrowserAvailabilityTracker {
+            available: true,
+            available_detail: "Configured Chromium is ready.".to_owned(),
+        };
+
+        let loss = tracker
+            .observe(browser_health_availability(
+                r#"{"browser":{"available":false},"status":"ok"}"#,
+            ))
+            .expect("availability loss should produce an event");
+        assert!(matches!(
+            loss,
+            ServiceEvent::BrowserAvailabilityChanged {
+                available: false,
+                ..
+            }
+        ));
+        assert!(
+            tracker
+                .observe(browser_health_availability(
+                    r#"{"browser":{"available":false},"status":"ok"}"#,
+                ))
+                .is_none(),
+            "an unchanged unavailable response should not repeat the event"
+        );
+
+        let recovery = tracker
+            .observe(browser_health_availability(
+                r#"{"browser":{"available":true,"browserVersion":"149.0","tabCount":1},"status":"ok"}"#,
+            ))
+            .expect("availability recovery should produce an event");
+        assert!(matches!(
+            recovery,
+            ServiceEvent::BrowserAvailabilityChanged {
+                available: true,
+                detail,
+            } if detail == "Configured Chromium is ready."
+        ));
     }
 }
