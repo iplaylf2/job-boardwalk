@@ -47,6 +47,11 @@ jobs:
           cargo clippy --version
           rustfmt --version
 
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          cache-bin: false
+
       - name: Install Slint Linux build dependencies
         run: |
           sudo apt-get update

@@ -76,11 +76,17 @@ The package task writes the portable archive under `target/desktop-distribution/
 
 ## Continuous integration
 
-Non-draft pull requests targeting `master` run the affected CI plan on Ubuntu. A change that affects
-Desktop Manager receives one representative native build. Merge checks also reject Rust
-dependencies covered by RustSec security or soundness advisories. An unmaintained dependency blocks
-a merge only when a workspace package depends on it directly. Portable Linux and Windows
-distributions are built only for a Changesets-managed desktop release, not for every pull request.
+Non-draft pull requests targeting `master` run the [affected CI plan](../.moon/ci.json) on Ubuntu.
+Changes that affect Desktop Manager receive one representative native build.
+
+Merge checks reject Rust dependencies covered by RustSec security or soundness advisories. An
+unmaintained dependency blocks a merge only when a workspace package depends on it directly. Rust
+checks reuse downloaded and compiled third-party dependencies across compatible runs; workspace
+crates and incremental artifacts remain uncached, so project code is still compiled in every
+affected run.
+
+Portable Linux and Windows distributions are built only for a Changesets-managed desktop release,
+not for every pull request.
 
 Workflow actions use verified published release tags. Desktop release runner versions are explicit
 so their image migrations happen as reviewed repository changes.
