@@ -2,4 +2,9 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "treatConfigHintsAsErrors": true,
   "treatTagHintsAsErrors": true,
+  "workspaces": {
+    "internal/desktop-distribution": {
+      "ignoreBinaries": ["^aqua$"],
+    },
+  },
 }

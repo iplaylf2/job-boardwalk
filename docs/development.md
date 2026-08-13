@@ -54,29 +54,31 @@ inappropriate, including inside application Dockerfiles.
 
 ## Desktop distribution staging
 
-Build the current application artifacts and assemble the directory-contained staging tree with:
+With Aqua installed, prepare the repository-pinned native inputs, then build the current
+application artifacts and assemble the directory-contained staging tree:
 
 ```sh
-JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
-  pnpm exec moon run desktop-distribution:assemble
+pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
+export JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE="$(aqua which --config internal/desktop-distribution/aqua.yaml caddy)"
+pnpm exec moon run desktop-distribution:assemble
 ```
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
-checks, including the PowerShell form of the commands. The explicit build input supplies the
-platform-native Caddy executable used by Dashboard. The
-[desktop distribution specification](desktop-distribution.md) defines the installed form, build
-ownership, and remaining delivery work.
+checks, the Aqua prerequisite, the PowerShell form, and the explicit override for testing another
+Caddy build. The [desktop distribution specification](desktop-distribution.md) defines the
+installed form, build ownership, and remaining delivery work.
 
 On Linux or Windows, assemble and create the native portable archive with:
 
 ```sh
-JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
-  pnpm exec moon run desktop-distribution:package
+pnpm exec moon run desktop-distribution:package
 ```
 
 The package task writes the portable archive under `target/desktop-distribution/releases/`.
 
 ## Continuous integration
+
+### Merge checks
 
 Non-draft pull requests targeting `master` run the [affected CI plan](../.moon/ci.json) on Ubuntu.
 Changes that affect Desktop Manager receive one representative native build.
@@ -100,26 +102,52 @@ them; CI-only setup helpers use their action's supported default unless the repo
 specific compatibility constraint. Desktop release runner versions are explicit so their image
 migrations happen as reviewed repository changes.
 
+### Desktop releases
+
 Portable Linux and Windows distributions are built only for a Changesets-managed desktop release,
-not for every pull request.
+not for ordinary pull requests or unrelated `master` pushes.
 
 Record desktop release intent with `pnpm changeset` as described in the
 [Changesets contributor guide](../.changeset/README.md). The current release unit is
-`@job-boardwalk/desktop-distribution`; its package version supplies the product manifest, archive
-names, tag, and GitHub release. Other workspaces are not versioned independently.
+`@job-boardwalk/desktop-distribution`; its package version appears in the product manifest, archive
+names, Git tag, and GitHub release. Other workspaces are not versioned independently.
 
-One release workflow follows the Changesets custom-publishing model. A `master` push with pending
-changesets creates or updates the version pull request. Merging that pull request changes the
-product version and removes the consumed changesets, which opens the Linux and Windows packaging
-matrix. Each native job verifies its pinned Caddy input, builds the portable archive, and records
-provenance for that archive. After both jobs pass, the workflow creates `SHA256SUMS` and publishes
-both archives as a `v<version>` GitHub prerelease using the Changesets changelog.
+The [desktop version PR workflow](../.github/workflows/desktop-version-pr.yaml) and
+[desktop release workflow](../.github/workflows/desktop-release.yaml) have separate
+responsibilities. On each `master` push, the version workflow uses Changesets to create or update a
+version pull request when release intent is pending. Merging that pull request updates the product
+version and changelog and consumes the changesets. The resulting package-manifest change triggers
+the release workflow, which confirms that the push tip introduced the version before starting the
+Linux and Windows packaging jobs. A batch push that places later commits after the version change
+is rejected rather than packaging those changes under the new version.
+
+Each packaging job runs on its target operating system and invokes Desktop Distribution's
+package-owned native-input preparation before passing the resolved Caddy path into the Moon package
+graph. The [package README](../internal/desktop-distribution/README.md) owns the Aqua configuration,
+checksums, and maintenance commands. Once the release resolver confirms the version change,
+packaging bypasses Moon's general-purpose CI affected checks. Each matrix row builds and attests one
+native archive, then uploads it under a distinct platform artifact name. Publication downloads only
+those desktop artifacts, merges their differently named archives into the release asset directory,
+creates `SHA256SUMS`, and publishes the archives and checksum file as a `v<version>` GitHub
+prerelease using the Changesets changelog.
+
+If packaging or publication fails, rerun the original **Desktop release** workflow. Use
+**Re-run failed jobs** while successful platform artifacts remain within their seven-day retention;
+use **Re-run all jobs** when those artifacts must be rebuilt. GitHub preserves the original run's
+Git ref and commit, so either path rebuilds the same source without running Changesets. Artifact
+upload is configured to replace only the rerun platform's earlier artifact from the same run, so a
+failed Windows rerun cannot replace the retained Linux artifact or vice versa. Publication may
+replace an existing draft release but never a non-draft release.
+
+The workflows deny token permissions by default. The version job alone receives `contents: write`
+and `pull-requests: write`. Release jobs receive `contents: read`, `attestations: write`, and
+`id-token: write` only where needed; the publication job receives `contents: write`.
 
 The repository setting that permits Actions to create pull requests must be enabled. Configure
 `CHANGESETS_GITHUB_TOKEN` with a GitHub App or fine-grained token when version pull requests must
 trigger other workflows automatically; the built-in token remains the fallback.
 
-The GitHub prerelease remains an engineering artifact. The
+Each GitHub prerelease remains an engineering artifact. The
 [desktop delivery sequence](desktop-distribution.md#delivery-sequence) owns the work required to
 promote it to a supported release channel.
 

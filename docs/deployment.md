@@ -216,7 +216,9 @@ owns that artifact's build and layout; [Desktop distribution](desktop-distributi
 installed placement.
 
 The same Caddyfile accompanies the desktop staging tree, so routing and security policy do not fork
-by deployment topology.
+by deployment topology. Binary ownership remains separate: Dashboard's Dockerfile selects the
+Compose image, while [Desktop Distribution](desktop-distribution.md#build-ownership) owns the
+native desktop executable input.
 
 The resulting OCI images are the deployment artifacts. `compose.yaml` defaults to the local image
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the

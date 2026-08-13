@@ -14,7 +14,7 @@ Workspace Service and Dashboard available and puts the desktop application in a 
 
 The manifest identifies this artifact as `desktop-staging` with `releaseReady: false`. The archive
 command packages that tree as a Linux `.tar.gz` or Windows `.zip` on the corresponding native
-platform. Changesets-managed releases publish both unsigned archives as GitHub prereleases with
+platform. Automated desktop releases publish both unsigned archives as GitHub prereleases with
 checksums and build-provenance attestations. Operating-system signing, license collection,
 integrated backup and restore, atomic in-directory product updates, and promotion to a supported
 release channel remain outstanding in [Delivery sequence](#delivery-sequence).
@@ -211,22 +211,29 @@ An update stages and verifies replacement resources before switching them into p
 
 Build responsibilities follow the boundary that owns each artifact:
 
-| Owner                                                                               | Responsibility                                                                                                                                        |
-| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Application projects                                                                | Produce finalized native, Node service, and web artifacts.                                                                                            |
-| Desktop Manager                                                                     | Resolve installed paths and own the desktop process topology.                                                                                         |
-| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Declare allowed components, enforce the product-directory boundary, assemble the product tree, emit its manifest, and invoke the native archive tool. |
-| Platform packager                                                                   | Implement archive, application-bundle, installer, signing, and notarization mechanics for its platform.                                               |
-| Moon                                                                                | Schedule the application builds, distribution work, and repository checks.                                                                            |
+| Owner                                                                               | Responsibility                                                                                                   |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Application projects                                                                | Produce finalized native, Node service, and web artifacts.                                                       |
+| Desktop Manager                                                                     | Resolve installed paths and own the desktop process topology.                                                    |
+| [`@job-boardwalk/desktop-distribution`](../internal/desktop-distribution/README.md) | Own third-party native inputs, the component allowlist, product assembly, the integrity manifest, and archiving. |
+| Platform packager                                                                   | Implement platform-specific archive, bundle, installer, signing, and notarization mechanics.                     |
+| Moon                                                                                | Schedule application builds, distribution work, and repository checks.                                           |
 
 Desktop Distribution runs only during development and release; packaged applications do not depend
 on it. Platform packaging mechanics belong to the selected maintained packager rather than to
 custom assembly code.
 
-The desktop build receives an absolute `JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE` path. The assembler
-verifies that the platform-native binary can load the product Caddyfile and records the copied bytes
-in the product manifest. Release automation separately owns version selection, release checksums,
-provenance, and license policy. The installed product does not use a host Caddy installation.
+Desktop Distribution declares and verifies the third-party native executables copied into the
+product. Release automation invokes that package-owned preparation boundary and passes the resolved
+platform-native Caddy path through Desktop Distribution's declared build input. The assembler
+verifies that the executable can load the product Caddyfile and records the copied bytes in the
+product manifest. Release automation separately owns product version selection, the checksums and
+attestations for completed Job Boardwalk archives, and release-channel policy. The installed
+product neither fetches native inputs nor depends on a host Caddy installation.
+
+The Compose and desktop artifacts share Dashboard's Caddyfile but not a binary supply chain.
+Dashboard's Dockerfile pins the Compose Caddy image; Desktop Distribution pins the native desktop
+executable. Neither declaration is authoritative for the other artifact.
 
 ## Delivery sequence
 
@@ -245,11 +252,11 @@ provenance, and license policy. The installed product does not use a host Caddy 
    that capability without taking the workspace or Dashboard offline.
 4. **Linux and Windows archive construction — implemented.** On the target operating system, emit
    the assembled product as a `.tar.gz` or `.zip`.
-5. **Changesets GitHub prereleases — implemented.** One release workflow maintains the Changesets
-   version pull request. Merging it changes the product version and changelog, which triggers native
-   Linux and Windows builds, release checksums, provenance attestations, and publication of both
-   archives under a `v<version>` GitHub prerelease. Other `master` pushes do not build or publish
-   desktop distributions.
+5. **Versioned GitHub prereleases — implemented.** Merging a Changesets version pull request
+   triggers native Linux and Windows builds, release checksums, build-provenance attestations, and
+   publication of both archives under a `v<version>` GitHub prerelease. Other `master` pushes do
+   not build or publish desktop distributions. [Development](development.md#desktop-releases) owns
+   the automation and retry procedure.
 6. **Supported native release.** Add Windows code signing, license collection, integrated backup
    and restore, and atomic in-directory updates. Add Linux signing when the selected publication
    channel defines its trust mechanism, then promote the prerelease through that channel. The

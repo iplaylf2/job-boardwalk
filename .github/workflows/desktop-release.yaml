@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    paths:
+      - internal/desktop-distribution/package.json
 
 permissions: {}
 
@@ -11,88 +13,55 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  changesets:
-    name: Maintain version pull request
-    runs-on: ubuntu-24.04
-    outputs:
-      has_changesets: ${{ steps.changesets.outputs['has-changesets'] }}
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          package_json_file: package.json
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: package.json
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Create or update version pull request
-        id: changesets
-        uses: changesets/action@v2
-        with:
-          github-token: ${{ secrets.CHANGESETS_GITHUB_TOKEN || github.token }}
-          version-script: pnpm exec changeset version
-          commit-message: "chore: version desktop product"
-          pr-title: "chore: version desktop product"
-          pr-base-branch: master
-
-  release:
-    name: Detect desktop release
-    needs: changesets
-    if: needs.changesets.outputs.has_changesets == 'false'
+  resolve:
+    name: Resolve desktop release
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     outputs:
-      required: ${{ steps.detect.outputs.required }}
-      tag: ${{ steps.detect.outputs.tag }}
-      version: ${{ steps.detect.outputs.version }}
+      required: ${{ steps.resolve.outputs.required }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Detect desktop product version change
-        id: detect
+      - name: Resolve desktop release
+        id: resolve
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: |
           package_manifest=internal/desktop-distribution/package.json
-          previous_package_manifest="$RUNNER_TEMP/previous-desktop-distribution-package.json"
-          git show "$BEFORE_SHA:$package_manifest" > "$previous_package_manifest"
-          previous_product_version="$(jq --raw-output '.version // empty' "$previous_package_manifest")"
           product_version="$(jq --raw-output '.version // empty' "$package_manifest")"
-          echo "required=false" >> "$GITHUB_OUTPUT"
-          if [ "$previous_product_version" = "$product_version" ]; then
-            exit 0
-          fi
           if [ -z "$product_version" ]; then
-            echo "Desktop product version was removed." >&2
+            echo "Desktop product version is missing." >&2
             exit 1
           fi
+
+          before_version="$(git show "$BEFORE_SHA:$package_manifest" | jq --raw-output '.version // empty')"
+          if [ "$before_version" = "$product_version" ]; then
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          parent_version="$(git show "$GITHUB_SHA^1:$package_manifest" | jq --raw-output '.version // empty')"
+          if [ "$parent_version" = "$product_version" ]; then
+            echo "Desktop version $product_version was introduced before the push tip." >&2
+            echo "The version-introducing commit must reach master as the push tip so release provenance identifies exactly that source." >&2
+            exit 1
+          fi
+
           echo "required=true" >> "$GITHUB_OUTPUT"
           echo "tag=v$product_version" >> "$GITHUB_OUTPUT"
           echo "version=$product_version" >> "$GITHUB_OUTPUT"
 
   package:
     name: Package (${{ matrix.platform }})
-    needs: release
-    if: needs.release.outputs.required == 'true'
+    needs: resolve
+    if: needs.resolve.outputs.required == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
@@ -105,9 +74,11 @@ jobs:
         include:
           - platform: Linux x64
             runner: ubuntu-24.04
+            artifact_name: desktop-linux-x64
             archive_path: target/desktop-distribution/releases/*.tar.gz
           - platform: Windows x64
             runner: windows-2025
+            artifact_name: desktop-windows-x64
             archive_path: target/desktop-distribution/releases/*.zip
 
     steps:
@@ -147,65 +118,44 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Download verified Caddy for Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        env:
-          CADDY_ARCHIVE_SHA256: 527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9
-          CADDY_VERSION: 2.11.4
-        run: |
-          archive="$RUNNER_TEMP/caddy.tar.gz"
-          destination="$RUNNER_TEMP/job-boardwalk-caddy"
-          curl --fail --location --proto '=https' --tlsv1.2 \
-            --output "$archive" \
-            "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
-          echo "$CADDY_ARCHIVE_SHA256  $archive" | sha256sum --check --strict
-          mkdir --parents "$destination"
-          tar --extract --gzip --file "$archive" --directory "$destination" caddy
-          echo "JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=$destination/caddy" >> "$GITHUB_ENV"
+      - name: Set up Aqua
+        uses: aquaproj/aqua-installer@v4.0.5
+        with:
+          aqua_version: v2.62.3
+          enable_aqua_install: false
+          working_directory: internal/desktop-distribution
 
-      - name: Download verified Caddy for Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          CADDY_ARCHIVE_SHA256: 1708333f79e274c7697285afe6d592ab39314e0b131e9ec6bea08ad27df62ebf
-          CADDY_VERSION: 2.11.4
-        run: |
-          $archive = Join-Path $env:RUNNER_TEMP "caddy.zip"
-          $destination = Join-Path $env:RUNNER_TEMP "job-boardwalk-caddy"
-          $fileName = "caddy_{0}_windows_amd64.zip" -f $env:CADDY_VERSION
-          $uri = "https://github.com/caddyserver/caddy/releases/download/v$env:CADDY_VERSION/$fileName"
-          Invoke-WebRequest -Uri $uri -OutFile $archive
-          $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash
-          if ($actualHash -ne $env:CADDY_ARCHIVE_SHA256) {
-            throw "Caddy archive checksum mismatch: expected $env:CADDY_ARCHIVE_SHA256, received $actualHash"
-          }
-          Expand-Archive -LiteralPath $archive -DestinationPath $destination
-          "JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=$destination\caddy.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Prepare pinned release inputs
+        run: pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
 
       - name: Build portable archive
-        run: pnpm exec moon run desktop-distribution:package
+        shell: pwsh
+        run: |
+          $env:JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE = aqua which --config internal/desktop-distribution/aqua.yaml caddy
+          pnpm exec moon exec --ignore-ci-checks desktop-distribution:package
 
       - name: Attest portable archive
         uses: actions/attest@v4
         with:
           subject-path: ${{ matrix.archive_path }}
-          subject-version: ${{ needs.release.outputs.version }}
+          subject-version: ${{ needs.resolve.outputs.version }}
 
       - name: Upload portable archive
         uses: actions/upload-artifact@v7
         with:
+          name: ${{ matrix.artifact_name }}
           path: ${{ matrix.archive_path }}
           if-no-files-found: error
           retention-days: 7
           archive: false
+          overwrite: true
 
   publish:
     name: Publish GitHub prerelease
     needs:
-      - release
+      - resolve
       - package
-    if: needs.release.outputs.required == 'true'
+    if: needs.resolve.outputs.required == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -216,13 +166,14 @@ jobs:
       - name: Download portable archives
         uses: actions/download-artifact@v8
         with:
+          pattern: desktop-*-x64
           path: release-assets
           merge-multiple: true
 
       - name: Create release notes
         shell: bash
         env:
-          VERSION: ${{ needs.release.outputs.version }}
+          VERSION: ${{ needs.resolve.outputs.version }}
         run: |
           awk -v version="$VERSION" '
             $0 == "## " version { found = 1; next }
@@ -239,17 +190,17 @@ jobs:
             sha256sum -- *.tar.gz *.zip > SHA256SUMS
           )
 
-      - name: Publish release
+      - name: Publish GitHub prerelease
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.release.outputs.tag }}
-          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"
             if [ "$is_draft" != "true" ]; then
-              echo "Release $RELEASE_TAG already exists and is not a draft." >&2
+              echo "GitHub release $RELEASE_TAG already exists and is not a draft; refusing to replace it." >&2
               exit 1
             fi
             gh release edit "$RELEASE_TAG" \

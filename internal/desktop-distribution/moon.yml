@@ -18,6 +18,8 @@ tasks:
       - "workspace-service:build"
     inputs:
       - "assets/**/*"
+      - "aqua-checksums.json"
+      - "aqua.yaml"
       - "src/**/*"
       - "package.json"
       - "tsconfig.json"

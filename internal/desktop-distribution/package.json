@@ -14,6 +14,7 @@
     "assemble": "node src/cli.ts",
     "lint": "oxlint --config oxlint.config.ts .",
     "package": "node src/package-cli.ts",
+    "prepare-release-inputs": "aqua install --config aqua.yaml",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

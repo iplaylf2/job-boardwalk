@@ -1,0 +1,19 @@
+{
+  "checksums": [
+    {
+      "id": "github_release/github.com/caddyserver/caddy/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz",
+      "checksum": "8220D1F013B6F27510247B2360C9E0CA9F018FEEBD82515F07635318B34FF9777CCC8FD0B6E6F2486CE3A33FE389FBB7DB12D05BAA474F4587509FB4F5EBF1C9",
+      "algorithm": "sha512"
+    },
+    {
+      "id": "github_release/github.com/caddyserver/caddy/v2.11.4/caddy_2.11.4_windows_amd64.zip",
+      "checksum": "CD5CCFD86A4B40732CF715890D0DCA5BF3F63ADEFEC5A7914DE85ADF240C60CE7E5D2791631B88EF9758E46B23BB1730E020B9C5D696889740B284FFD4788E35",
+      "algorithm": "sha512"
+    },
+    {
+      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.551.0/registry.yaml",
+      "checksum": "101779B840D3D53673DCF02005B015E290ED7C9C835CEBD6914BC651A00C5D8B",
+      "algorithm": "sha256"
+    }
+  ]
+}
