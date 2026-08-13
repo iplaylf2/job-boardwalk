@@ -11,19 +11,26 @@ account changes, applications, and communication always remain under user contro
 
 ## System map
 
-Job Boardwalk separates the browser that produces live evidence from the workspace that preserves
-durable facts:
+Job Boardwalk assigns browser execution, durable state, web presentation, and native desktop
+integration to separate applications:
 
-- [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that owns a
-  visible persistent Patchright browser in the user's graphical session and exposes project-owned
-  browser tools to the agent. It is a host companion, not a container workload.
+- [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that drives a
+  visible persistent Chromium-based browser through Patchright in the user's graphical session
+  and exposes project-owned browser tools to the agent. It is a host companion, not a container
+  workload.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
   operations over HTTP and MCP from an isolated container. It also tracks leased Browser Session
   presence for readers.
 - [Dashboard](apps/dashboard/) presents workspace data and research reports, and lets the user
-  maintain personal context and select the job-search intent that guides recruiting research. Its
-  container serves the production client and proxies its same-origin API requests; it never
-  controls the browser.
+  maintain personal context and select the job-search intent that guides recruiting research. It
+  never controls the browser.
+- [Desktop Service Host](apps/desktop-service-host/) is the private, application-specific Node.js
+  executable bundled with the desktop product. Each invocation loads one finalized service
+  payload and exits when that service ends; it does not coordinate the product topology.
+- [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
+  and desktop-supervision boundary. It starts, checks, observes, and stops Workspace Service,
+  Dashboard's packaged Caddy process, and Browser Session. It selects the desktop browser,
+  presents aggregate product status, and never takes over Browser Session's page-control boundary.
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
@@ -53,17 +60,30 @@ Available now:
   platform filtering, and in-library views for interested, contacted, applied, and interviewed
   records while preserving the original recruiting-platform sources. Its report reader keeps saved
   conclusions available without the agent conversation that produced them.
+- Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
+  address and service log path and directly supervising the product's isolated service processes.
+  Browser discovery or launch failure, or a later Browser Session process exit, puts the
+  application in a limited state without taking Workspace Service or Dashboard offline.
+- Portable desktop prereleases package Job Boardwalk into one directory for Linux x64 and Windows
+  x64. They run without installing Docker or Node.js and without a source checkout, and they use an
+  installed Chrome, Edge, or Chromium browser. [Desktop distribution](docs/desktop-distribution.md)
+  explains how to use these unsigned builds and what remains before a supported desktop release.
 
 Durable research runs and run-level progress remain product direction; they are not yet exposed by
 the applications.
 
 ## Run Job Boardwalk
 
+The supported deployment uses Docker Compose. Unsigned portable desktop builds are also available
+for prerelease evaluation.
+
+### Supported Compose deployment
+
 Workspace Service and Dashboard require Docker Engine with Docker Compose; building their images
 from source also requires BuildKit. Browser Session requires a graphical host session, Patchright
 Chromium, and the Node.js and pnpm toolchain declared in the root
-[`package.json`](package.json). The package-manager configuration downloads its pinned Node.js
-runtime when the host runtime does not match.
+[`package.json`](package.json) and resolved in [`pnpm-lock.yaml`](pnpm-lock.yaml). The
+package-manager configuration selects those locked versions, downloading them when needed.
 
 Build and start the container-owned services:
 
@@ -79,12 +99,27 @@ Install dependencies and Patchright's Chromium on the graphical host, then start
 ```sh
 pnpm install
 pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
-pnpm --filter @job-boardwalk/browser-session dev
+pnpm exec moon run browser-session:dev
 ```
 
 Browser Session launches a visible browser with a dedicated profile in the operating system's user
 data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
+
+### Portable desktop prerelease
+
+[GitHub Releases](https://github.com/iplaylf2/job-boardwalk/releases) provides unsigned Linux x64
+and Windows x64 archives for prerelease evaluation. Download the archive for your operating system,
+verify it against the release's `SHA256SUMS`, and extract the complete `job-boardwalk` directory to
+a writable location. The desktop build requires an installed Chrome, Edge, or Chromium browser but
+does not require installing Docker or Node.js and does not require a source checkout.
+
+The archive's `readme.md` explains how to start the application and where it stores data. The
+prerelease does not yet provide automatic updates or a supported backup-and-restore workflow, and
+the existing Compose deployment remains the supported topology. See
+[Desktop distribution](docs/desktop-distribution.md#use-a-desktop-prerelease) for the complete
+prerelease limitations. Developers who need to build an archive from source should follow
+[Development](docs/development.md#desktop-distribution-staging).
 
 When the user requests login, or visible page evidence shows that the requested workflow requires
 authentication and the current session is unauthenticated, the agent proactively opens the
@@ -94,27 +129,40 @@ control, and the agent resumes only after the user explicitly returns control. A
 platform's HTTPS navigation scope permits research and login-handoff preparation only; it does not
 authorize those user actions.
 
-See [Deployment](docs/deployment.md) for lifecycle, persistence, health, logs, backup, and the
-development workflow. The root `.env.example` is the environment-variable reference; project
-entrypoints do not load `.env` automatically.
+See [Deployment](docs/deployment.md) for runtime lifecycle, persistence, health, logs, backup, and
+restore. See [Development](docs/development.md) for the cross-language workspace and checks. The
+root `.env.example` is the environment-variable reference; project entrypoints do not load `.env`
+automatically.
 
 ## Repository checks
 
 Non-draft pull requests targeting `master` run the repository checks automatically. To reproduce
-them locally, install the locked dependencies and run the root check:
+them locally, install the locked Node.js dependencies and the Rust toolchain declared in
+[`rust-toolchain.toml`](rust-toolchain.toml). Linux also requires the native build dependencies
+listed by [Desktop Manager](apps/desktop-manager/README.md). Then run the root check:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm check
+pnpm exec moon exec --plan .moon/check.json
 ```
 
-The root check covers formatting, unused code, dependency boundaries, linting, type checking,
-tests, and production builds.
+The check plan covers formatting, unused code, dependency boundaries, linting, type checking,
+tests, and production builds across the pnpm and Cargo workspaces. To apply formatting, run:
+
+```sh
+pnpm exec moon run repository:format-write cargo-workspace:format-write
+```
+
+[Development](docs/development.md) documents task ownership, dependency authorities, generated
+artifacts, and the CI platform policy.
 
 ## Repository map
 
+- [`.moon/`](.moon/workspace.yml) owns the cross-language project graph, reusable task inputs, and
+  local and CI execution plans.
 - [`apps/`](apps/README.md) contains the product applications.
-- [`docs/`](docs/product-design.md) owns cross-application product design.
+- [`docs/`](docs/README.md) contains cross-application product, deployment, and development
+  documentation.
 - [`packages/`](packages/README.md) contains shared product contracts and the recruiting-platform
   catalog.
 - [`internal/`](internal/README.md) contains private monorepo tooling.

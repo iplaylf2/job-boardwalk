@@ -1,0 +1,8 @@
+inheritedBy:
+  languages:
+    - "typescript"
+
+implicitInputs:
+  - "/package.json"
+  - "/pnpm-lock.yaml"
+  - "/pnpm-workspace.yaml"

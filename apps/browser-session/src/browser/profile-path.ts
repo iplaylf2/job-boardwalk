@@ -41,8 +41,10 @@ export function resolveBrowserProfilePath(
       );
 }
 
-export function* prepareBrowserProfilePath(): RiteCoroutine<string> {
-  const profilePath = resolveBrowserProfilePath();
+export function* prepareBrowserProfilePath(configuredProfilePath?: string): RiteCoroutine<string> {
+  const profilePath = configuredProfilePath
+    ? path.resolve(configuredProfilePath)
+    : resolveBrowserProfilePath();
   yield* until(() => mkdir(profilePath, { mode: privateDirectoryMode, recursive: true }));
   yield* until(() => chmod(profilePath, privateDirectoryMode));
   return profilePath;

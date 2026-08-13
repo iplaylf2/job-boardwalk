@@ -1,35 +1,34 @@
-import process from "node:process";
-import path from "node:path";
+import { createScope } from "@shajara/host";
+import { inspect } from "node:util";
 
-import { serve } from "@hono/node-server";
-import type { ServerType } from "@hono/node-server";
-import { completer, createScope, until } from "@shajara/host";
-import type { RiteCoroutine, Scope } from "@shajara/host";
-import { wait } from "@shajara/host/primitives";
+import { parseWorkspaceServiceArguments } from "./src/runtime/process-arguments.js";
+import { runWorkspaceService } from "./src/runtime/service-lifecycle.js";
 
-import { createWorkspaceServiceHttpApp } from "./src/http/app.js";
-import { prepareWorkspaceDatabasePath } from "./src/persistence/database-path.js";
-import { WorkspaceRepository } from "./src/persistence/workspace-repository.js";
-import { BrowserSessionPresenceTracker } from "./src/runtime/browser-session-presence.js";
-import { resolveHttpServerAddress } from "./src/runtime/http-server-address.js";
+const userArgumentStartIndex = 2;
 
-const privateFileCreationMask = 0o077;
-const migrationsDirectory = path.resolve(import.meta.dirname, "migrations");
-process.umask(privateFileCreationMask);
-
-function closeHttpServer(httpServer: ServerType): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    httpServer.close((error?: Error) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
-  });
+function errorDetail(error: unknown): string {
+  if (Array.isArray(error)) {
+    return error.map(errorDetail).join("\n");
+  }
+  if (error instanceof Error) {
+    const details = [error.stack ?? error.message];
+    const { cause } = error;
+    const { suppressed } = error as Error & { suppressed?: unknown };
+    if (cause) {
+      details.push(`Caused by: ${errorDetail(cause)}`);
+    }
+    if (suppressed) {
+      details.push(`Suppressed during disposal: ${errorDetail(suppressed)}`);
+    }
+    return details.join("\n");
+  }
+  return inspect(error, { depth: 5 });
 }
 
-function installShutdownHandlers(requestShutdown: () => void): () => void {
+function installTerminationSignalHandlers(controller: AbortController): () => void {
+  function requestShutdown(): void {
+    controller.abort();
+  }
   process.once("SIGINT", requestShutdown);
   process.once("SIGTERM", requestShutdown);
   return () => {
@@ -38,36 +37,25 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
   };
 }
 
-function* runWorkspaceService(serviceScope: Scope): RiteCoroutine<void> {
-  const httpServerAddress = resolveHttpServerAddress();
-  const databasePath = yield* prepareWorkspaceDatabasePath();
-  const repository = new WorkspaceRepository({ databasePath, migrationsDirectory });
-  const browserSessionPresenceTracker = new BrowserSessionPresenceTracker();
-  const httpApp = createWorkspaceServiceHttpApp({
-    browserSessionPresenceTracker,
-    repository,
-    serviceScope,
-  });
-  const httpServer = serve({ fetch: httpApp.fetch, ...httpServerAddress }, (info) => {
-    process.stdout.write(`Workspace Service: http://${info.address}:${info.port}\n`);
-  });
-  const shutdown = yield* completer<true>();
-  const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
-  try {
-    yield* wait(shutdown.future);
-  } finally {
-    removeShutdownHandlers();
-    try {
-      yield* until(() => closeHttpServer(httpServer));
-    } finally {
-      repository.close();
-    }
-  }
-}
-
-async function main(): Promise<void> {
+async function main(shutdownSignal: AbortSignal): Promise<void> {
   await using serviceScope = createScope();
-  await serviceScope.run(() => runWorkspaceService(serviceScope));
+  const options = {
+    ...parseWorkspaceServiceArguments(process.argv.slice(userArgumentStartIndex)),
+    shutdownSignal,
+  };
+  await serviceScope.run(() => runWorkspaceService(serviceScope, options));
 }
 
-await main();
+const shutdownController = new AbortController();
+const removeTerminationSignalHandlers = installTerminationSignalHandlers(shutdownController);
+
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- The host must receive the pending lifecycle promise.
+export const serviceCompletion = main(shutdownController.signal).finally(
+  removeTerminationSignalHandlers,
+);
+
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- Preserve source-run error reporting without replacing the exported promise.
+serviceCompletion.catch((error: unknown) => {
+  process.stderr.write(`[Workspace Service] ${errorDetail(error)}\n`);
+  process.exitCode = 1;
+});

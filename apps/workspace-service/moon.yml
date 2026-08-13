@@ -1,0 +1,62 @@
+language: "typescript"
+layer: "application"
+stack: "backend"
+
+tasks:
+  build:
+    command: "pnpm run build"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "main.ts"
+      - "migrations/**/*"
+      - "package.json"
+      - "src/**/*"
+      - "tsconfig.json"
+      - "vite.config.ts"
+    outputs:
+      - "dist"
+
+  db-generate:
+    command: "pnpm run db:generate"
+    options:
+      runInCI: false
+
+  dev:
+    command: "pnpm run dev"
+    preset: "server"
+
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "main.ts"
+      - "oxlint.config.ts"
+      - "scripts/**/*"
+      - "src/**/*"
+      - "test/**/*"
+
+  test:
+    command: "pnpm run test"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "main.ts"
+      - "migrations/**/*"
+      - "package.json"
+      - "src/**/*"
+      - "test/**/*"
+      - "vite.config.ts"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    deps:
+      - target: "^:typecheck"
+        optional: true
+    inputs:
+      - "main.ts"
+      - "package.json"
+      - "scripts/**/*"
+      - "src/**/*"
+      - "test/**/*"
+      - "test/tsconfig.json"
+      - "tsconfig.json"

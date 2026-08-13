@@ -3,14 +3,16 @@ packages:
   - packages/*
   - internal/*
 
-nodeVersion: 26.5.0
+nodeVersion: 26.7.0
 engineStrict: true
+injectWorkspacePackages: true
 
 strictPeerDependencies: true
 
 # Temporary: dependency-cruiser 18.1 cannot analyze the workspace's TypeScript version.
 # Remove this extension once the installed dependency-cruiser supports the catalog's
-# TypeScript version, then verify `pnpm depcruise` cruises TypeScript modules rather than 0.
+# TypeScript version, then verify `pnpm exec moon run repository:boundaries` cruises TypeScript
+# modules rather than 0.
 packageExtensions:
   dependency-cruiser@18:
     dependencies:
@@ -20,16 +22,16 @@ packageExtensions:
 # `catalog:`. A package used by one manifest keeps its version there; workspace packages use
 # `workspace:*`.
 catalog:
-  "@hono/node-server": 2.0.11
-  "@modelcontextprotocol/sdk": ^1.29.0
+  "@hono/node-server": 2.1.0
+  "@modelcontextprotocol/sdk": ^1.30.0
   "@shajara/host": ^0.11.0
-  "@types/node": ^26.1.1
+  "@types/node": ^26.2.0
   arktype: ^2.2.3
-  hono: 4.12.31
-  oxlint: ^1.75.0
-  tsx: ^4.23.1
+  hono: 4.13.1
+  oxlint: ^1.78.0
+  tsx: ^4.23.12
   typescript: ^7.0.2
-  vite: ^8.1.5
+  vite: ^8.2.1
   vitest: ^4.1.10
 
 catalogMode: prefer

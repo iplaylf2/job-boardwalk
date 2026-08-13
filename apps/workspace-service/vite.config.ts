@@ -52,11 +52,11 @@ function migrationAssetsPlugin(): Plugin {
 export default defineConfig({
   build: {
     lib: {
-      entry: { "workspace-service": "main.ts" },
+      entry: { index: "main.ts" },
       fileName: (_format, entryName) => `${entryName}.mjs`,
       formats: ["es"],
     },
-    outDir: "dist",
+    outDir: "dist/workspace-service",
     rolldownOptions: {
       external: isBuiltin,
     },

@@ -1,0 +1,17 @@
+language: "typescript"
+layer: "library"
+stack: "backend"
+
+tasks:
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "oxlint.config.ts"
+      - "src/**/*"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    inputs:
+      - "package.json"
+      - "src/**/*"
+      - "tsconfig.json"

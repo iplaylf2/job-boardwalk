@@ -1,14 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-FROM ghcr.io/pnpm/pnpm:11.15.1 AS pnpm
-
-FROM docker.io/library/node:26.5.0-bookworm-slim AS build
-
-ENV PNPM_HOME=/pnpm
-
-COPY --from=pnpm /opt/pnpm /opt/pnpm
-
-RUN ln -s /opt/pnpm/pnpm /usr/local/bin/pnpm
+# This image only bootstraps the toolchain selected by package.json and pnpm-lock.yaml.
+FROM ghcr.io/pnpm/pnpm:latest AS build
 
 WORKDIR /workspace
 
@@ -32,7 +25,8 @@ RUN pnpm --filter @job-boardwalk/dashboard build
 FROM docker.io/library/caddy:2.11.4-alpine
 
 ENV XDG_CONFIG_HOME=/tmp/caddy-config \
-    XDG_DATA_HOME=/tmp/caddy-data
+    XDG_DATA_HOME=/tmp/caddy-data \
+    JOB_BOARDWALK_DASHBOARD_DIRECTORY=/srv
 
 RUN setcap -r /usr/bin/caddy && \
     addgroup -S -g 10001 caddy && \

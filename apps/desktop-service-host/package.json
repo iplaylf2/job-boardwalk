@@ -1,0 +1,24 @@
+{
+  "name": "@job-boardwalk/desktop-service-host",
+  "private": true,
+  "description": "Hosts finalized service payloads in the directory-contained desktop product.",
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "build:bundle": "vite build",
+    "build:sea": "node build/sea.ts",
+    "lint": "oxlint --config oxlint.config.ts .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

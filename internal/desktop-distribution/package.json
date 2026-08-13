@@ -1,0 +1,27 @@
+{
+  "name": "@job-boardwalk/desktop-distribution",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Coordinates Job Boardwalk's directory-contained desktop distribution.",
+  "bin": {
+    "job-boardwalk-desktop-distribution": "./src/cli.ts"
+  },
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "assemble": "node src/cli.ts",
+    "lint": "oxlint --config oxlint.config.ts .",
+    "package": "node src/package-cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@job-boardwalk/presets": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

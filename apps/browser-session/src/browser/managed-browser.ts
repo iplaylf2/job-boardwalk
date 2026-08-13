@@ -1,4 +1,4 @@
-import { chromium } from "patchright";
+import process from "node:process";
 import type { BrowserContext, Page } from "patchright";
 import type { BrowserRuntimeStatus, PlatformAccessObservation } from "@job-boardwalk/contracts";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
@@ -14,6 +14,7 @@ import { BrowserTabs } from "./browser-tabs.js";
 import { JobEngagementCollector } from "./job-engagement/collector.js";
 import { PassiveJobObservationCollector } from "./job-observation/passive-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
+import { launchPersistentContext } from "./persistent-context-launch.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
@@ -41,13 +42,6 @@ function retryDelay(failureCount: number): number {
   );
 }
 
-function launchPersistentContext(profilePath: string): Promise<BrowserContext> {
-  return chromium.launchPersistentContext(profilePath, {
-    headless: false,
-    viewport: null,
-  });
-}
-
 function coordinateCollection(
   context: BrowserContext,
   collectionControl: BackgroundCollectionControl,
@@ -65,7 +59,7 @@ function coordinateCollection(
 }
 
 export class ManagedBrowser implements BrowserControl {
-  readonly #launchContext: PersistentContextLauncher;
+  readonly #persistentContextLauncher: PersistentContextLauncher;
   readonly #profilePath: string;
   readonly #jobEngagementWriter: JobEngagementWriter;
   readonly #jobObservationWriter: JobObservationWriter;
@@ -78,15 +72,21 @@ export class ManagedBrowser implements BrowserControl {
   public constructor(
     profilePath: string,
     dependencies: {
+      browserExecutablePath?: string;
       jobEngagementWriter: JobEngagementWriter;
       jobObservationWriter: JobObservationWriter;
     },
-    launchContext: PersistentContextLauncher = launchPersistentContext,
+    persistentContextLauncher: PersistentContextLauncher = (profilePath_) =>
+      launchPersistentContext(
+        profilePath_,
+        dependencies.browserExecutablePath ??
+          process.env["JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH"]?.trim(),
+      ),
   ) {
     this.#profilePath = profilePath;
     this.#jobObservationWriter = dependencies.jobObservationWriter;
     this.#jobEngagementWriter = dependencies.jobEngagementWriter;
-    this.#launchContext = launchContext;
+    this.#persistentContextLauncher = persistentContextLauncher;
   }
 
   public get status(): BrowserRuntimeStatus {
@@ -137,7 +137,7 @@ export class ManagedBrowser implements BrowserControl {
   }
 
   *#launchOnce(reportError: (error: Error) => void): RiteCoroutine<Error> {
-    const context = yield* until(() => this.#launchContext(this.#profilePath));
+    const context = yield* until(() => this.#persistentContextLauncher(this.#profilePath));
     this.#returnedControlRevisions.clear();
     const closed = yield* completer<Error>();
     context.once("close", () => closed.resolve(new Error("浏览器窗口已经关闭。")));
@@ -196,5 +196,3 @@ export class ManagedBrowser implements BrowserControl {
     return failureCount + firstFailureCount;
   }
 }
-
-export type { PersistentContextLauncher };

@@ -1,0 +1,73 @@
+language: "typescript"
+layer: "tool"
+stack: "infrastructure"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  assemble:
+    command: "pnpm run assemble"
+    type: "run"
+    deps:
+      - "desktop-service-host:build"
+      - "browser-session:build"
+      - "cargo-workspace:build"
+      - "dashboard:build"
+      - "workspace-service:build"
+    inputs:
+      - "assets/**/*"
+      - "src/**/*"
+      - "package.json"
+      - "tsconfig.json"
+      - "/Cargo.lock"
+      - "/Cargo.toml"
+      - "/apps/desktop-manager/Cargo.toml"
+      - "/apps/dashboard/dist/**/*"
+      - "/apps/dashboard/Caddyfile"
+      - "/target/service-artifacts/browser-session/**/*"
+      - "/apps/workspace-service/dist/workspace-service/**/*"
+      - "/target/release/job-boardwalk-desktop-manager*"
+      - "/target/release/node-service-host*"
+    env:
+      JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE: "*"
+    outputs:
+      - "/target/desktop-distribution"
+
+  package:
+    command: "pnpm run package"
+    type: "run"
+    deps:
+      - "~:assemble"
+    inputs:
+      - "src/**/*"
+      - "package.json"
+      - "/target/desktop-distribution"
+    options:
+      cache: false
+
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "src/**/*"
+      - "oxlint.config.ts"
+
+  test:
+    command: "pnpm run test"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "src/**/*"
+      - "test/**/*"
+      - "package.json"
+      - "vitest.config.ts"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    inputs:
+      - "src/**/*"
+      - "test/**/*"
+      - "package.json"
+      - "tsconfig.json"
+      - "vitest.config.ts"

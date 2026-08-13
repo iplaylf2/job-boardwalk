@@ -17,18 +17,17 @@
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@shajara/host": "catalog:",
-    "@solidjs/web": "2.0.0-beta.25",
-    "markdown-it": "14.3.0",
-    "solid-js": "2.0.0-beta.25"
+    "@solidjs/web": "2.0.0-beta.32",
+    "markdown-it": "15.0.0",
+    "solid-js": "2.0.0-beta.32"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
-    "@types/markdown-it": "^14.1.2",
     "@types/node": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "3.0.0-next.16",
+    "vite-plugin-solid": "3.0.0-next.24",
     "vitest": "catalog:"
   }
 }

@@ -1,4 +1,6 @@
 **/dist
 **/node_modules
+/.moon/cache
+/target
 
 .env

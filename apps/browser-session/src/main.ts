@@ -1,35 +1,14 @@
 import process from "node:process";
 
-import { serve } from "@hono/node-server";
-import type { ServerType } from "@hono/node-server";
-import { completer, createScope, until } from "@shajara/host";
-import type { RiteCoroutine, Scope } from "@shajara/host";
-import { race, wait } from "@shajara/host/primitives";
+import { parseBrowserSessionArguments } from "./process-arguments.js";
+import { runBrowserSessionProcess } from "./runtime.js";
 
-import { ManagedBrowser } from "./browser/managed-browser.js";
-import { prepareBrowserProfilePath } from "./browser/profile-path.js";
-import { createBrowserSessionHttpApp } from "./http/app.js";
-import {
-  BrowserSessionStatusReporter,
-  resolveWorkspaceServiceUrl,
-} from "./workspace-service/status-reporter.js";
-import { createWorkspaceServiceClients } from "./workspace-service/dependencies.js";
+const userArgumentStartIndex = 2;
 
-const browserSessionPort = 54_312;
-
-function closeHttpServer(httpServer: ServerType): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    httpServer.close((error?: Error) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-function installShutdownHandlers(requestShutdown: () => void): () => void {
+function installTerminationSignalHandlers(controller: AbortController): () => void {
+  function requestShutdown(): void {
+    controller.abort();
+  }
   process.once("SIGINT", requestShutdown);
   process.once("SIGTERM", requestShutdown);
   return () => {
@@ -38,57 +17,17 @@ function installShutdownHandlers(requestShutdown: () => void): () => void {
   };
 }
 
-function errorDetail(error: Error): string {
-  return error.stack || error.message || error.name;
-}
+const shutdownController = new AbortController();
+const removeTerminationSignalHandlers = installTerminationSignalHandlers(shutdownController);
 
-function reportBrowserError(error: Error): void {
-  process.stderr.write(`[Browser Session] ${errorDetail(error)}\n`);
-}
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- The host must receive the pending lifecycle promise.
+export const serviceCompletion = runBrowserSessionProcess({
+  ...parseBrowserSessionArguments(process.argv.slice(userArgumentStartIndex)),
+  shutdownSignal: shutdownController.signal,
+}).finally(removeTerminationSignalHandlers);
 
-function reportWorkspaceStatusError(error: Error): void {
-  process.stderr.write(`[Browser Session → Workspace Service] ${errorDetail(error)}\n`);
-}
-
-function* runBrowserSession(serviceScope: Scope): RiteCoroutine<void> {
-  const profilePath = yield* prepareBrowserProfilePath();
-  const workspaceServiceUrl = resolveWorkspaceServiceUrl();
-  const browserControl = new ManagedBrowser(
-    profilePath,
-    createWorkspaceServiceClients(workspaceServiceUrl),
-  );
-  const statusReporter = new BrowserSessionStatusReporter(
-    workspaceServiceUrl,
-    () => browserControl.status,
-    () => browserControl.platformAccessObservations,
-  );
-  const httpApp = createBrowserSessionHttpApp({
-    browserControl,
-    serviceScope,
-  });
-  const httpServer = serve(
-    { fetch: httpApp.fetch, hostname: "127.0.0.1", port: browserSessionPort },
-    (info) => {
-      process.stdout.write(`Browser Session: http://${info.address}:${info.port}\n`);
-    },
-  );
-  const shutdown = yield* completer<true>();
-  const removeShutdownHandlers = installShutdownHandlers(() => shutdown.resolve(true));
-  try {
-    yield* race([
-      () => browserControl.supervise(reportBrowserError),
-      () => statusReporter.run(reportWorkspaceStatusError),
-      () => wait(shutdown.future),
-    ]);
-  } finally {
-    removeShutdownHandlers();
-    yield* until(() => closeHttpServer(httpServer));
-  }
-}
-
-async function main(): Promise<void> {
-  await using serviceScope = createScope();
-  await serviceScope.run(() => runBrowserSession(serviceScope));
-}
-
-await main();
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- Preserve source-run error reporting without replacing the exported promise.
+serviceCompletion.catch((error: unknown) => {
+  process.stderr.write(`[Browser Session] ${String(error)}\n`);
+  process.exitCode = 1;
+});

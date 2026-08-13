@@ -80,16 +80,17 @@ Dashboard's production runtime is the root Compose deployment:
 docker compose -f compose.yaml -f deploy/compose.build.yaml up --build --detach
 ```
 
-Its production image uses Caddy to serve the built client, apply a restrictive browser security
-policy, provide SPA route fallback, and proxy `/api` to Workspace Service over the private Compose
-network. The application-owned `Dockerfile` builds only Dashboard and its workspace dependencies;
-its runtime stage receives only the static `dist/` artifact. Open <http://127.0.0.1:54311>.
+The application-owned [`Caddyfile`](Caddyfile) defines Dashboard's production HTTP boundary. It
+serves the built client, applies the restrictive browser security policy, handles SPA fallback,
+and proxies `/api` to Workspace Service. Compose and desktop distribution run the same Caddyfile;
+each release supplies its platform-native Caddy binary through the owning build boundary. Open
+<http://127.0.0.1:54311>.
 
 For source development, run Workspace Service and Dashboard in separate terminals:
 
 ```sh
-pnpm --filter @job-boardwalk/workspace-service dev
-pnpm --filter @job-boardwalk/dashboard dev
+pnpm exec moon run workspace-service:dev
+pnpm exec moon run dashboard:dev
 ```
 
 Open <http://127.0.0.1:54311>. Vite proxies `/api` requests to the Workspace Service at
@@ -100,8 +101,9 @@ Open <http://127.0.0.1:54311>. Vite proxies `/api` requests to the Workspace Ser
 Run the Dashboard checks with:
 
 ```sh
-pnpm --filter @job-boardwalk/dashboard lint
-pnpm --filter @job-boardwalk/dashboard typecheck
-pnpm --filter @job-boardwalk/dashboard test
-pnpm --filter @job-boardwalk/dashboard build
+pnpm exec moon run \
+  dashboard:lint \
+  dashboard:typecheck \
+  dashboard:test \
+  dashboard:build
 ```

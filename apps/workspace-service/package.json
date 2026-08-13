@@ -11,6 +11,7 @@
     "dev": "tsx watch main.ts",
     "db:generate": "drizzle-kit generate",
     "lint": "oxlint --config oxlint.config.ts .",
+    "start": "node dist/workspace-service/index.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p test/tsconfig.json --noEmit"
   },

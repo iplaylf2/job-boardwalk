@@ -37,7 +37,7 @@ an explicit authorization model of its own. General research access does not gra
 Job Boardwalk separates live browser execution from durable workspace state.
 
 The **Browser Session** owns the visible browser process, persistent profile, tabs, and generic
-action lifecycle. It launches Patchright Chromium from a long-lived local HTTP MCP service. The
+action lifecycle. It launches a supported browser from a long-lived local HTTP MCP service. The
 agent host connects directly to the service and discovers stable project-owned tools without
 owning browser lifecycle.
 
@@ -55,19 +55,34 @@ associates a target position and city with those pages. Dashboard also presents 
 reports as workspace documents. It neither controls the browser nor requires an active agent
 conversation.
 
-The **agent** coordinates the two service boundaries and owns the human-handoff state in its
-conversation with the user. Browser tools produce live evidence; workspace tools preserve the
-durable facts and conclusions derived from that evidence. A Browser Session adapter may derive an
-authentication assessment from a real top-level navigation response or a bounded page snapshot
-when it has a conclusive platform-specific rule. The agent interprets evidence not covered by an
-adapter.
+The **Desktop Manager** owns the native local-runtime control surface and operating-system
+integration. It is not a WebView host: Dashboard remains a browser application, and recruiting
+pages remain in Browser Session's visible persistent browser. It directly owns child-process
+startup, readiness, failure containment, and ordered shutdown through each application's process
+contract. Service-internal concurrency remains an implementation detail of each process. The
+native GUI does not import recruiting policy, access workspace persistence, or control recruiting
+pages.
 
-The runtime topology follows those ownership boundaries. Browser Session is a host companion in the
-user's graphical session. Workspace Service and Dashboard are separate container workloads;
-Workspace Service publishes its HTTP boundary only to host loopback so Browser Session and the
-agent can reach it, while Dashboard uses the private container network. A virtual desktop or remote
-desktop transport is not part of the product: a host without a user-observable graphical session
-cannot run Browser Session.
+The **Desktop Service Host** loads one finalized Node service payload per invocation. Desktop
+Manager supplies the role, entrypoint, and runtime arguments. The service entrypoint exposes the
+completion of its application-owned lifecycle, so the host exits after normal completion or
+failure. The host adapts Manager's shutdown channel to the service's ordinary signal handlers; it
+does not derive the installed layout, coordinate sibling processes, or own application behavior.
+
+The **agent** coordinates the browser and workspace service boundaries and owns the human-handoff
+state in its conversation with the user. Browser tools produce live evidence; workspace tools
+preserve the durable facts and conclusions derived from that evidence. A Browser Session adapter
+may derive an authentication assessment from a real top-level navigation response or a bounded
+page snapshot when it has a conclusive platform-specific rule. The agent interprets evidence not
+covered by an adapter.
+
+The Compose deployment and target desktop distribution preserve these application boundaries.
+[Deployment](deployment.md) owns the supported Compose topology; [Desktop
+distribution](desktop-distribution.md) owns the target installed form, runtime packaging, and
+desktop release status.
+
+A virtual desktop or remote desktop transport is not part of the product: a host without a
+user-observable graphical session cannot run Browser Session.
 
 ## Runtime presence and reporting
 

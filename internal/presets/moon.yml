@@ -1,0 +1,17 @@
+language: "typescript"
+layer: "tool"
+stack: "infrastructure"
+
+tasks:
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "exports/**/*"
+      - "oxlint.config.ts"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    inputs:
+      - "exports/**/*"
+      - "package.json"
+      - "tsconfig.json"

@@ -1,13 +1,16 @@
+import { isBuiltin } from "node:module";
 import path from "node:path";
 
 import { defineConfig } from "vite";
 
-function isPackageImport(identifier: string): boolean {
+function isRuntimeDependency(identifier: string): boolean {
   return (
-    !identifier.startsWith(".") &&
-    !identifier.startsWith("\0") &&
-    !identifier.startsWith("#/") &&
-    !path.isAbsolute(identifier)
+    isBuiltin(identifier) ||
+    (!identifier.startsWith(".") &&
+      !identifier.startsWith("#") &&
+      !identifier.startsWith("\0") &&
+      !identifier.startsWith("@job-boardwalk/") &&
+      !path.isAbsolute(identifier))
   );
 }
 
@@ -15,15 +18,19 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        "browser-session": "src/main.ts",
+        index: "src/main.ts",
       },
-      fileName: (_format, entryName) => `${entryName}.js`,
-      formats: ["es"],
+      fileName: (_format, entryName) => `${entryName}.cjs`,
+      formats: ["cjs"],
     },
     outDir: "dist",
     rolldownOptions: {
-      external: isPackageImport,
+      external: isRuntimeDependency,
     },
     target: "esnext",
+  },
+  resolve: {
+    conditions: ["module", "node", "development|production"],
+    mainFields: ["module", "main"],
   },
 });

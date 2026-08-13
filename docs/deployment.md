@@ -1,18 +1,20 @@
 # Deployment
 
-Job Boardwalk has one runtime topology: Workspace Service and Dashboard run as separate Docker
-Compose services, while Browser Session runs as a companion in the user's graphical host session.
+Job Boardwalk's supported deployment topology runs Workspace Service and Dashboard as separate
+Docker Compose services, while Browser Session runs as a companion in the user's graphical host
+session. Caddy serves the finalized Dashboard client from its container.
+
 The browser is intentionally outside Docker because its visible window and persistent host profile
 are the boundary for login, verification, and other user-controlled actions.
 
 ## Requirements
 
 - Container host: Docker Engine with Docker Compose, plus BuildKit when building images from source
-- Graphical host: a repository checkout, Patchright Chromium, and the Node.js and pnpm toolchain
+- Graphical host: a repository checkout, Chromium installed by Patchright, and the Node.js and pnpm toolchain
   declared in the root [`package.json`](../package.json)
 
-The source build uses pinned Node.js, pnpm, and Caddy image versions. Host Node.js and pnpm are
-needed only for Browser Session and source development, not for deploying existing images.
+Source image builds bootstrap their own toolchain. Host Node.js and pnpm are needed only for Browser
+Session and source development, not for building or deploying the images.
 
 ## Build from source
 
@@ -25,6 +27,13 @@ docker compose ps
 
 The build overlay is needed only when producing images from this repository. Subsequent lifecycle
 commands use the root Compose model.
+
+The Dockerfiles start from pnpm's standalone image, which bootstraps the pnpm version requirement
+declared by `devEngines.packageManager`. The frozen install then resolves `devEngines.runtime` and
+runs application scripts with the locked Node.js version. Workspace Service also uses pnpm's public
+`runtime set` command to export that Node.js executable into its runtime image. The exact toolchain
+resolutions and checksums remain in `pnpm-lock.yaml`, so a Node.js or pnpm update changes the root
+toolchain declaration and lockfile rather than either Dockerfile.
 
 ## Deploy existing images
 
@@ -59,7 +68,7 @@ pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
 Then start the host companion:
 
 ```sh
-pnpm --filter @job-boardwalk/browser-session dev
+pnpm exec moon run browser-session:dev
 ```
 
 The agent host connects to <http://127.0.0.1:54312/mcp>. Browser Session uses
@@ -119,16 +128,17 @@ database and the single Drizzle baseline together.
 
 ## Source development
 
-Container deployment is the runtime contract. For fast source iteration, developers may run
+Compose deployment is the supported runtime topology. For fast source iteration, developers may run
 Workspace Service and Dashboard directly:
 
 ```sh
-pnpm --filter @job-boardwalk/workspace-service dev
-pnpm --filter @job-boardwalk/dashboard dev
+pnpm exec moon run workspace-service:dev
+pnpm exec moon run dashboard:dev
 ```
 
-These development servers retain the same loopback ports and API boundaries. Vite's proxy is a
-development tool only; the production Dashboard is always the Caddy image.
+These development servers retain the same loopback ports and API boundaries. Vite's proxy remains
+a development tool; Dashboard's Caddyfile owns the production boundary for Compose and desktop
+packaging.
 
 ## Runtime boundaries
 
@@ -136,13 +146,29 @@ The `workspace-service` container is read-only apart from `/tmp` and the `worksp
 volume. It runs as the unprivileged Node.js image user, drops Linux capabilities, and accepts
 traffic only from the private Compose network and the loopback-published host port.
 
-The `dashboard` container is read-only apart from `/tmp` and runs as the unprivileged Caddy user.
-Caddy serves the built static client, sends its browser security policy, handles SPA route fallback,
-and proxies `/api` to Workspace Service. Dashboard does not receive the browser profile, Docker
+The `dashboard` container is read-only apart from `/tmp` and runs as an unprivileged Caddy user.
+Caddy serves the built static client, sends its browser security policy, handles SPA route
+fallback, and proxies `/api` to Workspace Service. It does not receive the browser profile, Docker
 socket, Workspace volume, or Browser Session MCP endpoint.
 
 The Compose network is internal. The containers do not need outbound internet access at runtime;
 Dashboard uses system font stacks and loads no third-party assets.
+
+## Compose process contract
+
+The finalized Workspace Service accepts runtime paths and listener values through process
+configuration, reports health over HTTP, writes operational output to standard streams, handles
+`SIGINT` and `SIGTERM`, and reports failure through its exit status. Compose supplies the container
+paths and listener values, mounts persistence, creates the private network, publishes the loopback
+port, checks health, and supervises the process.
+
+Browser Session follows the same small process contract as a host companion but remains outside
+the Compose network and container lifecycle. Source-development defaults and environment overrides
+belong to its [application README](../apps/browser-session/README.md#run-browser-session-from-source).
+The directory-contained desktop adaptation belongs to
+[Desktop distribution](desktop-distribution.md#runtime-payload).
+[Development](development.md#generated-artifacts-and-language-boundaries) defines when this
+process-and-HTTP boundary would require a language-neutral schema.
 
 ## Deployment file ownership
 
@@ -154,15 +180,14 @@ directory:
   require source files or pnpm at the deployment host.
 - `deploy/compose.build.yaml` is the optional source-build overlay. It connects each Compose service
   to its application-owned Dockerfile without making source builds part of the deployment model.
-- `apps/dashboard/Dockerfile` and `apps/workspace-service/Dockerfile` belong to their independently
-  deployable applications. Each has a colocated `Dockerfile.dockerignore` that excludes unrelated
-  applications from its build context.
+- `apps/dashboard/Dockerfile` and `apps/workspace-service/Dockerfile` belong to their
+  independently deployable applications. Each has a colocated `Dockerfile.dockerignore` that
+  excludes unrelated applications from its build context. Dashboard's runtime stage uses the
+  pinned Caddy image and its application-owned Caddyfile.
 - Both Dockerfiles use the repository as their build context because their builder stages compile
   workspace-owned packages. The Dockerfile location and build context express different
   boundaries: image ownership belongs to the application, while source dependency resolution
   belongs to the workspace.
-- `apps/dashboard/Caddyfile` stays with Dashboard because it defines that application's production
-  HTTP boundary, not a shared deployment concern.
 
 The `x-container-runtime-policy` Compose fragment names the security, lifecycle, and logging policy
 shared by both containers. Each service declaration then describes only its own image reference,
@@ -170,20 +195,34 @@ port, storage, dependencies, and readiness behavior.
 
 ## Artifact boundaries
 
-pnpm and the monorepo exist only in each image's builder stage. Each application build produces a
-complete deployment artifact under its own `dist/` directory:
+pnpm and the monorepo exist only in each image's builder stage. Each container application build
+produces a complete deployment artifact under its own `dist/` directory:
 
 - Dashboard produces static HTML, CSS, and JavaScript.
-- Workspace Service produces `workspace-service.mjs` and the complete Drizzle migration baseline
-  under `migrations/`.
+- Workspace Service produces a runtime directory with its finalized ESM entry and complete Drizzle
+  migration baseline.
 
-The runtime stages copy only those artifact directories. They do not contain pnpm, `node_modules`,
-workspace manifests, `workspace:*` references, or source paths from another application. The
-Workspace Service artifact can run from an otherwise empty directory with a compatible Node.js
-runtime; the Dashboard artifact can be served by any static HTTP server that preserves its SPA and
-API-routing contract.
+The runtime stages combine those artifacts only with their runtime-owned inputs: Dashboard adds its
+Caddyfile and built client to the pinned Caddy image, while Workspace Service copies the completed
+Node service directory unchanged and adds the locked Node.js executable and system libraries. The
+desktop product consumes the same Workspace Service directory through its shared Node host. Its
+public runtime entrypoint is `index.mjs`; the service artifact contains no pnpm, `node_modules`,
+workspace manifests, `workspace:*` references, or source paths because its dependencies are
+bundled.
+
+Browser Session separately produces a portable Node.js application package for host and desktop
+runtimes. Its [application README](../apps/browser-session/README.md#run-browser-session-from-source)
+owns that artifact's build and layout; [Desktop distribution](desktop-distribution.md) owns its
+installed placement.
+
+The same Caddyfile accompanies the desktop staging tree, so routing and security policy do not fork
+by deployment topology.
 
 The resulting OCI images are the deployment artifacts. `compose.yaml` defaults to the local image
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the
-`JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can replace
-them with registry tags or immutable digests.
+`JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can
+replace them with registry tags or immutable digests.
+
+[Desktop distribution](desktop-distribution.md) defines a separate directory-contained engineering
+artifact and the target desktop release. That work does not alter the Compose artifact contract
+owned by this document.

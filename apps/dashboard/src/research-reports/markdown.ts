@@ -1,6 +1,5 @@
 import MarkdownIt from "markdown-it";
-import type { Options } from "markdown-it/lib/index.mjs";
-import type Token from "markdown-it/lib/token.mjs";
+import type { MarkdownItOptions, Token } from "markdown-it";
 
 const markdownRenderer = new MarkdownIt({
   breaks: false,
@@ -15,7 +14,11 @@ const tableAlignmentByInlineStyle: Readonly<Record<string, string>> = {
   "text-align:right": "right",
 };
 
-function renderTableCellOpen(tokens: Token[], index: number, options: Options): string {
+function renderTableCellOpen(
+  tokens: Token[],
+  index: number,
+  options: Required<MarkdownItOptions>,
+): string {
   const token = tokens[index];
   if (!token) {
     return "";

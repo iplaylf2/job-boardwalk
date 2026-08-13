@@ -1,0 +1,22 @@
+{
+  "affected": {
+    "includeRelations": true
+  },
+  "graph": {
+    "downstream": "deep",
+    "upstream": "deep"
+  },
+  "pipeline": {
+    "ci": true,
+    "onFailure": "continue"
+  },
+  "targets": [
+    ":format",
+    ":lint",
+    ":typecheck",
+    ":test",
+    ":build",
+    "repository:unused",
+    "repository:boundaries"
+  ]
+}

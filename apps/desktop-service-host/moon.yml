@@ -1,0 +1,62 @@
+language: "typescript"
+layer: "application"
+stack: "backend"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  build-bundle:
+    command: "pnpm run build:bundle"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "package.json"
+      - "src/**/*"
+      - "vite.config.ts"
+    outputs:
+      - "dist"
+
+  build:
+    command: "pnpm run build:sea"
+    deps:
+      - "~:build-bundle"
+    inputs:
+      - "package.json"
+      - "build/sea.ts"
+      - "dist/desktop-service-host.cjs"
+      - "/package.json"
+    outputs:
+      - "/target/release/node-service-host*"
+
+  lint:
+    command: "pnpm run lint"
+    inputs:
+      - "oxlint.config.ts"
+      - "build/**/*"
+      - "src/**/*"
+      - "test/**/*"
+
+  test:
+    command: "pnpm run test"
+    deps:
+      - "~:typecheck"
+    inputs:
+      - "package.json"
+      - "src/**/*"
+      - "test/**/*"
+      - "vitest.config.ts"
+
+  typecheck:
+    command: "pnpm run typecheck"
+    deps:
+      - target: "^:typecheck"
+        optional: true
+    inputs:
+      - "package.json"
+      - "build/**/*"
+      - "src/**/*"
+      - "test/**/*"
+      - "tsconfig.json"
+      - "vite.config.ts"
