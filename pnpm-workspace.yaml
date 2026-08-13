@@ -9,7 +9,7 @@ injectWorkspacePackages: true
 
 strictPeerDependencies: true
 
-# Temporary: dependency-cruiser 18.1 cannot analyze the workspace's TypeScript version.
+# Temporary: dependency-cruiser 18.2 cannot analyze the workspace's TypeScript version.
 # Remove this extension once the installed dependency-cruiser supports the catalog's
 # TypeScript version, then verify `pnpm exec moon run repository:boundaries` cruises TypeScript
 # modules rather than 0.

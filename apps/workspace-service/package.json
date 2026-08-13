@@ -22,13 +22,13 @@
     "@modelcontextprotocol/sdk": "catalog:",
     "@shajara/host": "catalog:",
     "arktype": "catalog:",
-    "drizzle-orm": "^1.0.0-rc.4",
+    "drizzle-orm": "^1.0.0-rc.5-ab785fc",
     "hono": "catalog:"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",
     "@types/node": "catalog:",
-    "drizzle-kit": "^1.0.0-rc.4",
+    "drizzle-kit": "^1.0.0-rc.5-ab785fc",
     "oxlint": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

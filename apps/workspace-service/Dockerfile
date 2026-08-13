@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 
 # This image only bootstraps the toolchain selected by package.json and pnpm-lock.yaml.
 FROM ghcr.io/pnpm/pnpm:latest AS build
