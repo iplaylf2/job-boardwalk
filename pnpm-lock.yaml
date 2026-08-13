@@ -207,7 +207,7 @@ settings:
 catalogs:
   default:
     '@hono/node-server':
-      specifier: 2.1.0
+      specifier: ^2.1.0
       version: 2.1.0
     '@modelcontextprotocol/sdk':
       specifier: ^1.30.0
@@ -222,7 +222,7 @@ catalogs:
       specifier: ^2.2.3
       version: 2.2.3
     hono:
-      specifier: 4.13.1
+      specifier: ^4.13.1
       version: 4.13.1
     oxlint:
       specifier: ^1.78.0
@@ -240,7 +240,7 @@ catalogs:
       specifier: ^4.1.10
       version: 4.1.10
 
-packageExtensionsChecksum: sha256-A6LwFSh/yhHYALTgYOl4ziesnQJ2yeAJ4QK9Pv6bRH8=
+packageExtensionsChecksum: sha256-UoFVZ00pIgonL97kJPdseUwHWTR6RHjiSCZVYNEkzf8=
 
 importers:
 
@@ -253,7 +253,7 @@ importers:
         specifier: workspace:*
         version: link:internal/presets
       '@moonrepo/cli':
-        specifier: 2.4.6
+        specifier: ^2.4.6
         version: 2.4.6
       '@types/node':
         specifier: 'catalog:'
@@ -295,7 +295,7 @@ importers:
         specifier: 'catalog:'
         version: 4.13.1
       patchright:
-        specifier: 1.61.1
+        specifier: ^1.61.1
         version: 1.61.1
     devDependencies:
       '@job-boardwalk/contracts':
@@ -338,13 +338,13 @@ importers:
         specifier: 'catalog:'
         version: 0.11.0
       '@solidjs/web':
-        specifier: 2.0.0-beta.32
+        specifier: ^2.0.0-beta.32
         version: 2.0.0-beta.32(solid-js@2.0.0-beta.32)
       markdown-it:
-        specifier: 15.0.0
+        specifier: ^15.0.0
         version: 15.0.0
       solid-js:
-        specifier: 2.0.0-beta.32
+        specifier: ^2.0.0-beta.32
         version: 2.0.0-beta.32
     devDependencies:
       '@job-boardwalk/presets':
@@ -363,7 +363,7 @@ importers:
         specifier: 'catalog:'
         version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)
       vite-plugin-solid:
-        specifier: 3.0.0-next.24
+        specifier: ^3.0.0-next.24
         version: 3.0.0-next.24(@solidjs/web@2.0.0-beta.32(solid-js@2.0.0-beta.32))(solid-js@2.0.0-beta.32)(supports-color@7.2.0)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
       vitest:
         specifier: 'catalog:'
@@ -411,7 +411,7 @@ importers:
         specifier: 'catalog:'
         version: 2.2.3
       drizzle-orm:
-        specifier: 1.0.0-rc.4
+        specifier: ^1.0.0-rc.4
         version: 1.0.0-rc.4(arktype@2.2.3)(zod@4.4.3)
       hono:
         specifier: 'catalog:'
@@ -424,7 +424,7 @@ importers:
         specifier: 'catalog:'
         version: 26.2.0
       drizzle-kit:
-        specifier: 1.0.0-rc.4
+        specifier: ^1.0.0-rc.4
         version: 1.0.0-rc.4
       oxlint:
         specifier: 'catalog:'
