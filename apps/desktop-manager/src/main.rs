@@ -14,13 +14,13 @@ use std::cell::RefCell;
 use std::env;
 use std::error::Error;
 use std::rc::Rc;
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
 use std::thread;
 use std::time::Duration;
 
 use desktop_settings::DesktopSettings;
 use product_layout::{ProductLayout, resolve_product_layout};
-use service_supervisor::{RunningServices, ServiceEvent, start_services};
+use service_supervisor::{RunningServices, ServiceEvent, StartupOutcome, start_services};
 
 slint::include_modules!();
 
@@ -30,6 +30,23 @@ enum ControllerCommand {
     Start(DesktopSettings),
     Stop,
     Exit,
+}
+
+fn startup_cancellation_requested(
+    receiver: &Receiver<ControllerCommand>,
+    exit_requested: &mut bool,
+) -> bool {
+    loop {
+        match receiver.try_recv() {
+            Ok(ControllerCommand::Stop) => return true,
+            Ok(ControllerCommand::Exit) | Err(TryRecvError::Disconnected) => {
+                *exit_requested = true;
+                return true;
+            }
+            Ok(ControllerCommand::Start(_)) => {}
+            Err(TryRecvError::Empty) => return false,
+        }
+    }
 }
 
 fn update_window(
@@ -105,6 +122,17 @@ fn apply_stopped_state(
     });
 }
 
+fn apply_stopping_state(weak_window: &slint::Weak<ManagerWindow>) {
+    update_window(weak_window, |window| {
+        window.set_can_stop(false);
+        window.set_can_configure(false);
+        window.set_workspace_state("Stopping".into());
+        window.set_status_detail("Stopping local services.".into());
+        window.set_browser_state("Stopping".into());
+        window.set_browser_detail("Stopping browser.".into());
+    });
+}
+
 fn handle_service_event(
     running: &mut Option<RunningServices>,
     weak_window: &slint::Weak<ManagerWindow>,
@@ -159,14 +187,23 @@ fn controller_loop(
             Some(ControllerCommand::Start(settings)) if running.is_none() => {
                 update_window(&weak_window, |window| {
                     window.set_can_start(false);
+                    window.set_can_stop(true);
                     window.set_can_configure(false);
                     window.set_workspace_state("Starting".into());
                     window.set_status_detail("Starting local services.".into());
                     window.set_browser_state("Starting".into());
                     window.set_browser_detail("Checking for a browser installation.".into());
                 });
-                match start_services(&layout, &settings) {
-                    Ok(startup) => {
+                let mut exit_requested = false;
+                match start_services(&layout, &settings, || {
+                    let cancellation_requested =
+                        startup_cancellation_requested(&receiver, &mut exit_requested);
+                    if cancellation_requested && !exit_requested {
+                        apply_stopping_state(&weak_window);
+                    }
+                    cancellation_requested
+                }) {
+                    Ok(StartupOutcome::Started(startup)) => {
                         apply_running_state(
                             &weak_window,
                             startup.browser_running,
@@ -174,19 +211,18 @@ fn controller_loop(
                         );
                         running = Some(startup.services);
                     }
+                    Ok(StartupOutcome::Cancelled) if exit_requested => return,
+                    Ok(StartupOutcome::Cancelled) => apply_stopped_state(
+                        &weak_window,
+                        "Stopped",
+                        "Service startup was cancelled.".to_owned(),
+                    ),
                     Err(error) => apply_stopped_state(&weak_window, "Failed", error),
                 }
             }
             Some(ControllerCommand::Stop) => {
                 if let Some(mut services) = running.take() {
-                    update_window(&weak_window, |window| {
-                        window.set_can_stop(false);
-                        window.set_can_configure(false);
-                        window.set_workspace_state("Stopping".into());
-                        window.set_status_detail("Stopping local services.".into());
-                        window.set_browser_state("Stopping".into());
-                        window.set_browser_detail("Stopping browser.".into());
-                    });
+                    apply_stopping_state(&weak_window);
                     services.stop();
                     apply_stopped_state(
                         &weak_window,
@@ -322,4 +358,40 @@ fn main() -> Result<(), Box<dyn Error>> {
     let _ = controller.join();
     result?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ControllerCommand, startup_cancellation_requested};
+    use std::sync::mpsc;
+
+    #[test]
+    fn exit_command_cancels_startup_and_exits_the_controller() {
+        let (sender, receiver) = mpsc::channel();
+        sender
+            .send(ControllerCommand::Exit)
+            .expect("controller channel should remain connected");
+        let mut exit_requested = false;
+
+        assert!(startup_cancellation_requested(
+            &receiver,
+            &mut exit_requested
+        ));
+        assert!(exit_requested);
+    }
+
+    #[test]
+    fn stop_command_cancels_startup_without_exiting_the_controller() {
+        let (sender, receiver) = mpsc::channel();
+        sender
+            .send(ControllerCommand::Stop)
+            .expect("controller channel should remain connected");
+        let mut exit_requested = false;
+
+        assert!(startup_cancellation_requested(
+            &receiver,
+            &mut exit_requested
+        ));
+        assert!(!exit_requested);
+    }
 }

@@ -37,6 +37,16 @@ pub(crate) struct StartupResult {
     pub(crate) services: RunningServices,
 }
 
+pub(crate) enum StartupOutcome {
+    Cancelled,
+    Started(StartupResult),
+}
+
+enum ReadinessOutcome {
+    Cancelled,
+    Ready,
+}
+
 pub(crate) enum ServiceEvent {
     BrowserAvailabilityChanged {
         available: bool,
@@ -199,10 +209,14 @@ fn wait_for_readiness(
     service: &mut ManagedService,
     health_url: &str,
     readiness: Readiness,
-) -> Result<(), String> {
+    cancellation_requested: &mut impl FnMut() -> bool,
+) -> Result<ReadinessOutcome, String> {
     let deadline = Instant::now() + SERVICE_STARTUP_TIMEOUT;
     let agent = health_agent();
     while Instant::now() < deadline {
+        if cancellation_requested() {
+            return Ok(ReadinessOutcome::Cancelled);
+        }
         if let Some(status) = service
             .child
             .try_wait()
@@ -215,14 +229,14 @@ fn wait_for_readiness(
         }
         if let Ok(mut response) = agent.get(health_url).call() {
             match readiness {
-                Readiness::HttpAvailable => return Ok(()),
+                Readiness::HttpAvailable => return Ok(ReadinessOutcome::Ready),
                 Readiness::BrowserAvailable => {
                     if response
                         .body_mut()
                         .read_to_string()
                         .is_ok_and(|body| browser_health_is_ready(&body))
                     {
-                        return Ok(());
+                        return Ok(ReadinessOutcome::Ready);
                     }
                 }
             }
@@ -303,7 +317,11 @@ impl Drop for RunningServices {
 pub(crate) fn start_services(
     layout: &ProductLayout,
     settings: &DesktopSettings,
-) -> Result<StartupResult, String> {
+    mut cancellation_requested: impl FnMut() -> bool,
+) -> Result<StartupOutcome, String> {
+    if cancellation_requested() {
+        return Ok(StartupOutcome::Cancelled);
+    }
     let caddy_lifecycle = CaddyLifecycle::prepare()?;
     let log = open_log_file(layout)?;
     let mut running = RunningServices {
@@ -320,18 +338,33 @@ pub(crate) fn start_services(
     };
 
     for spec in service_plan(layout, settings, caddy_lifecycle.clone(), browser.as_ref()) {
+        if cancellation_requested() {
+            return Ok(StartupOutcome::Cancelled);
+        }
         let health_url = spec.health_url.clone();
         let optional = spec.optional;
         let readiness = spec.readiness;
         let mut service = spawn_service(spec, &log)?;
-        if let Err(error) = wait_for_readiness(&mut service, &health_url, readiness) {
-            stop_service(&mut service);
-            if optional {
-                browser_running = false;
-                browser_detail = format!("{error} See the service log for details.");
-                continue;
+        match wait_for_readiness(
+            &mut service,
+            &health_url,
+            readiness,
+            &mut cancellation_requested,
+        ) {
+            Ok(ReadinessOutcome::Ready) => {}
+            Ok(ReadinessOutcome::Cancelled) => {
+                stop_service(&mut service);
+                return Ok(StartupOutcome::Cancelled);
             }
-            return Err(error);
+            Err(error) => {
+                stop_service(&mut service);
+                if optional {
+                    browser_running = false;
+                    browser_detail = format!("{error} See the service log for details.");
+                    continue;
+                }
+                return Err(error);
+            }
         }
         if matches!(readiness, Readiness::BrowserAvailable) {
             running.browser_health = Some(BrowserHealthMonitor::new(
@@ -341,19 +374,41 @@ pub(crate) fn start_services(
         }
         running.services.push(service);
     }
-    Ok(StartupResult {
+    if cancellation_requested() {
+        return Ok(StartupOutcome::Cancelled);
+    }
+    Ok(StartupOutcome::Started(StartupResult {
         browser_detail,
         browser_running,
         services: running,
-    })
+    }))
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        BrowserAvailabilityTracker, ServiceEvent, browser_health_availability,
-        browser_health_is_ready,
+        BrowserAvailabilityTracker, ServiceEvent, StartupOutcome, browser_health_availability,
+        browser_health_is_ready, start_services,
     };
+    use crate::desktop_settings::DesktopSettings;
+    use crate::product_layout::resolve_product_layout;
+
+    #[test]
+    fn cancels_before_starting_any_service() {
+        let manager = std::env::temp_dir()
+            .join("synthetic-job-boardwalk-cancelled-start")
+            .join(if cfg!(windows) {
+                "job-boardwalk.exe"
+            } else {
+                "job-boardwalk"
+            });
+        let layout = resolve_product_layout(&manager).expect("synthetic layout should resolve");
+
+        let outcome = start_services(&layout, &DesktopSettings::default(), || true)
+            .expect("cancellation should not require installed service artifacts");
+
+        assert!(matches!(outcome, StartupOutcome::Cancelled));
+    }
 
     #[test]
     fn accepts_browser_health_only_when_browser_actions_are_available() {
