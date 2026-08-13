@@ -54,8 +54,8 @@ inappropriate, including inside application Dockerfiles.
 
 ## Desktop distribution staging
 
-Prepare the repository-pinned native inputs, then build the current application artifacts and
-assemble the directory-contained staging tree:
+With Aqua installed, prepare the repository-pinned native inputs, then build the current
+application artifacts and assemble the directory-contained staging tree:
 
 ```sh
 pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
@@ -105,7 +105,7 @@ migrations happen as reviewed repository changes.
 ### Desktop releases
 
 Portable Linux and Windows distributions are built only for a Changesets-managed desktop release,
-not for ordinary pull requests or `master` pushes.
+not for ordinary pull requests or unrelated `master` pushes.
 
 Record desktop release intent with `pnpm changeset` as described in the
 [Changesets contributor guide](../.changeset/README.md). The current release unit is
@@ -117,27 +117,30 @@ The [desktop version PR workflow](../.github/workflows/desktop-version-pr.yaml) 
 responsibilities. On each `master` push, the version workflow uses Changesets to create or update a
 version pull request when release intent is pending. Merging that pull request updates the product
 version and changelog and consumes the changesets. The resulting package-manifest change triggers
-the release workflow, which confirms that the version changed before starting the Linux and Windows
-packaging jobs.
+the release workflow, which confirms that the push tip introduced the version before starting the
+Linux and Windows packaging jobs. A batch push that places later commits after the version change
+is rejected rather than packaging those changes under the new version.
 
 Each packaging job runs on its target operating system and expects only that platform's archive.
-The [Aqua configuration](../internal/desktop-distribution/aqua.yaml) owned by Desktop Distribution
-selects Caddy and pins the registry that maps each runner to its native asset. The checked-in
-[checksum file](../internal/desktop-distribution/aqua-checksums.json) records the SHA-512 digest for
-both assets. Aqua installs and verifies the selected archive, and the workflow passes its resolved
-executable path into the Moon package graph. Once the release resolver confirms a version change or
-valid retry, packaging bypasses Moon's general-purpose CI affected checks. After both platform jobs
-pass, the workflow creates `SHA256SUMS` for the completed Job Boardwalk archives and publishes them
-as a `v<version>` GitHub prerelease using the Changesets changelog.
+It runs Desktop Distribution's native-input preparation command, which uses the package's
+[Aqua configuration](../internal/desktop-distribution/aqua.yaml) and checked-in
+[checksum file](../internal/desktop-distribution/aqua-checksums.json) to select and verify Caddy for
+the runner. The workflow passes the resolved executable path into the Moon package graph. Once the
+release resolver confirms the version change, packaging bypasses Moon's general-purpose CI affected
+checks. After both platform jobs pass, the workflow creates `SHA256SUMS` for the completed Job
+Boardwalk archives and publishes them as a `v<version>` GitHub prerelease using the Changesets
+changelog.
 
-If packaging or publication fails after a version commit, manually dispatch **Desktop release**
-from `master` and enter the current desktop product version. The workflow rejects a different
-version and refuses to replace an existing non-draft release.
+If packaging or publication fails, rerun the original **Desktop release** workflow. Use
+**Re-run failed jobs** while successful platform artifacts remain within their seven-day retention;
+use **Re-run all jobs** when those artifacts must be rebuilt. GitHub preserves the original run's
+Git ref and commit, so either path rebuilds the same source without running Changesets. Artifact
+upload is configured to replace an earlier artifact from the same run. Publication may replace an
+existing draft release but never a non-draft release.
 
 The workflows deny token permissions by default. The version job alone receives `contents: write`
 and `pull-requests: write`. Release jobs receive `contents: read`, `attestations: write`, and
-`id-token: write` only where needed; the publication job receives `contents: write`. A manual retry
-never runs Changesets.
+`id-token: write` only where needed; the publication job receives `contents: write`.
 
 The repository setting that permits Actions to create pull requests must be enabled. Configure
 `CHANGESETS_GITHUB_TOKEN` with a GitHub App or fine-grained token when version pull requests must

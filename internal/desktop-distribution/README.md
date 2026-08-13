@@ -8,6 +8,7 @@ the product-specific assembly and packaging boundary defined by
 
 The package owns:
 
+- selection and verification of third-party native inputs;
 - assembly of the documented desktop-product layout and its integrity manifest;
 - the explicit allowlist of installed components;
 - the product-root readme shipped with an extracted desktop build;
@@ -20,9 +21,8 @@ maintenance of the version pull request, release gating, the `SHA256SUMS` publis
 Job Boardwalk archives, attestations, signing credentials, license policy, and release-channel
 decisions.
 
-This package does own the third-party executable inputs copied into the desktop product.
-[`aqua.yaml`](aqua.yaml) selects the Caddy release and pins Aqua's standard registry. That registry
-defines the native asset mapping and upstream verification policy; the checked-in
+For Caddy, [`aqua.yaml`](aqua.yaml) selects the release and pins Aqua's standard registry. That
+registry defines the native asset mapping and upstream verification policy; the checked-in
 [`aqua-checksums.json`](aqua-checksums.json) records the selected Linux and Windows archive digests.
 These input digests are distinct from the release checksums published for completed Job Boardwalk
 archives.
@@ -54,8 +54,8 @@ the native archive tools.
 
 ## Commands
 
-For a release-equivalent build, install [Aqua](https://aquaproj.github.io/) and prepare the
-repository-pinned native inputs:
+Run these commands from the repository root. For a release-equivalent build, install
+[Aqua](https://aquaproj.github.io/) and prepare the repository-pinned native inputs:
 
 ```sh
 pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
@@ -91,7 +91,7 @@ For engineering validation, launch `./job-boardwalk` from the product root on Li
 remain under `runtime/`; the Node.js runtime is embedded in the host rather than either service
 payload. This does not make the staging tree a supported product topology.
 
-Create the native portable archive on Linux or Windows:
+With the prepared Caddy path still set, create the native portable archive on Linux or Windows:
 
 ```sh
 pnpm exec moon run desktop-distribution:package

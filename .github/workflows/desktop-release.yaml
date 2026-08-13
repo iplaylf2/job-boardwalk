@@ -6,12 +6,6 @@ on:
       - master
     paths:
       - internal/desktop-distribution/package.json
-  workflow_dispatch:
-    inputs:
-      release_version:
-        description: Current desktop product version to retry
-        required: true
-        type: string
 
 permissions: {}
 
@@ -25,7 +19,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      should_release: ${{ steps.resolve.outputs.should_release }}
+      required: ${{ steps.resolve.outputs.required }}
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
     steps:
@@ -39,8 +33,6 @@ jobs:
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
-          RELEASE_EVENT: ${{ github.event_name }}
-          RETRY_VERSION: ${{ inputs.release_version }}
         run: |
           package_manifest=internal/desktop-distribution/package.json
           product_version="$(jq --raw-output '.version // empty' "$package_manifest")"
@@ -48,35 +40,28 @@ jobs:
             echo "Desktop product version is missing." >&2
             exit 1
           fi
-          if [ "$RELEASE_EVENT" = "workflow_dispatch" ]; then
-            if [ "$GITHUB_REF" != "refs/heads/master" ]; then
-              echo "Desktop release retries must run from master." >&2
-              exit 1
-            fi
-            if [ "$product_version" != "$RETRY_VERSION" ]; then
-              echo "Requested desktop version $RETRY_VERSION does not match manifest version $product_version." >&2
-              exit 1
-            fi
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
-            echo "tag=v$product_version" >> "$GITHUB_OUTPUT"
-            echo "version=$product_version" >> "$GITHUB_OUTPUT"
+
+          before_version="$(git show "$BEFORE_SHA:$package_manifest" | jq --raw-output '.version // empty')"
+          if [ "$before_version" = "$product_version" ]; then
+            echo "required=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          previous_package_manifest="$RUNNER_TEMP/previous-desktop-distribution-package.json"
-          git show "$BEFORE_SHA:$package_manifest" > "$previous_package_manifest"
-          previous_product_version="$(jq --raw-output '.version // empty' "$previous_package_manifest")"
-          echo "should_release=false" >> "$GITHUB_OUTPUT"
-          if [ "$previous_product_version" = "$product_version" ]; then
-            exit 0
+
+          parent_version="$(git show "$GITHUB_SHA^1:$package_manifest" | jq --raw-output '.version // empty')"
+          if [ "$parent_version" = "$product_version" ]; then
+            echo "Desktop version $product_version changed before the final commit in this push." >&2
+            echo "The commit that introduces a desktop version must reach master as the push tip so provenance identifies the released source." >&2
+            exit 1
           fi
-          echo "should_release=true" >> "$GITHUB_OUTPUT"
+
+          echo "required=true" >> "$GITHUB_OUTPUT"
           echo "tag=v$product_version" >> "$GITHUB_OUTPUT"
           echo "version=$product_version" >> "$GITHUB_OUTPUT"
 
   package:
     name: Package (${{ matrix.platform }})
     needs: resolve
-    if: needs.resolve.outputs.should_release == 'true'
+    if: needs.resolve.outputs.required == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
@@ -160,13 +145,14 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           archive: false
+          overwrite: true
 
   publish:
     name: Publish GitHub prerelease
     needs:
       - resolve
       - package
-    if: needs.resolve.outputs.should_release == 'true'
+    if: needs.resolve.outputs.required == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write

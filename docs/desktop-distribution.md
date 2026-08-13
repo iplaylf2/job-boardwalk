@@ -223,18 +223,17 @@ Desktop Distribution runs only during development and release; packaged applicat
 on it. Platform packaging mechanics belong to the selected maintained packager rather than to
 custom assembly code.
 
-Desktop Distribution selects the desktop Caddy release through its colocated Aqua configuration
-and records the configured native asset digests in its checksum file. Release automation provisions
-Aqua and passes the resolved executable to the build as an absolute
-`JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE` path. The assembler verifies that the platform-native
-binary can load the product Caddyfile and records the copied bytes in the product manifest. Release
-automation separately owns product version selection, the checksums and attestations for completed
-Job Boardwalk archives, and release-channel policy. The installed product does not use Aqua or a
-host Caddy installation.
+Desktop Distribution selects and verifies the third-party native executables copied into the
+product. Release automation supplies the verified platform-native Caddy executable through Desktop
+Distribution's declared build input. The assembler verifies that the executable can load the
+product Caddyfile and records the copied bytes in the product manifest. Release automation
+separately owns product version selection, the checksums and attestations for completed Job
+Boardwalk archives, and release-channel policy. The installed product neither fetches native inputs
+nor depends on a host Caddy installation.
 
 The Compose and desktop artifacts share Dashboard's Caddyfile but not a binary supply chain.
-Dashboard's Dockerfile pins the Compose Caddy image; Desktop Distribution's Aqua configuration
-pins the native desktop executable. Neither declaration is authoritative for the other artifact.
+Dashboard's Dockerfile pins the Compose Caddy image; Desktop Distribution pins the native desktop
+executable. Neither declaration is authoritative for the other artifact.
 
 ## Delivery sequence
 
@@ -254,7 +253,7 @@ pins the native desktop executable. Neither declaration is authoritative for the
 4. **Linux and Windows archive construction — implemented.** On the target operating system, emit
    the assembled product as a `.tar.gz` or `.zip`.
 5. **Versioned GitHub prereleases — implemented.** Merging a Changesets version pull request
-   triggers native Linux and Windows builds, release checksums, provenance attestations, and
+   triggers native Linux and Windows builds, release checksums, build-provenance attestations, and
    publication of both archives under a `v<version>` GitHub prerelease. Other `master` pushes do
    not build or publish desktop distributions. [Development](development.md#desktop-releases) owns
    the automation and retry procedure.

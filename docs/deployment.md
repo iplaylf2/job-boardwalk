@@ -183,9 +183,7 @@ directory:
 - `apps/dashboard/Dockerfile` and `apps/workspace-service/Dockerfile` belong to their
   independently deployable applications. Each has a colocated `Dockerfile.dockerignore` that
   excludes unrelated applications from its build context. Dashboard's runtime stage uses the
-  pinned Caddy image and its application-owned Caddyfile. This image declaration is authoritative
-  only for the Compose artifact; Desktop Distribution independently pins the native Caddy
-  executable copied into the desktop product.
+  pinned Caddy image and its application-owned Caddyfile.
 - Both Dockerfiles use the repository as their build context because their builder stages compile
   workspace-owned packages. The Dockerfile location and build context express different
   boundaries: image ownership belongs to the application, while source dependency resolution
@@ -219,8 +217,8 @@ installed placement.
 
 The same Caddyfile accompanies the desktop staging tree, so routing and security policy do not fork
 by deployment topology. Sharing that configuration does not merge the two Caddy supply chains:
-Dashboard's Dockerfile selects the Compose image, while Desktop Distribution's Aqua configuration
-selects and verifies the native desktop executable.
+Dashboard's Dockerfile selects the Compose image, while Desktop Distribution independently selects
+and verifies the native desktop executable.
 
 The resulting OCI images are the deployment artifacts. `compose.yaml` defaults to the local image
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the
