@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: Existing desktop product version to retry
+        required: true
+        type: string
 
 permissions: {}
 
@@ -13,6 +19,7 @@ concurrency:
 jobs:
   changesets:
     name: Maintain version pull request
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     outputs:
       has_changesets: ${{ steps.changesets.outputs['has-changesets'] }}
@@ -50,9 +57,12 @@ jobs:
           pr-base-branch: master
 
   release:
-    name: Detect desktop release
+    name: Select desktop release
     needs: changesets
-    if: needs.changesets.outputs.has_changesets == 'false'
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+      needs.changesets.outputs.has_changesets == 'false')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -66,24 +76,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect desktop product version change
+      - name: Select desktop product version
         id: detect
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
+          RELEASE_EVENT: ${{ github.event_name }}
+          RETRY_VERSION: ${{ inputs.release_version }}
         run: |
           package_manifest=internal/desktop-distribution/package.json
+          product_version="$(jq --raw-output '.version // empty' "$package_manifest")"
+          if [ -z "$product_version" ]; then
+            echo "Desktop product version is missing." >&2
+            exit 1
+          fi
+          if [ "$RELEASE_EVENT" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/master" ]; then
+              echo "Desktop release retries must run from master." >&2
+              exit 1
+            fi
+            if [ "$product_version" != "$RETRY_VERSION" ]; then
+              echo "Requested desktop version $RETRY_VERSION does not match manifest version $product_version." >&2
+              exit 1
+            fi
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "tag=v$product_version" >> "$GITHUB_OUTPUT"
+            echo "version=$product_version" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           previous_package_manifest="$RUNNER_TEMP/previous-desktop-distribution-package.json"
           git show "$BEFORE_SHA:$package_manifest" > "$previous_package_manifest"
           previous_product_version="$(jq --raw-output '.version // empty' "$previous_package_manifest")"
-          product_version="$(jq --raw-output '.version // empty' "$package_manifest")"
           echo "required=false" >> "$GITHUB_OUTPUT"
           if [ "$previous_product_version" = "$product_version" ]; then
             exit 0
-          fi
-          if [ -z "$product_version" ]; then
-            echo "Desktop product version was removed." >&2
-            exit 1
           fi
           echo "required=true" >> "$GITHUB_OUTPUT"
           echo "tag=v$product_version" >> "$GITHUB_OUTPUT"
@@ -147,44 +173,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Download verified Caddy for Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        env:
-          CADDY_ARCHIVE_SHA256: 527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9
-          CADDY_VERSION: 2.11.4
-        run: |
-          archive="$RUNNER_TEMP/caddy.tar.gz"
-          destination="$RUNNER_TEMP/job-boardwalk-caddy"
-          curl --fail --location --proto '=https' --tlsv1.2 \
-            --output "$archive" \
-            "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
-          echo "$CADDY_ARCHIVE_SHA256  $archive" | sha256sum --check --strict
-          mkdir --parents "$destination"
-          tar --extract --gzip --file "$archive" --directory "$destination" caddy
-          echo "JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=$destination/caddy" >> "$GITHUB_ENV"
+      - name: Set up Aqua
+        uses: aquaproj/aqua-installer@v4.0.5
+        with:
+          aqua_version: v2.62.3
+          enable_aqua_install: false
+          working_directory: internal/desktop-distribution
 
-      - name: Download verified Caddy for Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          CADDY_ARCHIVE_SHA256: 1708333f79e274c7697285afe6d592ab39314e0b131e9ec6bea08ad27df62ebf
-          CADDY_VERSION: 2.11.4
-        run: |
-          $archive = Join-Path $env:RUNNER_TEMP "caddy.zip"
-          $destination = Join-Path $env:RUNNER_TEMP "job-boardwalk-caddy"
-          $fileName = "caddy_{0}_windows_amd64.zip" -f $env:CADDY_VERSION
-          $uri = "https://github.com/caddyserver/caddy/releases/download/v$env:CADDY_VERSION/$fileName"
-          Invoke-WebRequest -Uri $uri -OutFile $archive
-          $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash
-          if ($actualHash -ne $env:CADDY_ARCHIVE_SHA256) {
-            throw "Caddy archive checksum mismatch: expected $env:CADDY_ARCHIVE_SHA256, received $actualHash"
-          }
-          Expand-Archive -LiteralPath $archive -DestinationPath $destination
-          "JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=$destination\caddy.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Prepare pinned release inputs
+        run: pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
 
       - name: Build portable archive
-        run: pnpm exec moon run desktop-distribution:package
+        shell: pwsh
+        run: |
+          $env:JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE = aqua which --config internal/desktop-distribution/aqua.yaml caddy
+          pnpm exec moon exec --ignore-ci-checks desktop-distribution:package
 
       - name: Attest portable archive
         uses: actions/attest@v4

@@ -14,9 +14,17 @@ The package owns:
 - build-time validation that resources stay within the product directory contract;
 - selection and invocation of the native archive tool.
 
-It consumes finalized application artifacts. It does not own their construction or behavior,
-runtime supervision, browser automation, update behavior, release version selection, release-file
-checksums, signing credentials, provenance, license policy, or release-channel decisions.
+It consumes finalized application artifacts and does not own their construction or behavior,
+runtime supervision, browser automation, or update behavior. Release automation separately owns
+desktop version selection, the `SHA256SUMS` published for completed Job Boardwalk archives,
+attestations, signing credentials, license policy, and release-channel decisions.
+
+This package does own the third-party executable inputs copied into the desktop product.
+[`aqua.yaml`](aqua.yaml) selects the Caddy release and pins Aqua's standard registry. That registry
+defines the native asset mapping and upstream verification policy; the checked-in
+[`aqua-checksums.json`](aqua-checksums.json) records the selected Linux and Windows archive digests.
+These input digests are distinct from the release checksums published for completed Job Boardwalk
+archives.
 
 [Desktop distribution](../../docs/desktop-distribution.md) owns the installed layout and release
 boundary; assembly tests and Desktop Manager tests independently verify their owned sides of that
@@ -45,22 +53,34 @@ the native archive tools.
 
 ## Commands
 
+For a release-equivalent build, install [Aqua](https://aquaproj.github.io/) and prepare the
+repository-pinned native inputs:
+
+```sh
+pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
+export JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE="$(aqua which --config internal/desktop-distribution/aqua.yaml caddy)"
+```
+
+In PowerShell on Windows, prepare the same inputs with:
+
+```powershell
+pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
+$env:JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE = aqua which --config internal/desktop-distribution/aqua.yaml caddy
+```
+
+The preparation command installs the native Caddy archive selected by `aqua.yaml` and verifies it
+against the checked-in SHA-512 digest. Aqua's pinned registry also defines the Cosign identity used
+to verify Caddy's upstream checksum manifest when the checksum file is regenerated.
+
 Build the application dependencies and assemble the current staging tree:
 
 ```sh
-JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
-  pnpm exec moon run desktop-distribution:assemble
-```
-
-In PowerShell on Windows, set the build input and run the same task with:
-
-```powershell
-$env:JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE = "C:\absolute\path\to\caddy.exe"
 pnpm exec moon run desktop-distribution:assemble
 ```
 
-The input must be a platform-native Caddy executable that can load the product Caddyfile. The
-assembler verifies that compatibility before copying it.
+To test another Caddy build, set `JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE` to its absolute path
+instead of the path returned by Aqua. The input must be a platform-native executable that can load
+the product Caddyfile; the assembler verifies that compatibility before copying it.
 
 The command writes the product tree to
 `target/desktop-distribution/<platform>-<architecture>/job-boardwalk/`.
@@ -73,15 +93,22 @@ payload. This does not make the staging tree a supported product topology.
 Create the native portable archive on Linux or Windows:
 
 ```sh
-JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
-  pnpm exec moon run desktop-distribution:package
+pnpm exec moon run desktop-distribution:package
 ```
-
-On Windows, use the PowerShell environment-variable assignment shown above, then run
-`pnpm exec moon run desktop-distribution:package`.
 
 The command writes a Linux `.tar.gz` or Windows `.zip` under
 `target/desktop-distribution/releases/`.
+
+When updating the desktop Caddy version, edit `aqua.yaml`, regenerate all configured checksums, and
+review both files together:
+
+```sh
+aqua update-checksum --config internal/desktop-distribution/aqua.yaml --prune
+```
+
+Asset naming, platform selection, download, verification, and extraction remain Aqua
+responsibilities rather than project code. The release workflow pins and provisions Aqua, calls
+the same preparation script, resolves the installed Caddy path, and invokes Moon directly.
 
 Run its direct checks:
 

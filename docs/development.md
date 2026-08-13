@@ -54,29 +54,31 @@ inappropriate, including inside application Dockerfiles.
 
 ## Desktop distribution staging
 
-Build the current application artifacts and assemble the directory-contained staging tree with:
+Prepare the repository-pinned native inputs, then build the current application artifacts and
+assemble the directory-contained staging tree:
 
 ```sh
-JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
-  pnpm exec moon run desktop-distribution:assemble
+pnpm --filter @job-boardwalk/desktop-distribution run prepare-release-inputs
+export JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE="$(aqua which --config internal/desktop-distribution/aqua.yaml caddy)"
+pnpm exec moon run desktop-distribution:assemble
 ```
 
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
-checks, including the PowerShell form of the commands. The explicit build input supplies the
-platform-native Caddy executable used by Dashboard. The
-[desktop distribution specification](desktop-distribution.md) defines the installed form, build
-ownership, and remaining delivery work.
+checks, the Aqua prerequisite, the PowerShell form, and the explicit override for testing another
+Caddy build. The [desktop distribution specification](desktop-distribution.md) defines the
+installed form, build ownership, and remaining delivery work.
 
 On Linux or Windows, assemble and create the native portable archive with:
 
 ```sh
-JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE=/absolute/path/to/caddy \
-  pnpm exec moon run desktop-distribution:package
+pnpm exec moon run desktop-distribution:package
 ```
 
 The package task writes the portable archive under `target/desktop-distribution/releases/`.
 
 ## Continuous integration
+
+### Merge checks
 
 Non-draft pull requests targeting `master` run the [affected CI plan](../.moon/ci.json) on Ubuntu.
 Changes that affect Desktop Manager receive one representative native build.
@@ -100,6 +102,8 @@ them; CI-only setup helpers use their action's supported default unless the repo
 specific compatibility constraint. Desktop release runner versions are explicit so their image
 migrations happen as reviewed repository changes.
 
+### Desktop releases
+
 Portable Linux and Windows distributions are built only for a Changesets-managed desktop release,
 not for every pull request.
 
@@ -111,9 +115,20 @@ names, tag, and GitHub release. Other workspaces are not versioned independently
 One release workflow follows the Changesets custom-publishing model. A `master` push with pending
 changesets creates or updates the version pull request. Merging that pull request changes the
 product version and removes the consumed changesets, which opens the Linux and Windows packaging
-matrix. Each native job verifies its pinned Caddy input, builds the portable archive, and records
-provenance for that archive. After both jobs pass, the workflow creates `SHA256SUMS` and publishes
-both archives as a `v<version>` GitHub prerelease using the Changesets changelog.
+matrix. Each matrix row owns only its native runner and expected product archive path. Desktop
+Distribution's [Aqua configuration](../internal/desktop-distribution/aqua.yaml) selects Caddy and
+pins the registry that maps each runner to its native asset. The checked-in
+[checksum file](../internal/desktop-distribution/aqua-checksums.json) records the SHA-512 digest for
+both assets. Aqua installs and verifies the selected archive, and the workflow passes its resolved
+executable path into the Moon package graph. Because the version detector has already decided that
+packaging is required, the release command bypasses Moon's general-purpose CI affected checks.
+After both jobs pass, the workflow creates a separate `SHA256SUMS` for the completed Job Boardwalk
+archives and publishes them as a `v<version>` GitHub prerelease using the Changesets changelog.
+
+If packaging or publication fails after a version commit, rerun the repaired workflow manually
+from `master` with that existing desktop version. The workflow rejects a retry whose requested
+version does not match the current Desktop Distribution manifest, and it does not replace an
+existing non-draft release.
 
 The repository setting that permits Actions to create pull requests must be enabled. Configure
 `CHANGESETS_GITHUB_TOKEN` with a GitHub App or fine-grained token when version pull requests must
