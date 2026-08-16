@@ -74,7 +74,8 @@ On Linux or Windows, assemble and create the native portable archive with:
 pnpm exec moon run desktop-distribution:package
 ```
 
-The package task writes the portable archive under `target/desktop-distribution/releases/`.
+The package task writes the versioned output described by Desktop Distribution's
+[portable archive contract](../internal/desktop-distribution/README.md#portable-archive-contract).
 
 ## Continuous integration
 
@@ -124,19 +125,21 @@ is rejected rather than packaging those changes under the new version.
 Each packaging job runs on its target operating system and invokes Desktop Distribution's
 package-owned native-input preparation before passing the resolved Caddy path into the Moon package
 graph. The [package README](../internal/desktop-distribution/README.md) owns the Aqua configuration,
-checksums, and maintenance commands. Once the release resolver confirms the version change,
-packaging bypasses Moon's general-purpose CI affected checks. Each matrix row builds and attests one
-native archive, then uploads it under a distinct platform artifact name. Publication downloads only
-those desktop artifacts, merges their differently named archives into the release asset directory,
-creates `SHA256SUMS`, and publishes the archives and checksum file as a `v<version>` GitHub
-prerelease using the Changesets changelog.
+native-input checksums, maintenance commands, and portable archive filename contract. Once the
+release resolver confirms the version change, packaging bypasses Moon's general-purpose CI affected
+checks. Each matrix row builds and attests one native archive, then uploads that file directly,
+making the archive filename its Actions artifact name. Publication collects every artifact in the
+current product version's filename namespace into one release directory without decompressing the
+archives, creates `SHA256SUMS`, and publishes the result as a `v<version>` GitHub prerelease using
+the Changesets changelog. The package matrix remains the only release-target inventory: a new row
+whose output follows the portable archive contract automatically joins publication.
 
 If packaging or publication fails, rerun the original **Desktop release** workflow. Use
 **Re-run failed jobs** while successful platform artifacts remain within their seven-day retention;
 use **Re-run all jobs** when those artifacts must be rebuilt. GitHub preserves the original run's
-Git ref and commit, so either path rebuilds the same source without running Changesets. Artifact
-upload is configured to replace only the rerun platform's earlier artifact from the same run, so a
-failed Windows rerun cannot replace the retained Linux artifact or vice versa. Publication may
+Git ref and commit, so either path rebuilds the same source without running Changesets. Each direct
+upload is configured to replace only an earlier artifact with the same archive filename, so
+rerunning one matrix row cannot replace artifacts retained from other rows. Publication may
 replace an existing draft release but never a non-draft release.
 
 The workflows deny token permissions by default. The version job alone receives `contents: write`

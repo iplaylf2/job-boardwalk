@@ -13,7 +13,7 @@ The package owns:
 - the explicit allowlist of installed components;
 - the product-root readme shipped with an extracted desktop build;
 - build-time validation that resources stay within the product directory contract;
-- selection and invocation of the native archive tool.
+- portable-archive naming and invocation of the native archive tool.
 
 It consumes finalized application artifacts and does not own their construction or behavior,
 runtime supervision, browser automation, or update behavior. Release workflows separately own
@@ -48,9 +48,17 @@ supported deployment topology.
 
 Node.js executes the package's TypeScript entrypoints directly, with no generated JavaScript copy.
 Vitest tests the assembly and archive-coordination boundaries. This package's version is the
-desktop product version consumed by the manifest and archive names; Changesets manages its release
-increments and changelog. Node's standard library coordinates filesystem and process work around
-the native archive tools.
+desktop product version recorded in the manifest and portable archive filenames; Changesets manages
+its release increments and changelog. Node's standard library coordinates filesystem and process
+work around the native archive tools.
+
+## Portable archive contract
+
+Each package invocation writes one archive for the current native target under
+`target/desktop-distribution/releases/`. Its filename is
+`job-boardwalk-<product-version>-<platform>-<architecture><extension>`. Windows uses the `windows`
+platform token and `.zip` extension; Linux uses the `linux` platform token and `.tar.gz` extension.
+The complete filename is the package-owned handoff contract consumed by release automation.
 
 ## Commands
 
@@ -100,8 +108,8 @@ With the prepared Caddy path still set, create the native portable archive on Li
 pnpm exec moon run desktop-distribution:package
 ```
 
-The command writes a Linux `.tar.gz` or Windows `.zip` under
-`target/desktop-distribution/releases/`.
+The command writes the native archive described in
+[Portable archive contract](#portable-archive-contract).
 
 When updating the desktop Caddy version, edit `aqua.yaml`, regenerate all configured checksums, and
 review both files together:
@@ -110,7 +118,7 @@ review both files together:
 aqua update-checksum --config internal/desktop-distribution/aqua.yaml --prune
 ```
 
-Asset naming, platform selection, download, verification, and extraction remain Aqua
+Caddy asset naming, platform selection, download, verification, and extraction remain Aqua
 responsibilities rather than project code. The release workflow provisions its pinned Aqua
 version, invokes the same package-owned preparation boundary, and passes the resolved Caddy path to
 Moon.
