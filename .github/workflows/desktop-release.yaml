@@ -74,11 +74,9 @@ jobs:
         include:
           - platform: Linux x64
             runner: ubuntu-24.04
-            artifact_name: desktop-linux-x64
             archive_path: target/desktop-distribution/releases/*.tar.gz
           - platform: Windows x64
             runner: windows-2025
-            artifact_name: desktop-windows-x64
             archive_path: target/desktop-distribution/releases/*.zip
 
     steps:
@@ -143,7 +141,7 @@ jobs:
       - name: Upload portable archive
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact_name }}
+          # Direct uploads use archive filenames as artifact names.
           path: ${{ matrix.archive_path }}
           if-no-files-found: error
           retention-days: 7
@@ -159,6 +157,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      RELEASE_ARTIFACT_PATTERN: job-boardwalk-${{ needs.resolve.outputs.version }}-*
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -166,9 +166,10 @@ jobs:
       - name: Download portable archives
         uses: actions/download-artifact@v8
         with:
-          pattern: desktop-*-x64
+          pattern: ${{ env.RELEASE_ARTIFACT_PATTERN }}
           path: release-assets
           merge-multiple: true
+          skip-decompress: true
 
       - name: Create release notes
         shell: bash
@@ -187,7 +188,19 @@ jobs:
         run: |
           (
             cd release-assets
-            sha256sum -- *.tar.gz *.zip > SHA256SUMS
+            shopt -s nullglob
+            release_archives=(*)
+            if (( ${#release_archives[@]} == 0 )); then
+              echo "No desktop release artifacts matched $RELEASE_ARTIFACT_PATTERN." >&2
+              exit 1
+            fi
+            for archive in "${release_archives[@]}"; do
+              if [[ ! -f "$archive" ]]; then
+                echo "Downloaded desktop release artifact is not a regular file: $archive" >&2
+                exit 1
+              fi
+            done
+            sha256sum -- "${release_archives[@]}" > SHA256SUMS
           )
 
       - name: Publish GitHub prerelease
@@ -197,6 +210,12 @@ jobs:
           RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
           RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
         run: |
+          shopt -s nullglob
+          release_assets=(release-assets/*)
+          if (( ${#release_assets[@]} == 0 )); then
+            echo "No desktop release assets are available to publish." >&2
+            exit 1
+          fi
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"
             if [ "$is_draft" != "true" ]; then
@@ -206,9 +225,9 @@ jobs:
             gh release edit "$RELEASE_TAG" \
               --title "Job Boardwalk $RELEASE_VERSION" \
               --notes-file release-notes.md
-            gh release upload "$RELEASE_TAG" release-assets/*.tar.gz release-assets/*.zip release-assets/SHA256SUMS --clobber
+            gh release upload "$RELEASE_TAG" "${release_assets[@]}" --clobber
           else
-            gh release create "$RELEASE_TAG" release-assets/*.tar.gz release-assets/*.zip release-assets/SHA256SUMS \
+            gh release create "$RELEASE_TAG" "${release_assets[@]}" \
               --draft \
               --target "$GITHUB_SHA" \
               --title "Job Boardwalk $RELEASE_VERSION" \
