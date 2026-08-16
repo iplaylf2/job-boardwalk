@@ -1,9 +1,11 @@
 import path from "node:path";
 
 import type { BrowserSessionProcessOptions } from "./runtime.js";
+import type { BrowserChannel } from "./browser/persistent-context-launch.js";
 
 const maximumPort = 65_535;
 const minimumPort = 1;
+const browserChannels = new Set<BrowserChannel>(["chrome", "msedge"]);
 
 function readArgument(arguments_: readonly string[], name: string): string | null {
   const prefix = `--${name}=`;
@@ -19,6 +21,17 @@ function readAbsolutePath(arguments_: readonly string[], name: string): string |
     throw new Error(`--${name} must be an absolute path.`);
   }
   return path.normalize(value);
+}
+
+function readBrowserChannel(arguments_: readonly string[]): BrowserChannel | null {
+  const value = readArgument(arguments_, "browser-channel");
+  if (!value) {
+    return null;
+  }
+  if (!browserChannels.has(value as BrowserChannel)) {
+    throw new Error("--browser-channel must be chrome or msedge.");
+  }
+  return value as BrowserChannel;
 }
 
 function readPort(arguments_: readonly string[]): number | null {
@@ -48,6 +61,7 @@ function readWorkspaceServiceUrl(arguments_: readonly string[]): URL | null {
 export function parseBrowserSessionArguments(
   arguments_: readonly string[],
 ): BrowserSessionProcessOptions {
+  const browserChannel = readBrowserChannel(arguments_);
   const browserExecutablePath = readAbsolutePath(arguments_, "browser-executable-path");
   const profilePath = readAbsolutePath(arguments_, "browser-profile-path");
   const hostname = readArgument(arguments_, "hostname");
@@ -56,7 +70,11 @@ export function parseBrowserSessionArguments(
   if ((hostname && port === null) || (!hostname && port !== null)) {
     throw new Error("--hostname and --port must be provided together.");
   }
+  if (browserChannel && browserExecutablePath) {
+    throw new Error("--browser-channel and --browser-executable-path cannot be provided together.");
+  }
   return {
+    ...(browserChannel ? { browserChannel } : {}),
     ...(browserExecutablePath ? { browserExecutablePath } : {}),
     ...(profilePath ? { profilePath } : {}),
     ...(hostname && port !== null ? { httpServerAddress: { hostname, port } } : {}),

@@ -15,6 +15,7 @@ import { JobEngagementCollector } from "./job-engagement/collector.js";
 import { PassiveJobObservationCollector } from "./job-observation/passive-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { launchPersistentContext } from "./persistent-context-launch.js";
+import type { BrowserChannel } from "./persistent-context-launch.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
@@ -72,16 +73,22 @@ export class ManagedBrowser implements BrowserControl {
   public constructor(
     profilePath: string,
     dependencies: {
+      browserChannel?: BrowserChannel;
       browserExecutablePath?: string;
       jobEngagementWriter: JobEngagementWriter;
       jobObservationWriter: JobObservationWriter;
     },
-    persistentContextLauncher: PersistentContextLauncher = (profilePath_) =>
-      launchPersistentContext(
-        profilePath_,
+    persistentContextLauncher: PersistentContextLauncher = (profilePath_) => {
+      const browserExecutablePath =
         dependencies.browserExecutablePath ??
-          process.env["JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH"]?.trim(),
-      ),
+        process.env["JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH"]?.trim();
+      return launchPersistentContext(profilePath_, {
+        ...(dependencies.browserChannel ? { channel: dependencies.browserChannel } : {}),
+        ...(!dependencies.browserChannel && browserExecutablePath
+          ? { executablePath: browserExecutablePath }
+          : {}),
+      });
+    },
   ) {
     this.#profilePath = profilePath;
     this.#jobObservationWriter = dependencies.jobObservationWriter;

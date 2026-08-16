@@ -8,9 +8,15 @@ test("enables Chromium's process sandbox for default and selected executables", 
     headless: false,
     viewport: null,
   });
-  expect(createPersistentContextLaunchOptions("/synthetic/browser")).toEqual({
+  expect(createPersistentContextLaunchOptions({ executablePath: "/synthetic/browser" })).toEqual({
     chromiumSandbox: true,
     executablePath: "/synthetic/browser",
+    headless: false,
+    viewport: null,
+  });
+  expect(createPersistentContextLaunchOptions({ channel: "msedge" })).toEqual({
+    channel: "msedge",
+    chromiumSandbox: true,
     headless: false,
     viewport: null,
   });

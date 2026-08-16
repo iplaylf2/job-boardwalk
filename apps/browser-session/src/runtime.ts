@@ -7,6 +7,7 @@ import type { RiteCoroutine, Scope } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
 
 import { ManagedBrowser } from "./browser/managed-browser.js";
+import type { BrowserChannel } from "./browser/persistent-context-launch.js";
 import { prepareBrowserProfilePath } from "./browser/profile-path.js";
 import { createBrowserSessionHttpApp } from "./http/app.js";
 import {
@@ -24,6 +25,7 @@ interface HttpServerAddress {
 }
 
 export interface BrowserSessionProcessOptions {
+  readonly browserChannel?: BrowserChannel;
   readonly browserExecutablePath?: string;
   readonly httpServerAddress?: HttpServerAddress;
   readonly profilePath?: string;
@@ -75,6 +77,7 @@ function* runBrowserSession(
   const workspaceServiceUrl = options.workspaceServiceUrl ?? resolveWorkspaceServiceUrl();
   const browserControl = new ManagedBrowser(profilePath, {
     ...createWorkspaceServiceClients(workspaceServiceUrl),
+    ...(options.browserChannel ? { browserChannel: options.browserChannel } : {}),
     ...(options.browserExecutablePath
       ? { browserExecutablePath: options.browserExecutablePath }
       : {}),

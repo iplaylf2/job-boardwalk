@@ -12,15 +12,37 @@ enum BrowserSource {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct BrowserCandidate {
+    channel: Option<BrowserChannel>,
     executable: PathBuf,
     label: &'static str,
     source: BrowserSource,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum BrowserChannel {
+    Chrome,
+    MsEdge,
+}
+
+impl BrowserChannel {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Chrome => "chrome",
+            Self::MsEdge => "msedge",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum BrowserLaunch {
+    Channel(BrowserChannel),
+    Executable(PathBuf),
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BrowserSelection {
-    pub(crate) executable: PathBuf,
     pub(crate) detail: String,
+    pub(crate) launch: BrowserLaunch,
 }
 
 fn candidate(
@@ -29,9 +51,23 @@ fn candidate(
     source: BrowserSource,
 ) -> BrowserCandidate {
     BrowserCandidate {
+        channel: None,
         executable: executable.into(),
         label,
         source,
+    }
+}
+
+fn channel_candidate(
+    label: &'static str,
+    executable: impl Into<PathBuf>,
+    channel: BrowserChannel,
+) -> BrowserCandidate {
+    BrowserCandidate {
+        channel: Some(channel),
+        executable: executable.into(),
+        label,
+        source: BrowserSource::System,
     }
 }
 
@@ -39,15 +75,15 @@ fn automatic_candidates() -> Vec<BrowserCandidate> {
     #[cfg(target_os = "macos")]
     {
         vec![
-            candidate(
+            channel_candidate(
                 "Google Chrome",
                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                BrowserSource::System,
+                BrowserChannel::Chrome,
             ),
-            candidate(
+            channel_candidate(
                 "Microsoft Edge",
                 "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-                BrowserSource::System,
+                BrowserChannel::MsEdge,
             ),
             candidate(
                 "Chromium",
@@ -70,15 +106,15 @@ fn automatic_candidates() -> Vec<BrowserCandidate> {
             .flat_map(|root| {
                 let root = PathBuf::from(root);
                 [
-                    candidate(
+                    channel_candidate(
                         "Google Chrome",
                         root.join("Google/Chrome/Application/chrome.exe"),
-                        BrowserSource::System,
+                        BrowserChannel::Chrome,
                     ),
-                    candidate(
+                    channel_candidate(
                         "Microsoft Edge",
                         root.join("Microsoft/Edge/Application/msedge.exe"),
-                        BrowserSource::System,
+                        BrowserChannel::MsEdge,
                     ),
                     candidate(
                         "Chromium",
@@ -93,35 +129,35 @@ fn automatic_candidates() -> Vec<BrowserCandidate> {
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         vec![
-            candidate(
+            channel_candidate(
                 "Google Chrome",
                 "/usr/bin/google-chrome",
-                BrowserSource::System,
+                BrowserChannel::Chrome,
             ),
-            candidate(
+            channel_candidate(
                 "Google Chrome",
                 "/usr/bin/google-chrome-stable",
-                BrowserSource::System,
+                BrowserChannel::Chrome,
             ),
-            candidate(
+            channel_candidate(
                 "Google Chrome",
                 "/opt/google/chrome/chrome",
-                BrowserSource::System,
+                BrowserChannel::Chrome,
             ),
-            candidate(
+            channel_candidate(
                 "Microsoft Edge",
                 "/usr/bin/microsoft-edge",
-                BrowserSource::System,
+                BrowserChannel::MsEdge,
             ),
-            candidate(
+            channel_candidate(
                 "Microsoft Edge",
                 "/usr/bin/microsoft-edge-stable",
-                BrowserSource::System,
+                BrowserChannel::MsEdge,
             ),
-            candidate(
+            channel_candidate(
                 "Microsoft Edge",
                 "/opt/microsoft/msedge/msedge",
-                BrowserSource::System,
+                BrowserChannel::MsEdge,
             ),
             candidate("Chromium", "/usr/bin/chromium", BrowserSource::System),
             candidate(
@@ -145,10 +181,12 @@ fn describe_selection(candidate: &BrowserCandidate) -> String {
 fn discover_from_candidates(candidates: Vec<BrowserCandidate>) -> Result<BrowserSelection, String> {
     for candidate in candidates {
         if candidate.executable.is_file() {
-            return Ok(BrowserSelection {
-                detail: describe_selection(&candidate),
-                executable: candidate.executable,
-            });
+            let detail = describe_selection(&candidate);
+            let launch = match candidate.channel {
+                Some(channel) => BrowserLaunch::Channel(channel),
+                None => BrowserLaunch::Executable(candidate.executable),
+            };
+            return Ok(BrowserSelection { detail, launch });
         }
     }
     Err(
@@ -200,7 +238,7 @@ mod tests {
         )])
         .expect("configured browser should be selected");
 
-        assert_eq!(selection.executable, executable);
+        assert_eq!(selection.launch, BrowserLaunch::Executable(executable));
     }
 
     #[test]
@@ -218,5 +256,15 @@ mod tests {
                 .iter()
                 .any(|candidate| candidate.executable == Path::new("/usr/bin/chromium"))
         );
+    }
+
+    #[test]
+    fn branded_system_candidates_use_official_channels() {
+        assert!(automatic_candidates().iter().any(|candidate| {
+            candidate.label == "Google Chrome" && candidate.channel == Some(BrowserChannel::Chrome)
+        }));
+        assert!(automatic_candidates().iter().any(|candidate| {
+            candidate.label == "Microsoft Edge" && candidate.channel == Some(BrowserChannel::MsEdge)
+        }));
     }
 }
