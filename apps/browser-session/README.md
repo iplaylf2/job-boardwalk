@@ -11,15 +11,6 @@ observe and take over; it is not part of the Compose deployment. Workspace Servi
 run in containers, while Workspace Service's loopback-published port preserves the existing local
 HTTP relationship without giving either container access to the browser profile or desktop.
 
-The desktop staging topology runs the same Browser Session behavior through Desktop Service Host.
-The host supplies the system Chrome, Edge, or Chromium executable selected by Desktop Manager and
-the dedicated profile under the product's `data/browser-profile/`. Browser Session's startup and
-health boundary determine whether the selected browser can operate with Patchright. The desktop
-payload does not bundle a browser. Its finalized Browser Session directory contains the application
-entry module and the locked production dependency closure needed by Desktop Service Host. The entry
-module exports `serviceCompletion` for its application-owned lifecycle so the host exits when
-Browser Session ends, including when startup or later supervision fails.
-
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
 bounded page evidence lets the agent reconcile automation results with the window the user can see.
@@ -112,12 +103,12 @@ The build has two application-owned stages. Vite compiles application and worksp
 published modules and runtime resources. `dist/index.cjs` is the package's public runtime
 entrypoint.
 
-The package accepts explicit process arguments for the browser executable, profile directory,
-listener hostname and port, and Workspace Service URL. The desktop runtime supplies these values
-from its installed layout and browser discovery; source development uses the documented environment
-overrides and loopback defaults. Selecting an executable supplies a launch candidate, not a
-compatibility guarantee. Distribution-specific discovery, layout, and supervision remain outside
-Browser Session.
+The finalized entry module exports `serviceCompletion` as its application-owned lifecycle promise.
+It accepts explicit process arguments for a `chrome` or `msedge` browser channel or a browser
+executable, plus the profile directory, listener hostname and port, and Workspace Service URL.
+Source development uses the documented environment overrides and loopback defaults. Selecting an
+executable supplies a launch candidate, not a compatibility guarantee. Browser discovery, product
+layout, process hosting, and supervision remain outside Browser Session.
 
 By default, the dedicated browser profile is stored under the operating system's user data
 directory. Set `JOB_BOARDWALK_BROWSER_PROFILE_PATH` to choose an exact path. Browser Session does
@@ -246,20 +237,21 @@ not add Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
 Browser Session explicitly enables Chromium's process sandbox for every launch. Patchright
 otherwise passes `--no-sandbox` by default; do not restore that default to work around host setup or
 to silence a browser warning. A browser that cannot launch with its process sandbox is incompatible
-with Browser Session and must fail at the launch boundary. The same launch policy applies to the
-Chromium installed by Patchright for source development and every executable selected by Desktop
-Manager.
+with Browser Session and must fail at the launch boundary. The same launch policy applies to
+Patchright's installed Chromium, a named browser channel, and an explicit browser executable.
 
 Patchright owns its other default command-line switches, including
-`--disable-blink-features=AutomationControlled`. Some branded Chromium-based browsers may report
-such a switch as unsupported. Do not hide that warning with another switch or host policy, and do
-not filter a Patchright default in isolation. Identify the reported switch first; a change to driver
-defaults requires representative compatibility evidence for the Chromium installed by Patchright
-and the Chrome, Edge, and Chromium candidates supported by desktop discovery.
+`--disable-blink-features=AutomationControlled`, which Patchright uses to avoid detection through
+`navigator.webdriver`. Edge may warn that this exact switch is unsupported. This is an expected
+browser response to the Patchright launch policy, not by itself a launch failure. Do not hide it
+with another switch or host policy, and do not filter a Patchright default in isolation. A warning
+that identifies another switch still requires investigation. A change to driver defaults requires
+representative compatibility evidence for Patchright's installed Chromium and for Chrome, Edge,
+and Chromium launched through the supported channel and executable-path inputs.
 
 Patchright remains an external runtime dependency so its generated modules and package-relative
-resources stay together. A Patchright upgrade must preserve that package boundary and pass both the
-Browser Session artifact build and desktop assembly checks.
+resources stay together. A Patchright upgrade must preserve that package boundary and pass the
+Browser Session artifact build.
 
 ## Development
 

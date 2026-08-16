@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::browser_discovery::BrowserSelection;
+use crate::browser_discovery::{BrowserLaunch, BrowserSelection};
 use crate::caddy_lifecycle::CaddyLifecycle;
 use crate::desktop_settings::DesktopSettings;
 use crate::product_layout::ProductLayout;
@@ -102,6 +102,14 @@ pub(crate) fn service_plan(
         },
     ];
     if let Some(browser) = browser {
+        let browser_argument = match &browser.launch {
+            BrowserLaunch::Channel(channel) => {
+                format!("--browser-channel={}", channel.as_str())
+            }
+            BrowserLaunch::Executable(executable) => {
+                format!("--browser-executable-path={}", executable.display())
+            }
+        };
         plan.push(ServiceSpec {
             arguments: vec![
                 "--role=browser-session".to_owned(),
@@ -116,7 +124,7 @@ pub(crate) fn service_plan(
                 "--hostname=127.0.0.1".to_owned(),
                 format!("--port={}", settings.browser_port),
                 format!("--workspace-service-url={workspace_url}"),
-                format!("--browser-executable-path={}", browser.executable.display()),
+                browser_argument,
             ],
             environment: Vec::new(),
             executable: layout.service_host_executable.clone(),
@@ -152,7 +160,7 @@ mod tests {
             CaddyLifecycle::prepare().expect("Caddy lifecycle should be prepared");
         let browser = BrowserSelection {
             detail: "synthetic browser detail".to_owned(),
-            executable: PathBuf::from("/synthetic/chrome"),
+            launch: BrowserLaunch::Executable(PathBuf::from("/synthetic/chrome")),
         };
         let plan = service_plan(&layout, &settings, caddy_lifecycle, Some(&browser));
         let [workspace_service, dashboard, browser_session] = plan.as_slice() else {
@@ -228,6 +236,39 @@ mod tests {
             browser_session.readiness,
             Readiness::BrowserAvailable
         ));
+    }
+
+    #[test]
+    fn desktop_plan_uses_the_channel_for_an_automatically_detected_branded_browser() {
+        let manager = Path::new("/synthetic/job-boardwalk/job-boardwalk");
+        let layout =
+            resolve_product_layout(manager).expect("synthetic product layout should resolve");
+        let caddy_lifecycle =
+            CaddyLifecycle::prepare().expect("Caddy lifecycle should be prepared");
+        let browser = BrowserSelection {
+            detail: "Microsoft Edge · Detected automatically".to_owned(),
+            launch: BrowserLaunch::Channel(crate::browser_discovery::BrowserChannel::MsEdge),
+        };
+        let plan = service_plan(
+            &layout,
+            &DesktopSettings::default(),
+            caddy_lifecycle,
+            Some(&browser),
+        );
+        let browser_session = plan.last().expect("Browser Session should be planned");
+
+        assert!(
+            browser_session
+                .arguments
+                .iter()
+                .any(|argument| argument == "--browser-channel=msedge")
+        );
+        assert!(
+            !browser_session
+                .arguments
+                .iter()
+                .any(|argument| argument.starts_with("--browser-executable-path="))
+        );
     }
 
     #[test]

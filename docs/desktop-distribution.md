@@ -38,6 +38,11 @@ address and service log path. Job Boardwalk uses an installed Chrome, Edge, or C
 automatic discovery fails while the services are stopped, select the browser executable in
 Settings.
 
+Patchright includes `--disable-blink-features=AutomationControlled` in the dedicated browser's launch
+configuration. Edge may warn that this switch is unsupported. This is expected and does not by
+itself indicate a Browser Session failure. Job Boardwalk leaves the warning visible and keeps the
+browser process sandbox enabled.
+
 These archives are unsigned prerelease builds. The operating system may warn before opening them,
 and they are not the supported deployment topology. They do not provide automatic updates or a
 supported backup, restore, or cross-version migration workflow. Keep each build in its own product
@@ -146,8 +151,8 @@ performs its ordinary resource cleanup on every platform. Forced termination rem
 fallback owned by Manager.
 
 Desktop Manager resolves the configured browser override or a common system Chrome, Edge, or
-Chromium installation and passes the exact path to Browser Session. Dashboard instead runs on the
-packaged Caddy executable.
+Chromium installation and passes the resulting browser launch selection to Browser Session.
+Dashboard instead runs on the packaged Caddy executable.
 
 On Windows, Manager starts all private service processes without console windows; the Manager GUI
 and `data/logs/services.log` remain their user-facing status and diagnostic surfaces.
@@ -175,9 +180,10 @@ in Desktop Manager Settings, Manager checks the platform's common Chrome, Edge, 
 locations. When an absolute path is selected, it checks only that executable. Engineering staging
 may provide an explicit development override through `JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`; the
 Patchright development cache is not a product discovery source. Manager passes the first existing
-candidate's absolute path to Browser Session, which owns launch and compatibility checks and uses
-the dedicated profile under `data/browser-profile/`. It never launches the user's normal browser
-profile.
+candidate to Browser Session. An automatically detected Chrome or Edge uses Playwright's `chrome`
+or `msedge` browser channel; system Chromium and explicit overrides use their exact paths. Browser
+Session owns launch and compatibility checks and uses the dedicated profile under
+`data/browser-profile/`. It never launches the user's normal browser profile.
 
 Discovery recognizes a browser candidate; it does not establish compatibility with every system
 browser build. Browser Session owns browser launch, runtime compatibility, and recovery. Manager

@@ -10,15 +10,15 @@ service owns its application lifecycle and resource cleanup.
 The host accepts two product-owned roles:
 
 - `workspace-service` loads the finalized Workspace Service entry module.
-- `browser-session` loads the finalized Browser Session entry module. Desktop Manager supplies the
-  browser executable selected by the desktop integration layer and the dedicated product profile.
+- `browser-session` loads the finalized Browser Session entry module.
 
 Desktop Manager supplies each role's public entry module and runtime paths as explicit absolute
-arguments. The host loads that module directly and requires a `serviceCompletion` promise export.
-The promise represents the complete application-owned service lifecycle, not startup readiness.
-While it is pending, the host keeps its standard-input shutdown adapter active. When it fulfills or
-rejects, the host removes that adapter and exits, allowing Desktop Manager to observe the service
-outcome through the child process.
+arguments. Service-specific arguments remain on the same process command line for the loaded service
+to interpret; the host does not inspect them. The host loads the entry module directly and requires
+a `serviceCompletion` promise export. The promise represents the complete application-owned service
+lifecycle, not startup readiness. While it is pending, the host keeps its standard-input shutdown
+adapter active. When it fulfills or rejects, the host removes that adapter and exits, allowing
+Desktop Manager to observe the service outcome through the child process.
 
 Standard-input EOF from Desktop Manager emits an in-process `SIGTERM` event. This invokes the
 service's ordinary signal handler without using Windows' terminating `process.kill()` signal

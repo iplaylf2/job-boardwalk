@@ -23,7 +23,15 @@ test("accepts explicit distribution-owned Browser Session process arguments", ()
   });
 });
 
+test("accepts a supported branded browser channel", () => {
+  expect(parseBrowserSessionArguments(["--browser-channel=msedge"])).toEqual({
+    browserChannel: "msedge",
+  });
+});
+
 test("rejects relative paths, partial listener addresses, and unsupported upstream URLs", () => {
+  const { root } = path.parse(process.cwd());
+
   expect(() =>
     parseBrowserSessionArguments(["--browser-profile-path=data/browser-profile"]),
   ).toThrow(/absolute path/u);
@@ -33,4 +41,13 @@ test("rejects relative paths, partial listener addresses, and unsupported upstre
   expect(() =>
     parseBrowserSessionArguments(["--workspace-service-url=file:///tmp/workspace"]),
   ).toThrow(/credentialless HTTP/u);
+  expect(() => parseBrowserSessionArguments(["--browser-channel=canary"])).toThrow(
+    /chrome or msedge/u,
+  );
+  expect(() =>
+    parseBrowserSessionArguments([
+      "--browser-channel=chrome",
+      `--browser-executable-path=${path.join(root, "synthetic", "chrome")}`,
+    ]),
+  ).toThrow(/cannot be provided together/u);
 });

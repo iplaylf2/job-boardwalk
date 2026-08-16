@@ -14,8 +14,13 @@ Desktop Manager displays the Dashboard address and the service log path.
 
 Job Boardwalk uses an installed Chrome, Edge, or Chromium browser and does not bundle or download
 one. If automatic discovery does not find a browser, stop the services and select its executable in
-Settings. If browser access remains unavailable, inspect the service log and try another Chrome,
-Edge, or Chromium installation.
+Settings. If browser access remains unavailable, inspect the service log. Use another Chrome, Edge,
+or Chromium installation only when the log identifies the selected browser as incompatible.
+
+Edge may warn that `--disable-blink-features=AutomationControlled` is an unsupported command-line
+flag. Patchright includes that switch in the dedicated browser's launch configuration, so the warning
+is expected and does not by itself indicate a Browser Session failure. Job Boardwalk leaves the
+warning visible and keeps the browser process sandbox enabled.
 
 Docker and development tools are not required to run this directory.
 

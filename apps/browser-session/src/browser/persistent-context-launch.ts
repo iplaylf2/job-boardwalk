@@ -7,12 +7,20 @@ type PersistentContextLaunchOptions = NonNullable<
   Parameters<typeof chromium.launchPersistentContext>[typeof launchOptionsArgumentIndex]
 >;
 
+export type BrowserChannel = "chrome" | "msedge";
+
+interface BrowserLaunchOptions {
+  readonly channel?: BrowserChannel;
+  readonly executablePath?: string;
+}
+
 export function createPersistentContextLaunchOptions(
-  browserExecutablePath?: string,
+  options: BrowserLaunchOptions = {},
 ): PersistentContextLaunchOptions {
   return {
     chromiumSandbox: true,
-    ...(browserExecutablePath ? { executablePath: browserExecutablePath } : {}),
+    ...(options.channel ? { channel: options.channel } : {}),
+    ...(options.executablePath ? { executablePath: options.executablePath } : {}),
     headless: false,
     viewport: null,
   };
@@ -20,10 +28,10 @@ export function createPersistentContextLaunchOptions(
 
 export function launchPersistentContext(
   profilePath: string,
-  browserExecutablePath?: string,
+  options: BrowserLaunchOptions = {},
 ): Promise<BrowserContext> {
   return chromium.launchPersistentContext(
     profilePath,
-    createPersistentContextLaunchOptions(browserExecutablePath),
+    createPersistentContextLaunchOptions(options),
   );
 }

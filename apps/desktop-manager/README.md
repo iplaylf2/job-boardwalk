@@ -20,11 +20,13 @@ lifecycle and failure state remain visible through the GUI.
 
 When services are stopped, Settings configures the three product loopback ports and an optional
 absolute browser executable override. A blank override discovers Chrome, Edge, or Chromium in the
-platform's common system locations. Manager validates distinct, non-zero ports and the configured
-file before atomically replacing `data/settings.json`, so saving never exposes a partially written
-settings file. Saved settings apply on the next start. Product-owned executables,
-payloads, persistence, profile paths, and lifecycle control channels remain derived from the
-installed product directory and are not user-configurable.
+platform's common system locations. An automatically detected Chrome or Edge selection uses its
+Playwright browser channel; an automatically detected Chromium or an explicit override retains the
+executable path. Manager validates distinct, non-zero ports and the configured file before
+atomically replacing `data/settings.json`, so saving never exposes a partially written settings
+file. Saved settings apply on the next start. Product-owned executables, payloads, persistence,
+profile paths, and lifecycle control channels remain derived from the installed product directory
+and are not user-configurable.
 
 Engineering staging may provide the browser override through
 `JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH`. This development convenience is neither persisted nor part
