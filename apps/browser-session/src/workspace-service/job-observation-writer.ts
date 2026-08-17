@@ -19,7 +19,7 @@ export interface JobObservationWriter {
   ) => RiteCoroutine<JobObservationWriteResult>;
 }
 
-export type JobObservationWriteResult = Pick<SaveJobObservationResult, "outcome">;
+type JobObservationWriteResult = Pick<SaveJobObservationResult, "outcome">;
 
 export class WorkspaceJobObservationWriter implements JobObservationWriter {
   readonly #cardEndpoint: URL;
