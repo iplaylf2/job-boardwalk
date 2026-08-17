@@ -82,7 +82,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description:
-      "读取当前岗位详情页的职位描述正文和可识别的标题、公司、地点、薪资等岗位字段。仅在 Workspace Service 确认已保留本次观察后返回；若服务拒绝提交，或返回 `stale` 而未应用观察，调用失败。不会把周边推荐职位误作当前职位描述；同一次读取也可能刷新平台访问观察。",
+      "读取当前岗位详情页的职位描述正文和可识别的标题、公司、地点、薪资等岗位字段，并将本次观察写入 Workspace Service。仅在服务接受并保留观察后返回；写入失败或结果为 `stale` 时，调用失败。不会导航、滚动或点击，也不会把周边推荐职位误作当前职位描述；同一次读取可能刷新平台访问观察。",
     name: "browser_job_description_snapshot",
   }),
   defineBrowserTool({

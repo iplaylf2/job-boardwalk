@@ -31,7 +31,7 @@ import { captureJobDescriptionObservation } from "./job-observation/description-
 const zero = 0;
 const explicitDescriptionAttribution = {
   initiatedBy: "agent",
-  reason: "Agent 显式采集当前页面的岗位详情证据",
+  reason: "Agent 显式采集当前页面的岗位详情观察",
 } as const satisfies WorkspaceChangeAttribution;
 
 interface ElementReference {
@@ -267,7 +267,9 @@ export class BrowserToolExecutor {
       explicitDescriptionAttribution,
     );
     if (writeResult.outcome === "stale") {
-      throw new Error("Workspace Service 未保留本次岗位详情观察：已有同类观察的时间相同或更晚。");
+      throw new Error(
+        "Workspace Service 未保留本次岗位详情观察：已有更新的同类观察，或同一时刻已保留不同观察。",
+      );
     }
     return { ...observation, tabId };
   }

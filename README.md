@@ -46,10 +46,10 @@ Available now:
 - Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
   with platform-specific navigation and access-assessment rules behind adapters. It can also take a
   bounded, structured snapshot of job cards or the main description on an already-open detail page.
-  An explicit job-description snapshot returns only after Workspace Service confirms that its
-  captured evidence is preserved; passive collection submits evidence from eligible tabs that are
-  already open. Snapshots and passive collection do not open or navigate research pages. The
-  selected job-search intent guides explicit agent navigation, not background browsing. Platform
+  Explicit description snapshots return only after Workspace Service preserves their observations;
+  passive collection submits evidence from eligible tabs that are already open. Neither workflow
+  opens or navigates research pages. The selected job-search intent guides explicit agent
+  navigation, not background browsing. Platform
   lists of interested, contacted, applied, and interviewed jobs are synchronized for one platform
   and category at a time, only within a user-requested agent task; supported continuations require
   another explicit call and remain bounded to 60 distinct jobs.

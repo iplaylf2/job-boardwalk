@@ -112,7 +112,8 @@ a later passive collection pass. If Workspace Service rejects the submission or 
 preserved. Card collection pages and detail pages are disjoint: recommendations surrounding a
 detail page cannot be reinterpreted as the main posting. Passive collection observes recognizable
 cards and main descriptions from already-open supported-platform tabs, except for personal-center
-engagement pages. A selected job-search intent supplies recommendation pages as agent research
+engagement pages. Explicit description writes carry agent attribution; passive observations carry
+system attribution. A selected job-search intent supplies recommendation pages as agent research
 context, but the collector never opens or navigates a tab for them. Browser navigation remains an
 explicit action in a user-requested research task.
 
@@ -131,13 +132,15 @@ display text without changing the underlying job.
 Workspace Service turns submitted observations into a durable job library rather than a page
 archive. Each platform source stores its latest retained card and description observation
 independently; no HTML or historical page snapshot is stored. When the facts match, a later
-`observedAt` refreshes the retained observation and source check time without recording a content
-change. Different facts replace retained evidence only when their `observedAt` is later. An older
-observation, or a conflicting observation with the same `observedAt`, is left unapplied with a
-`stale` outcome; it neither replaces retained evidence nor moves the check time backward. A card
-observation does not imply that the description was inspected, so it never clears a stored
-description. The description's capture time and Browser Session's local truncation state remain
-explicit. The normalized job is derived from the observations currently stored for its sources.
+`observedAt` refreshes the retained observation and source check time. This produces an `unchanged`
+outcome unless advancing that source changes the normalized job's derived facts; that change is
+attributed and returned as `source-updated`. Different facts replace retained evidence only when
+their `observedAt` is later. An older observation, or a conflicting observation with the same
+`observedAt`, is left unapplied with a `stale` outcome; it neither replaces retained evidence nor
+moves the check time backward. A card observation does not imply that the description was inspected,
+so it never clears a stored description. The description's capture time and Browser Session's local
+truncation state remain explicit. The normalized job is derived from the observations currently
+stored for its sources.
 
 Within a platform, an external job ID is the preferred source identity, followed by the job URL
 pathname and then normalized company, title, and location when a detail link is unavailable. Across

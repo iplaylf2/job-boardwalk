@@ -188,7 +188,7 @@ test("keeps one selected job-search intent with recommendation pages", async () 
   }
 });
 
-test("merges high-confidence postings and skips unchanged page observations", async () => {
+test("classifies canonical changes caused by matching later source evidence", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
     databasePath: path.join(directory, "workspace.sqlite"),
@@ -216,7 +216,7 @@ test("merges high-confidence postings and skips unchanged page observations", as
       job: { id: firstSave.job.id, sources: [{ platformId: "boss" }, { platformId: "yupao" }] },
       outcome: "source-added",
     });
-    const unchanged = repository.saveJobCardObservation({
+    const canonicalUpdate = repository.saveJobCardObservation({
       initiatedBy: "system",
       observation: jobCardObservation("boss", {
         externalJobId: "boss-123",
@@ -225,14 +225,31 @@ test("merges high-confidence postings and skips unchanged page observations", as
       }),
       reason: "test",
     });
-    expect(unchanged.outcome).toBe("unchanged");
-    expect(unchanged.job.sources).toContainEqual(
+    expect(canonicalUpdate).toMatchObject({
+      job: { company: "示例科技甲有限公司", title: "后端开发" },
+      outcome: "source-updated",
+    });
+    expect(canonicalUpdate.job.sources).toContainEqual(
       expect.objectContaining({
         lastCheckedAt: "2026-07-17T11:00:00.000Z",
         observedAt: "2026-07-17T11:00:00.000Z",
         platformId: "boss",
       }),
     );
+
+    const unchanged = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        externalJobId: "boss-123",
+        jobUrl: "https://www.zhipin.com/job_detail/example.html?from=recommend",
+        observedAt: "2026-07-17T12:00:00.000Z",
+      }),
+      reason: "test",
+    });
+    expect(unchanged).toMatchObject({
+      job: { company: "示例科技甲有限公司", title: "后端开发" },
+      outcome: "unchanged",
+    });
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

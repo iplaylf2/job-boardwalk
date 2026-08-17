@@ -214,8 +214,9 @@ path; they arrive through the explicit
 `POST /api/job-card-observations` and `POST /api/job-description-observations` are the
 service-to-service write boundaries. Their request contracts describe what was actually observed;
 the service does not infer a missing description from a card submission. Both endpoints return
-`SaveJobObservationResult`; its `outcome` distinguishes applied changes, unchanged evidence, and a
-`stale` observation that the service accepted but left unapplied.
+`SaveJobObservationResult`. Its `outcome` reports an applied `created`, `source-added`, or
+`source-updated` change; an accepted `unchanged` refresh; or a `stale` observation that the service
+left unapplied.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`, and
 `engagement` parameters. Workspace Service applies those constraints in SQLite and returns the
@@ -230,13 +231,15 @@ split the source. Workspace Service merges a new cross-platform source only when
 title, and location are all available and match. Partial cards remain separate to avoid false
 merges. The database keeps the current normalized result and each source's latest card and
 description observations, not HTML, page snapshots, or match judgments. The two observation types
-are updated independently, so submitting a card never clears a stored description. Matching facts
-with a later `observedAt` refresh that kind's retained observation without recording a content
-change. Different facts replace retained evidence only when their `observedAt` is later. An older
-observation, or a conflicting observation at the same timestamp, is left unapplied with a `stale`
-outcome because it cannot be established as newer. `lastCheckedAt` never moves backward.
-Description capture time and Browser Session's local truncation state remain part of the stored
-observation. See
+are updated independently, so submitting a card never clears a stored description.
+
+Matching facts with a later `observedAt` refresh that kind's retained observation. The outcome
+remains `unchanged` unless advancing that source changes the normalized job's derived facts; such a
+change is recorded with attribution and returned as `source-updated`. Different facts replace
+retained evidence only when their `observedAt` is later. An older observation, or a conflicting
+observation at the same timestamp, is left unapplied with a `stale` outcome because it cannot be
+established as newer. `lastCheckedAt` never moves backward. Description capture time and Browser
+Session's local truncation state remain part of the stored observation. See
 [Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
 evidence lifecycle.
 

@@ -80,7 +80,7 @@ test("preserves the caller's attribution when writing job observations", async (
       },
       {
         initiatedBy: "agent",
-        reason: "Agent 显式采集当前页面的岗位详情证据",
+        reason: "Agent 显式采集当前页面的岗位详情观察",
       },
     ),
   );
@@ -98,7 +98,7 @@ test("preserves the caller's attribution when writing job observations", async (
   );
   expect(JSON.parse(String(requests[secondRequestIndex]?.init?.body))).toMatchObject({
     initiatedBy: "agent",
-    reason: "Agent 显式采集当前页面的岗位详情证据",
+    reason: "Agent 显式采集当前页面的岗位详情观察",
   });
   expect(cardResult).toEqual(savedObservation);
   expect(descriptionResult).toEqual(savedObservation);

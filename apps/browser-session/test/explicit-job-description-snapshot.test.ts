@@ -74,7 +74,7 @@ test("submits the explicit job-description observation before returning it", asy
     {
       attribution: {
         initiatedBy: "agent",
-        reason: "Agent 显式采集当前页面的岗位详情证据",
+        reason: "Agent 显式采集当前页面的岗位详情观察",
       },
       observation: returnedObservation,
     },
