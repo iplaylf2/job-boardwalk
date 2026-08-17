@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from "patchright";
+import type { WorkspaceChangeAttribution } from "@job-boardwalk/contracts";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -144,9 +145,11 @@ test("observes existing pages without opening or navigating recommendation seeds
     *writeCardObservation(observation) {
       yield* [];
       observations.push(observation);
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation() {
       yield* [];
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -179,14 +182,19 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
     ],
   } as BrowserContext;
   const observations: { discoveryUrl: string }[] = [];
+  const attributions: WorkspaceChangeAttribution[] = [];
   const writer = {
-    *writeCardObservation(observation) {
+    *writeCardObservation(observation, attribution) {
       yield* [];
       observations.push(observation);
+      attributions.push(attribution);
+      return { outcome: "unchanged" };
     },
-    *writeDescriptionObservation(observation) {
+    *writeDescriptionObservation(observation, attribution) {
       yield* [];
       observations.push({ discoveryUrl: observation.jobUrl });
+      attributions.push(attribution);
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -198,6 +206,20 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
     expect.objectContaining({ discoveryUrl: seedUrl }),
     expect.objectContaining({ discoveryUrl: searchUrl }),
     expect.objectContaining({ discoveryUrl: detailUrl }),
+  ]);
+  expect(attributions).toEqual([
+    {
+      initiatedBy: "system",
+      reason: "Browser Session 被动采集当前页面已展示的岗位证据",
+    },
+    {
+      initiatedBy: "system",
+      reason: "Browser Session 被动采集当前页面已展示的岗位证据",
+    },
+    {
+      initiatedBy: "system",
+      reason: "Browser Session 被动采集当前页面已展示的岗位证据",
+    },
   ]);
 });
 
@@ -214,9 +236,11 @@ test("continues collecting open platform tabs", async () => {
     *writeCardObservation() {
       yield* [];
       writeCount += onePageRead;
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation() {
       yield* [];
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -243,9 +267,11 @@ test("reports one unstable page and preserves jobs from later healthy pages", as
     *writeCardObservation(observation) {
       yield* [];
       observations.push(observation);
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation() {
       yield* [];
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);

@@ -25,6 +25,7 @@ function executorCoordination(
     synchronizeJobEngagement() {
       expect.unreachable("此测试不应同步岗位跟进");
     },
+    writeJobDescriptionObservation: () => expect.unreachable("此测试不应写入岗位详情"),
   };
 }
 
@@ -223,6 +224,7 @@ test("forwards explicit job-engagement synchronization and expires page referenc
       yield* [];
       requests.push({ engagement, platformId });
     },
+    writeJobDescriptionObservation: () => expect.unreachable("此测试不应写入岗位详情"),
   });
   await using scope = createScope();
 

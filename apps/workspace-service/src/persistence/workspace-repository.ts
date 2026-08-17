@@ -245,6 +245,25 @@ function observationTime(input: PreparedJobObservation): string {
   return input.observation.observedAt;
 }
 
+function observationFreshness(
+  source: JobPostingSourceRow,
+  input: PreparedJobObservation,
+): "missing" | "newer" | "older" | "same-time" {
+  const storedObservation =
+    input.kind === "card" ? source.cardObservation : source.descriptionObservation;
+  if (!storedObservation) {
+    return "missing";
+  }
+  if (input.observation.observedAt < storedObservation.observedAt) {
+    return "older";
+  }
+  return input.observation.observedAt === storedObservation.observedAt ? "same-time" : "newer";
+}
+
+function latestTimestamp(first: string, second: string): string {
+  return first > second ? first : second;
+}
+
 function observationMatches(
   source: JobPostingSourceRow | undefined,
   input: PreparedJobObservation,
@@ -306,6 +325,29 @@ function canonicalJobPostingValues(observations: JobSourceEvidence[]) {
     summary: latest.summary,
     title: latest.title,
   };
+}
+
+type CanonicalJobPostingValues = ReturnType<typeof canonicalJobPostingValues>;
+
+function storedCanonicalJobPostingValues(job: JobPostingRow): CanonicalJobPostingValues {
+  return {
+    company: job.company,
+    description: job.description,
+    details: job.details,
+    educationRequirement: job.educationRequirement,
+    experienceRequirement: job.experienceRequirement,
+    location: job.location,
+    summary: job.summary,
+    title: job.title,
+  };
+}
+
+function canonicalJobPostingContentFingerprint(values: CanonicalJobPostingValues): string {
+  const { description, ...facts } = values;
+  return hashValue({
+    ...facts,
+    description: description ? { text: description.text, truncated: description.truncated } : null,
+  });
 }
 
 function toJobPosting(
@@ -912,17 +954,15 @@ export class WorkspaceRepository {
       sourceIdentityKey,
     );
     const observedAt = observationTime(input);
-    if (existingSource && observationMatches(existingSource, input)) {
-      this.#database
-        .update(jobPostingSources)
-        .set({ lastCheckedAt: observedAt })
-        .where(eq(jobPostingSources.id, existingSource.id))
-        .run();
-      const job = this.#readJobPosting(existingSource.jobId);
-      if (!job) {
-        throw new Error(`找不到岗位：${String(existingSource.jobId)}`);
+    if (existingSource) {
+      const freshness = observationFreshness(existingSource, input);
+      const matches = observationMatches(existingSource, input);
+      if (freshness === "older" || (freshness === "same-time" && !matches)) {
+        return this.#existingJobObservationOutcome(existingSource, "stale");
       }
-      return { job, outcome: "unchanged" };
+      if (matches) {
+        return this.#refreshUnchangedJobObservation(existingSource, input);
+      }
     }
 
     const sourceObservations = updatedSourceObservations(existingSource, input);
@@ -930,8 +970,10 @@ export class WorkspaceRepository {
     const result = this.#persistJobObservation({
       cardObservation,
       existingSource,
+      lastCheckedAt: existingSource
+        ? latestTimestamp(existingSource.lastCheckedAt, observedAt)
+        : observedAt,
       now,
-      observedAt,
       sourceIdentityKey,
       sourceObservations,
     });
@@ -952,6 +994,60 @@ export class WorkspaceRepository {
     return { job, outcome: result.outcome };
   }
 
+  #existingJobObservationOutcome(
+    existingSource: JobPostingSourceRow,
+    outcome: "source-updated" | "stale" | "unchanged",
+  ): SaveJobObservationResult {
+    const job = this.#readJobPosting(existingSource.jobId);
+    if (!job) {
+      throw new Error(`找不到岗位：${String(existingSource.jobId)}`);
+    }
+    return { job, outcome };
+  }
+
+  #refreshUnchangedJobObservation(
+    existingSource: JobPostingSourceRow,
+    input: PreparedJobObservation,
+  ): SaveJobObservationResult {
+    const now = new Date().toISOString();
+    const canonicalContentChanged = this.#database.transaction((transaction) => {
+      transaction
+        .update(jobPostingSources)
+        .set({
+          ...updatedSourceObservations(existingSource, input),
+          lastCheckedAt: latestTimestamp(
+            existingSource.lastCheckedAt,
+            input.observation.observedAt,
+          ),
+        })
+        .where(eq(jobPostingSources.id, existingSource.id))
+        .run();
+      const contentChanged = WorkspaceRepository.#refreshCanonicalJob(
+        transaction,
+        existingSource.jobId,
+        now,
+        { markJobUpdated: false },
+      );
+      if (contentChanged) {
+        transaction
+          .insert(workspaceChanges)
+          .values({
+            initiatedBy: input.initiatedBy,
+            occurredAt: now,
+            operation: "source-updated",
+            reason: input.reason,
+            subject: `${input.cardObservation.company ? `${input.cardObservation.company} · ` : ""}${input.cardObservation.title}`,
+          })
+          .run();
+      }
+      return contentChanged;
+    });
+    return this.#existingJobObservationOutcome(
+      existingSource,
+      canonicalContentChanged ? "source-updated" : "unchanged",
+    );
+  }
+
   #findJobPostingSource(platformId: string, identityKey: string) {
     return this.#database
       .select()
@@ -969,8 +1065,8 @@ export class WorkspaceRepository {
     cardObservation: JobCardObservation;
     existingSource: JobPostingSourceRow | undefined;
     sourceObservations: SourceObservations;
+    lastCheckedAt: string;
     now: string;
-    observedAt: string;
     sourceIdentityKey: string;
   }) {
     return this.#database.transaction((transaction) => {
@@ -978,7 +1074,7 @@ export class WorkspaceRepository {
         const { id, jobId } = input.existingSource;
         transaction
           .update(jobPostingSources)
-          .set({ ...input.sourceObservations, lastCheckedAt: input.observedAt })
+          .set({ ...input.sourceObservations, lastCheckedAt: input.lastCheckedAt })
           .where(eq(jobPostingSources.id, id))
           .run();
         WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, input.now);
@@ -1020,7 +1116,7 @@ export class WorkspaceRepository {
     input: {
       cardObservation: JobCardObservation;
       sourceObservations: SourceObservations;
-      observedAt: string;
+      lastCheckedAt: string;
       sourceIdentityKey: string;
     },
   ): void {
@@ -1030,7 +1126,7 @@ export class WorkspaceRepository {
         ...input.sourceObservations,
         identityKey: input.sourceIdentityKey,
         jobId,
-        lastCheckedAt: input.observedAt,
+        lastCheckedAt: input.lastCheckedAt,
         platformId: input.cardObservation.platformId,
       })
       .run();
@@ -1040,18 +1136,39 @@ export class WorkspaceRepository {
     transaction: WorkspaceTransaction,
     jobId: number,
     updatedAt: string,
-  ): void {
+    options?: { markJobUpdated: boolean },
+  ): boolean {
+    const markJobUpdated = options?.markJobUpdated ?? true;
+    const currentJob = transaction
+      .select()
+      .from(jobPostings)
+      .where(eq(jobPostings.id, jobId))
+      .get();
+    if (!currentJob) {
+      throw new Error(`找不到岗位：${String(jobId)}`);
+    }
     const currentSources = transaction
       .select()
       .from(jobPostingSources)
       .where(eq(jobPostingSources.jobId, jobId))
       .all()
       .map((source) => jobSourceEvidence(source.cardObservation, source.descriptionObservation));
-    transaction
-      .update(jobPostings)
-      .set({ ...canonicalJobPostingValues(currentSources), updatedAt })
-      .where(eq(jobPostings.id, jobId))
-      .run();
+    const currentValues = storedCanonicalJobPostingValues(currentJob);
+    const nextValues = canonicalJobPostingValues(currentSources);
+    const contentChanged =
+      canonicalJobPostingContentFingerprint(currentValues) !==
+      canonicalJobPostingContentFingerprint(nextValues);
+    if (markJobUpdated || hashValue(currentValues) !== hashValue(nextValues)) {
+      transaction
+        .update(jobPostings)
+        .set({
+          ...nextValues,
+          ...(markJobUpdated || contentChanged ? { updatedAt } : {}),
+        })
+        .where(eq(jobPostings.id, jobId))
+        .run();
+    }
+    return contentChanged;
   }
 
   public createProfileFact(input: {

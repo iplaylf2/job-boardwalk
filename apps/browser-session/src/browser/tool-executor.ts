@@ -1,6 +1,11 @@
 // oxlint-disable max-lines -- The executor is the cohesive dispatch boundary for the public browser tool surface.
 import type { Locator } from "patchright";
-import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
+import type {
+  JobDescriptionObservation,
+  PlatformAccessObservation,
+  SaveJobObservationResult,
+  WorkspaceChangeAttribution,
+} from "@job-boardwalk/contracts";
 import type { PlatformId, PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -24,6 +29,10 @@ import { captureJobCardSnapshot } from "./job-observation/card-snapshot.js";
 import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
 
 const zero = 0;
+const explicitDescriptionAttribution = {
+  initiatedBy: "agent",
+  reason: "Agent 显式采集当前页面的岗位详情观察",
+} as const satisfies WorkspaceChangeAttribution;
 
 interface ElementReference {
   href?: string;
@@ -38,6 +47,10 @@ export interface BrowserToolExecutorCoordination {
     platformId: PlatformId,
     engagement: PlatformJobEngagementKind,
   ) => RiteCoroutine<unknown>;
+  writeJobDescriptionObservation: (
+    observation: JobDescriptionObservation,
+    attribution: WorkspaceChangeAttribution,
+  ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 }
 
 export class BrowserToolExecutor {
@@ -50,6 +63,10 @@ export class BrowserToolExecutor {
     engagement: PlatformJobEngagementKind,
   ) => RiteCoroutine<unknown>;
   readonly #tabs: BrowserTabs;
+  readonly #writeJobDescriptionObservation: (
+    observation: JobDescriptionObservation,
+    attribution: WorkspaceChangeAttribution,
+  ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 
   public constructor(
     tabs: BrowserTabs,
@@ -62,6 +79,7 @@ export class BrowserToolExecutor {
     this.#recordReturnedControl = coordination.recordReturnedControl;
     this.#synchronizeJobEngagement = coordination.synchronizeJobEngagement;
     this.#tabs = tabs;
+    this.#writeJobDescriptionObservation = coordination.writeJobDescriptionObservation;
   }
 
   public get tabCount(): number {
@@ -244,6 +262,15 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
+    const writeResult = yield* this.#writeJobDescriptionObservation(
+      observation,
+      explicitDescriptionAttribution,
+    );
+    if (writeResult.outcome === "stale") {
+      throw new Error(
+        "Workspace Service 未保留本次岗位详情观察：已有更新的同类观察，或同一时刻已保留不同观察。",
+      );
+    }
     return { ...observation, tabId };
   }
 

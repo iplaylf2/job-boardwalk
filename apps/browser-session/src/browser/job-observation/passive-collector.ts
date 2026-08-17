@@ -3,6 +3,7 @@ import type {
   JobCardObservation,
   JobDescriptionObservation,
   JobCardSnapshot,
+  WorkspaceChangeAttribution,
 } from "@job-boardwalk/contracts";
 import { CanceledError, ScopeError, sleep } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -20,6 +21,10 @@ import { captureJobDescriptionObservation } from "./description-observation.js";
 
 const collectionIntervalMilliseconds = 30_000;
 const maximumCardsPerPage = 100;
+const passiveCollectionAttribution = {
+  initiatedBy: "system",
+  reason: "Browser Session 被动采集当前页面已展示的岗位证据",
+} as const satisfies WorkspaceChangeAttribution;
 type CapturedJobEvidence = JobCardSnapshot | JobDescriptionObservation;
 
 interface PassiveJobObservationCollectionCoordination {
@@ -75,10 +80,10 @@ export class PassiveJobObservationCollector {
     for (const evidence of collection.value) {
       if ("cards" in evidence) {
         for (const observation of observationsFromJobCardSnapshot(evidence)) {
-          yield* this.#writer.writeCardObservation(observation);
+          yield* this.#writer.writeCardObservation(observation, passiveCollectionAttribution);
         }
       } else {
-        yield* this.#writer.writeDescriptionObservation(evidence);
+        yield* this.#writer.writeDescriptionObservation(evidence, passiveCollectionAttribution);
       }
     }
   }

@@ -104,13 +104,18 @@ scrolling, opening details, or persisting results. Personal-center engagement pa
 rather than reported as empty job-card pages. Browser Session owns this page read, but it
 does not own the selected intent, semantic relevance judgments, or durable job observations.
 
-It separately exposes the main posting description from a supported detail page. Card collection
-pages and detail pages are disjoint: recommendations surrounding a detail page cannot be
-reinterpreted as the main posting. Passive collection observes recognizable cards and main
-descriptions from already-open supported-platform tabs, except for personal-center engagement
-pages. A selected job-search intent supplies recommendation pages as agent research context, but
-the collector never opens or navigates a tab for them. Browser navigation remains an explicit
-action in a user-requested research task.
+It separately reads the main posting description from a supported detail page. An explicit
+description snapshot returns its captured observation only after Workspace Service confirms that
+the evidence is preserved, so preservation does not depend on the detail page remaining open until
+a later passive collection pass. If Workspace Service rejects the submission or reports it as
+`stale` without applying it, the snapshot action fails instead of returning evidence that was not
+preserved. Card collection pages and detail pages are disjoint: recommendations surrounding a
+detail page cannot be reinterpreted as the main posting. Passive collection observes recognizable
+cards and main descriptions from already-open supported-platform tabs, except for personal-center
+engagement pages. Explicit description writes carry agent attribution; passive observations carry
+system attribution. A selected job-search intent supplies recommendation pages as agent research
+context, but the collector never opens or navigates a tab for them. Browser navigation remains an
+explicit action in a user-requested research task.
 
 Every recognizable card on an eligible page contributes an observation regardless of which seed,
 search path, or other research action led to it. A page with no recognizable cards contributes no
@@ -125,11 +130,15 @@ and engagement synchronization therefore retain the same source identity when a 
 display text without changing the underlying job.
 
 Workspace Service turns submitted observations into a durable job library rather than a page
-archive. Each platform source stores its most recently submitted card observation and description
-observation independently; no HTML or historical page snapshot is stored. A changed observation
-replaces the previous observation of the same kind. An unchanged observation advances only the
-source check time. A card observation does not imply that the description was inspected, so it
-never clears a stored description. The description's capture time and Browser Session's local
+archive. Each platform source stores its latest retained card and description observation
+independently; no HTML or historical page snapshot is stored. When the facts match, a later
+`observedAt` refreshes the retained observation and source check time. This produces an `unchanged`
+outcome unless advancing that source changes the normalized job's derived facts; that change is
+attributed and returned as `source-updated`. Different facts replace retained evidence only when
+their `observedAt` is later. An older observation, or a conflicting observation with the same
+`observedAt`, is left unapplied with a `stale` outcome; it neither replaces retained evidence nor
+moves the check time backward. A card observation does not imply that the description was inspected,
+so it never clears a stored description. The description's capture time and Browser Session's local
 truncation state remain explicit. The normalized job is derived from the observations currently
 stored for its sources.
 
@@ -235,13 +244,14 @@ returns the same structured observation so the agent can answer without submitti
 Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
 alone, display names alone, and cookie presence do not establish authentication.
 
-Explicit job-card and job-description snapshots read the current eligible page without consulting
-Workspace Service. A job-card snapshot rejects a personal-center engagement page, which belongs to
-the explicit synchronization boundary. Evidence from a successful read may also refresh a
-conclusive access observation. The passive collector only reads eligible pages already open in the
-managed browser. Recommendation-page navigation and personal-center job-engagement synchronization
-are explicit agent actions within a user-requested task; neither is scheduled as background browser
-activity.
+Explicit job-card and job-description snapshots derive their evidence from the current eligible
+page rather than durable Workspace Service content. Unlike the job-card snapshot, the
+job-description snapshot then submits its live observation through the persistence boundary above.
+A job-card snapshot rejects a personal-center engagement page, which belongs to the explicit
+synchronization boundary. Evidence from a successful read may also refresh a conclusive access
+observation. The passive collector only reads eligible pages already open in the managed browser.
+Recommendation-page navigation and personal-center job-engagement synchronization are explicit
+agent actions within a user-requested task; neither is scheduled as background browser activity.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page

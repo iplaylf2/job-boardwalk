@@ -31,21 +31,28 @@ collection; a personal-center engagement page is rejected instead. Workspace Ser
 selected intent and its platform recommendation pages; the agent compares that context with live
 page evidence and explicitly navigates when the user requests research.
 
-`browser_job_description_snapshot` is the corresponding structured read for a supported job-detail
-page. It returns the main posting description and recognizable job facts such as title, company,
-location, and salary; recommended job cards are excluded. Its `truncated` flag means Browser
-Session reached its local text limit. It does not imply that the platform hid additional text.
+`browser_job_description_snapshot` is the corresponding structured job-description boundary for a
+supported detail page. It reads the main posting description and recognizable job facts such as
+title, company, location, and salary, then submits that observation to Workspace Service. The tool
+returns the captured observation only after Workspace Service accepts and retains it. A rejected
+write or a `stale` outcome fails the call. Recommended job cards are excluded. Its `truncated` flag
+means Browser Session reached its local text limit; it does not imply that the platform hid
+additional text. Browser Session attributes this explicit write to the agent; passive writes use
+system attribution.
 
-The passive collector observes eligible open supported-platform tabs immediately and every 30
-seconds. Collection pages contribute recognizable cards; detail pages contribute their main
-posting description. The collector never navigates, scrolls, clicks, or opens tabs. Personal-center
-pages are excluded. Repeated observations let Workspace Service independently skip unchanged card
-facts and description text, while a later card observation cannot erase a previously captured
-description. A page that closes or navigates during its bounded read is reported and skipped
-without discarding evidence from other tabs. A Workspace Service write failure stops that
-collection pass and is retried on the next pass. The same bounded DOM pass refreshes any conclusive
-platform-access evidence. The collector does not initiate recommendation-page or detail-page
-navigation; those remain explicit agent actions within user-delegated research.
+The passive collector observes eligible open supported-platform tabs when it starts and every 30
+seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their
+main posting description. The collector never navigates, scrolls, clicks, or opens tabs.
+Personal-center pages are excluded. Explicit and passive workflows can submit observations in a
+different order from their page reads. Each submission carries its capture time, and Workspace
+Service owns reconciliation without letting a card observation erase a captured description. A page
+that closes or navigates during its bounded read is reported and skipped without discarding
+evidence from other tabs. The same bounded DOM pass refreshes any conclusive platform-access
+evidence. The collector does not initiate recommendation-page or detail-page navigation; those
+remain explicit agent actions within user-delegated research.
+
+[Product design](../../docs/product-design.md#job-discovery-and-evidence) defines the
+cross-application evidence lifecycle.
 
 ## Explicit job-engagement synchronization
 
@@ -129,8 +136,10 @@ bounded page read. Detailed browser errors remain in the local process log. Set
 <http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
 control.
 
-Job-observation submission uses the same Workspace Service URL. A failed submission is reported
-locally and retried by the next bounded collection pass without stopping browser control.
+Job-observation submission uses the same Workspace Service URL. A rejected explicit description
+write or a `stale` outcome fails the tool call. A failed passive write is reported locally and stops
+the current collection pass without stopping browser control; a later pass may submit fresh
+evidence if the page remains eligible.
 
 ### Platform adapter coverage
 
