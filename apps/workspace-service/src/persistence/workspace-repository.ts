@@ -577,19 +577,20 @@ export class WorkspaceRepository {
       .select()
       .from(platformAccessObservations)
       .where(eq(platformAccessObservations.platformId, observation.platformId))
-      .orderBy(desc(platformAccessObservations.observedAt), desc(platformAccessObservations.id))
+      .orderBy(desc(platformAccessObservations.lastObservedAt), desc(platformAccessObservations.id))
       .get();
     const latest = latestRow ? toRecordedPlatformAccessObservation(latestRow) : null;
+    if (latest && observation.observedAt <= latest.lastObservedAt) {
+      return null;
+    }
     if (!latest || !samePlatformAccessState(latest, observation)) {
       return this.recordPlatformAccessObservation(observation);
     }
-    if (observation.observedAt > latest.lastObservedAt) {
-      this.#database
-        .update(platformAccessObservations)
-        .set({ lastObservedAt: observation.observedAt })
-        .where(eq(platformAccessObservations.id, latest.id))
-        .run();
-    }
+    this.#database
+      .update(platformAccessObservations)
+      .set({ lastObservedAt: observation.observedAt })
+      .where(eq(platformAccessObservations.id, latest.id))
+      .run();
     return null;
   }
 
@@ -599,7 +600,7 @@ export class WorkspaceRepository {
       .from(platformAccessObservations)
       .orderBy(
         asc(platformAccessObservations.platformId),
-        desc(platformAccessObservations.observedAt),
+        desc(platformAccessObservations.lastObservedAt),
         desc(platformAccessObservations.id),
       )
       .all()

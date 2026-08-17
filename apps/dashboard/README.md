@@ -38,10 +38,10 @@ navigation visible. The affected data region reports the failure instead of pres
 empty result; retryable failures offer a retry action.
 
 Saved platform observations are historical evidence rather than a guarantee of current access.
-Dashboard therefore labels authentication as a past conclusion and shows when Browser Session most
-recently reached the same conclusion. Browser Session presence is a separate short-lived lease.
-Dashboard gives visual priority to an unavailable browser or an unresolved platform interruption
-without opening or checking a recruiting page.
+Dashboard therefore presents definite authentication in the past tense and shows when the displayed
+authentication or interruption assessment was most recently observed. Browser Session presence is
+a separate short-lived lease. Dashboard gives visual priority to an unavailable browser or an
+unresolved platform interruption without opening or checking a recruiting page.
 
 Browser interaction and login handoff happen between the agent, the
 [`browser-session`](../browser-session/) application, and the visible platform window. Dashboard

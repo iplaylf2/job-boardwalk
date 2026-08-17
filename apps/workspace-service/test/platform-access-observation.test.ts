@@ -224,6 +224,18 @@ test("keeps state-change history while advancing the latest observation time", a
       lastObservedAt: "2026-07-15T02:05:00.000Z",
     });
 
+    const staleStateChangeResponse = await reportAuthentication(
+      "unauthenticated",
+      "2026-07-15T02:04:00.000Z",
+    );
+    expect(staleStateChangeResponse.status).toBe(successfulStatus);
+    expect(repository.listPlatformAccessObservations()).toHaveLength(initialObservationCount);
+    const staleStateChangeSummary = await readBossSummary(httpApp);
+    expect(staleStateChangeSummary.latestAuthentication).toMatchObject({
+      authenticationState: "authenticated",
+      lastObservedAt: "2026-07-15T02:05:00.000Z",
+    });
+
     const changedResponse = await reportAuthentication(
       "unauthenticated",
       "2026-07-15T02:06:00.000Z",
@@ -236,6 +248,26 @@ test("keeps state-change history while advancing the latest observation time", a
       lastObservedAt: "2026-07-15T02:06:00.000Z",
       observedAt: "2026-07-15T02:06:00.000Z",
     });
+
+    const delayedAuthenticationResponse = await postObservation(httpApp, {
+      authenticationState: "authenticated",
+      evidence: "protected-resource",
+      observedAt: "2026-07-15T02:04:00.000Z",
+    });
+    expect(delayedAuthenticationResponse.status).toBe(createdStatus);
+    const delayedInterruptionResponse = await postObservation(httpApp, {
+      evidence: "verification-page",
+      interruption: "verification-required",
+      observedAt: "2026-07-15T02:05:00.000Z",
+    });
+    expect(delayedInterruptionResponse.status).toBe(createdStatus);
+
+    const crossSourceSummary = await readBossSummary(httpApp);
+    expect(crossSourceSummary.latestAuthentication).toMatchObject({
+      authenticationState: "unauthenticated",
+      lastObservedAt: "2026-07-15T02:06:00.000Z",
+    });
+    expect(crossSourceSummary).not.toHaveProperty("unresolvedInterruption");
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

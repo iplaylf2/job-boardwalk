@@ -64,14 +64,13 @@ release-input and packaging policy.
 ## Rendering boundary
 
 Desktop Manager selects Winit and its renderer programmatically, so installed behavior does not
-depend on `SLINT_BACKEND`. Windows builds use Slint's Skia renderer with Direct3D. This path
-presents through a Direct3D swap chain instead of relying on the software renderer's GDI partial
-updates to preserve previously presented client pixels across window and compositor events. Slint
-uses a compatible hardware adapter when available and can use Windows' software adapter when no
-compatible hardware adapter is available.
+depend on `SLINT_BACKEND`. Windows builds use Slint's Skia renderer and require Direct3D. The
+Direct3D swap chain avoids depending on the software renderer's GDI presentation to retain client
+pixels across window and compositor updates. Slint prefers a compatible hardware adapter and falls
+back to Windows' software adapter when none is available.
 
-Non-Windows builds use Slint's software renderer. Renderer selection belongs to Desktop Manager;
-Dashboard and Browser Session retain their independent presentation boundaries.
+Non-Windows builds retain Slint's software renderer. Renderer selection belongs to Desktop
+Manager; Dashboard and Browser Session retain their independent presentation boundaries.
 
 ## Lifecycle boundary
 

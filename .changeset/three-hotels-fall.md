@@ -2,9 +2,9 @@
 "@job-boardwalk/desktop-distribution": patch
 ---
 
-Keep Desktop Manager content visible on Windows and report the latest recruiting-platform access
-confirmation.
+Keep Desktop Manager content visible on Windows and show when recruiting-platform access was most
+recently observed.
 
-Desktop Manager no longer loses previously displayed content when Windows updates its window.
-Dashboard now shows when Browser Session most recently confirmed the displayed authentication or
-access-interruption status, including repeated checks that reach the same conclusion.
+Desktop Manager now preserves previously displayed content during Windows window and compositor
+updates. Dashboard timestamps the displayed authentication or access interruption by its most
+recent observation, including repeated observations that reach the same conclusion.

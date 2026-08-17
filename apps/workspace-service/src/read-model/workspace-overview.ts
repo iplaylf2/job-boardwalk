@@ -56,6 +56,6 @@ function compareObservationRecency(
   left: RecordedPlatformAccessObservation,
   right: RecordedPlatformAccessObservation,
 ): number {
-  const timestampComparison = left.observedAt.localeCompare(right.observedAt);
+  const timestampComparison = left.lastObservedAt.localeCompare(right.lastObservedAt);
   return timestampComparison === equalRecency ? left.id - right.id : timestampComparison;
 }
