@@ -76,8 +76,8 @@ const browserTools = [
   }),
   defineBrowserTool({
     annotations: {
-      destructiveHint: false,
-      idempotentHint: true,
+      destructiveHint: true,
+      idempotentHint: false,
       openWorldHint: true,
       readOnlyHint: false,
     },

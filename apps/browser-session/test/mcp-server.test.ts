@@ -140,7 +140,7 @@ test("always exposes the project-owned browser tools", async () => {
   await close();
 });
 
-test("exposes browser action annotations", async () => {
+test("exposes browser tool side-effect annotations", async () => {
   await using serviceScope = createScope();
   const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
   const { client, close } = await connectedClient(mcpServer);
@@ -150,16 +150,6 @@ test("exposes browser action annotations", async () => {
   expect(clickTool?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
   const fillTool = listedTools.tools.find(({ name }) => name === "browser_fill");
   expect(fillTool?.annotations).toMatchObject({ destructiveHint: false, readOnlyHint: false });
-
-  await close();
-});
-
-test("discloses the access-observation side effect of job-card snapshots", async () => {
-  await using serviceScope = createScope();
-  const mcpServer = createBrowserSessionMcpServer(fakeBrowserControl(), serviceScope);
-  const { client, close } = await connectedClient(mcpServer);
-
-  const listedTools = await client.listTools();
   const jobCardSnapshotTool = listedTools.tools.find(
     ({ name }) => name === "browser_job_card_snapshot",
   );
@@ -168,6 +158,14 @@ test("discloses the access-observation side effect of job-card snapshots", async
     readOnlyHint: false,
   });
   expect(jobCardSnapshotTool?.inputSchema.required).toBeUndefined();
+  const descriptionSnapshotTool = listedTools.tools.find(
+    ({ name }) => name === "browser_job_description_snapshot",
+  );
+  expect(descriptionSnapshotTool?.annotations).toMatchObject({
+    destructiveHint: true,
+    idempotentHint: false,
+    readOnlyHint: false,
+  });
 
   await close();
 });
