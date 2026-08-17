@@ -20,7 +20,7 @@ export function registerBrowserSessionStatusRoute(
       try {
         const report = yield* readRequestBody(context, BrowserSessionStatusReport);
         for (const observation of report.platformAccessObservations) {
-          repository.recordPlatformAccessObservationIfChanged(observation);
+          repository.reconcilePlatformAccessObservation(observation);
         }
         const presence = presenceTracker.receive(report.browserStatus);
         return context.json(presence, successfulStatus);

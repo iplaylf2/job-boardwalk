@@ -80,8 +80,8 @@ function PlatformAuthenticationStatus(props: {
   return (
     <>
       <span class={statusClass(copy.tone)}>{copy.label}</span>
-      <time class={styles["meta"]} datetime={props.observation.observedAt}>
-        记录于 {formatTimestamp(props.observation.observedAt)}
+      <time class={styles["meta"]} datetime={props.observation.lastObservedAt}>
+        最近确认于 {formatTimestamp(props.observation.lastObservedAt)}
       </time>
     </>
   );
@@ -111,8 +111,8 @@ function PlatformStatus(props: { platform: PlatformAccessSummary }): JSX.Element
           return (
             <>
               <span class={statusClass(copy.tone)}>{copy.label}</span>
-              <time class={styles["meta"]} datetime={observation().observedAt}>
-                记录于 {formatTimestamp(observation().observedAt)}
+              <time class={styles["meta"]} datetime={observation().lastObservedAt}>
+                最近发现于 {formatTimestamp(observation().lastObservedAt)}
               </time>
             </>
           );

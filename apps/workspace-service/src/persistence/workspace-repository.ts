@@ -372,6 +372,7 @@ function toRecordedPlatformAccessObservationMetadata(row: PlatformAccessObservat
   }
   return {
     id: row.id,
+    lastObservedAt: row.lastObservedAt,
     observedAt: row.observedAt,
     platformId: row.platformId,
   };
@@ -563,21 +564,33 @@ export class WorkspaceRepository {
   ): RecordedPlatformAccessObservation {
     const row = this.#database
       .insert(platformAccessObservations)
-      .values(observation)
+      .values({ ...observation, lastObservedAt: observation.observedAt })
       .returning()
       .get();
     return toRecordedPlatformAccessObservation(row);
   }
 
-  public recordPlatformAccessObservationIfChanged(
+  public reconcilePlatformAccessObservation(
     observation: PlatformAccessObservation,
   ): RecordedPlatformAccessObservation | null {
-    const latest = this.listPlatformAccessObservations().find(
-      (candidate) => candidate.platformId === observation.platformId,
-    );
-    return latest && samePlatformAccessState(latest, observation)
-      ? null
-      : this.recordPlatformAccessObservation(observation);
+    const latestRow = this.#database
+      .select()
+      .from(platformAccessObservations)
+      .where(eq(platformAccessObservations.platformId, observation.platformId))
+      .orderBy(desc(platformAccessObservations.observedAt), desc(platformAccessObservations.id))
+      .get();
+    const latest = latestRow ? toRecordedPlatformAccessObservation(latestRow) : null;
+    if (!latest || !samePlatformAccessState(latest, observation)) {
+      return this.recordPlatformAccessObservation(observation);
+    }
+    if (observation.observedAt > latest.lastObservedAt) {
+      this.#database
+        .update(platformAccessObservations)
+        .set({ lastObservedAt: observation.observedAt })
+        .where(eq(platformAccessObservations.id, latest.id))
+        .run();
+    }
+    return null;
   }
 
   public listPlatformAccessObservations(): RecordedPlatformAccessObservation[] {

@@ -57,7 +57,10 @@ export const PlatformAccessObservation = contract.or(
 );
 export type PlatformAccessObservation = typeof PlatformAccessObservation.infer;
 
-const recordedObservation = { id: positiveInteger } as const;
+const recordedObservation = {
+  id: positiveInteger,
+  lastObservedAt: normalizedTimestamp,
+} as const;
 
 const recordedAuthenticatedFromProtectedResource =
   authenticatedFromProtectedResourceObservation.merge(recordedObservation);

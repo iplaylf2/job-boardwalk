@@ -115,8 +115,9 @@ Browser Session renews its presence lease with a bounded status report:
 Workspace Service assigns `receivedAt` when it accepts the status report. A current lease appears
 as `online`; an expired lease appears as `offline`; before the first status report, presence is
 `unknown`. This presence state remains in memory and resets to `unknown` when Workspace Service
-restarts. Platform-access observations carried in the status report are durable and are appended
-only when the latest state for that platform changes.
+restarts. Platform-access observations carried in the status report are durable. A changed
+assessment appends a state-transition record; a repeated assessment advances that record's latest
+observation time without duplicating the transition.
 
 ### Platform-access observations
 
@@ -133,8 +134,10 @@ snapshot. An agent may use the same endpoint only for evidence that no adapter c
 }
 ```
 
-Observations are append-only. `platformId` accepts the catalog identifiers `boss` and `yupao`.
-Authentication evidence distinguishes how the conclusion was established:
+State transitions are append-only. Each recorded transition retains when that state was first
+observed and when the same assessment was most recently observed. `platformId` accepts the catalog
+identifiers `boss` and `yupao`. Authentication evidence distinguishes how the conclusion was
+established:
 
 - `protected-resource` records `authenticated` from a successful navigation known to require
   authentication;
