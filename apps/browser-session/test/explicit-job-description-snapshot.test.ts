@@ -56,13 +56,12 @@ test("submits the explicit job-description observation before returning it", asy
     attribution: WorkspaceChangeAttribution;
     observation: JobDescriptionObservation;
   }[] = [];
-  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation(
-    observation,
-    attribution,
-  ) {
-    yield* [];
-    submitted.push({ attribution, observation });
-  });
+  const executor = jobDescriptionExecutor(
+    function* writeJobDescriptionObservation(observation, attribution) {
+      yield* [];
+      submitted.push({ attribution, observation });
+    },
+  );
   await using scope = createScope();
 
   const result = (await scope.run(() =>
@@ -74,14 +73,14 @@ test("submits the explicit job-description observation before returning it", asy
     {
       attribution: {
         initiatedBy: "agent",
-        reason: "Agent 显式采集当前岗位详情",
+        reason: "Agent 显式采集当前页面的岗位详情证据",
       },
       observation: returnedObservation,
     },
   ]);
 });
 
-test("fails instead of returning an unpreserved job-description observation", async () => {
+test("fails when Workspace Service rejects the job-description observation", async () => {
   const rejection = new Error("Workspace Service 拒绝岗位观察：HTTP 503");
   let writeAttempted = false;
   const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation() {

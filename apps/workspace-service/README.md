@@ -203,12 +203,12 @@ containing `initiatedBy` and `reason`.
 
 Browser Session submits the facts exposed by job cards that are already present in a supported
 recruiting-platform page: title, company, location, salary text, detail tags, bounded card text, and
-the original links. An explicit job-description snapshot submits its observation before returning;
-passive collection can also submit the bounded main description from an already-open detail page.
-Passive collection reads eligible supported-platform tabs that are already open; a selected
-job-search intent supplies recommendation pages as context for explicit agent research but never
-causes Workspace Service or Browser Session to open them. Personal-center engagement pages do not
-contribute through this write path; they arrive through the explicit
+the original links. Browser Session submits bounded main-description observations from explicit
+job-description snapshots and from passive reads of already-open detail pages. Passive collection
+reads eligible supported-platform tabs that are already open; a selected job-search intent supplies
+recommendation pages as context for explicit agent research but never causes Workspace Service or
+Browser Session to open them. Personal-center engagement pages do not contribute through this write
+path; they arrive through the explicit
 [job engagement synchronization](#job-engagement-synchronization) boundary.
 
 `POST /api/job-card-observations` and `POST /api/job-description-observations` are the
@@ -228,9 +228,10 @@ split the source. Workspace Service merges a new cross-platform source only when
 title, and location are all available and match. Partial cards remain separate to avoid false
 merges. The database keeps the current normalized result and each source's latest card and
 description observations, not HTML, page snapshots, or match judgments. The two observation types
-are updated independently, so submitting a card never clears a stored description. An unchanged
-observation advances only the source's latest check time. Description capture time and Browser
-Session's local truncation state remain part of the stored observation. See
+are updated independently, so submitting a card never clears a stored description. For either
+type, Workspace Service leaves an observation unapplied when its `observedAt` precedes the stored
+observation and returns `stale`; `lastCheckedAt` never moves backward. Description capture time and
+Browser Session's local truncation state remain part of the stored observation. See
 [Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
 evidence lifecycle.
 

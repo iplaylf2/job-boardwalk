@@ -55,6 +55,6 @@ export type JobPostingPage = typeof JobPostingPage.infer;
 
 export const SaveJobObservationResult = contract({
   job: JobPosting,
-  outcome: "'created' | 'source-added' | 'source-updated' | 'unchanged'",
+  outcome: "'created' | 'source-added' | 'source-updated' | 'stale' | 'unchanged'",
 });
 export type SaveJobObservationResult = typeof SaveJobObservationResult.infer;

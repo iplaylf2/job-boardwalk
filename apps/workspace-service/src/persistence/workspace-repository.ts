@@ -245,6 +245,19 @@ function observationTime(input: PreparedJobObservation): string {
   return input.observation.observedAt;
 }
 
+function observationPrecedesStored(
+  source: JobPostingSourceRow,
+  input: PreparedJobObservation,
+): boolean {
+  const storedObservation =
+    input.kind === "card" ? source.cardObservation : source.descriptionObservation;
+  return Boolean(storedObservation && input.observation.observedAt < storedObservation.observedAt);
+}
+
+function latestTimestamp(first: string, second: string): string {
+  return first > second ? first : second;
+}
+
 function observationMatches(
   source: JobPostingSourceRow | undefined,
   input: PreparedJobObservation,
@@ -912,17 +925,11 @@ export class WorkspaceRepository {
       sourceIdentityKey,
     );
     const observedAt = observationTime(input);
+    if (existingSource && observationPrecedesStored(existingSource, input)) {
+      return this.#unappliedJobObservation(existingSource, observedAt, "stale");
+    }
     if (existingSource && observationMatches(existingSource, input)) {
-      this.#database
-        .update(jobPostingSources)
-        .set({ lastCheckedAt: observedAt })
-        .where(eq(jobPostingSources.id, existingSource.id))
-        .run();
-      const job = this.#readJobPosting(existingSource.jobId);
-      if (!job) {
-        throw new Error(`找不到岗位：${String(existingSource.jobId)}`);
-      }
-      return { job, outcome: "unchanged" };
+      return this.#unappliedJobObservation(existingSource, observedAt, "unchanged");
     }
 
     const sourceObservations = updatedSourceObservations(existingSource, input);
@@ -930,8 +937,10 @@ export class WorkspaceRepository {
     const result = this.#persistJobObservation({
       cardObservation,
       existingSource,
+      lastCheckedAt: existingSource
+        ? latestTimestamp(existingSource.lastCheckedAt, observedAt)
+        : observedAt,
       now,
-      observedAt,
       sourceIdentityKey,
       sourceObservations,
     });
@@ -952,6 +961,26 @@ export class WorkspaceRepository {
     return { job, outcome: result.outcome };
   }
 
+  #unappliedJobObservation(
+    existingSource: JobPostingSourceRow,
+    observedAt: string,
+    outcome: "stale" | "unchanged",
+  ): SaveJobObservationResult {
+    const lastCheckedAt = latestTimestamp(existingSource.lastCheckedAt, observedAt);
+    if (lastCheckedAt !== existingSource.lastCheckedAt) {
+      this.#database
+        .update(jobPostingSources)
+        .set({ lastCheckedAt })
+        .where(eq(jobPostingSources.id, existingSource.id))
+        .run();
+    }
+    const job = this.#readJobPosting(existingSource.jobId);
+    if (!job) {
+      throw new Error(`找不到岗位：${String(existingSource.jobId)}`);
+    }
+    return { job, outcome };
+  }
+
   #findJobPostingSource(platformId: string, identityKey: string) {
     return this.#database
       .select()
@@ -969,8 +998,8 @@ export class WorkspaceRepository {
     cardObservation: JobCardObservation;
     existingSource: JobPostingSourceRow | undefined;
     sourceObservations: SourceObservations;
+    lastCheckedAt: string;
     now: string;
-    observedAt: string;
     sourceIdentityKey: string;
   }) {
     return this.#database.transaction((transaction) => {
@@ -978,7 +1007,7 @@ export class WorkspaceRepository {
         const { id, jobId } = input.existingSource;
         transaction
           .update(jobPostingSources)
-          .set({ ...input.sourceObservations, lastCheckedAt: input.observedAt })
+          .set({ ...input.sourceObservations, lastCheckedAt: input.lastCheckedAt })
           .where(eq(jobPostingSources.id, id))
           .run();
         WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, input.now);
@@ -1020,7 +1049,7 @@ export class WorkspaceRepository {
     input: {
       cardObservation: JobCardObservation;
       sourceObservations: SourceObservations;
-      observedAt: string;
+      lastCheckedAt: string;
       sourceIdentityKey: string;
     },
   ): void {
@@ -1030,7 +1059,7 @@ export class WorkspaceRepository {
         ...input.sourceObservations,
         identityKey: input.sourceIdentityKey,
         jobId,
-        lastCheckedAt: input.observedAt,
+        lastCheckedAt: input.lastCheckedAt,
         platformId: input.cardObservation.platformId,
       })
       .run();

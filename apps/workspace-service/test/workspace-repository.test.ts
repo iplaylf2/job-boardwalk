@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { expect, test } from "vitest";
-import type { JobCardObservation } from "@job-boardwalk/contracts";
+import type { JobCardObservation, JobDescriptionObservation } from "@job-boardwalk/contracts";
 
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
@@ -44,6 +44,31 @@ function jobCardObservation(
     salaryText: "20-30K",
     summary: "负责后端服务和平台能力建设。",
     title: overrides.title ?? "后端开发",
+  };
+}
+
+function jobDescriptionObservation(
+  overrides: Partial<{
+    description: string;
+    observedAt: string;
+  }> = {},
+): JobDescriptionObservation {
+  const observedAt = overrides.observedAt ?? "2026-07-23T10:00:00.000Z";
+  return {
+    company: "示例科技甲有限公司",
+    description: {
+      capturedAt: observedAt,
+      text: overrides.description ?? "工作职责\n建设合成测试平台。",
+      truncated: false,
+    },
+    details: ["TypeScript"],
+    educationRequirement: "本科",
+    externalJobId: "progressive-123",
+    jobUrl: "https://www.zhipin.com/job_detail/example.html",
+    location: "北京",
+    observedAt,
+    platformId: "boss",
+    title: "后端开发",
   };
 }
 
@@ -224,22 +249,9 @@ test("retains enriched descriptions across later card observations", async () =>
     });
     const enriched = repository.saveJobDescriptionObservation({
       initiatedBy: "system",
-      observation: {
-        company: "示例科技甲有限公司",
-        description: {
-          capturedAt: "2026-07-23T10:00:00.000Z",
-          text: "工作职责\n建设合成测试平台。\n任职要求\n熟悉 TypeScript。",
-          truncated: false,
-        },
-        details: ["TypeScript"],
-        educationRequirement: "本科",
-        externalJobId: "progressive-123",
-        jobUrl: "https://www.zhipin.com/job_detail/example.html",
-        location: "北京",
-        observedAt: "2026-07-23T10:00:00.000Z",
-        platformId: "boss",
-        title: "后端开发",
-      },
+      observation: jobDescriptionObservation({
+        description: "工作职责\n建设合成测试平台。\n任职要求\n熟悉 TypeScript。",
+      }),
       reason: "test detail observation",
     });
     expect(enriched).toMatchObject({
@@ -266,6 +278,80 @@ test("retains enriched descriptions across later card observations", async () =>
         sources: [{ description: { truncated: false } }],
       },
       outcome: "source-updated",
+    });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("keeps newer source evidence when observations arrive out of order", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        externalJobId: "progressive-123",
+        observedAt: "2026-07-23T11:00:00.000Z",
+      }),
+      reason: "test newer card observation",
+    });
+    repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: jobDescriptionObservation({
+        description: "工作职责\n保留显式采集的新详情。",
+        observedAt: "2026-07-23T11:05:00.000Z",
+      }),
+      reason: "test explicit detail observation",
+    });
+
+    const staleDescription = repository.saveJobDescriptionObservation({
+      initiatedBy: "system",
+      observation: jobDescriptionObservation({
+        description: "工作职责\n较早采集但较晚提交的旧详情。",
+        observedAt: "2026-07-23T10:05:00.000Z",
+      }),
+      reason: "test delayed passive detail observation",
+    });
+    expect(staleDescription).toMatchObject({
+      job: {
+        description: { text: expect.stringContaining("显式采集的新详情") },
+        sources: [
+          {
+            description: { text: expect.stringContaining("显式采集的新详情") },
+            lastCheckedAt: "2026-07-23T11:05:00.000Z",
+          },
+        ],
+      },
+      outcome: "stale",
+    });
+
+    const staleCard = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: {
+        ...jobCardObservation("boss", {
+          externalJobId: "progressive-123",
+          observedAt: "2026-07-23T10:00:00.000Z",
+        }),
+        salaryText: "10-15K",
+      },
+      reason: "test delayed card observation",
+    });
+    expect(staleCard).toMatchObject({
+      job: {
+        sources: [
+          {
+            lastCheckedAt: "2026-07-23T11:05:00.000Z",
+            salaryText: "20-30K",
+          },
+        ],
+      },
+      outcome: "stale",
     });
   } finally {
     repository.close();

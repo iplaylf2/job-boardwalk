@@ -30,7 +30,7 @@ import { captureJobDescriptionObservation } from "./job-observation/description-
 const zero = 0;
 const explicitDescriptionAttribution = {
   initiatedBy: "agent",
-  reason: "Agent 显式采集当前岗位详情",
+  reason: "Agent 显式采集当前页面的岗位详情证据",
 } as const satisfies WorkspaceChangeAttribution;
 
 interface ElementReference {

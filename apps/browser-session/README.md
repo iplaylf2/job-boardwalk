@@ -33,21 +33,22 @@ page evidence and explicitly navigates when the user requests research.
 
 `browser_job_description_snapshot` is the corresponding structured job-description boundary for a
 supported detail page. It reads the main posting description and recognizable job facts such as
-title, company, location, and salary, then submits that observation to Workspace Service before
-returning. Recommended job cards are excluded. Its `truncated` flag means Browser Session reached
-its local text limit; it does not imply that the platform hid additional text.
+title, company, location, and salary, then submits that observation to Workspace Service. The tool
+returns the captured observation only after Workspace Service accepts the submission. If Workspace
+Service rejects the write, the call fails. Recommended job cards are excluded. Its `truncated` flag
+means Browser Session reached its local text limit; it does not imply that the platform hid
+additional text.
 
 The passive collector observes eligible open supported-platform tabs when it starts and every 30
 seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their
 main posting description. The collector never navigates, scrolls, clicks, or opens tabs.
-Personal-center pages are excluded. Repeated observations let Workspace Service independently skip
-unchanged card facts and description text, while a later card observation cannot erase a previously
-captured description. A page that closes or navigates during its bounded read is reported and
-skipped without discarding evidence from other tabs. A Workspace Service write failure stops that
-collection pass; a later pass can submit fresh evidence if the page remains eligible. The same
-bounded DOM pass refreshes any conclusive platform-access evidence. The collector does not initiate
-recommendation-page or detail-page navigation; those remain explicit agent actions within
-user-delegated research.
+Personal-center pages are excluded. Submissions can finish in a different order from their page
+reads, so Workspace Service reconciles card and description evidence independently and prevents an
+older observation from replacing newer evidence of the same kind. A card observation cannot erase
+a captured description. A page that closes or navigates during its bounded read is reported and
+skipped without discarding evidence from other tabs. The same bounded DOM pass refreshes any
+conclusive platform-access evidence. The collector does not initiate recommendation-page or
+detail-page navigation; those remain explicit agent actions within user-delegated research.
 
 ## Explicit job-engagement synchronization
 
@@ -131,8 +132,10 @@ bounded page read. Detailed browser errors remain in the local process log. Set
 <http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
 control.
 
-Job-observation submission uses the same Workspace Service URL. A failed passive submission is
-reported locally without stopping browser control.
+Job-observation submission uses the same Workspace Service URL. A rejected explicit description
+submission fails the tool call. A failed passive submission is reported locally and stops the
+current collection pass without stopping browser control; a later pass may submit fresh evidence
+if the page remains eligible.
 
 ### Platform adapter coverage
 
