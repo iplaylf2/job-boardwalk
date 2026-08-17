@@ -1,11 +1,12 @@
 import type { BrowserContext, Page } from "patchright";
 import type { JobDescriptionObservation } from "@job-boardwalk/contracts";
-import { createScope } from "@shajara/host";
+import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
+import type { BrowserToolExecutorCoordination } from "#/browser/tool-executor.js";
 
 function fakeBossJobDetailContext(): BrowserContext {
   const url = "https://www.zhipin.com/job_detail/synthetic-detail.html";
@@ -32,21 +33,27 @@ function fakeBossJobDetailContext(): BrowserContext {
   return context;
 }
 
-test("submits the explicit job-description observation before returning it", async () => {
-  const submitted: JobDescriptionObservation[] = [];
-  const executor = new BrowserToolExecutor(
+function jobDescriptionExecutor(
+  writeJobDescriptionObservation: BrowserToolExecutorCoordination["writeJobDescriptionObservation"],
+): BrowserToolExecutor {
+  return new BrowserToolExecutor(
     new BrowserTabs(fakeBossJobDetailContext()),
     () => null,
     new BackgroundCollectionControl(),
     {
       recordReturnedControl: () => null,
       synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
-      *writeJobDescriptionObservation(observation) {
-        yield* [];
-        submitted.push(observation);
-      },
+      writeJobDescriptionObservation,
     },
   );
+}
+
+test("submits the explicit job-description observation before returning it", async () => {
+  const submitted: JobDescriptionObservation[] = [];
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation(observation) {
+    yield* [];
+    submitted.push(observation);
+  });
   await using scope = createScope();
 
   const result = (await scope.run(() =>
@@ -55,4 +62,19 @@ test("submits the explicit job-description observation before returning it", asy
   const { tabId: _tabId, ...returnedObservation } = result;
 
   expect(submitted).toEqual([returnedObservation]);
+});
+
+test("fails instead of returning an unpreserved job-description observation", async () => {
+  const rejection = new Error("Workspace Service 拒绝岗位观察：HTTP 503");
+  let writeAttempted = false;
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation() {
+    yield* [];
+    writeAttempted = true;
+    throw rejection;
+  });
+
+  await expect(
+    run(() => executor.execute("browser_job_description_snapshot", {})),
+  ).rejects.toThrow();
+  expect(writeAttempted).toBe(true);
 });
