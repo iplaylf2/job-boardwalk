@@ -37,8 +37,8 @@ the complete installed-browser policy.
 
 Install the root pnpm dependencies and the Rust toolchain declared in
 [`rust-toolchain.toml`](../../rust-toolchain.toml). On Linux, building the Winit backend also
-requires a C toolchain and the development packages for the host's X11 or Wayland stack,
-xkbcommon, and fontconfig.
+requires a C toolchain, pkg-config, and the fontconfig development files. Running the resulting
+binary requires the host's X11 or Wayland and xkbcommon libraries.
 
 Build the desktop staging tree, then run Desktop Manager from that product directory:
 
@@ -58,10 +58,20 @@ The build input must be a platform-native Caddy executable that can load the pro
 Desktop Manager runs as the root product entrypoint and resolves Caddy and Desktop Service Host
 under `runtime/`. Source development may set
 `JOB_BOARDWALK_NODE_SERVICE_HOST_EXECUTABLE` to an assembled host explicitly; an installed run does
-not depend on that override. Manager selects Slint's software renderer so the control surface does
-not require GPU acceleration in remote-desktop, virtual-machine, or GPU-limited sessions.
-[Desktop distribution](../../docs/desktop-distribution.md) defines release-input and packaging
-policy.
+not depend on that override. [Desktop distribution](../../docs/desktop-distribution.md) defines
+release-input and packaging policy.
+
+## Rendering boundary
+
+Desktop Manager selects Winit and its renderer programmatically, so installed behavior does not
+depend on `SLINT_BACKEND`. Windows builds use Slint's Skia renderer with Direct3D. This path
+presents through a Direct3D swap chain instead of relying on the software renderer's GDI partial
+updates to preserve previously presented client pixels across window and compositor events. Slint
+uses a compatible hardware adapter when available and can use Windows' software adapter when no
+compatible hardware adapter is available.
+
+Non-Windows builds use Slint's software renderer. Renderer selection belongs to Desktop Manager;
+Dashboard and Browser Session retain their independent presentation boundaries.
 
 ## Lifecycle boundary
 
