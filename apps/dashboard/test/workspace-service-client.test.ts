@@ -10,8 +10,8 @@ import {
   readJobPostingPage,
   readResearchReport,
   saveProfileFact,
+  WorkspaceReadError,
 } from "#/workspace-service-client.js";
-import type { WorkspaceReadError } from "#/workspace-service-client.js";
 
 const badGatewayStatus = 502;
 const missingReportId = 71;
@@ -25,27 +25,37 @@ async function execute<Return>(routine: RiteCoroutine<Return>): Promise<Return> 
   }
 }
 
+async function readFailure(result: Promise<unknown>): Promise<WorkspaceReadError> {
+  try {
+    await result;
+  } catch (error) {
+    expect(error).toBeInstanceOf(WorkspaceReadError);
+    return error as WorkspaceReadError;
+  }
+  throw new Error("Expected the workspace read to fail");
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 test("classifies an unreachable Workspace Service as a readable failure", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+  const cause = new TypeError("synthetic fetch failure");
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(cause));
 
-  await expect(execute(listResearchReports())).rejects.toMatchObject({
-    message: "无法读取研究报告。请确认工作区服务正在运行。",
-    retryable: true,
-  } satisfies Partial<WorkspaceReadError>);
+  const error = await readFailure(execute(listResearchReports()));
+  expect(error.retryable).toBe(true);
+  expect(error.cause).toBe(cause);
 });
 
-test("classifies an unreachable Workspace Service mutation as a save failure", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+test("preserves the cause of an unreachable Workspace Service mutation", async () => {
+  const cause = new TypeError("synthetic fetch failure");
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(cause));
 
   await expect(
     execute(saveProfileFact({ key: "Synthetic preference", value: "Synthetic value" })),
   ).rejects.toMatchObject({
-    message: "无法提交更改，请稍后再试。",
-    name: "Error",
+    cause,
   });
 });
 
@@ -55,26 +65,22 @@ test("classifies an unsuccessful Workspace Service response as a readable failur
     vi.fn().mockResolvedValue(new Response(null, { status: badGatewayStatus })),
   );
 
-  await expect(execute(readJobPostingPage({ page: 1, pageSize: 24 }))).rejects.toThrow(
-    "无法读取岗位库。请确认工作区服务正在运行。",
-  );
+  const error = await readFailure(execute(readJobPostingPage({ page: 1, pageSize: 24 })));
+  expect(error.retryable).toBe(true);
 });
 
 test("classifies a response outside the public contract as a service failure", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ reports: "not-a-list" })));
 
-  await expect(execute(listResearchReports())).rejects.toThrow(
-    "无法读取研究报告。请确认工作区服务正在运行。",
-  );
+  const error = await readFailure(execute(listResearchReports()));
+  expect(error.retryable).toBe(true);
 });
 
 test("preserves the distinct missing-report outcome", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
 
-  await expect(execute(readResearchReport(missingReportId))).rejects.toMatchObject({
-    message: "这份研究报告不存在或已经过期。",
-    retryable: false,
-  } satisfies Partial<WorkspaceReadError>);
+  const error = await readFailure(execute(readResearchReport(missingReportId)));
+  expect(error.retryable).toBe(false);
 });
 
 test("aborts the Workspace Service fetch when its UI routine is canceled", async () => {

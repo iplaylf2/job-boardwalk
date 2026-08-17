@@ -69,6 +69,10 @@ test("validates and projects durable platform access observations", async () => 
       evidence: "protected-resource",
     });
     expect(observationResponse.status).toBe(createdStatus);
+    expect(await observationResponse.json()).toMatchObject({
+      lastObservedAt: "2026-07-13T01:00:00.000Z",
+      observedAt: "2026-07-13T01:00:00.000Z",
+    });
     expect(await readBossSummary(httpApp)).toMatchObject({
       label: "BOSS直聘",
       latestAuthentication: {
@@ -164,13 +168,16 @@ test("shows only interruptions newer than the latest authentication", async () =
   }
 });
 
-test("persists only Browser Session platform-state changes", async () => {
+test("keeps state-change history while advancing the latest observation time", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
   const repository = createTestRepository(directory);
   await using serviceScope = createScope();
   const httpApp = createTestHttpApp(repository, serviceScope);
 
-  function reportAuthentication(authenticationState: "authenticated" | "unauthenticated") {
+  function reportAuthentication(
+    authenticationState: "authenticated" | "unauthenticated",
+    observedAt: string,
+  ) {
     return httpApp.request("/api/browser-session/status", {
       body: JSON.stringify({
         browserStatus: { available: true, tabCount: 1 },
@@ -179,13 +186,13 @@ test("persists only Browser Session platform-state changes", async () => {
             ? {
                 authenticationState,
                 evidence: "protected-resource",
-                observedAt: "2026-07-15T02:00:00.000Z",
+                observedAt,
                 platformId: "boss",
               }
             : {
                 authenticationState,
                 evidence: "login-redirect",
-                observedAt: "2026-07-15T02:01:00.000Z",
+                observedAt,
                 platformId: "boss",
               },
         ],
@@ -196,15 +203,71 @@ test("persists only Browser Session platform-state changes", async () => {
   }
 
   try {
-    const initialResponse = await reportAuthentication("authenticated");
-    const repeatedResponse = await reportAuthentication("authenticated");
+    const initialResponse = await reportAuthentication("authenticated", "2026-07-15T02:00:00.000Z");
+    const repeatedResponse = await reportAuthentication(
+      "authenticated",
+      "2026-07-15T02:05:00.000Z",
+    );
     expect(initialResponse.status).toBe(successfulStatus);
     expect(repeatedResponse.status).toBe(successfulStatus);
     expect(repository.listPlatformAccessObservations()).toHaveLength(initialObservationCount);
+    const repeatedSummary = await readBossSummary(httpApp);
+    expect(repeatedSummary.latestAuthentication).toMatchObject({
+      lastObservedAt: "2026-07-15T02:05:00.000Z",
+      observedAt: "2026-07-15T02:00:00.000Z",
+    });
 
-    const changedResponse = await reportAuthentication("unauthenticated");
+    const staleResponse = await reportAuthentication("authenticated", "2026-07-15T02:03:00.000Z");
+    expect(staleResponse.status).toBe(successfulStatus);
+    const staleSummary = await readBossSummary(httpApp);
+    expect(staleSummary.latestAuthentication).toMatchObject({
+      lastObservedAt: "2026-07-15T02:05:00.000Z",
+    });
+
+    const staleStateChangeResponse = await reportAuthentication(
+      "unauthenticated",
+      "2026-07-15T02:04:00.000Z",
+    );
+    expect(staleStateChangeResponse.status).toBe(successfulStatus);
+    expect(repository.listPlatformAccessObservations()).toHaveLength(initialObservationCount);
+    const staleStateChangeSummary = await readBossSummary(httpApp);
+    expect(staleStateChangeSummary.latestAuthentication).toMatchObject({
+      authenticationState: "authenticated",
+      lastObservedAt: "2026-07-15T02:05:00.000Z",
+    });
+
+    const changedResponse = await reportAuthentication(
+      "unauthenticated",
+      "2026-07-15T02:06:00.000Z",
+    );
     expect(changedResponse.status).toBe(successfulStatus);
     expect(repository.listPlatformAccessObservations()).toHaveLength(changedObservationCount);
+    const changedSummary = await readBossSummary(httpApp);
+    expect(changedSummary.latestAuthentication).toMatchObject({
+      authenticationState: "unauthenticated",
+      lastObservedAt: "2026-07-15T02:06:00.000Z",
+      observedAt: "2026-07-15T02:06:00.000Z",
+    });
+
+    const delayedAuthenticationResponse = await postObservation(httpApp, {
+      authenticationState: "authenticated",
+      evidence: "protected-resource",
+      observedAt: "2026-07-15T02:04:00.000Z",
+    });
+    expect(delayedAuthenticationResponse.status).toBe(createdStatus);
+    const delayedInterruptionResponse = await postObservation(httpApp, {
+      evidence: "verification-page",
+      interruption: "verification-required",
+      observedAt: "2026-07-15T02:05:00.000Z",
+    });
+    expect(delayedInterruptionResponse.status).toBe(createdStatus);
+
+    const crossSourceSummary = await readBossSummary(httpApp);
+    expect(crossSourceSummary.latestAuthentication).toMatchObject({
+      authenticationState: "unauthenticated",
+      lastObservedAt: "2026-07-15T02:06:00.000Z",
+    });
+    expect(crossSourceSummary).not.toHaveProperty("unresolvedInterruption");
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "7de45b46-74ad-4fd0-827a-641c0e35c3bd",
+  "id": "a29a76f2-a092-42d7-be1d-a6cd3a5c8dfa",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -427,6 +427,16 @@
       "default": null,
       "generated": null,
       "name": "interruption",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_observed_at",
       "entityType": "columns",
       "table": "platform_access_observations"
     },

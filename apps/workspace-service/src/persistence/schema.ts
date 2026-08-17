@@ -30,6 +30,7 @@ export const platformAccessObservations = sqliteTable(
     }).notNull(),
     id: integer().primaryKey({ autoIncrement: true }),
     interruption: text({ enum: ["verification-required", "access-denied"] }),
+    lastObservedAt: text("last_observed_at").notNull(),
     observedAt: text("observed_at").notNull(),
     platformId: text("platform_id").notNull(),
   },

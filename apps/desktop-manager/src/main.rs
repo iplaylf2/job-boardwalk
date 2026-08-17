@@ -7,6 +7,7 @@ mod browser_discovery;
 mod caddy_lifecycle;
 mod desktop_settings;
 mod product_layout;
+mod rendering_backend;
 mod service_plan;
 mod service_supervisor;
 
@@ -73,7 +74,7 @@ fn apply_running_state(
         window.set_status_detail(if browser_running {
             "Core services and browser access are available.".into()
         } else {
-            "Core services are running, but browser actions are unavailable.".into()
+            "Core services are running, but browser access is unavailable.".into()
         });
         window.set_browser_state(if browser_running {
             "Running".into()
@@ -93,7 +94,7 @@ fn apply_browser_availability(
         window.set_status_detail(if available {
             "Core services and browser access are available.".into()
         } else {
-            "Core services are running, but browser actions are unavailable.".into()
+            "Core services are running, but browser access is unavailable.".into()
         });
         window.set_browser_state(if available {
             "Running".into()
@@ -335,10 +336,7 @@ fn install_callbacks(
 fn main() -> Result<(), Box<dyn Error>> {
     let manager_executable = env::current_exe()?;
     let layout = resolve_product_layout(&manager_executable)?;
-    slint::BackendSelector::new()
-        .backend_name("winit".into())
-        .renderer_name("software".into())
-        .select()?;
+    rendering_backend::select()?;
     let window = ManagerWindow::new()?;
     let (settings, settings_error) = match DesktopSettings::load(&layout.settings_path) {
         Ok(settings) => (settings, None),

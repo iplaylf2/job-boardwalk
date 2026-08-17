@@ -60,6 +60,7 @@ CREATE TABLE `platform_access_observations` (
 	`evidence` text NOT NULL,
 	`id` integer PRIMARY KEY AUTOINCREMENT,
 	`interruption` text,
+	`last_observed_at` text NOT NULL,
 	`observed_at` text NOT NULL,
 	`platform_id` text NOT NULL,
 	CONSTRAINT "platform_access_observations_authentication_state" CHECK("authentication_state" is null or "authentication_state" in ('authenticated', 'unauthenticated')),

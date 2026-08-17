@@ -212,12 +212,18 @@ applies the delegation boundary before acting.
 
 ## Access observations
 
-Platform access is an append-only observation stream. Browser Session passively observes navigation
-responses the visible browser already receives and applies deterministic adapter rules to bounded
-page reads initiated by explicit snapshots, passive job collection, or an explicit job-engagement
-synchronization task. It does not issue a detection request, refresh a page, or open a tab to check
-authentication. An adapter with a conclusive navigation rule may use response success, the final
-URL, and the server redirect chain to produce one of two authentication results:
+Workspace Service reconciles Browser Session reports into a per-platform transition history. A
+newer changed assessment appends a transition; a newer repeated assessment advances that
+transition's latest observation time. A delayed status report cannot alter a newer platform
+conclusion. An agent may separately record evidence that no adapter classified, and all current
+conclusions are ordered by their latest observation time.
+
+Browser Session passively observes navigation responses the visible browser already receives and
+applies deterministic adapter rules to bounded page reads initiated by explicit snapshots, passive
+job collection, or an explicit job-engagement synchronization task. It does not issue a detection
+request, refresh a page, or open a tab to check authentication. An adapter with a conclusive
+navigation rule may use response success, the final URL, and the server redirect chain to produce
+one of two authentication results:
 
 - `protected-resource` records `authenticated` when a known protected navigation succeeds;
 - `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
@@ -242,9 +248,9 @@ authentication states. The agent derives those conclusions from visible controls
 content. No observation includes credentials, cookie values, browser storage, protected response
 content, or unrestricted page text.
 
-The Dashboard displays the latest definite authentication observation and any later unresolved
-interruption. It includes the observation time rather than presenting historical evidence as a
-timeless live guarantee, and it does not open or verify the browser itself.
+The Dashboard displays the definite authentication assessment with the latest observation time and
+any interruption observed later. It includes that time rather than presenting historical evidence
+as a timeless live guarantee, and it does not open or verify the browser itself.
 
 ## Reliable browser research
 

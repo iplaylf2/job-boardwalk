@@ -196,7 +196,7 @@ impl BrowserAvailabilityTracker {
             Ok(true) => (true, self.available_detail.clone()),
             Ok(false) => (
                 false,
-                "Browser Session is running, but browser actions are unavailable.".to_owned(),
+                "Browser Session is running, but browser access is unavailable.".to_owned(),
             ),
             Err(error) => (false, error),
         };
@@ -414,7 +414,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_browser_health_only_when_browser_actions_are_available() {
+    fn accepts_browser_health_only_when_browser_access_is_available() {
         assert!(browser_health_is_ready(
             r#"{"browser":{"available":true,"tabCount":0},"status":"ok"}"#
         ));

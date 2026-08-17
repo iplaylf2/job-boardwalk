@@ -115,14 +115,17 @@ Browser Session renews its presence lease with a bounded status report:
 Workspace Service assigns `receivedAt` when it accepts the status report. A current lease appears
 as `online`; an expired lease appears as `offline`; before the first status report, presence is
 `unknown`. This presence state remains in memory and resets to `unknown` when Workspace Service
-restarts. Platform-access observations carried in the status report are durable and are appended
-only when the latest state for that platform changes.
+restarts. Platform-access observations carried in the status report are durable. A changed
+assessment appends a transition; a repeated assessment advances that transition's latest
+observation time. A report no newer than the latest accepted observation for its platform is stale
+and does not alter the transition history.
 
 ### Platform-access observations
 
-Browser Session submits structured platform-access conclusions when an adapter derives an
-authentication observation from a qualifying top-level navigation response or bounded page
-snapshot. An agent may use the same endpoint only for evidence that no adapter classified:
+Browser Session includes structured platform-access conclusions in its status reports when an
+adapter derives an authentication observation from a qualifying top-level navigation response or
+bounded page snapshot. An agent may instead post to `/api/platform-access/observations`, but only
+for evidence that no adapter classified:
 
 ```json
 {
@@ -133,8 +136,12 @@ snapshot. An agent may use the same endpoint only for evidence that no adapter c
 }
 ```
 
-Observations are append-only. `platformId` accepts the catalog identifiers `boss` and `yupao`.
-Authentication evidence distinguishes how the conclusion was established:
+Every record retains when its assessment was first observed and when that same assessment was most
+recently observed. Browser Session status reconciliation extends the latest transition when an
+assessment repeats; an agent-submitted observation remains a separate record. Current conclusions
+are ordered by the latest observation time, so delayed historical evidence cannot supersede newer
+evidence. `platformId` accepts the catalog identifiers `boss` and `yupao`. Authentication evidence
+distinguishes how the conclusion was established:
 
 - `protected-resource` records `authenticated` from a successful navigation known to require
   authentication;
