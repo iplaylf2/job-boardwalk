@@ -213,7 +213,9 @@ path; they arrive through the explicit
 
 `POST /api/job-card-observations` and `POST /api/job-description-observations` are the
 service-to-service write boundaries. Their request contracts describe what was actually observed;
-the service does not infer a missing description from a card submission.
+the service does not infer a missing description from a card submission. Both endpoints return
+`SaveJobObservationResult`; its `outcome` distinguishes applied changes, unchanged evidence, and a
+`stale` observation that the service accepted but left unapplied.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`, and
 `engagement` parameters. Workspace Service applies those constraints in SQLite and returns the

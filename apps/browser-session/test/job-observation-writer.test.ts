@@ -5,6 +5,33 @@ import { WorkspaceJobObservationWriter } from "#/workspace-service/job-observati
 
 const firstRequestIndex = 0;
 const secondRequestIndex = 1;
+const savedObservation = {
+  job: {
+    createdAt: "2026-07-17T10:00:00.000Z",
+    details: ["Node.js"],
+    id: 1,
+    sources: [
+      {
+        company: "示例科技甲",
+        details: ["Node.js"],
+        discoveryUrl: "https://www.zhipin.com/job_detail/example.html",
+        engagements: [],
+        id: 1,
+        jobId: 1,
+        jobUrl: "https://www.zhipin.com/job_detail/example.html",
+        lastCheckedAt: "2026-07-17T10:05:00.000Z",
+        observedAt: "2026-07-17T10:05:00.000Z",
+        platformId: "boss",
+        summary: "建设合成测试平台。",
+        title: "后端开发",
+      },
+    ],
+    summary: "建设合成测试平台。",
+    title: "后端开发",
+    updatedAt: "2026-07-17T10:05:00.000Z",
+  },
+  outcome: "source-updated",
+} as const;
 
 test("preserves the caller's attribution when writing job observations", async () => {
   const requests: { input: string | URL | Request; init?: RequestInit }[] = [];
@@ -12,12 +39,12 @@ test("preserves the caller's attribution when writing job observations", async (
     new URL("http://workspace.test:54310"),
     (input, init) => {
       requests.push({ input, ...(init ? { init } : {}) });
-      return Promise.resolve(new Response(null, { status: 201 }));
+      return Promise.resolve(Response.json(savedObservation, { status: 201 }));
     },
   );
   await using scope = createScope();
 
-  await scope.run(() =>
+  const cardResult = await scope.run(() =>
     writer.writeCardObservation(
       {
         company: "示例科技甲",
@@ -37,7 +64,7 @@ test("preserves the caller's attribution when writing job observations", async (
       },
     ),
   );
-  await scope.run(() =>
+  const descriptionResult = await scope.run(() =>
     writer.writeDescriptionObservation(
       {
         description: {
@@ -73,4 +100,6 @@ test("preserves the caller's attribution when writing job observations", async (
     initiatedBy: "agent",
     reason: "Agent 显式采集当前页面的岗位详情证据",
   });
+  expect(cardResult).toEqual(savedObservation);
+  expect(descriptionResult).toEqual(savedObservation);
 });

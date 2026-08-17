@@ -188,9 +188,11 @@ test("does not make workspace persistence delay browser handoff", async () => {
     *writeCardObservation() {
       persistenceStarted = true;
       yield* until(() => persistence.promise);
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation() {
       yield* [];
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = new PassiveJobObservationCollector(fakeLoginContext(), writer, {

@@ -3,6 +3,7 @@ import type { Locator } from "patchright";
 import type {
   JobDescriptionObservation,
   PlatformAccessObservation,
+  SaveJobObservationResult,
   WorkspaceChangeAttribution,
 } from "@job-boardwalk/contracts";
 import type { PlatformId, PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
@@ -49,7 +50,7 @@ export interface BrowserToolExecutorCoordination {
   writeJobDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
-  ) => RiteCoroutine<void>;
+  ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 }
 
 export class BrowserToolExecutor {
@@ -65,7 +66,7 @@ export class BrowserToolExecutor {
   readonly #writeJobDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
-  ) => RiteCoroutine<void>;
+  ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 
   public constructor(
     tabs: BrowserTabs,
@@ -261,7 +262,13 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
-    yield* this.#writeJobDescriptionObservation(observation, explicitDescriptionAttribution);
+    const writeResult = yield* this.#writeJobDescriptionObservation(
+      observation,
+      explicitDescriptionAttribution,
+    );
+    if (writeResult.outcome === "stale") {
+      throw new Error("Workspace Service 未保留本次岗位详情观察：已有更新的观察。");
+    }
     return { ...observation, tabId };
   }
 

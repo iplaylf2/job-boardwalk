@@ -60,6 +60,7 @@ test("submits the explicit job-description observation before returning it", asy
     function* writeJobDescriptionObservation(observation, attribution) {
       yield* [];
       submitted.push({ attribution, observation });
+      return { outcome: "source-updated" };
     },
   );
   await using scope = createScope();
@@ -93,4 +94,15 @@ test("fails when Workspace Service rejects the job-description observation", asy
     run(() => executor.execute("browser_job_description_snapshot", {})),
   ).rejects.toThrow();
   expect(writeAttempted).toBe(true);
+});
+
+test("fails when Workspace Service accepts but does not apply a stale observation", async () => {
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation() {
+    yield* [];
+    return { outcome: "stale" };
+  });
+
+  await expect(
+    run(() => executor.execute("browser_job_description_snapshot", {})),
+  ).rejects.toThrow();
 });

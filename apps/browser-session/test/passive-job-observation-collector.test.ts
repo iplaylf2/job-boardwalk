@@ -145,9 +145,11 @@ test("observes existing pages without opening or navigating recommendation seeds
     *writeCardObservation(observation) {
       yield* [];
       observations.push(observation);
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation() {
       yield* [];
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -186,11 +188,13 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
       yield* [];
       observations.push(observation);
       attributions.push(attribution);
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation(observation, attribution) {
       yield* [];
       observations.push({ discoveryUrl: observation.jobUrl });
       attributions.push(attribution);
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -232,9 +236,11 @@ test("continues collecting open platform tabs", async () => {
     *writeCardObservation() {
       yield* [];
       writeCount += onePageRead;
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation() {
       yield* [];
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -261,9 +267,11 @@ test("reports one unstable page and preserves jobs from later healthy pages", as
     *writeCardObservation(observation) {
       yield* [];
       observations.push(observation);
+      return { outcome: "unchanged" };
     },
     *writeDescriptionObservation() {
       yield* [];
+      return { outcome: "unchanged" };
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);

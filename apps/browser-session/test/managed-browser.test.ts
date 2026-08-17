@@ -9,9 +9,11 @@ import type { JobEngagementWriter } from "#/workspace-service/job-engagement-wri
 const jobObservationWriter = {
   *writeCardObservation() {
     yield* [];
+    return { outcome: "unchanged" };
   },
   *writeDescriptionObservation() {
     yield* [];
+    return { outcome: "unchanged" };
   },
 } satisfies JobObservationWriter;
 const jobEngagementWriter = {

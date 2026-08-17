@@ -1,8 +1,10 @@
 import type {
   JobCardObservation,
   JobDescriptionObservation,
+  SaveJobObservationResult,
   WorkspaceChangeAttribution,
 } from "@job-boardwalk/contracts";
+import { SaveJobObservationResult as SaveJobObservationResultContract } from "@job-boardwalk/contracts";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -10,12 +12,14 @@ export interface JobObservationWriter {
   writeCardObservation: (
     observation: JobCardObservation,
     attribution: WorkspaceChangeAttribution,
-  ) => RiteCoroutine<void>;
+  ) => RiteCoroutine<JobObservationWriteResult>;
   writeDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
-  ) => RiteCoroutine<void>;
+  ) => RiteCoroutine<JobObservationWriteResult>;
 }
+
+export type JobObservationWriteResult = Pick<SaveJobObservationResult, "outcome">;
 
 export class WorkspaceJobObservationWriter implements JobObservationWriter {
   readonly #cardEndpoint: URL;
@@ -31,22 +35,22 @@ export class WorkspaceJobObservationWriter implements JobObservationWriter {
   public *writeCardObservation(
     observation: JobCardObservation,
     attribution: WorkspaceChangeAttribution,
-  ): RiteCoroutine<void> {
-    yield* this.#write(this.#cardEndpoint, observation, attribution);
+  ): RiteCoroutine<SaveJobObservationResult> {
+    return yield* this.#write(this.#cardEndpoint, observation, attribution);
   }
 
   public *writeDescriptionObservation(
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
-  ): RiteCoroutine<void> {
-    yield* this.#write(this.#descriptionEndpoint, observation, attribution);
+  ): RiteCoroutine<SaveJobObservationResult> {
+    return yield* this.#write(this.#descriptionEndpoint, observation, attribution);
   }
 
   *#write(
     endpoint: URL,
     observation: JobCardObservation | JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
-  ): RiteCoroutine<void> {
+  ): RiteCoroutine<SaveJobObservationResult> {
     const response = yield* until(() =>
       this.#fetch(endpoint, {
         body: JSON.stringify({
@@ -60,5 +64,6 @@ export class WorkspaceJobObservationWriter implements JobObservationWriter {
     if (!response.ok) {
       throw new Error(`Workspace Service 拒绝岗位观察：HTTP ${String(response.status)}`);
     }
+    return SaveJobObservationResultContract.assert(yield* until(() => response.json()));
   }
 }
