@@ -1,5 +1,8 @@
 import type { BrowserContext, Page } from "patchright";
-import type { JobDescriptionObservation } from "@job-boardwalk/contracts";
+import type {
+  JobDescriptionObservation,
+  WorkspaceChangeAttribution,
+} from "@job-boardwalk/contracts";
 import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -49,10 +52,16 @@ function jobDescriptionExecutor(
 }
 
 test("submits the explicit job-description observation before returning it", async () => {
-  const submitted: JobDescriptionObservation[] = [];
-  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation(observation) {
+  const submitted: {
+    attribution: WorkspaceChangeAttribution;
+    observation: JobDescriptionObservation;
+  }[] = [];
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation(
+    observation,
+    attribution,
+  ) {
     yield* [];
-    submitted.push(observation);
+    submitted.push({ attribution, observation });
   });
   await using scope = createScope();
 
@@ -61,7 +70,15 @@ test("submits the explicit job-description observation before returning it", asy
   )) as JobDescriptionObservation & { tabId: number };
   const { tabId: _tabId, ...returnedObservation } = result;
 
-  expect(submitted).toEqual([returnedObservation]);
+  expect(submitted).toEqual([
+    {
+      attribution: {
+        initiatedBy: "agent",
+        reason: "Agent 显式采集当前岗位详情",
+      },
+      observation: returnedObservation,
+    },
+  ]);
 });
 
 test("fails instead of returning an unpreserved job-description observation", async () => {

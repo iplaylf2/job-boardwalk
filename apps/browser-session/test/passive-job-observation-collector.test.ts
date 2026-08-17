@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from "patchright";
+import type { WorkspaceChangeAttribution } from "@job-boardwalk/contracts";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 
@@ -179,14 +180,17 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
     ],
   } as BrowserContext;
   const observations: { discoveryUrl: string }[] = [];
+  const attributions: WorkspaceChangeAttribution[] = [];
   const writer = {
-    *writeCardObservation(observation) {
+    *writeCardObservation(observation, attribution) {
       yield* [];
       observations.push(observation);
+      attributions.push(attribution);
     },
-    *writeDescriptionObservation(observation) {
+    *writeDescriptionObservation(observation, attribution) {
       yield* [];
       observations.push({ discoveryUrl: observation.jobUrl });
+      attributions.push(attribution);
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -198,6 +202,20 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
     expect.objectContaining({ discoveryUrl: seedUrl }),
     expect.objectContaining({ discoveryUrl: searchUrl }),
     expect.objectContaining({ discoveryUrl: detailUrl }),
+  ]);
+  expect(attributions).toEqual([
+    {
+      initiatedBy: "system",
+      reason: "Browser Session 被动采集当前页面已展示的岗位证据",
+    },
+    {
+      initiatedBy: "system",
+      reason: "Browser Session 被动采集当前页面已展示的岗位证据",
+    },
+    {
+      initiatedBy: "system",
+      reason: "Browser Session 被动采集当前页面已展示的岗位证据",
+    },
   ]);
 });
 

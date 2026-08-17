@@ -1,10 +1,20 @@
-import type { JobCardObservation, JobDescriptionObservation } from "@job-boardwalk/contracts";
+import type {
+  JobCardObservation,
+  JobDescriptionObservation,
+  WorkspaceChangeAttribution,
+} from "@job-boardwalk/contracts";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
 export interface JobObservationWriter {
-  writeCardObservation: (observation: JobCardObservation) => RiteCoroutine<void>;
-  writeDescriptionObservation: (observation: JobDescriptionObservation) => RiteCoroutine<void>;
+  writeCardObservation: (
+    observation: JobCardObservation,
+    attribution: WorkspaceChangeAttribution,
+  ) => RiteCoroutine<void>;
+  writeDescriptionObservation: (
+    observation: JobDescriptionObservation,
+    attribution: WorkspaceChangeAttribution,
+  ) => RiteCoroutine<void>;
 }
 
 export class WorkspaceJobObservationWriter implements JobObservationWriter {
@@ -18,24 +28,30 @@ export class WorkspaceJobObservationWriter implements JobObservationWriter {
     this.#fetch = fetchImplementation;
   }
 
-  public *writeCardObservation(observation: JobCardObservation): RiteCoroutine<void> {
-    yield* this.#write(this.#cardEndpoint, observation);
+  public *writeCardObservation(
+    observation: JobCardObservation,
+    attribution: WorkspaceChangeAttribution,
+  ): RiteCoroutine<void> {
+    yield* this.#write(this.#cardEndpoint, observation, attribution);
   }
 
-  public *writeDescriptionObservation(observation: JobDescriptionObservation): RiteCoroutine<void> {
-    yield* this.#write(this.#descriptionEndpoint, observation);
+  public *writeDescriptionObservation(
+    observation: JobDescriptionObservation,
+    attribution: WorkspaceChangeAttribution,
+  ): RiteCoroutine<void> {
+    yield* this.#write(this.#descriptionEndpoint, observation, attribution);
   }
 
   *#write(
     endpoint: URL,
     observation: JobCardObservation | JobDescriptionObservation,
+    attribution: WorkspaceChangeAttribution,
   ): RiteCoroutine<void> {
     const response = yield* until(() =>
       this.#fetch(endpoint, {
         body: JSON.stringify({
           ...observation,
-          initiatedBy: "system",
-          reason: "Browser Session 采集当前页面已展示的岗位证据",
+          ...attribution,
         }),
         headers: { "content-type": "application/json" },
         method: "POST",

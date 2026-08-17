@@ -3,6 +3,7 @@ import type { Locator } from "patchright";
 import type {
   JobDescriptionObservation,
   PlatformAccessObservation,
+  WorkspaceChangeAttribution,
 } from "@job-boardwalk/contracts";
 import type { PlatformId, PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 import { sleep, until } from "@shajara/host";
@@ -27,6 +28,10 @@ import { captureJobCardSnapshot } from "./job-observation/card-snapshot.js";
 import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
 
 const zero = 0;
+const explicitDescriptionAttribution = {
+  initiatedBy: "agent",
+  reason: "Agent 显式采集当前岗位详情",
+} as const satisfies WorkspaceChangeAttribution;
 
 interface ElementReference {
   href?: string;
@@ -41,7 +46,10 @@ export interface BrowserToolExecutorCoordination {
     platformId: PlatformId,
     engagement: PlatformJobEngagementKind,
   ) => RiteCoroutine<unknown>;
-  writeJobDescriptionObservation: (observation: JobDescriptionObservation) => RiteCoroutine<void>;
+  writeJobDescriptionObservation: (
+    observation: JobDescriptionObservation,
+    attribution: WorkspaceChangeAttribution,
+  ) => RiteCoroutine<void>;
 }
 
 export class BrowserToolExecutor {
@@ -56,6 +64,7 @@ export class BrowserToolExecutor {
   readonly #tabs: BrowserTabs;
   readonly #writeJobDescriptionObservation: (
     observation: JobDescriptionObservation,
+    attribution: WorkspaceChangeAttribution,
   ) => RiteCoroutine<void>;
 
   public constructor(
@@ -252,7 +261,7 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
-    yield* this.#writeJobDescriptionObservation(observation);
+    yield* this.#writeJobDescriptionObservation(observation, explicitDescriptionAttribution);
     return { ...observation, tabId };
   }
 
