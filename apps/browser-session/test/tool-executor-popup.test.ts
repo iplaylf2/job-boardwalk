@@ -76,6 +76,7 @@ test("returns and selects a popup opened by a captured recruiting link", async (
     {
       recordReturnedControl: () => null,
       synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+      writeJobDescriptionObservation: () => expect.unreachable("此测试不应写入岗位详情"),
     },
   );
   await using scope = createScope();

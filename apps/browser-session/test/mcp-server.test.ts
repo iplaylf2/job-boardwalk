@@ -48,6 +48,7 @@ function browserToolExecutorControl(): BrowserControl {
     {
       recordReturnedControl: () => null,
       synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+      writeJobDescriptionObservation: () => expect.unreachable("此测试不应写入岗位详情"),
     },
   );
   return {

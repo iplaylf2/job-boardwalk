@@ -35,7 +35,7 @@ export class WorkspaceJobObservationWriter implements JobObservationWriter {
         body: JSON.stringify({
           ...observation,
           initiatedBy: "system",
-          reason: "Browser Session 被动采集当前页面已展示的岗位",
+          reason: "Browser Session 采集当前页面已展示的岗位证据",
         }),
         headers: { "content-type": "application/json" },
         method: "POST",

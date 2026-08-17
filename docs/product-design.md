@@ -104,8 +104,10 @@ scrolling, opening details, or persisting results. Personal-center engagement pa
 rather than reported as empty job-card pages. Browser Session owns this page read, but it
 does not own the selected intent, semantic relevance judgments, or durable job observations.
 
-It separately exposes the main posting description from a supported detail page. Card collection
-pages and detail pages are disjoint: recommendations surrounding a detail page cannot be
+It separately reads the main posting description from a supported detail page. An explicit
+description snapshot submits its observation to Workspace Service before returning, so preservation
+does not depend on the detail page remaining open until a later passive collection pass. Card
+collection pages and detail pages are disjoint: recommendations surrounding a detail page cannot be
 reinterpreted as the main posting. Passive collection observes recognizable cards and main
 descriptions from already-open supported-platform tabs, except for personal-center engagement
 pages. A selected job-search intent supplies recommendation pages as agent research context, but
@@ -235,13 +237,13 @@ returns the same structured observation so the agent can answer without submitti
 Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
 alone, display names alone, and cookie presence do not establish authentication.
 
-Explicit job-card and job-description snapshots read the current eligible page without consulting
-Workspace Service. A job-card snapshot rejects a personal-center engagement page, which belongs to
-the explicit synchronization boundary. Evidence from a successful read may also refresh a
-conclusive access observation. The passive collector only reads eligible pages already open in the
-managed browser. Recommendation-page navigation and personal-center job-engagement synchronization
-are explicit agent actions within a user-requested task; neither is scheduled as background browser
-activity.
+Explicit job-card and job-description snapshots read the current eligible page without using
+Workspace Service content as input. A job-card snapshot rejects a personal-center engagement page,
+which belongs to the explicit synchronization boundary. Evidence from a successful read may also
+refresh a conclusive access observation. The passive collector only reads eligible pages already
+open in the managed browser. Recommendation-page navigation and personal-center job-engagement
+synchronization are explicit agent actions within a user-requested task; neither is scheduled as
+background browser activity.
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page

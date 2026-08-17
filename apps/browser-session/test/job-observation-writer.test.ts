@@ -6,7 +6,7 @@ import { WorkspaceJobObservationWriter } from "#/workspace-service/job-observati
 const firstRequestIndex = 0;
 const secondRequestIndex = 1;
 
-test("writes passively collected page facts as a system change", async () => {
+test("writes browser-collected page facts as a system change", async () => {
   const requests: { input: string | URL | Request; init?: RequestInit }[] = [];
   const writer = new WorkspaceJobObservationWriter(
     new URL("http://workspace.test:54310"),

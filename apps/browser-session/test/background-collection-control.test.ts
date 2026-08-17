@@ -122,6 +122,7 @@ test("connects login preparation and returned-control snapshots to the gate", as
     {
       recordReturnedControl: (platformId) => returnedControlPlatforms.push(platformId),
       synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+      writeJobDescriptionObservation: () => expect.unreachable("此测试不应写入岗位详情"),
     },
   );
   let collectionCount = noCollections;
@@ -159,6 +160,7 @@ test("reopens collection when login preparation fails", async () => {
     {
       recordReturnedControl: () => null,
       synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+      writeJobDescriptionObservation: () => expect.unreachable("此测试不应写入岗位详情"),
     },
   );
   let collectionCount = noCollections;

@@ -203,11 +203,12 @@ containing `initiatedBy` and `reason`.
 
 Browser Session submits the facts exposed by job cards that are already present in a supported
 recruiting-platform page: title, company, location, salary text, detail tags, bounded card text, and
-the original links. An already-open detail page also contributes its bounded main posting
-description. Passive collection reads eligible supported-platform tabs that are already open; a
-selected job-search intent supplies recommendation pages as context for explicit agent research but
-never causes Workspace Service or Browser Session to open them. Personal-center engagement pages do
-not contribute through this write path; they arrive through the
+the original links. An explicit job-description snapshot submits its observation before returning;
+passive collection can also submit the bounded main description from an already-open detail page.
+Passive collection reads eligible supported-platform tabs that are already open; a selected
+job-search intent supplies recommendation pages as context for explicit agent research but never
+causes Workspace Service or Browser Session to open them. Personal-center engagement pages do not
+contribute through this write path; they arrive through the explicit
 [job engagement synchronization](#job-engagement-synchronization) boundary.
 
 `POST /api/job-card-observations` and `POST /api/job-description-observations` are the

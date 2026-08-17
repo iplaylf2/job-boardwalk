@@ -1,6 +1,9 @@
 // oxlint-disable max-lines -- The executor is the cohesive dispatch boundary for the public browser tool surface.
 import type { Locator } from "patchright";
-import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
+import type {
+  JobDescriptionObservation,
+  PlatformAccessObservation,
+} from "@job-boardwalk/contracts";
 import type { PlatformId, PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -38,6 +41,7 @@ export interface BrowserToolExecutorCoordination {
     platformId: PlatformId,
     engagement: PlatformJobEngagementKind,
   ) => RiteCoroutine<unknown>;
+  writeJobDescriptionObservation: (observation: JobDescriptionObservation) => RiteCoroutine<void>;
 }
 
 export class BrowserToolExecutor {
@@ -50,6 +54,9 @@ export class BrowserToolExecutor {
     engagement: PlatformJobEngagementKind,
   ) => RiteCoroutine<unknown>;
   readonly #tabs: BrowserTabs;
+  readonly #writeJobDescriptionObservation: (
+    observation: JobDescriptionObservation,
+  ) => RiteCoroutine<void>;
 
   public constructor(
     tabs: BrowserTabs,
@@ -62,6 +69,7 @@ export class BrowserToolExecutor {
     this.#recordReturnedControl = coordination.recordReturnedControl;
     this.#synchronizeJobEngagement = coordination.synchronizeJobEngagement;
     this.#tabs = tabs;
+    this.#writeJobDescriptionObservation = coordination.writeJobDescriptionObservation;
   }
 
   public get tabCount(): number {
@@ -244,6 +252,7 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
+    yield* this.#writeJobDescriptionObservation(observation);
     return { ...observation, tabId };
   }
 
