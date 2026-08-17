@@ -230,10 +230,13 @@ split the source. Workspace Service merges a new cross-platform source only when
 title, and location are all available and match. Partial cards remain separate to avoid false
 merges. The database keeps the current normalized result and each source's latest card and
 description observations, not HTML, page snapshots, or match judgments. The two observation types
-are updated independently, so submitting a card never clears a stored description. For either
-type, Workspace Service leaves an observation unapplied when its `observedAt` precedes the stored
-observation and returns `stale`; `lastCheckedAt` never moves backward. Description capture time and
-Browser Session's local truncation state remain part of the stored observation. See
+are updated independently, so submitting a card never clears a stored description. Matching facts
+with a later `observedAt` refresh that kind's retained observation without recording a content
+change. Different facts replace retained evidence only when their `observedAt` is later. An older
+observation, or a conflicting observation at the same timestamp, is left unapplied with a `stale`
+outcome because it cannot be established as newer. `lastCheckedAt` never moves backward.
+Description capture time and Browser Session's local truncation state remain part of the stored
+observation. See
 [Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
 evidence lifecycle.
 

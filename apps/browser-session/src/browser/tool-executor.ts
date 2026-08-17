@@ -267,7 +267,7 @@ export class BrowserToolExecutor {
       explicitDescriptionAttribution,
     );
     if (writeResult.outcome === "stale") {
-      throw new Error("Workspace Service 未保留本次岗位详情观察：已有更新的观察。");
+      throw new Error("Workspace Service 未保留本次岗位详情观察：已有同类观察的时间相同或更晚。");
     }
     return { ...observation, tabId };
   }

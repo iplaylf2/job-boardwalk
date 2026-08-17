@@ -245,13 +245,19 @@ function observationTime(input: PreparedJobObservation): string {
   return input.observation.observedAt;
 }
 
-function observationPrecedesStored(
+function observationFreshness(
   source: JobPostingSourceRow,
   input: PreparedJobObservation,
-): boolean {
+): "missing" | "newer" | "older" | "same-time" {
   const storedObservation =
     input.kind === "card" ? source.cardObservation : source.descriptionObservation;
-  return Boolean(storedObservation && input.observation.observedAt < storedObservation.observedAt);
+  if (!storedObservation) {
+    return "missing";
+  }
+  if (input.observation.observedAt < storedObservation.observedAt) {
+    return "older";
+  }
+  return input.observation.observedAt === storedObservation.observedAt ? "same-time" : "newer";
 }
 
 function latestTimestamp(first: string, second: string): string {
@@ -925,11 +931,15 @@ export class WorkspaceRepository {
       sourceIdentityKey,
     );
     const observedAt = observationTime(input);
-    if (existingSource && observationPrecedesStored(existingSource, input)) {
-      return this.#unappliedJobObservation(existingSource, observedAt, "stale");
-    }
-    if (existingSource && observationMatches(existingSource, input)) {
-      return this.#unappliedJobObservation(existingSource, observedAt, "unchanged");
+    if (existingSource) {
+      const freshness = observationFreshness(existingSource, input);
+      const matches = observationMatches(existingSource, input);
+      if (freshness === "older" || (freshness === "same-time" && !matches)) {
+        return this.#existingJobObservationOutcome(existingSource, "stale");
+      }
+      if (matches) {
+        return this.#refreshUnchangedJobObservation(existingSource, input);
+      }
     }
 
     const sourceObservations = updatedSourceObservations(existingSource, input);
@@ -961,24 +971,37 @@ export class WorkspaceRepository {
     return { job, outcome: result.outcome };
   }
 
-  #unappliedJobObservation(
+  #existingJobObservationOutcome(
     existingSource: JobPostingSourceRow,
-    observedAt: string,
     outcome: "stale" | "unchanged",
   ): SaveJobObservationResult {
-    const lastCheckedAt = latestTimestamp(existingSource.lastCheckedAt, observedAt);
-    if (lastCheckedAt !== existingSource.lastCheckedAt) {
-      this.#database
-        .update(jobPostingSources)
-        .set({ lastCheckedAt })
-        .where(eq(jobPostingSources.id, existingSource.id))
-        .run();
-    }
     const job = this.#readJobPosting(existingSource.jobId);
     if (!job) {
       throw new Error(`找不到岗位：${String(existingSource.jobId)}`);
     }
     return { job, outcome };
+  }
+
+  #refreshUnchangedJobObservation(
+    existingSource: JobPostingSourceRow,
+    input: PreparedJobObservation,
+  ): SaveJobObservationResult {
+    const now = new Date().toISOString();
+    this.#database.transaction((transaction) => {
+      transaction
+        .update(jobPostingSources)
+        .set({
+          ...updatedSourceObservations(existingSource, input),
+          lastCheckedAt: latestTimestamp(
+            existingSource.lastCheckedAt,
+            input.observation.observedAt,
+          ),
+        })
+        .where(eq(jobPostingSources.id, existingSource.id))
+        .run();
+      WorkspaceRepository.#refreshCanonicalJob(transaction, existingSource.jobId, now);
+    });
+    return this.#existingJobObservationOutcome(existingSource, "unchanged");
   }
 
   #findJobPostingSource(platformId: string, identityKey: string) {

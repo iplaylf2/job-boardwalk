@@ -216,17 +216,23 @@ test("merges high-confidence postings and skips unchanged page observations", as
       job: { id: firstSave.job.id, sources: [{ platformId: "boss" }, { platformId: "yupao" }] },
       outcome: "source-added",
     });
-    expect(
-      repository.saveJobCardObservation({
-        initiatedBy: "system",
-        observation: jobCardObservation("boss", {
-          externalJobId: "boss-123",
-          jobUrl: "https://www.zhipin.com/job_detail/example.html?from=recommend",
-          observedAt: "2026-07-17T11:00:00.000Z",
-        }),
-        reason: "test",
-      }).outcome,
-    ).toBe("unchanged");
+    const unchanged = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        externalJobId: "boss-123",
+        jobUrl: "https://www.zhipin.com/job_detail/example.html?from=recommend",
+        observedAt: "2026-07-17T11:00:00.000Z",
+      }),
+      reason: "test",
+    });
+    expect(unchanged.outcome).toBe("unchanged");
+    expect(unchanged.job.sources).toContainEqual(
+      expect.objectContaining({
+        lastCheckedAt: "2026-07-17T11:00:00.000Z",
+        observedAt: "2026-07-17T11:00:00.000Z",
+        platformId: "boss",
+      }),
+    );
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -348,6 +354,114 @@ test("keeps newer source evidence when observations arrive out of order", async 
           {
             lastCheckedAt: "2026-07-23T11:05:00.000Z",
             salaryText: "20-30K",
+          },
+        ],
+      },
+      outcome: "stale",
+    });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("retains per-kind freshness when a newer observation has unchanged facts", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    repository.saveJobDescriptionObservation({
+      initiatedBy: "system",
+      observation: jobDescriptionObservation({ observedAt: "2026-07-23T10:00:00.000Z" }),
+      reason: "test initial detail observation",
+    });
+    const unchanged = repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: jobDescriptionObservation({ observedAt: "2026-07-23T10:10:00.000Z" }),
+      reason: "test explicit unchanged detail observation",
+    });
+    expect(unchanged).toMatchObject({
+      job: {
+        description: { capturedAt: "2026-07-23T10:10:00.000Z" },
+        sources: [
+          {
+            description: { capturedAt: "2026-07-23T10:10:00.000Z" },
+            lastCheckedAt: "2026-07-23T10:10:00.000Z",
+            observedAt: "2026-07-23T10:10:00.000Z",
+          },
+        ],
+      },
+      outcome: "unchanged",
+    });
+
+    const delayed = repository.saveJobDescriptionObservation({
+      initiatedBy: "system",
+      observation: jobDescriptionObservation({
+        description: "工作职责\n较早采集但较晚提交的旧详情。",
+        observedAt: "2026-07-23T10:05:00.000Z",
+      }),
+      reason: "test delayed passive detail observation",
+    });
+    expect(delayed).toMatchObject({
+      job: {
+        description: {
+          capturedAt: "2026-07-23T10:10:00.000Z",
+          text: "工作职责\n建设合成测试平台。",
+        },
+        sources: [
+          {
+            description: {
+              capturedAt: "2026-07-23T10:10:00.000Z",
+              text: "工作职责\n建设合成测试平台。",
+            },
+            lastCheckedAt: "2026-07-23T10:10:00.000Z",
+            observedAt: "2026-07-23T10:10:00.000Z",
+          },
+        ],
+      },
+      outcome: "stale",
+    });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("does not replace evidence with a conflicting observation at the same time", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: jobDescriptionObservation({
+        description: "工作职责\n保留先到达的合成详情。",
+        observedAt: "2026-07-23T10:00:00.000Z",
+      }),
+      reason: "test first detail observation",
+    });
+
+    const conflicting = repository.saveJobDescriptionObservation({
+      initiatedBy: "system",
+      observation: jobDescriptionObservation({
+        description: "工作职责\n同一时刻到达的冲突详情。",
+        observedAt: "2026-07-23T10:00:00.000Z",
+      }),
+      reason: "test conflicting detail observation",
+    });
+    expect(conflicting).toMatchObject({
+      job: {
+        description: { text: "工作职责\n保留先到达的合成详情。" },
+        sources: [
+          {
+            description: { text: "工作职责\n保留先到达的合成详情。" },
+            observedAt: "2026-07-23T10:00:00.000Z",
           },
         ],
       },

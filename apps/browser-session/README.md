@@ -43,12 +43,13 @@ The passive collector observes eligible open supported-platform tabs when it sta
 seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their
 main posting description. The collector never navigates, scrolls, clicks, or opens tabs.
 Personal-center pages are excluded. Explicit and passive workflows can submit observations in a
-different order from their page reads, so Workspace Service reconciles card and description evidence
-independently and prevents an older observation from replacing newer evidence of the same kind. A
-card observation cannot erase a captured description. A page that closes or navigates during its
-bounded read is reported and skipped without discarding evidence from other tabs. The same bounded
-DOM pass refreshes any conclusive platform-access evidence. The collector does not initiate
-recommendation-page or detail-page navigation; those remain explicit agent actions within
+different order from their page reads, so Workspace Service reconciles card and description
+evidence independently. An observation with different facts replaces retained evidence of the same
+kind only when its `observedAt` is later; matching evidence refreshes that kind's retained
+observation. A card observation cannot erase a captured description. A page that closes or navigates
+during its bounded read is reported and skipped without discarding evidence from other tabs. The
+same bounded DOM pass refreshes any conclusive platform-access evidence. The collector does not
+initiate recommendation-page or detail-page navigation; those remain explicit agent actions within
 user-delegated research.
 
 ## Explicit job-engagement synchronization

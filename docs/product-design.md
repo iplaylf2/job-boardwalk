@@ -130,14 +130,14 @@ display text without changing the underlying job.
 
 Workspace Service turns submitted observations into a durable job library rather than a page
 archive. Each platform source stores its latest retained card and description observation
-independently; no HTML or historical page snapshot is stored. A changed observation replaces the
-previous observation of the same kind unless its observation time is older. An unchanged
-observation can advance the source check time. An older observation that arrives late is left
-unapplied with a `stale` outcome; it neither replaces newer evidence nor moves the check time
-backward. A card observation does not imply that the description was inspected, so it never clears
-a stored description. The description's capture time and Browser Session's local truncation state
-remain explicit. The normalized job is derived from the observations currently stored for its
-sources.
+independently; no HTML or historical page snapshot is stored. When the facts match, a later
+`observedAt` refreshes the retained observation and source check time without recording a content
+change. Different facts replace retained evidence only when their `observedAt` is later. An older
+observation, or a conflicting observation with the same `observedAt`, is left unapplied with a
+`stale` outcome; it neither replaces retained evidence nor moves the check time backward. A card
+observation does not imply that the description was inspected, so it never clears a stored
+description. The description's capture time and Browser Session's local truncation state remain
+explicit. The normalized job is derived from the observations currently stored for its sources.
 
 Within a platform, an external job ID is the preferred source identity, followed by the job URL
 pathname and then normalized company, title, and location when a detail link is unavailable. Across
