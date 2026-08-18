@@ -4,7 +4,7 @@
 	persist_config off
 }
 
-{$JOB_BOARDWALK_DASHBOARD_ADDRESS:0.0.0.0:8080} {
+{$JOB_BOARDWALK_DASHBOARD_ADDRESS::8080} {
 	encode zstd gzip
 
 	header {
