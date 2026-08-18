@@ -63,7 +63,7 @@ The MCP surface provides:
 - `job-boardwalk://jobs`, which exposes the first page of the current job library, including
   available collected descriptions and platform sources;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
-  `platformId`, and `engagement` filters;
+  `platformId`, `engagement`, and `descriptionStatus` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
   research reports;
 - `read_research_report`, which reads one unexpired research report by ID;
@@ -84,7 +84,8 @@ The HTTP surface currently exposes:
 - `PUT /api/search-intents/:id`
 - `POST /api/search-intents/:id/select`
 - `DELETE /api/search-intents/:id`
-- `GET /api/jobs` (`engagement` accepts `interested`, `contacted`, `applied`, or `interviewed`)
+- `GET /api/jobs` (`engagement` accepts `tracked`, `interested`, `contacted`, `applied`, or
+  `interviewed`; `descriptionStatus` accepts `captured`, `missing`, or `identity-unresolved`)
 - `POST /api/job-card-observations`
 - `POST /api/job-description-observations`
 - `PUT /api/job-engagements`
@@ -218,10 +219,6 @@ the service does not infer a missing description from a card submission. Both en
 `source-updated` change; an accepted `unchanged` refresh; or a `stale` observation that the service
 left unapplied.
 
-Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`, and
-`engagement` parameters. Workspace Service applies those constraints in SQLite and returns the
-current page, total result count, and page count. `pageSize` is capped at 48.
-
 Within one platform, Workspace Service identifies a source by its external job ID when available,
 then by the pathname of its job URL, and finally by normalized company, title, and location when no
 detail link is available. Browser Session supplies an external ID only when a recognized
@@ -232,6 +229,29 @@ title, and location are all available and match. Partial cards remain separate t
 merges. The database keeps the current normalized result and each source's latest card and
 description observations, not HTML, page snapshots, or match judgments. The two observation types
 are updated independently, so submitting a card never clears a stored description.
+
+Job-library reads derive `descriptionCaptureStatus` for each source from that retained evidence.
+`captured` means a main description is stored. `uncaptured` means the source has an external job ID
+or job URL but no retained description. `identity-unresolved` means neither an external job ID nor
+a job URL is available. These states describe current evidence; they do not claim that Browser
+Session attempted a detail read. The page-level `descriptionCoverage` counts normalized jobs in the
+current search, platform, and engagement scope before an optional `descriptionStatus` filter is
+applied.
+
+An explicit description write may include `sourceId` after the caller confirms that the current
+detail page belongs to that tracked workspace source. The selected source must still lack both an
+external job ID and job URL, and it must not already have a retained description. Workspace Service
+requires the same platform and equal normalized titles, compares normalized companies when both
+observations provide one, and rejects an identity already owned by another source. A successful
+bind preserves the source ID and its engagement relations while replacing its provisional card
+identity with the stable detail-page identity. Later engagement cards may still omit that stable
+identity; their retained card evidence resolves them to the same source without replacing the
+stable identity or clearing its description.
+
+Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
+`engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and
+returns the current page, total result count, page count, and description coverage. `pageSize` is
+capped at 48.
 
 Matching facts with a later `observedAt` refresh that kind's retained observation. The outcome
 remains `unchanged` unless advancing that source changes the normalized job's derived facts; such a
@@ -259,9 +279,10 @@ Partial snapshots add or refresh observed relations. A complete `interested` sna
 relations no longer present. The other engagement kinds remain durable because platforms may age
 historical jobs out of their visible lists.
 
-`GET /api/jobs?engagement=applied` and the other engagement values return jobs with at least one
-matching source. Every relation records when Workspace Service first and most recently observed it;
-neither timestamp claims when the recruiting action occurred. See
+`GET /api/jobs?engagement=applied` and the other category values return jobs with at least one
+matching source; `engagement=tracked` returns their union. Every relation records when Workspace
+Service first and most recently observed it; neither timestamp claims when the recruiting action
+occurred. See
 [Product design](../../docs/product-design.md#engagement-tracking) for the cross-application
 engagement and snapshot semantics.
 

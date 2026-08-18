@@ -3,10 +3,12 @@ import type { PlatformId } from "@job-boardwalk/platform-catalog";
 export interface JobDescriptionExtractionConfig {
   readonly companySelectors: readonly string[];
   readonly descriptionSelectors: readonly string[];
-  readonly descriptionTextBoundary?: {
-    readonly after: string;
-    readonly before: string;
-  };
+  readonly descriptionTextRanges?: readonly {
+    readonly endMarker: string;
+    readonly includeStartMarker?: boolean;
+    readonly startMarker: string;
+  }[];
+  readonly titleLineBeforeMarker?: string;
 }
 
 export const jobDescriptionExtractionConfigs = {
@@ -24,9 +26,10 @@ export const jobDescriptionExtractionConfigs = {
       "[class*='job-detail-content']",
       "[class*='job-content']",
     ],
-    descriptionTextBoundary: {
-      after: "职位说明：",
-      before: "职位总结",
-    },
+    descriptionTextRanges: [
+      { endMarker: "职位总结", startMarker: "职位说明：" },
+      { endMarker: "职位总结", includeStartMarker: true, startMarker: "岗位职责：" },
+    ],
+    titleLineBeforeMarker: "岗位职责：",
   },
 } as const satisfies Record<PlatformId, JobDescriptionExtractionConfig>;

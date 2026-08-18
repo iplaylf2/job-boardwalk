@@ -30,6 +30,11 @@ import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
 import { parseJobPostingSalary } from "#/job-library/salary.js";
 import type { JobLibraryQuery } from "#/job-library/query.js";
+import {
+  jobDescriptionCaptureStatus,
+  matchesJobDescriptionStatus,
+  summarizeJobDescriptionCoverage,
+} from "#/job-library/description-capture.js";
 
 import {
   jobPostings,
@@ -68,11 +73,23 @@ type PreparedJobObservation =
       kind: "description";
       observation: JobDescriptionObservation;
       reason: string;
+      sourceId?: number;
     };
 type SourceObservations = Pick<JobPostingSourceRow, "cardObservation" | "descriptionObservation">;
 const emptyCollectionLength = 0;
 const emptyCount = 0;
 const firstPage = 1;
+const singleItemCount = 1;
+
+function jobDescriptionSourceBindingError(message: string): Error {
+  const error = new Error(message);
+  error.name = "JobDescriptionSourceBindingError";
+  return error;
+}
+
+export function isJobDescriptionSourceBindingError(error: unknown): error is Error {
+  return error instanceof Error && error.name === "JobDescriptionSourceBindingError";
+}
 
 function hashValue(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -197,6 +214,7 @@ function toJobPostingSource(
   const normalizedSalary = evidence.salaryText ? parseJobPostingSalary(evidence.salaryText) : null;
   return {
     ...evidence,
+    descriptionCaptureStatus: jobDescriptionCaptureStatus(evidence),
     engagements: engagementRows
       .filter(({ sourceId }) => sourceId === row.id)
       .map(toJobSourceEngagement),
@@ -712,16 +730,7 @@ export class WorkspaceRepository {
         reason: input.reason,
       });
       const identityKey = jobPostingSourceIdentityKey(observation);
-      const source = this.#database
-        .select({ id: jobPostingSources.id })
-        .from(jobPostingSources)
-        .where(
-          and(
-            eq(jobPostingSources.platformId, snapshot.platformId),
-            eq(jobPostingSources.identityKey, identityKey),
-          ),
-        )
-        .get();
+      const source = this.#findJobPostingSourceByObservedIdentity(snapshot.platformId, identityKey);
       if (!source) {
         throw new Error(`找不到刚保存的岗位来源：${job.title}`);
       }
@@ -822,22 +831,24 @@ export class WorkspaceRepository {
 
   public listJobPostingPage(input: JobLibraryQuery): JobPostingPage {
     const condition = this.#jobPageCondition(input);
-    const total =
-      this.#database.select({ value: count() }).from(jobPostings).where(condition).get()?.value ??
-      emptyCount;
-    const pageCount = Math.max(firstPage, Math.ceil(total / input.pageSize));
     const rows = this.#database
       .select()
       .from(jobPostings)
       .where(condition)
       .orderBy(desc(jobPostings.updatedAt), asc(jobPostings.title))
-      .limit(input.pageSize)
-      .offset((input.page - firstPage) * input.pageSize)
       .all();
     const sourceRows = this.#listJobPostingSources(rows.map(({ id }) => id));
     const engagementRows = this.#listJobSourceEngagements(sourceRows.map(({ id }) => id));
+    const jobs = rows.map((job) => toJobPosting(job, sourceRows, engagementRows));
+    const filteredJobs = jobs.filter((job) =>
+      matchesJobDescriptionStatus(job, input.descriptionStatus),
+    );
+    const total = filteredJobs.length;
+    const pageCount = Math.max(firstPage, Math.ceil(total / input.pageSize));
+    const offset = (input.page - firstPage) * input.pageSize;
     return {
-      jobs: rows.map((job) => toJobPosting(job, sourceRows, engagementRows)),
+      descriptionCoverage: summarizeJobDescriptionCoverage(jobs),
+      jobs: filteredJobs.slice(offset, offset + input.pageSize),
       page: input.page,
       pageCount,
       pageSize: input.pageSize,
@@ -861,10 +872,15 @@ export class WorkspaceRepository {
       );
     }
     if (input.engagement) {
-      const sourceIdsWithEngagement = this.#database
-        .select({ sourceId: jobSourceEngagements.sourceId })
-        .from(jobSourceEngagements)
-        .where(eq(jobSourceEngagements.kind, input.engagement));
+      const sourceIdsWithEngagement =
+        input.engagement === "tracked"
+          ? this.#database
+              .selectDistinct({ sourceId: jobSourceEngagements.sourceId })
+              .from(jobSourceEngagements)
+          : this.#database
+              .select({ sourceId: jobSourceEngagements.sourceId })
+              .from(jobSourceEngagements)
+              .where(eq(jobSourceEngagements.kind, input.engagement));
       const sourceCondition = input.platformId
         ? and(
             inArray(jobPostingSources.id, sourceIdsWithEngagement),
@@ -938,6 +954,7 @@ export class WorkspaceRepository {
     initiatedBy: "agent" | "system" | "user";
     observation: JobDescriptionObservation;
     reason: string;
+    sourceId?: number;
   }): SaveJobObservationResult {
     return this.#saveJobObservation({
       ...input,
@@ -949,8 +966,8 @@ export class WorkspaceRepository {
   #saveJobObservation(input: PreparedJobObservation): SaveJobObservationResult {
     const { cardObservation } = input;
     const sourceIdentityKey = jobPostingSourceIdentityKey(cardObservation);
-    const existingSource = this.#findJobPostingSource(
-      cardObservation.platformId,
+    const { existingSource, nextSourceIdentityKey } = this.#resolveJobObservationSource(
+      input,
       sourceIdentityKey,
     );
     const observedAt = observationTime(input);
@@ -974,7 +991,7 @@ export class WorkspaceRepository {
         ? latestTimestamp(existingSource.lastCheckedAt, observedAt)
         : observedAt,
       now,
-      sourceIdentityKey,
+      sourceIdentityKey: nextSourceIdentityKey,
       sourceObservations,
     });
     this.#database
@@ -992,6 +1009,25 @@ export class WorkspaceRepository {
       throw new Error(`保存后无法读取岗位：${String(result.jobId)}`);
     }
     return { job, outcome: result.outcome };
+  }
+
+  #resolveJobObservationSource(input: PreparedJobObservation, observedIdentityKey: string) {
+    if (input.kind === "description" && input.sourceId) {
+      const existingSource = this.#requireDescriptionSource(
+        input.sourceId,
+        input.cardObservation,
+        observedIdentityKey,
+      );
+      return { existingSource, nextSourceIdentityKey: observedIdentityKey };
+    }
+    const existingSource = this.#findJobPostingSourceByObservedIdentity(
+      input.cardObservation.platformId,
+      observedIdentityKey,
+    );
+    return {
+      existingSource,
+      nextSourceIdentityKey: existingSource?.identityKey ?? observedIdentityKey,
+    };
   }
 
   #existingJobObservationOutcome(
@@ -1048,8 +1084,8 @@ export class WorkspaceRepository {
     );
   }
 
-  #findJobPostingSource(platformId: string, identityKey: string) {
-    return this.#database
+  #findJobPostingSourceByObservedIdentity(platformId: string, identityKey: string) {
+    const exact = this.#database
       .select()
       .from(jobPostingSources)
       .where(
@@ -1059,8 +1095,67 @@ export class WorkspaceRepository {
         ),
       )
       .get();
+    if (exact) {
+      return exact;
+    }
+    const cardIdentityMatches = this.#database
+      .select()
+      .from(jobPostingSources)
+      .where(eq(jobPostingSources.platformId, platformId))
+      .all()
+      .filter(
+        (source) =>
+          source.cardObservation &&
+          jobPostingSourceIdentityKey(source.cardObservation) === identityKey,
+      );
+    return cardIdentityMatches.length === singleItemCount
+      ? cardIdentityMatches.at(firstParameterIndex)
+      : exact;
   }
 
+  #requireDescriptionSource(
+    sourceId: number,
+    observation: JobCardObservation,
+    sourceIdentityKey: string,
+  ): JobPostingSourceRow {
+    const source = this.#database
+      .select()
+      .from(jobPostingSources)
+      .where(eq(jobPostingSources.id, sourceId))
+      .get();
+    if (!source) {
+      throw jobDescriptionSourceBindingError(`找不到岗位来源：${String(sourceId)}`);
+    }
+    const evidence = jobSourceEvidence(source.cardObservation, source.descriptionObservation);
+    if (source.platformId !== observation.platformId) {
+      throw jobDescriptionSourceBindingError("指定岗位来源与当前详情页不属于同一招聘平台。");
+    }
+    if (source.descriptionObservation || evidence.externalJobId || evidence.jobUrl) {
+      throw jobDescriptionSourceBindingError(
+        "指定来源必须同时缺少已采集详情、外部岗位 ID 和详情链接，才能显式绑定当前详情页。",
+      );
+    }
+    if (normalizedIdentityPart(evidence.title) !== normalizedIdentityPart(observation.title)) {
+      throw jobDescriptionSourceBindingError("当前详情页标题与指定岗位来源不一致。");
+    }
+    if (
+      evidence.company &&
+      observation.company &&
+      normalizedCompanyIdentity(evidence.company) !== normalizedCompanyIdentity(observation.company)
+    ) {
+      throw jobDescriptionSourceBindingError("当前详情页公司与指定岗位来源不一致。");
+    }
+    const conflict = this.#findJobPostingSourceByObservedIdentity(
+      observation.platformId,
+      sourceIdentityKey,
+    );
+    if (conflict && conflict.id !== source.id) {
+      throw jobDescriptionSourceBindingError("当前详情页已经对应另一个工作区岗位来源。");
+    }
+    return source;
+  }
+
+  // eslint-disable-next-line max-lines-per-function -- One transaction keeps source identity replacement and canonical refresh atomic.
   #persistJobObservation(input: {
     cardObservation: JobCardObservation;
     existingSource: JobPostingSourceRow | undefined;
@@ -1074,7 +1169,11 @@ export class WorkspaceRepository {
         const { id, jobId } = input.existingSource;
         transaction
           .update(jobPostingSources)
-          .set({ ...input.sourceObservations, lastCheckedAt: input.lastCheckedAt })
+          .set({
+            ...input.sourceObservations,
+            identityKey: input.sourceIdentityKey,
+            lastCheckedAt: input.lastCheckedAt,
+          })
           .where(eq(jobPostingSources.id, id))
           .run();
         WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, input.now);

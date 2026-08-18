@@ -50,6 +50,7 @@ export interface BrowserToolExecutorCoordination {
   writeJobDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
+    sourceId?: number,
   ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 }
 
@@ -66,6 +67,7 @@ export class BrowserToolExecutor {
   readonly #writeJobDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
+    sourceId?: number,
   ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 
   public constructor(
@@ -265,6 +267,7 @@ export class BrowserToolExecutor {
     const writeResult = yield* this.#writeJobDescriptionObservation(
       observation,
       explicitDescriptionAttribution,
+      params["sourceId"] as number | undefined,
     );
     if (writeResult.outcome === "stale") {
       throw new Error(

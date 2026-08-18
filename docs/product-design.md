@@ -109,13 +109,18 @@ description snapshot returns its captured observation only after Workspace Servi
 the evidence is preserved, so preservation does not depend on the detail page remaining open until
 a later passive collection pass. If Workspace Service rejects the submission or reports it as
 `stale` without applying it, the snapshot action fails instead of returning evidence that was not
-preserved. Card collection pages and detail pages are disjoint: recommendations surrounding a
-detail page cannot be reinterpreted as the main posting. Passive collection observes recognizable
-cards and main descriptions from already-open supported-platform tabs, except for personal-center
-engagement pages. Explicit description writes carry agent attribution; passive observations carry
-system attribution. A selected job-search intent supplies recommendation pages as agent research
-context, but the collector never opens or navigates a tab for them. Browser navigation remains an
-explicit action in a user-requested research task.
+preserved. When an agent has independently confirmed that the open detail belongs to a tracked
+source with no retained description, external job ID, or job URL, the explicit snapshot may name
+that workspace source. Workspace Service validates this explicit binding and never infers it from
+similarity alone.
+
+Card collection pages and detail pages are disjoint: recommendations surrounding a detail page
+cannot be reinterpreted as the main posting. Passive collection observes recognizable cards and
+main descriptions from already-open supported-platform tabs, except for personal-center engagement
+pages. Explicit description writes carry agent attribution; passive observations carry system
+attribution. A selected job-search intent supplies recommendation pages as agent research context,
+but the collector never opens or navigates a tab for them. Browser navigation remains an explicit
+action in a user-requested research task.
 
 Every recognizable card on an eligible page contributes an observation regardless of which seed,
 search path, or other research action led to it. A page with no recognizable cards contributes no
@@ -146,6 +151,19 @@ Within a platform, an external job ID is the preferred source identity, followed
 pathname and then normalized company, title, and location when a detail link is unavailable. Across
 platforms, Workspace Service merges sources only when normalized company, title, and location
 identify the same job. Partial cards without that identity remain separate.
+
+Job-library reads derive a description capture status from the evidence retained for each source.
+`captured` means a main description is stored. `uncaptured` means an external job ID or job URL is
+available but no description is stored. `identity-unresolved` means neither an external job ID nor a
+job URL is available. These states describe current evidence, not whether Browser Session attempted
+a detail read. Page-level description coverage is calculated for the current search, platform, and
+engagement scope before a description-status filter narrows the results.
+
+For an explicit binding, Workspace Service confirms the platform and equal normalized titles,
+compares normalized companies when both observations include one, and rejects an identity already
+owned by another source. The source retains its latest card observation as evidence, so a later
+engagement card that still lacks an external job ID or job URL refreshes the bound source without
+replacing its stable identity.
 
 ## Engagement tracking
 
@@ -179,7 +197,8 @@ resume artifact was sent.
 Engagements do not create separate job collections. Removing an `interested` relation leaves the
 normalized job, its other sources, and its historical engagement evidence in the library.
 Dashboard exposes the four engagement kinds as filters within one job library and shows when the
-displayed platform records were most recently observed.
+displayed platform records were most recently observed. A combined tracked view takes the union of
+those relations without turning them into a single workflow state.
 
 ## Browser handoff
 
@@ -304,8 +323,8 @@ Dashboard has three reader paths:
 
 - the workspace overview for the current job-search intent, personal context, leased Browser
   Session presence, and platform-access observations;
-- a paginated job library for normalized job facts and merged platform sources, including filters
-  for interested, contacted, applied, and interviewed engagement records;
+- a paginated job library for normalized job facts and merged platform sources, including a combined
+  tracked view, engagement-category filters, and filters for description availability;
 - a report library and Markdown reader for conclusions, comparisons, uncertainty, and recommended
   next steps.
 
@@ -329,7 +348,10 @@ Job cards remain compact and comparable regardless of description length. A coll
 opens in a dedicated dialog rather than expanding inside its card, so reading one job does not
 reflow the surrounding list. Only one description is open at a time, and closing it returns the
 user to the same list context. On a narrow screen, the dialog fills the viewport; its header remains
-visible while the description scrolls independently.
+visible while the description scrolls independently. The list heading reports description coverage
+for the current search, platform, and engagement scope before a description filter narrows the
+cards, so selecting jobs without descriptions does not hide the baseline needed to understand the
+result.
 
 ### Product direction
 

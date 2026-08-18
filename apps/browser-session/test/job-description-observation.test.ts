@@ -83,3 +83,32 @@ test("extracts the Yupao description from its visible section boundary", () => {
     url,
   });
 });
+
+test("extracts a Yupao detail page whose visible body starts the description at job duties", () => {
+  const url = "https://www.yupao.com/zhaogong/987654321/synthetic-platform-role.html";
+  const input = inputFor(url);
+  const result = runInNewContext(`(${captureJobDescriptionMetadata.toString()})(input)`, {
+    Number,
+    document: {
+      body: {
+        innerText:
+          "职位详情\n3-5年\n本科\n合成平台工程师\n岗位职责：\n1、建设合成任务平台。\n任职要求：\n1、熟悉 TypeScript。\n职位总结\n相关推荐",
+      },
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    input,
+    location: { href: url },
+  }) as ReturnType<typeof captureJobDescriptionMetadata>;
+
+  expect(result).toMatchObject({
+    description: "岗位职责：\n1、建设合成任务平台。\n任职要求：\n1、熟悉 TypeScript。",
+    title: "合成平台工程师",
+    truncated: false,
+    url,
+  });
+});

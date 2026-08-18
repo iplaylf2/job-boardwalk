@@ -173,8 +173,8 @@ export class ManagedBrowser implements BrowserControl {
         recordReturnedControl: (platformId) => this.#recordReturnedControl(platformId),
         synchronizeJobEngagement: (platformId, engagement) =>
           jobEngagementCollector.synchronize(platformId, engagement),
-        writeJobDescriptionObservation: (observation, attribution) =>
-          this.#jobObservationWriter.writeDescriptionObservation(observation, attribution),
+        writeJobDescriptionObservation: (...input) =>
+          this.#jobObservationWriter.writeDescriptionObservation(...input),
       },
     );
     this.#hasFailed = false;

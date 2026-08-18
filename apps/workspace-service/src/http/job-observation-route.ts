@@ -9,9 +9,10 @@ import {
   normalizeJobCardObservation,
   normalizeJobDescriptionObservation,
 } from "#/job-observation/normalization.js";
+import { isJobDescriptionSourceBindingError } from "#/persistence/workspace-repository.js";
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
-import { readRequestBody, requestErrorResponse } from "./request.js";
+import { InvalidRequestError, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
 
@@ -46,10 +47,14 @@ export function registerJobObservationRoute(
             initiatedBy: input.initiatedBy,
             observation: normalizeJobDescriptionObservation(input),
             reason: input.reason,
+            ...(input.sourceId ? { sourceId: input.sourceId } : {}),
           }),
           createdStatus,
         );
       } catch (error) {
+        if (isJobDescriptionSourceBindingError(error)) {
+          return requestErrorResponse(new InvalidRequestError(error.message), context);
+        }
         return requestErrorResponse(error, context);
       }
     }),

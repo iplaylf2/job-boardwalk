@@ -14,10 +14,13 @@ The interface has three primary reader paths:
   selecting, and removing intents and facts. Browser and platform status remains a compact
   secondary rail unless it needs attention.
 - `/jobs` is the single normalized job library. Its in-page follow-up navigation filters that
-  library by `interested`, `contacted`, `applied`, or `interviewed` through the optional
-  `engagement` query parameter; these are views of one collection, not peer pages. The library also
-  provides search, platform filtering, original source links, and server-backed pagination. Source
-  labels show every observed engagement, while each card shows when its platform engagement records
+  library by the union of all tracked jobs or by `interested`, `contacted`, `applied`, or
+  `interviewed`; these are views of one collection, not peer pages. The library also provides
+  search, platform and description-availability filters, original source links, and server-backed
+  pagination. Its heading reports how many jobs have a retained main description, how many do not,
+  and how many of those still lack a stable source identity. Source rows show every observed
+  engagement, mark missing descriptions and unresolved detail sources, and link to the platform
+  when a detail-page URL is available. Each card also shows when its platform engagement records
   were last observed. A card with a collected job description offers an action that opens it in a
   dialog. The dialog reports when Browser Session reached its local text limit and the displayed
   description may be incomplete.

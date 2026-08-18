@@ -43,6 +43,7 @@ export function captureJobDescriptionMetadata(input: {
 }): JobDescriptionMetadata {
   const { document } = globalThis;
   const firstIndex = 0;
+  const lastIndex = -1;
   // InnerText preserves the posting's responsibility and requirement line boundaries.
   // eslint-disable-next-line unicorn/prefer-dom-node-text-content
   const bodyText = document.body?.innerText ?? "";
@@ -67,6 +68,16 @@ export function captureJobDescriptionMetadata(input: {
       }
       return null;
     },
+    lineBefore(marker: string | undefined): string | null {
+      if (!marker) {
+        return null;
+      }
+      const end = bodyText.indexOf(marker);
+      if (end < firstIndex) {
+        return null;
+      }
+      return helpers.normalized(bodyText.slice(firstIndex, end)).split("\n").at(lastIndex) ?? null;
+    },
     normalized(value: string): string {
       return value
         .replaceAll("\r", "")
@@ -75,14 +86,24 @@ export function captureJobDescriptionMetadata(input: {
         .filter(Boolean)
         .join("\n");
     },
-    textBetween(boundary: { after: string; before: string } | undefined): string {
-      if (!boundary) {
-        return "";
+    textWithin(
+      ranges:
+        | readonly {
+            endMarker: string;
+            includeStartMarker?: boolean;
+            startMarker: string;
+          }[]
+        | undefined,
+    ): string {
+      for (const range of ranges ?? []) {
+        const start = bodyText.indexOf(range.startMarker);
+        const contentStart = start + range.startMarker.length;
+        const end = bodyText.indexOf(range.endMarker, contentStart);
+        if (start >= firstIndex && end >= contentStart) {
+          return bodyText.slice(range.includeStartMarker ? start : contentStart, end);
+        }
       }
-      const start = bodyText.indexOf(boundary.after);
-      const contentStart = start + boundary.after.length;
-      const end = bodyText.indexOf(boundary.before, contentStart);
-      return start >= firstIndex && end >= contentStart ? bodyText.slice(contentStart, end) : "";
+      return "";
     },
   };
   let unboundedDescription = "";
@@ -97,7 +118,7 @@ export function captureJobDescriptionMetadata(input: {
       break;
     }
   }
-  unboundedDescription ||= helpers.textBetween(input.descriptionConfig.descriptionTextBoundary);
+  unboundedDescription ||= helpers.textWithin(input.descriptionConfig.descriptionTextRanges);
   const normalizedDescription = helpers.normalized(unboundedDescription);
   const description = normalizedDescription.slice(firstIndex, input.maximumDescriptionCharacters);
   const pageText = helpers.bounded(bodyText, Number.MAX_SAFE_INTEGER);
@@ -120,7 +141,11 @@ export function captureJobDescriptionMetadata(input: {
     salaryText:
       helpers.firstText(input.cardConfig.salarySelectors) ??
       helpers.firstPattern(pageText, input.cardConfig.salaryTextPattern),
-    title: helpers.firstText(input.cardConfig.titleSelectors) ?? helpers.firstText(["h1"]) ?? "",
+    title:
+      helpers.firstText(input.cardConfig.titleSelectors) ??
+      helpers.firstText(["h1"]) ??
+      helpers.lineBefore(input.descriptionConfig.titleLineBeforeMarker) ??
+      "",
     truncated: normalizedDescription.length > input.maximumDescriptionCharacters,
     url: globalThis.location.href,
   };

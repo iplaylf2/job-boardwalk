@@ -1,4 +1,4 @@
-import type { JobEngagementKind } from "@job-boardwalk/contracts";
+import type { JobDescriptionStatusFilter, JobEngagementFilter } from "@job-boardwalk/contracts";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 
 export const firstJobPage = 1;
@@ -6,7 +6,8 @@ export const defaultJobPageSize = 24;
 export const maximumJobPageSize = 48;
 
 export interface JobLibraryQuery {
-  engagement?: JobEngagementKind;
+  descriptionStatus?: JobDescriptionStatusFilter;
+  engagement?: JobEngagementFilter;
   page: number;
   pageSize: number;
   platformId?: PlatformId;

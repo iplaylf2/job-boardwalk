@@ -55,18 +55,19 @@ test("submits the explicit job-description observation before returning it", asy
   const submitted: {
     attribution: WorkspaceChangeAttribution;
     observation: JobDescriptionObservation;
+    sourceId?: number;
   }[] = [];
   const executor = jobDescriptionExecutor(
-    function* writeJobDescriptionObservation(observation, attribution) {
+    function* writeJobDescriptionObservation(observation, attribution, sourceId) {
       yield* [];
-      submitted.push({ attribution, observation });
+      submitted.push({ attribution, observation, ...(sourceId ? { sourceId } : {}) });
       return { outcome: "source-updated" };
     },
   );
   await using scope = createScope();
 
   const result = (await scope.run(() =>
-    executor.execute("browser_job_description_snapshot", {}),
+    executor.execute("browser_job_description_snapshot", { sourceId: 71 }),
   )) as JobDescriptionObservation & { tabId: number };
   const { tabId: _tabId, ...returnedObservation } = result;
 
@@ -77,6 +78,7 @@ test("submits the explicit job-description observation before returning it", asy
         reason: "Agent 显式采集当前页面的岗位详情观察",
       },
       observation: returnedObservation,
+      sourceId: 71,
     },
   ]);
 });

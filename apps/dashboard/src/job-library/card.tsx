@@ -46,6 +46,13 @@ function displaySalary(job: JobPosting): string | null {
   return null;
 }
 
+function descriptionCaptureStatusLabel(source: JobPosting["sources"][number]): string | null {
+  if (source.descriptionCaptureStatus === "identity-unresolved") {
+    return "详情来源待补全";
+  }
+  return source.descriptionCaptureStatus === "uncaptured" ? "尚无详情" : null;
+}
+
 function JobSourceActions(props: { job: JobPosting; onShowDescription: () => void }): JSX.Element {
   return (
     <div class={styles["sources"]}>
@@ -54,9 +61,10 @@ function JobSourceActions(props: { job: JobPosting; onShowDescription: () => voi
           const engagementText = source.engagements
             .map(({ kind }) => jobEngagementLabels[kind])
             .join(" · ");
+          const descriptionCaptureStatus = descriptionCaptureStatusLabel(source);
           const label = `${platformCatalog[source.platformId].label}${
             engagementText ? ` · ${engagementText}` : ""
-          }`;
+          }${descriptionCaptureStatus ? ` · ${descriptionCaptureStatus}` : ""}`;
           return source.jobUrl ? (
             <a href={source.jobUrl} target="_blank" rel="noreferrer">
               {label}

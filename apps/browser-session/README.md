@@ -38,7 +38,10 @@ returns the captured observation only after Workspace Service accepts and retain
 write or a `stale` outcome fails the call. Recommended job cards are excluded. Its `truncated` flag
 means Browser Session reached its local text limit; it does not imply that the platform hid
 additional text. Browser Session attributes this explicit write to the agent; passive writes use
-system attribution.
+system attribution. When the agent has independently confirmed that the current page belongs to a
+tracked source with no retained description, external job ID, or job URL, it may pass that
+workspace `sourceId` for an explicit bind. Workspace Service validates the source before replacing
+its provisional card identity; omitting `sourceId` never triggers a guessed same-platform merge.
 
 The passive collector observes eligible open supported-platform tabs when it starts and every 30
 seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their

@@ -10,6 +10,7 @@ import {
 
 export const JobEngagementKind = contract.enumerated(...platformJobEngagementKinds);
 export type JobEngagementKind = typeof JobEngagementKind.infer;
+export type JobEngagementFilter = JobEngagementKind | "tracked";
 
 export const JobSourceEngagement = contract({
   firstObservedAt: normalizedTimestamp,

@@ -14,6 +14,7 @@ import {
 } from "#/workspace-service-client.js";
 
 const badGatewayStatus = 502;
+const emptyCount = 0;
 const missingReportId = 71;
 
 async function execute<Return>(routine: RiteCoroutine<Return>): Promise<Return> {
@@ -67,6 +68,44 @@ test("classifies an unsuccessful Workspace Service response as a readable failur
 
   const error = await readFailure(execute(readJobPostingPage({ page: 1, pageSize: 24 })));
   expect(error.retryable).toBe(true);
+});
+
+test("requests the combined tracked missing-description view", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(
+    Response.json({
+      descriptionCoverage: {
+        captured: 4,
+        identityUnresolved: 1,
+        total: 6,
+        uncaptured: 1,
+      },
+      jobs: [],
+      page: 1,
+      pageCount: 1,
+      pageSize: 24,
+      total: 2,
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+
+  const result = await execute(
+    readJobPostingPage({
+      descriptionStatus: "missing",
+      engagement: "tracked",
+      page: 1,
+      pageSize: 24,
+    }),
+  );
+
+  expect(result.descriptionCoverage).toEqual({
+    captured: 4,
+    identityUnresolved: 1,
+    total: 6,
+    uncaptured: 1,
+  });
+  expect(String(fetchMock.mock.calls[emptyCount]?.[emptyCount])).toContain(
+    "engagement=tracked&descriptionStatus=missing",
+  );
 });
 
 test("classifies a response outside the public contract as a service failure", async () => {

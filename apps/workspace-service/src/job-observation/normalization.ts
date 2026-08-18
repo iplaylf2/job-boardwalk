@@ -36,7 +36,7 @@ export function normalizeJobCardObservation(
 export function normalizeJobDescriptionObservation(
   input: SaveJobDescriptionObservationCommand,
 ): JobDescriptionObservation {
-  const { initiatedBy: _initiatedBy, reason: _reason, ...observation } = input;
+  const { initiatedBy: _initiatedBy, reason: _reason, sourceId: _sourceId, ...observation } = input;
   return {
     ...observation,
     details: [...new Set(observation.details)],
