@@ -28,8 +28,8 @@ Docker and development tools are not required to run this directory.
 
 The `data/` directory contains the workspace database, dedicated browser profile, settings, and
 service logs. Use Stop before copying the complete `data/` directory as a precautionary backup.
-This prerelease does not provide a supported restore or cross-version migration workflow. Do not
-copy saved data into another version unless its release notes explicitly declare compatibility.
+This prerelease does not support moving saved data between versions. Keep each version in its own
+product directory.
 
 To uninstall this portable build, use Stop, close Desktop Manager, and remove the complete product
 directory. Removing it also removes everything under `data/`.

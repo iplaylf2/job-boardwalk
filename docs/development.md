@@ -66,7 +66,7 @@ pnpm exec moon run desktop-distribution:assemble
 [Desktop Distribution](../internal/desktop-distribution/README.md) documents the output and direct
 checks, the Aqua prerequisite, the PowerShell form, and the explicit override for testing another
 Caddy build. The [desktop distribution specification](desktop-distribution.md) defines the
-installed form, build ownership, and remaining delivery work.
+portable product form, build ownership, and release status.
 
 On Linux or Windows, assemble and create the native portable archive with:
 
@@ -75,7 +75,7 @@ pnpm exec moon run desktop-distribution:package
 ```
 
 The package task writes the versioned output described by Desktop Distribution's
-[portable archive contract](../internal/desktop-distribution/README.md#portable-archive-contract).
+[outputs](../internal/desktop-distribution/README.md#outputs).
 
 ## Continuous integration
 
@@ -100,8 +100,8 @@ the remaining Cargo tools from the same configuration.
 Workflow actions use maintainer-published major release tags when available and exact release tags
 otherwise. Installed project tools take their versions from the repository configuration that owns
 them; CI-only setup helpers use their action's supported default unless the repository needs a
-specific compatibility constraint. Desktop release runner versions are explicit so their image
-migrations happen as reviewed repository changes.
+specific version. Desktop release runner versions are explicit so their image migrations happen as
+reviewed repository changes.
 
 ### Desktop releases
 
@@ -110,8 +110,8 @@ not for ordinary pull requests or unrelated `master` pushes.
 
 Record desktop release intent with `pnpm changeset` as described in the
 [Changesets contributor guide](../.changeset/README.md). The current release unit is
-`@job-boardwalk/desktop-distribution`; its package version appears in the product manifest, archive
-names, Git tag, and GitHub release. Other workspaces are not versioned independently.
+`@job-boardwalk/desktop-distribution`; its package version appears in archive names, the Git tag,
+and the GitHub release. Other workspaces are not versioned independently.
 
 The [desktop version PR workflow](../.github/workflows/desktop-version-pr.yaml) and
 [desktop release workflow](../.github/workflows/desktop-release.yaml) have separate
@@ -130,9 +130,9 @@ release resolver confirms the version change, packaging bypasses Moon's general-
 checks. Each matrix row builds and attests one native archive, then uploads that file directly,
 making the archive filename its Actions artifact name. Publication collects every artifact in the
 current product version's filename namespace into one release directory without decompressing the
-archives, creates `SHA256SUMS`, and publishes the result as a `v<version>` GitHub prerelease using
-the Changesets changelog. The package matrix remains the only release-target inventory: a new row
-whose output follows the portable archive contract automatically joins publication.
+archives and publishes the result as a `v<version>` GitHub prerelease using the Changesets
+changelog. The package matrix remains the only release-target inventory: a new row whose output
+follows the archive output contract automatically joins publication.
 
 If packaging or publication fails, rerun the original **Desktop release** workflow. Use
 **Re-run failed jobs** while successful platform artifacts remain within their seven-day retention;
@@ -151,8 +151,8 @@ The repository setting that permits Actions to create pull requests must be enab
 trigger other workflows automatically; the built-in token remains the fallback.
 
 Each GitHub prerelease remains an engineering artifact. The
-[desktop delivery sequence](desktop-distribution.md#delivery-sequence) owns the work required to
-promote it to a supported release channel.
+[desktop distribution status](desktop-distribution.md#delivery-status) explains why Compose remains
+the supported topology.
 
 ## Generated artifacts and language boundaries
 
@@ -163,9 +163,7 @@ those public artifacts without reconstructing their dependency contents. The app
 document their different finalization strategies: Workspace Service uses its Vite output directly,
 while Browser Session adds a pnpm-produced production dependency closure.
 
-Future Rust applications join the root Cargo workspace. Arguments, health endpoints, exit status,
-logs, and process signals are sufficient for the current cross-language lifecycle and need no
-generated schema. If a future protocol requires structured data across languages, it must have one
-language-neutral source, standard generators, generated consumers, and a drift check. A
-runtime-specific supervisor adapts its shutdown mechanism at its process-host boundary.
-Neither ecosystem imports the other ecosystem's implementation files.
+Arguments, health endpoints, exit status, logs, and process signals cover the current
+cross-language lifecycle without a generated schema. Runtime-specific supervisors adapt shutdown
+at their process-host boundaries. Neither ecosystem imports the other ecosystem's implementation
+files.

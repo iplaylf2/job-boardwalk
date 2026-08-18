@@ -7,11 +7,9 @@ import { promisify } from "node:util";
 
 import { assembleDesktopProduct } from "#/assemble.ts";
 import { createDesktopAssemblyPlan } from "#/assembly-plan.ts";
-import { readProductVersion } from "#/product-version.ts";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..", "..", "..");
 const executeFile = promisify(execFile);
-const productVersion = await readProductVersion();
 const caddyExecutable = process.env["JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE"];
 if (!caddyExecutable || !path.isAbsolute(caddyExecutable)) {
   throw new Error(
@@ -34,7 +32,7 @@ await executeFile(
     },
   },
 );
-const plan = createDesktopAssemblyPlan({ caddyExecutable, productVersion, repositoryRoot });
+const plan = createDesktopAssemblyPlan({ caddyExecutable, repositoryRoot });
 const result = await assembleDesktopProduct(plan);
 
 process.stdout.write(`${result.productDirectory}\n`);

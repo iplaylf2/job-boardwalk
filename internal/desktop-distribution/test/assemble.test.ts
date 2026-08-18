@@ -7,8 +7,6 @@ import { describe, expect, onTestFinished, test } from "vitest";
 import { assembleDesktopProduct } from "#/assemble.ts";
 import type { DesktopAssemblyPlan } from "#/assembly-plan.ts";
 
-const productVersion = "7.8.9";
-
 async function createTestRoot(): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), "job-boardwalk-distribution-test-"));
   onTestFinished(() => rm(root, { force: true, recursive: true }));
@@ -31,16 +29,13 @@ function createPlan(
   components: DesktopAssemblyPlan["components"],
 ): DesktopAssemblyPlan {
   return {
-    architecture: "synthetic-arch",
     components,
     outputRoot: path.join(root, "output"),
-    platform: "linux",
-    productVersion,
   };
 }
 
 describe("assembleDesktopProduct", () => {
-  test("assembles only declared artifacts with a deterministic integrity manifest", async () => {
+  test("assembles only declared artifacts", async () => {
     const root = await createTestRoot();
     const manager = await writeArtifact(root, "sources/manager", "synthetic manager");
     const service = await writeArtifact(root, "sources/service/index.js", "synthetic service");
@@ -63,23 +58,18 @@ describe("assembleDesktopProduct", () => {
 
     const first = await assembleDesktopProduct(plan);
     expect(path.basename(first.productDirectory)).toBe("job-boardwalk");
-    const firstManifest = await readFile(
-      path.join(first.productDirectory, "manifest.json"),
-      "utf8",
-    );
     await writeArtifact(first.productDirectory, "stale.txt", "stale");
     const second = await assembleDesktopProduct(plan);
-    const secondManifest = await readFile(
-      path.join(second.productDirectory, "manifest.json"),
-      "utf8",
-    );
 
-    expect(secondManifest).toBe(firstManifest);
-    expect(second.manifest.files.map((file) => file.path)).toEqual([
-      "job-boardwalk",
-      "payload/service/.runtime/metadata.json",
-      "payload/service/index.js",
-    ]);
+    expect(await readFile(path.join(second.productDirectory, "job-boardwalk"), "utf8")).toBe(
+      "synthetic manager",
+    );
+    expect(
+      await readFile(
+        path.join(second.productDirectory, "payload/service/.runtime/metadata.json"),
+        "utf8",
+      ),
+    ).toBe("synthetic metadata");
     const dataDirectory = await stat(path.join(second.productDirectory, "data"));
     expect(dataDirectory.isDirectory()).toBe(true);
     await expect(readFile(path.join(second.productDirectory, "stale.txt"))).rejects.toThrow();
@@ -121,9 +111,6 @@ describe("assembleDesktopProduct", () => {
       const installedLinkMetadata = await stat(installedLink);
       expect(installedLinkMetadata.isFile()).toBe(true);
       expect(await readFile(installedLink, "utf8")).toBe("synthetic executable");
-      expect(result.manifest.files.map((file) => file.path)).toContain(
-        "payload/service/node_modules/.bin/synthetic-tool",
-      );
     },
   );
 });
