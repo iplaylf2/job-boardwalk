@@ -15,7 +15,7 @@ concurrency:
 jobs:
   resolve:
     name: Resolve desktop release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
@@ -73,10 +73,10 @@ jobs:
       matrix:
         include:
           - platform: Linux x64
-            runner: ubuntu-24.04
+            runner: ubuntu-latest
             archive_path: target/desktop-distribution/releases/*.tar.gz
           - platform: Windows x64
-            runner: windows-2025
+            runner: windows-latest
             archive_path: target/desktop-distribution/releases/*.zip
 
     steps:
@@ -100,6 +100,15 @@ jobs:
         run: |
           rustc --version
           cargo --version
+
+      - name: Cache Cargo dependencies and tools
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: false
+          shared-key: workspace
+
+      - name: Set up Rust compilation cache
+        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
@@ -128,6 +137,9 @@ jobs:
 
       - name: Build portable archive
         shell: pwsh
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
         run: |
           $env:JOB_BOARDWALK_DESKTOP_CADDY_EXECUTABLE = aqua which --config internal/desktop-distribution/aqua.yaml caddy
           pnpm exec moon exec --ignore-ci-checks desktop-distribution:package
@@ -154,7 +166,7 @@ jobs:
       - resolve
       - package
     if: needs.resolve.outputs.required == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
