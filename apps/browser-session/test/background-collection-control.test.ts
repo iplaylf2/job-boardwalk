@@ -42,7 +42,15 @@ function fakeLoginContext(navigationError?: Error): BrowserContext {
             title: "后端开发",
           },
         ],
-        elements: [],
+        elements: [
+          {
+            disabled: false,
+            name: "Synthetic login control",
+            role: "button",
+            signature: "synthetic-login-control",
+            sourceIndex: 0,
+          },
+        ],
         text: "登录",
         title: "BOSS直聘",
         truncated: false,
@@ -60,6 +68,32 @@ function fakeLoginContext(navigationError?: Error): BrowserContext {
     locator: () => ({ nth: () => null }),
     once: () => page,
     title: () => Promise.resolve("BOSS直聘"),
+    url: () => url,
+  } as unknown as Page;
+  const context = {
+    on: () => context,
+    pages: () => [page],
+  } as unknown as BrowserContext;
+  return context;
+}
+
+function fakeAuthenticatedYupaoContext(): BrowserContext {
+  const url = "https://www.yupao.com/a2/";
+  const page = {
+    bringToFront: () => Promise.resolve(),
+    evaluate: () =>
+      Promise.resolve({
+        elements: [],
+        text: ["首页", "职位", "公司", "校园", "消息", "简历", "合成求职者"].join("\n"),
+        title: "Synthetic Yupao jobs",
+        truncated: false,
+        url,
+        viewport: { height: 900, scrollY: 0, width: 1200 },
+      }),
+    isClosed: () => false,
+    locator: () => ({ nth: () => null }),
+    once: () => page,
+    title: () => Promise.resolve("Synthetic Yupao jobs"),
     url: () => url,
   } as unknown as Page;
   const context = {
@@ -148,6 +182,36 @@ test("connects login preparation and returned-control snapshots to the gate", as
   );
   expect(collectionCount).toBe(oneCollection);
   expect(returnedControlPlatforms).toEqual(["boss"]);
+});
+
+test("keeps collection active when login preparation finds an authenticated page", async () => {
+  const control = new BackgroundCollectionControl();
+  const executor = new BrowserToolExecutor(
+    new BrowserTabs(fakeAuthenticatedYupaoContext()),
+    () => null,
+    control,
+    {
+      recordReturnedControl: () => expect.unreachable("此测试不应记录浏览器交还"),
+      synchronizeJobEngagement: () => expect.unreachable("此测试不应同步岗位跟进"),
+      writeJobDescriptionObservation: () => expect.unreachable("此测试不应写入岗位详情"),
+    },
+  );
+  let collectionCount = noCollections;
+  await using scope = createScope();
+
+  const result = await scope.run(() =>
+    executor.execute("browser_prepare_login", { platformId: "yupao" }),
+  );
+  await scope.run(() =>
+    control.runCollection(() =>
+      recordedCollection(() => {
+        collectionCount += oneCollection;
+      }),
+    ),
+  );
+
+  expect(result).toMatchObject({ outcome: "already-authenticated" });
+  expect(collectionCount).toBe(oneCollection);
 });
 
 test("reopens collection when login preparation fails", async () => {

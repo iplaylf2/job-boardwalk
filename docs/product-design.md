@@ -207,17 +207,20 @@ session used for research:
 
 1. When the user requests login, or visible page evidence shows that the requested workflow
    requires authentication and the current session is unauthenticated, the agent asks Browser
-   Session to reuse the platform tab and open its login interface.
-2. Browser Session pauses passive page reads before opening the login interface. Once the
-   interface is visibly ready, the agent stops browser actions and asks the user to take over that
-   window. Opening the interface prepares the handoff; it does not authorize the agent to enter or
-   submit credentials or verification input.
-3. The user completes or stops the login or verification attempt and explicitly returns control to
+   Session to prepare login for that platform.
+2. Browser Session pauses passive page reads and observes the existing platform tab. Conclusive
+   authenticated-page evidence completes preparation without navigation or user handoff. Otherwise,
+   Browser Session opens the platform's configured login destination and waits for a usable login
+   interface. If neither result can be established, preparation fails and passive reads resume.
+3. Only a ready login interface starts user handoff. The agent stops browser actions and asks the
+   user to take over the visible window; readiness does not authorize the agent to enter or submit
+   credentials or verification input.
+4. The user completes or stops the login or verification attempt and explicitly returns control to
    the agent.
-4. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
+5. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
    resumes read-only research in the same browser profile and records results through Workspace
    Service. The flag records returned control and does not assert that authentication succeeded.
-5. A later verification request or user-controlled action pauses research and returns control to the
+6. A later verification request or user-controlled action pauses research and returns control to the
    user again.
 
 Only one actor drives a browser session at a time. Human takeover pauses agent input. Agent control

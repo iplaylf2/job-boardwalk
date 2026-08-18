@@ -152,7 +152,7 @@ automatic access-assessment coverage differs:
 | Platform | Automatic access assessment                                                                                                                                                                                                              |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BOSS直聘 | Successful protected navigation records `authenticated`; redirect from protected navigation to login records `unauthenticated`; a bounded snapshot containing the complete set of account-only navigation links records `authenticated`. |
-| 鱼泡直聘 | A bounded snapshot whose header contains the message and resume navigation followed by a non-login account identity records `authenticated`.                                                                                             |
+| 鱼泡直聘 | A bounded snapshot containing a complete job-seeker or recruiter account header records `authenticated`; the route alone does not establish authentication.                                                                              |
 
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
 agent or a bounded page read already performed by passive job collection or an explicit engagement
@@ -213,11 +213,14 @@ not alter navigation or bypass an access decision.
 verification, applications, messages, and account changes remain under user control. Browser
 Session implements the browser side of that handoff.
 
-Before navigating, `browser_prepare_login` blocks new background page work and waits for in-flight
-page work to finish. It then reuses the platform tab and opens its catalog-defined login
-destination. Once the login interface is visible, the agent stops browser input and hands the same
-window to the user. Workspace Service writes already started from previously captured evidence may
-finish during the handoff because they do not drive the browser.
+`browser_prepare_login` first blocks new background page work and waits for in-flight page work to
+finish. It then observes the reused platform tab. Authenticated-page evidence returns
+`outcome=already-authenticated` without navigation or user handoff. Otherwise the tool opens the
+catalog-defined login destination and performs bounded observations. It returns
+`outcome=handoff-ready` only when that page exposes an enabled user control; this outcome starts
+user handoff. If neither outcome can be established, preparation fails and passive collection
+resumes. Workspace Service writes already started from previously captured evidence may finish
+during a handoff because they do not drive the browser.
 
 After the user explicitly returns control, the agent calls `browser_snapshot` with
 `userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit

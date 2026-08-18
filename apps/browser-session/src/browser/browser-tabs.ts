@@ -10,6 +10,8 @@ import {
   recruitingPlatformAdapters,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
+import { observeCurrentAuthentication, observeLoginHandoff } from "./login-handoff.js";
+import type { LoginPreparationOutcome } from "./login-handoff.js";
 
 const blankPageUrls = new Set(["about:blank", "edge://newtab/", "chrome://newtab/"]);
 const firstPageId = 1;
@@ -25,6 +27,17 @@ export function* readNavigationPageSummary(
   const { platformId } = requireRecruitingPlatformAdapter(url);
   const title = yield* until(() => page.title());
   return { platformId, title, url };
+}
+
+interface NavigationTabSummary {
+  readonly id: number;
+  readonly platformId: PlatformId;
+  readonly title: string;
+  readonly url: string;
+}
+
+export interface LoginPreparationResult extends NavigationTabSummary {
+  readonly outcome: LoginPreparationOutcome;
 }
 
 export class BrowserTabs {
@@ -130,10 +143,37 @@ export class BrowserTabs {
     throw new Error(`不支持的标签页动作：${action}`);
   }
 
-  public *prepareLogin(input: Record<string, unknown>): RiteCoroutine<unknown> {
+  public *prepareLogin(input: Record<string, unknown>): RiteCoroutine<LoginPreparationResult> {
     const platformId = readPlatformId(input);
     const adapter = recruitingPlatformAdapters[platformId];
-    return yield* this.#ensure({ platformId, url: adapter.loginUrl });
+    const existingPlatformPage = [...this.#pages].find(([_id, page]) =>
+      adapter.isInNavigationScope(page.url()),
+    );
+    if (existingPlatformPage) {
+      const [id, page] = existingPlatformPage;
+      const authenticated = yield* observeCurrentAuthentication(page, adapter);
+      if (authenticated) {
+        yield* this.selectPage(page);
+        return {
+          id,
+          platformId,
+          ...authenticated,
+        };
+      }
+    }
+    const navigation = yield* this.#ensure({ platformId, url: adapter.loginUrl });
+    const page = this.#pages.get(navigation.id);
+    if (!page || page.isClosed()) {
+      throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
+    }
+    const observed = yield* observeLoginHandoff(page, adapter);
+    return {
+      id: navigation.id,
+      outcome: observed.outcome,
+      platformId,
+      title: observed.title,
+      url: observed.url,
+    };
   }
 
   *#list(): RiteCoroutine<unknown> {
@@ -153,7 +193,7 @@ export class BrowserTabs {
     return { tabs };
   }
 
-  *#ensure(params: Record<string, unknown>): RiteCoroutine<unknown> {
+  *#ensure(params: Record<string, unknown>): RiteCoroutine<NavigationTabSummary> {
     const platformId = readPlatformId(params);
     const adapter = recruitingPlatformAdapters[platformId];
     const requestedUrl = params["url"];
@@ -177,12 +217,12 @@ export class BrowserTabs {
     return yield* this.#create(url);
   }
 
-  *#activate([tabId, page]: [number, Page]): RiteCoroutine<unknown> {
+  *#activate([tabId, page]: [number, Page]): RiteCoroutine<NavigationTabSummary> {
     yield* this.selectPage(page);
     return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
   }
 
-  *#create(url: string): RiteCoroutine<unknown> {
+  *#create(url: string): RiteCoroutine<NavigationTabSummary> {
     const page = yield* until(() => this.#context.newPage());
     const tabId = this.#register(page);
     this.markSelected(tabId);
@@ -191,7 +231,7 @@ export class BrowserTabs {
     return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
   }
 
-  *#navigate([tabId, page]: [number, Page], url: string): RiteCoroutine<unknown> {
+  *#navigate([tabId, page]: [number, Page], url: string): RiteCoroutine<NavigationTabSummary> {
     this.markSelected(tabId);
     yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
     yield* until(() => page.bringToFront());

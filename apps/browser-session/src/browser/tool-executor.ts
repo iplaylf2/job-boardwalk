@@ -160,7 +160,11 @@ export class BrowserToolExecutor {
     yield* this.#collectionControl.pauseForUserHandoff();
     try {
       const result = yield* this.#tabs.prepareLogin(params);
-      this.#collectionControl.completeUserHandoff();
+      if (result.outcome === "handoff-ready") {
+        this.#collectionControl.completeUserHandoff();
+      } else {
+        this.#collectionControl.cancelUserHandoff();
+      }
       return result;
     } catch (error) {
       this.#collectionControl.cancelUserHandoff();

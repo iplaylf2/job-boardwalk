@@ -21,7 +21,7 @@ const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
   "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
   "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
-  "用户交接：需要打开登录界面时，使用 browser_prepare_login 准备交接；界面打开后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
+  "用户交接：需要登录时，使用 browser_prepare_login 检查现有会话并按需准备登录界面。只有 outcome=handoff-ready 才开始交接；此后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
   "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
 ].join("\n\n");
 
@@ -49,7 +49,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，先暂停被动页面读取，再复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并决定是否提交。",
+      "当用户明确要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，不导航或交出控制权；否则打开平台登录入口并有界观察。登录页出现启用的用户控件时返回 outcome=handoff-ready，开始用户交接；无法建立任一结果时准备失败并恢复被动读取。",
     name: "browser_prepare_login",
   }),
   defineBrowserTool({
