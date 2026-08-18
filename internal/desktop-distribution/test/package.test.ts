@@ -34,14 +34,11 @@ async function assembleSyntheticNativeProduct(root: string): Promise<string> {
   const manager = await writeArtifact(root, `sources/${managerName}`, "synthetic manager");
   const payload = await writeArtifact(root, "sources/payload.txt", "synthetic payload");
   const plan: DesktopAssemblyPlan = {
-    architecture: arch(),
     components: [
       { destination: installedManagerName, source: manager },
       { destination: "payload/synthetic.txt", source: payload },
     ],
     outputRoot: path.join(root, "assembled"),
-    platform: platform(),
-    productVersion: "7.8.9",
   };
   const result = await assembleDesktopProduct(plan);
   return result.productDirectory;
@@ -55,6 +52,7 @@ test("creates the native platform archive", async () => {
     {
       outputDirectory: path.join(root, "releases"),
       productDirectory,
+      productVersion: "7.8.9",
     },
     async (executable, arguments_, environment) => {
       let destinationPath: string | null = null;

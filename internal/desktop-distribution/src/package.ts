@@ -1,13 +1,9 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { arch, platform } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
-
-interface ProductManifest {
-  readonly productVersion: string;
-}
 
 type ExecutePackager = (
   executable: string,
@@ -18,6 +14,7 @@ type ExecutePackager = (
 export interface PortableArchiveOptions {
   readonly outputDirectory: string;
   readonly productDirectory: string;
+  readonly productVersion: string;
 }
 
 const executeFile = promisify(execFile);
@@ -86,11 +83,8 @@ export async function createPortableArchive(
   options: PortableArchiveOptions,
   executePackager: ExecutePackager = executeNativePackager,
 ): Promise<string> {
-  const manifest = JSON.parse(
-    await readFile(path.join(options.productDirectory, "manifest.json"), "utf8"),
-  ) as ProductManifest;
   const nativePlatform = platform();
-  const baseName = `job-boardwalk-${manifest.productVersion}-${archivePlatformName(nativePlatform)}-${arch()}`;
+  const baseName = `job-boardwalk-${options.productVersion}-${archivePlatformName(nativePlatform)}-${arch()}`;
   const extension = archiveExtension(nativePlatform);
   const archivePath = path.join(options.outputDirectory, `${baseName}${extension}`);
   await mkdir(options.outputDirectory, { recursive: true });

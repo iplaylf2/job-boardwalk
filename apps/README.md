@@ -13,5 +13,5 @@
 
 Each application README documents that application's operation and maintenance. Cross-application
 behavior belongs in [Product design](../docs/product-design.md); the supported Compose topology
-belongs in [Deployment](../docs/deployment.md); the desktop engineering topology and target
-installed form belong in [Desktop distribution](../docs/desktop-distribution.md).
+belongs in [Deployment](../docs/deployment.md); the desktop engineering topology and portable
+product form belong in [Desktop distribution](../docs/desktop-distribution.md).

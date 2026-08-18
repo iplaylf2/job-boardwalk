@@ -13,19 +13,14 @@ export interface AssemblyComponent {
 }
 
 export interface DesktopAssemblyPlan {
-  readonly architecture: string;
   readonly components: readonly AssemblyComponent[];
   readonly outputRoot: string;
-  readonly platform: NodeJS.Platform;
-  readonly productVersion: string;
 }
 
 interface CreateDesktopAssemblyPlanOptions {
-  readonly architecture?: string;
   readonly caddyExecutable: string;
   readonly outputRoot?: string;
   readonly platform?: NodeJS.Platform;
-  readonly productVersion: string;
   readonly repositoryRoot: string;
 }
 
@@ -94,16 +89,15 @@ function createAssemblyComponents(
 export function createDesktopAssemblyPlan(
   options: CreateDesktopAssemblyPlanOptions,
 ): DesktopAssemblyPlan {
-  const architecture = options.architecture ?? readArchitecture();
   const platform = options.platform ?? readPlatform();
 
   return {
-    architecture,
     components: createAssemblyComponents(options.caddyExecutable, options.repositoryRoot, platform),
     outputRoot:
       options.outputRoot ??
-      path.join(desktopDistributionRoot(options.repositoryRoot), `${platform}-${architecture}`),
-    platform,
-    productVersion: options.productVersion,
+      path.join(
+        desktopDistributionRoot(options.repositoryRoot),
+        `${platform}-${readArchitecture()}`,
+      ),
   };
 }

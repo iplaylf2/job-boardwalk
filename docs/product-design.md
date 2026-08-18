@@ -76,9 +76,9 @@ may derive an authentication assessment from a real top-level navigation respons
 page snapshot when it has a conclusive platform-specific rule. The agent interprets evidence not
 covered by an adapter.
 
-The Compose deployment and target desktop distribution preserve these application boundaries.
+The Compose deployment and directory-contained desktop distribution preserve these application boundaries.
 [Deployment](deployment.md) owns the supported Compose topology; [Desktop
-distribution](desktop-distribution.md) owns the target installed form, runtime packaging, and
+distribution](desktop-distribution.md) owns the portable product form, runtime packaging, and
 desktop release status.
 
 A virtual desktop or remote desktop transport is not part of the product: a host without a

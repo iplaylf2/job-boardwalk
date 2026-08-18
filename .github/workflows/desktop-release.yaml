@@ -183,26 +183,6 @@ jobs:
           ' internal/desktop-distribution/CHANGELOG.md > release-notes.md
           test -s release-notes.md
 
-      - name: Create release checksums
-        shell: bash
-        run: |
-          (
-            cd release-assets
-            shopt -s nullglob
-            release_archives=(*)
-            if (( ${#release_archives[@]} == 0 )); then
-              echo "No desktop release artifacts matched $RELEASE_ARTIFACT_PATTERN." >&2
-              exit 1
-            fi
-            for archive in "${release_archives[@]}"; do
-              if [[ ! -f "$archive" ]]; then
-                echo "Downloaded desktop release artifact is not a regular file: $archive" >&2
-                exit 1
-              fi
-            done
-            sha256sum -- "${release_archives[@]}" > SHA256SUMS
-          )
-
       - name: Publish GitHub prerelease
         shell: bash
         env:

@@ -49,10 +49,10 @@ Available now:
   Explicit description snapshots return only after Workspace Service preserves their observations;
   passive collection submits evidence from eligible tabs that are already open. Neither workflow
   opens or navigates research pages. The selected job-search intent guides explicit agent
-  navigation, not background browsing. Platform
-  lists of interested, contacted, applied, and interviewed jobs are synchronized for one platform
-  and category at a time, only within a user-requested agent task; supported continuations require
-  another explicit call and remain bounded to 60 distinct jobs.
+  navigation, not background browsing. Platform lists of interested, contacted, applied, and
+  interviewed jobs are synchronized for one platform and category at a time, only within a
+  user-requested agent task; supported continuations require another explicit call and remain
+  bounded to 60 distinct jobs.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
   sources, source-specific descriptions, and Markdown research reports. It merges confident
@@ -69,10 +69,7 @@ Available now:
 - Portable desktop prereleases package Job Boardwalk into one directory for Linux x64 and Windows
   x64. They run without installing Docker or Node.js and without a source checkout, and they use an
   installed Chrome, Edge, or Chromium browser. [Desktop distribution](docs/desktop-distribution.md)
-  explains how to use these unsigned builds and what remains before a supported desktop release.
-
-Durable research runs and run-level progress remain product direction; they are not yet exposed by
-the applications.
+  explains how to use them and why Compose remains the supported deployment.
 
 ## Run Job Boardwalk
 
@@ -111,25 +108,17 @@ while the agent host connects to <http://127.0.0.1:54312/mcp>.
 ### Portable desktop prerelease
 
 [GitHub Releases](https://github.com/iplaylf2/job-boardwalk/releases) provides unsigned Linux x64
-and Windows x64 archives for prerelease evaluation. Download the archive for your operating system,
-verify it against the release's `SHA256SUMS`, and extract the complete `job-boardwalk` directory to
-a writable location. The desktop build requires an installed Chrome, Edge, or Chromium browser but
-does not require installing Docker or Node.js and does not require a source checkout.
+and Windows x64 archives for prerelease evaluation. Download the archive for your operating system
+and extract the complete `job-boardwalk` directory to a writable location. The desktop build
+requires an installed Chrome, Edge, or Chromium browser but does not require installing Docker or
+Node.js and does not require a source checkout.
 
 The archive's `readme.md` explains how to start the application and where it stores data. The
-prerelease does not yet provide automatic updates or a supported backup-and-restore workflow, and
-the existing Compose deployment remains the supported topology. See
+prerelease does not provide automatic updates or a supported backup-and-restore workflow, and the
+existing Compose deployment remains the supported topology. See
 [Desktop distribution](docs/desktop-distribution.md#use-a-desktop-prerelease) for the complete
 prerelease limitations. Developers who need to build an archive from source should follow
 [Development](docs/development.md#desktop-distribution-staging).
-
-When the user requests login, or visible page evidence shows that the requested workflow requires
-authentication and the current session is unauthenticated, the agent proactively opens the
-platform login interface. The agent then pauses browser input so the user can enter credentials and
-complete verification. Applications, messages, and account changes likewise remain under user
-control, and the agent resumes only after the user explicitly returns control. A supported
-platform's HTTPS navigation scope permits research and login-handoff preparation only; it does not
-authorize those user actions.
 
 See [Deployment](docs/deployment.md) for runtime lifecycle, persistence, health, logs, backup, and
 restore. See [Development](docs/development.md) for the cross-language workspace and checks. The

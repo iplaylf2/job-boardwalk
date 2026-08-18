@@ -225,6 +225,5 @@ names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local
 `JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can
 replace them with registry tags or immutable digests.
 
-[Desktop distribution](desktop-distribution.md) defines a separate directory-contained engineering
-artifact and the target desktop release. That work does not alter the Compose artifact contract
-owned by this document.
+[Desktop distribution](desktop-distribution.md) defines the separate directory-contained desktop
+prerelease. That work does not alter the Compose artifact contract owned by this document.
