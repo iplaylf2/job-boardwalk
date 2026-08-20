@@ -3,7 +3,22 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 
 // oxlint-disable max-lines -- This class is the cohesive persistence boundary for workspace state.
-import { and, asc, count, desc, eq, gt, inArray, isNull, like, notInArray, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-sqlite";
 import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
@@ -11,6 +26,7 @@ import type {
   JobCardObservation,
   JobDescriptionObservation,
   JobPostingDescription,
+  JobDescriptionCoverage,
   JobPosting,
   JobPostingPage,
   JobPostingSource,
@@ -30,11 +46,7 @@ import { isPlatformId } from "@job-boardwalk/platform-catalog";
 
 import { parseJobPostingSalary } from "#/job-library/salary.js";
 import type { JobLibraryQuery } from "#/job-library/query.js";
-import {
-  jobDescriptionCaptureStatus,
-  matchesJobDescriptionStatus,
-  summarizeJobDescriptionCoverage,
-} from "#/job-library/description-capture.js";
+import { jobDescriptionCaptureStatus } from "#/job-library/description-capture.js";
 
 import {
   jobPostings,
@@ -830,25 +842,27 @@ export class WorkspaceRepository {
   }
 
   public listJobPostingPage(input: JobLibraryQuery): JobPostingPage {
-    const condition = this.#jobPageCondition(input);
+    const scopeCondition = this.#jobScopeCondition(input);
+    const descriptionCondition = this.#jobDescriptionCondition(input.descriptionStatus);
+    const filteredCondition = and(scopeCondition, descriptionCondition);
+    const descriptionCoverage = this.#jobDescriptionCoverage(scopeCondition);
+    const total =
+      this.#database.select({ value: count() }).from(jobPostings).where(filteredCondition).get()
+        ?.value ?? emptyCount;
+    const pageCount = Math.max(firstPage, Math.ceil(total / input.pageSize));
     const rows = this.#database
       .select()
       .from(jobPostings)
-      .where(condition)
+      .where(filteredCondition)
       .orderBy(desc(jobPostings.updatedAt), asc(jobPostings.title))
+      .limit(input.pageSize)
+      .offset((input.page - firstPage) * input.pageSize)
       .all();
     const sourceRows = this.#listJobPostingSources(rows.map(({ id }) => id));
     const engagementRows = this.#listJobSourceEngagements(sourceRows.map(({ id }) => id));
-    const jobs = rows.map((job) => toJobPosting(job, sourceRows, engagementRows));
-    const filteredJobs = jobs.filter((job) =>
-      matchesJobDescriptionStatus(job, input.descriptionStatus),
-    );
-    const total = filteredJobs.length;
-    const pageCount = Math.max(firstPage, Math.ceil(total / input.pageSize));
-    const offset = (input.page - firstPage) * input.pageSize;
     return {
-      descriptionCoverage: summarizeJobDescriptionCoverage(jobs),
-      jobs: filteredJobs.slice(offset, offset + input.pageSize),
+      descriptionCoverage,
+      jobs: rows.map((job) => toJobPosting(job, sourceRows, engagementRows)),
       page: input.page,
       pageCount,
       pageSize: input.pageSize,
@@ -856,7 +870,7 @@ export class WorkspaceRepository {
     };
   }
 
-  #jobPageCondition(input: JobLibraryQuery) {
+  #jobScopeCondition(input: JobLibraryQuery) {
     const conditions = [];
     if (input.query) {
       const pattern = `%${input.query}%`;
@@ -900,6 +914,51 @@ export class WorkspaceRepository {
       conditions.push(inArray(jobPostings.id, platformJobIds));
     }
     return and(...conditions);
+  }
+
+  #jobDescriptionCondition(status: JobLibraryQuery["descriptionStatus"]) {
+    if (!status) {
+      return and();
+    }
+    if (status === "captured") {
+      return isNotNull(jobPostings.description);
+    }
+    if (status === "missing") {
+      return isNull(jobPostings.description);
+    }
+    return this.#jobIdentityUnresolvedCondition();
+  }
+
+  #jobIdentityUnresolvedCondition() {
+    const identifiableJobIds = this.#database
+      .selectDistinct({ jobId: jobPostingSources.jobId })
+      .from(jobPostingSources)
+      .where(
+        or(
+          sql`nullif(json_extract(${jobPostingSources.cardObservation}, '$.externalJobId'), '') is not null`,
+          sql`nullif(json_extract(${jobPostingSources.cardObservation}, '$.jobUrl'), '') is not null`,
+          sql`nullif(json_extract(${jobPostingSources.descriptionObservation}, '$.externalJobId'), '') is not null`,
+          sql`nullif(json_extract(${jobPostingSources.descriptionObservation}, '$.jobUrl'), '') is not null`,
+        ),
+      );
+    return and(isNull(jobPostings.description), notInArray(jobPostings.id, identifiableJobIds));
+  }
+
+  #jobDescriptionCoverage(scopeCondition: SQL | undefined): JobDescriptionCoverage {
+    const identityUnresolvedCondition = this.#jobIdentityUnresolvedCondition();
+    const coverage = this.#database
+      .select({
+        captured: sql<number>`coalesce(sum(case when ${isNotNull(jobPostings.description)} then 1 else 0 end), 0)`,
+        identityUnresolved: sql<number>`coalesce(sum(case when ${identityUnresolvedCondition} then 1 else 0 end), 0)`,
+        total: count(),
+      })
+      .from(jobPostings)
+      .where(scopeCondition)
+      .get() ?? { captured: emptyCount, identityUnresolved: emptyCount, total: emptyCount };
+    return {
+      ...coverage,
+      uncaptured: coverage.total - coverage.captured - coverage.identityUnresolved,
+    };
   }
 
   #listJobPostingSources(jobIds: number[]): JobPostingSourceRow[] {

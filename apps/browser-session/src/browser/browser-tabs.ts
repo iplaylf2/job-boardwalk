@@ -137,11 +137,10 @@ export class BrowserTabs {
   public *prepareLogin(input: Record<string, unknown>): RiteCoroutine<LoginPreparationResult> {
     const platformId = readPlatformId(input);
     const adapter = recruitingPlatformAdapters[platformId];
-    const existingPlatformPage = [...this.#pages].find(([_id, page]) =>
+    const existingPlatformPages = [...this.#pages].filter(([_id, page]) =>
       adapter.isInNavigationScope(page.url()),
     );
-    if (existingPlatformPage) {
-      const [id, page] = existingPlatformPage;
+    for (const [id, page] of existingPlatformPages) {
       const authenticated = yield* observeCurrentAuthentication(page, adapter);
       if (authenticated) {
         yield* this.selectPage(page);

@@ -997,6 +997,32 @@ test("reports description coverage and source identity gaps across all tracked j
     ).toMatchObject({ descriptionCoverage: tracked.descriptionCoverage, total: 2 });
     expect(
       repository.listJobPostingPage({
+        descriptionStatus: "missing",
+        engagement: "tracked",
+        page: 1,
+        pageSize: 1,
+      }),
+    ).toMatchObject({
+      descriptionCoverage: tracked.descriptionCoverage,
+      jobs: [{ sources: [uncapturedSource] }],
+      pageCount: 2,
+      total: 2,
+    });
+    expect(
+      repository.listJobPostingPage({
+        descriptionStatus: "missing",
+        engagement: "tracked",
+        page: 2,
+        pageSize: 1,
+      }),
+    ).toMatchObject({
+      descriptionCoverage: tracked.descriptionCoverage,
+      jobs: [{ sources: [unresolvedSource] }],
+      pageCount: 2,
+      total: 2,
+    });
+    expect(
+      repository.listJobPostingPage({
         descriptionStatus: "identity-unresolved",
         engagement: "tracked",
         page: 1,

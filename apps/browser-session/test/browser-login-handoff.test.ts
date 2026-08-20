@@ -80,10 +80,10 @@ function fakePage(initialUrl: string, options: FakePageOptions = {}): FakePage {
   return state;
 }
 
-function fakeBrowserContext(page: Page): BrowserContext {
+function fakeBrowserContext(...pages: Page[]): BrowserContext {
   const context = {
     on: () => context,
-    pages: () => [page],
+    pages: () => pages,
   } as unknown as BrowserContext;
   return context;
 }
@@ -128,6 +128,29 @@ test("does not navigate or hand off when the reused platform page is already aut
 
   expect(fake.navigationCount).toBe(noNavigations);
   expect(result).toMatchObject({
+    outcome: "already-authenticated",
+    url: "https://www.yupao.com/a2/",
+  });
+});
+
+test("checks every platform page before preparing a login handoff", async () => {
+  await using scope = createScope();
+  const unauthenticated = fakePage("https://www.yupao.com/a2/", {
+    snapshotElements: [],
+    snapshotText: "Synthetic public recruiting page",
+  });
+  const authenticated = fakePage("https://www.yupao.com/a2/", {
+    snapshotElements: [],
+    snapshotText: ["首页", "职位", "公司", "校园", "消息", "简历", "合成求职者"].join("\n"),
+  });
+  const tabs = new BrowserTabs(fakeBrowserContext(unauthenticated.page, authenticated.page));
+
+  const result = await scope.run(() => tabs.prepareLogin({ platformId: "yupao" }));
+
+  expect(unauthenticated.navigationCount).toBe(noNavigations);
+  expect(authenticated.navigationCount).toBe(noNavigations);
+  expect(result).toMatchObject({
+    id: 2,
     outcome: "already-authenticated",
     url: "https://www.yupao.com/a2/",
   });
