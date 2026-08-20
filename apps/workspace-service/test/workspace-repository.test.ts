@@ -1153,6 +1153,38 @@ test("explicitly binds a confirmed detail page to one unresolved tracked source"
       ],
       total: 1,
     });
+
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: {
+        company: detailObservation.company,
+        details: detailObservation.details,
+        discoveryUrl: detailObservation.jobUrl,
+        externalJobId: detailObservation.externalJobId,
+        jobUrl: detailObservation.jobUrl,
+        location: detailObservation.location,
+        observedAt: "2026-07-19T10:15:00.000Z",
+        platformId: detailObservation.platformId,
+        summary: "稳定身份卡片再次出现",
+        title: detailObservation.title,
+      },
+      reason: "test stable source identity refresh",
+    });
+    const provisionalRefresh = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: {
+        company: "合成智能甲",
+        details: ["Java", "MySQL"],
+        discoveryUrl: "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
+        location: "海淀区·合成街道",
+        observedAt: "2026-07-19T10:20:00.000Z",
+        platformId: "yupao",
+        summary: "临时身份卡片再次出现",
+        title: "后端平台工程师",
+      },
+      reason: "test retained provisional source identity",
+    });
+    expect(provisionalRefresh.job.sources).toEqual([expect.objectContaining({ id: sourceId })]);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

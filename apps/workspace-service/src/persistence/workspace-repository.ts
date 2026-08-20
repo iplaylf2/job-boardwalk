@@ -50,6 +50,7 @@ import { jobDescriptionCaptureStatus } from "#/job-library/description-capture.j
 
 import {
   jobPostings,
+  jobPostingSourceIdentities,
   jobPostingSources,
   jobSourceEngagements,
   jobSearchIntents,
@@ -91,7 +92,6 @@ type SourceObservations = Pick<JobPostingSourceRow, "cardObservation" | "descrip
 const emptyCollectionLength = 0;
 const emptyCount = 0;
 const firstPage = 1;
-const singleItemCount = 1;
 
 function jobDescriptionSourceBindingError(message: string): Error {
   const error = new Error(message);
@@ -1025,10 +1025,7 @@ export class WorkspaceRepository {
   #saveJobObservation(input: PreparedJobObservation): SaveJobObservationResult {
     const { cardObservation } = input;
     const sourceIdentityKey = jobPostingSourceIdentityKey(cardObservation);
-    const { existingSource, nextSourceIdentityKey } = this.#resolveJobObservationSource(
-      input,
-      sourceIdentityKey,
-    );
+    const existingSource = this.#resolveJobObservationSource(input, sourceIdentityKey);
     const observedAt = observationTime(input);
     if (existingSource) {
       const freshness = observationFreshness(existingSource, input);
@@ -1050,7 +1047,7 @@ export class WorkspaceRepository {
         ? latestTimestamp(existingSource.lastCheckedAt, observedAt)
         : observedAt,
       now,
-      sourceIdentityKey: nextSourceIdentityKey,
+      sourceIdentityKey,
       sourceObservations,
     });
     this.#database
@@ -1077,16 +1074,12 @@ export class WorkspaceRepository {
         input.cardObservation,
         observedIdentityKey,
       );
-      return { existingSource, nextSourceIdentityKey: observedIdentityKey };
+      return existingSource;
     }
-    const existingSource = this.#findJobPostingSourceByObservedIdentity(
+    return this.#findJobPostingSourceByObservedIdentity(
       input.cardObservation.platformId,
       observedIdentityKey,
     );
-    return {
-      existingSource,
-      nextSourceIdentityKey: existingSource?.identityKey ?? observedIdentityKey,
-    };
   }
 
   #existingJobObservationOutcome(
@@ -1144,32 +1137,17 @@ export class WorkspaceRepository {
   }
 
   #findJobPostingSourceByObservedIdentity(platformId: string, identityKey: string) {
-    const exact = this.#database
-      .select()
-      .from(jobPostingSources)
+    return this.#database
+      .select({ source: jobPostingSources })
+      .from(jobPostingSourceIdentities)
+      .innerJoin(jobPostingSources, eq(jobPostingSources.id, jobPostingSourceIdentities.sourceId))
       .where(
         and(
-          eq(jobPostingSources.platformId, platformId),
-          eq(jobPostingSources.identityKey, identityKey),
+          eq(jobPostingSourceIdentities.platformId, platformId),
+          eq(jobPostingSourceIdentities.identityKey, identityKey),
         ),
       )
-      .get();
-    if (exact) {
-      return exact;
-    }
-    const cardIdentityMatches = this.#database
-      .select()
-      .from(jobPostingSources)
-      .where(eq(jobPostingSources.platformId, platformId))
-      .all()
-      .filter(
-        (source) =>
-          source.cardObservation &&
-          jobPostingSourceIdentityKey(source.cardObservation) === identityKey,
-      );
-    return cardIdentityMatches.length === singleItemCount
-      ? cardIdentityMatches.at(firstParameterIndex)
-      : exact;
+      .get()?.source;
   }
 
   #requireDescriptionSource(
@@ -1226,11 +1204,11 @@ export class WorkspaceRepository {
     return this.#database.transaction((transaction) => {
       if (input.existingSource) {
         const { id, jobId } = input.existingSource;
+        WorkspaceRepository.#attachJobSourceIdentity(transaction, id, input);
         transaction
           .update(jobPostingSources)
           .set({
             ...input.sourceObservations,
-            identityKey: input.sourceIdentityKey,
             lastCheckedAt: input.lastCheckedAt,
           })
           .where(eq(jobPostingSources.id, id))
@@ -1268,6 +1246,22 @@ export class WorkspaceRepository {
     });
   }
 
+  static #attachJobSourceIdentity(
+    transaction: WorkspaceTransaction,
+    sourceId: number,
+    input: { cardObservation: JobCardObservation; sourceIdentityKey: string },
+  ): void {
+    transaction
+      .insert(jobPostingSourceIdentities)
+      .values({
+        identityKey: input.sourceIdentityKey,
+        platformId: input.cardObservation.platformId,
+        sourceId,
+      })
+      .onConflictDoNothing()
+      .run();
+  }
+
   static #insertJobSource(
     transaction: WorkspaceTransaction,
     jobId: number,
@@ -1278,14 +1272,22 @@ export class WorkspaceRepository {
       sourceIdentityKey: string;
     },
   ): void {
-    transaction
+    const sourceId = transaction
       .insert(jobPostingSources)
       .values({
         ...input.sourceObservations,
-        identityKey: input.sourceIdentityKey,
         jobId,
         lastCheckedAt: input.lastCheckedAt,
         platformId: input.cardObservation.platformId,
+      })
+      .returning({ id: jobPostingSources.id })
+      .get().id;
+    transaction
+      .insert(jobPostingSourceIdentities)
+      .values({
+        identityKey: input.sourceIdentityKey,
+        platformId: input.cardObservation.platformId,
+        sourceId,
       })
       .run();
   }
