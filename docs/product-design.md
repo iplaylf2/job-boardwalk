@@ -347,14 +347,15 @@ change attribution separately.
 
 ### Job library
 
-Job cards remain compact and comparable regardless of description length. A collected description
-opens in a dedicated dialog rather than expanding inside its card, so reading one job does not
-reflow the surrounding list. Only one description is open at a time, and closing it returns the
-user to the same list context. On a narrow screen, the dialog fills the viewport; its header remains
-visible while the description scrolls independently. The list heading reports description coverage
-for the current search, platform, and engagement scope before a description filter narrows the
-cards, so selecting jobs without descriptions does not hide the baseline needed to understand the
-result.
+Job cards remain compact and comparable regardless of description length. Description availability
+belongs to the library-level summary and filters; a card presents a description action only when
+there is content to read. A collected description opens in a dedicated dialog rather than expanding
+inside its card, so reading one job does not reflow the surrounding list. Only one description is
+open at a time, and closing it returns the user to the same list context. On a narrow screen, the
+dialog fills the viewport; its header remains visible while the description scrolls independently.
+The list heading reports description coverage for the current search, platform, and engagement
+scope before a description filter narrows the cards, so selecting jobs without descriptions does
+not hide the baseline needed to understand the result.
 
 ### Product direction
 

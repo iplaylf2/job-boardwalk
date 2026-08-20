@@ -18,19 +18,19 @@ const jobLibraryResultCopy = {
     kicker: "已整理岗位",
   },
   applied: {
-    empty: "尚未从招聘平台个人中心同步到“已投递”岗位。",
+    empty: "尚未从招聘平台个人中心同步“已投递”岗位。",
     kicker: "岗位跟进",
   },
   contacted: {
-    empty: "尚未从招聘平台个人中心同步到“沟通过”岗位。",
+    empty: "尚未从招聘平台个人中心同步“沟通过”岗位。",
     kicker: "岗位跟进",
   },
   interested: {
-    empty: "尚未从招聘平台个人中心同步到“感兴趣”岗位。你可以在平台标记岗位，再让助手同步该列表。",
+    empty: "尚未从招聘平台个人中心同步“感兴趣”岗位。你可以先在平台标记感兴趣，再让助手同步。",
     kicker: "岗位跟进",
   },
   interviewed: {
-    empty: "尚未从招聘平台个人中心同步到面试岗位。",
+    empty: "尚未从招聘平台个人中心同步“面试”岗位。",
     kicker: "岗位跟进",
   },
   tracked: {
@@ -45,10 +45,10 @@ function JobDescriptionCoverageSummary(props: { result: JobPostingPage }): JSX.E
     props.result.descriptionCoverage.identityUnresolved;
   return (
     <span class={styles["count"]}>
-      共 {String(props.result.descriptionCoverage.total)} 个岗位 ·{" "}
-      {String(props.result.descriptionCoverage.captured)} 个已有详情 · {String(missing)} 个尚无详情
+      共 {String(props.result.descriptionCoverage.total)} 个岗位 · 职位描述：
+      {String(props.result.descriptionCoverage.captured)} 个已采集 · {String(missing)} 个未采集
       <Show when={props.result.descriptionCoverage.identityUnresolved > emptyCollectionLength}>
-        {`（其中 ${String(props.result.descriptionCoverage.identityUnresolved)} 个详情来源待补全）`}
+        {`（其中 ${String(props.result.descriptionCoverage.identityUnresolved)} 个来源信息待补全）`}
       </Show>
       <Show when={props.result.total !== props.result.descriptionCoverage.total}>
         {` · 当前显示 ${String(props.result.total)} 个`}

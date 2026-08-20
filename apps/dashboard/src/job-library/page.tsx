@@ -17,7 +17,7 @@ import styles from "./page.module.css";
 const allPlatforms = "all";
 const allDescriptionStatuses = "all";
 const firstPage = 1;
-const jobLibraryLede = "集中查看已收录岗位、平台跟进记录和详情采集情况。";
+const jobLibraryLede = "集中查看已收录岗位、平台跟进记录和职位描述采集情况。";
 const pageSize = 24;
 const refreshIntervalMilliseconds = 30_000;
 type DescriptionStatusSelection = typeof allDescriptionStatuses | JobDescriptionStatusFilter;
@@ -93,7 +93,7 @@ function DescriptionStatusSelect(props: {
 }): JSX.Element {
   return (
     <label>
-      岗位详情
+      职位描述
       <select
         value={props.value}
         onChange={(event) => {
@@ -103,10 +103,10 @@ function DescriptionStatusSelect(props: {
           );
         }}
       >
-        <option value={allDescriptionStatuses}>全部</option>
-        <option value="missing">尚无详情</option>
-        <option value="identity-unresolved">详情来源待补全</option>
-        <option value="captured">已有详情</option>
+        <option value={allDescriptionStatuses}>全部状态</option>
+        <option value="captured">已采集</option>
+        <option value="missing">尚未采集</option>
+        <option value="identity-unresolved">来源信息待补全</option>
       </select>
     </label>
   );

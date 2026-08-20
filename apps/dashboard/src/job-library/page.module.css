@@ -111,7 +111,7 @@
   color: var(--ink-muted);
   font-size: var(--text-meta);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  text-align: end;
 }
 
 .grid {
@@ -142,6 +142,16 @@
 }
 
 @container job-library (max-width: 47.5rem) {
+  .heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .count {
+    text-align: start;
+  }
+
   .filters,
   .grid {
     grid-template-columns: 1fr;
