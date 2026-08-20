@@ -6,6 +6,7 @@ import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { BrowserTabs } from "#/browser/browser-tabs.js";
+import { PlatformAccessObserver } from "#/browser/platform-access-observer.js";
 import { PassiveJobObservationCollector } from "#/browser/job-observation/passive-collector.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 import type { JobObservationWriter } from "#/workspace-service/job-observation-writer.js";
@@ -201,9 +202,11 @@ test("connects login preparation and returned-control snapshots to the gate", as
 
 test("keeps collection active when login preparation finds an authenticated page", async () => {
   const control = new BackgroundCollectionControl();
+  const context = fakeAuthenticatedYupaoContext();
+  const observer = new PlatformAccessObserver(context);
   const executor = new BrowserToolExecutor(
-    new BrowserTabs(fakeAuthenticatedYupaoContext()),
-    () => null,
+    new BrowserTabs(context),
+    (page) => observer.observePage(page),
     control,
     {
       recordReturnedControl: () => expect.unreachable("此测试不应记录浏览器交还"),
@@ -226,6 +229,7 @@ test("keeps collection active when login preparation finds an authenticated page
   );
 
   expect(result).toMatchObject({ outcome: "already-authenticated" });
+  expect(observer.observations).toHaveLength(oneCollection);
   expect(collectionCount).toBe(oneCollection);
 });
 

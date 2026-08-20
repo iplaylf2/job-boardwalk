@@ -3,6 +3,11 @@ import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BrowserTabs } from "#/browser/browser-tabs.js";
+import {
+  derivePageAccessObservation,
+  PlatformAccessObserver,
+} from "#/browser/platform-access-observer.js";
+import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
 import { createSyntheticPageLocator } from "./synthetic-page-locator.js";
 
 interface FakePage {
@@ -18,7 +23,7 @@ interface FakePageOptions {
     readonly name: string;
     readonly role: string;
   }[];
-  readonly snapshotText?: string;
+  readonly snapshotText?: string | ((state: FakePage) => string);
 }
 
 const firstNavigationCount = 1;
@@ -26,6 +31,18 @@ const immediateRedirectDelayMilliseconds = 0;
 const noNavigations = 0;
 const syntheticViewportHeight = 800;
 const syntheticViewportWidth = 1200;
+const syntheticYupaoAuthenticatedText = [
+  "首页",
+  "职位",
+  "公司",
+  "校园",
+  "消息",
+  "简历",
+  "合成求职者",
+].join("\n");
+function observePageAccess(page: PageAccessFacts) {
+  return derivePageAccessObservation(page);
+}
 
 function fakePage(initialUrl: string, options: FakePageOptions = {}): FakePage {
   const state: FakePage = {
@@ -47,7 +64,10 @@ function fakePage(initialUrl: string, options: FakePageOptions = {}): FakePage {
         signature: `synthetic-${String(sourceIndex)}`,
         sourceIndex,
       })),
-      text: options.snapshotText ?? "Synthetic visible login interface",
+      text:
+        typeof options.snapshotText === "function"
+          ? options.snapshotText(state)
+          : (options.snapshotText ?? "Synthetic visible login interface"),
       title: "Synthetic recruiting platform",
       truncated: false,
       url: state.url,
@@ -107,7 +127,9 @@ test.each([
   const fake = fakePage(input.initialUrl);
   const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
 
-  const result = await scope.run(() => tabs.prepareLogin({ platformId: input.platformId }));
+  const result = await scope.run(() =>
+    tabs.prepareLogin({ platformId: input.platformId }, observePageAccess),
+  );
 
   expect(fake.navigationCount).toBe(firstNavigationCount);
   expect(result).toMatchObject({
@@ -120,11 +142,13 @@ test("does not navigate or hand off when the reused platform page is already aut
   await using scope = createScope();
   const fake = fakePage("https://www.yupao.com/a2/", {
     snapshotElements: [],
-    snapshotText: ["首页", "职位", "公司", "校园", "消息", "简历", "合成求职者"].join("\n"),
+    snapshotText: syntheticYupaoAuthenticatedText,
   });
   const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
 
-  const result = await scope.run(() => tabs.prepareLogin({ platformId: "yupao" }));
+  const result = await scope.run(() =>
+    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
+  );
 
   expect(fake.navigationCount).toBe(noNavigations);
   expect(result).toMatchObject({
@@ -141,11 +165,13 @@ test("checks every platform page before preparing a login handoff", async () => 
   });
   const authenticated = fakePage("https://www.yupao.com/a2/", {
     snapshotElements: [],
-    snapshotText: ["首页", "职位", "公司", "校园", "消息", "简历", "合成求职者"].join("\n"),
+    snapshotText: syntheticYupaoAuthenticatedText,
   });
   const tabs = new BrowserTabs(fakeBrowserContext(unauthenticated.page, authenticated.page));
 
-  const result = await scope.run(() => tabs.prepareLogin({ platformId: "yupao" }));
+  const result = await scope.run(() =>
+    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
+  );
 
   expect(unauthenticated.navigationCount).toBe(noNavigations);
   expect(authenticated.navigationCount).toBe(noNavigations);
@@ -156,6 +182,30 @@ test("checks every platform page before preparing a login handoff", async () => 
   });
 });
 
+test("records authentication observed after navigating to prepare login", async () => {
+  await using scope = createScope();
+  const fake = fakePage("https://www.yupao.com/", {
+    snapshotElements: [],
+    snapshotText: (state) =>
+      state.navigationCount === noNavigations
+        ? "Synthetic public recruiting page"
+        : syntheticYupaoAuthenticatedText,
+  });
+  const context = fakeBrowserContext(fake.page);
+  const observer = new PlatformAccessObserver(context);
+  const tabs = new BrowserTabs(context);
+
+  const result = await scope.run(() =>
+    tabs.prepareLogin({ platformId: "yupao" }, (page) => observer.observePage(page)),
+  );
+
+  expect(fake.navigationCount).toBe(firstNavigationCount);
+  expect(result).toMatchObject({ outcome: "already-authenticated", platformId: "yupao" });
+  expect(observer.observations).toEqual([
+    expect.objectContaining({ authenticationState: "authenticated", platformId: "yupao" }),
+  ]);
+});
+
 test("rejects a blank login route instead of handing off an unusable page", async () => {
   const fake = fakePage("https://www.yupao.com/", {
     snapshotElements: [],
@@ -163,9 +213,9 @@ test("rejects a blank login route instead of handing off an unusable page", asyn
   });
   const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
 
-  const failure = await run(() => tabs.prepareLogin({ platformId: "yupao" })).catch(
-    (error: unknown) => error,
-  );
+  const failure = await run(() =>
+    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
+  ).catch((error: unknown) => error);
   expect(deepestFailureMessage(failure)).toMatch(/鱼泡直聘登录交接尚未就绪/u);
 });
 
@@ -179,9 +229,9 @@ test("rejects a login handoff when the platform leaves its login page after navi
   });
   const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
 
-  const failure = await run(() => tabs.prepareLogin({ platformId: "yupao" })).catch(
-    (error: unknown) => error,
-  );
+  const failure = await run(() =>
+    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
+  ).catch((error: unknown) => error);
   const failureMessage = deepestFailureMessage(failure);
   expect(failureMessage).toContain("https://www.yupao.com/a2/");
   expect(failureMessage).not.toContain("ignored=sensitive");

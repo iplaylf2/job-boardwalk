@@ -160,7 +160,7 @@ export class BrowserToolExecutor {
   *#prepareLogin(params: Record<string, unknown>): RiteCoroutine<unknown> {
     yield* this.#collectionControl.pauseForUserHandoff();
     try {
-      const result = yield* this.#tabs.prepareLogin(params);
+      const result = yield* this.#tabs.prepareLogin(params, this.#observePageAccess);
       if (result.outcome === "handoff-ready") {
         this.#collectionControl.completeUserHandoff();
       } else {

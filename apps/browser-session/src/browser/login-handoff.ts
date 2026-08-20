@@ -1,4 +1,5 @@
 import type { Page } from "patchright";
+import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { sleep } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -21,15 +22,17 @@ export interface ObservedLoginHandoff {
 }
 
 type LoginObservationSnapshot = PageAccessFacts & { readonly title: string };
+export type ObservePageAccess = (page: PageAccessFacts) => PlatformAccessObservation | null;
 
 function observeAuthentication(
   adapter: RecruitingPlatformAdapter,
   snapshot: LoginObservationSnapshot,
+  observePageAccess: ObservePageAccess,
 ): ObservedLoginHandoff | null {
-  const assessment = adapter.assessPage?.(snapshot);
-  return assessment &&
-    "authenticationState" in assessment &&
-    assessment.authenticationState === "authenticated"
+  const observation = observePageAccess(snapshot);
+  return observation?.platformId === adapter.platformId &&
+    "authenticationState" in observation &&
+    observation.authenticationState === "authenticated"
     ? {
         outcome: "already-authenticated",
         title: snapshot.title,
@@ -50,14 +53,16 @@ function hasEnabledUserControl(snapshot: LoginObservationSnapshot): boolean {
 export function* observeCurrentAuthentication(
   page: Page,
   adapter: RecruitingPlatformAdapter,
+  observePageAccess: ObservePageAccess,
 ): RiteCoroutine<ObservedLoginHandoff | null> {
   const snapshot = yield* capturePageSnapshot(page, loginHandoffSnapshotTextCharacters);
-  return observeAuthentication(adapter, snapshot);
+  return observeAuthentication(adapter, snapshot, observePageAccess);
 }
 
 export function* observeLoginHandoff(
   page: Page,
   adapter: RecruitingPlatformAdapter,
+  observePageAccess: ObservePageAccess,
 ): RiteCoroutine<ObservedLoginHandoff> {
   let finalUrl = page.url();
   for (
@@ -70,7 +75,7 @@ export function* observeLoginHandoff(
     }
     const snapshot = yield* capturePageSnapshot(page, loginHandoffSnapshotTextCharacters);
     finalUrl = snapshot.url;
-    const authenticated = observeAuthentication(adapter, snapshot);
+    const authenticated = observeAuthentication(adapter, snapshot, observePageAccess);
     if (authenticated) {
       return authenticated;
     }

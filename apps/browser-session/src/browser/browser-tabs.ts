@@ -11,7 +11,7 @@ import {
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
 import { observeCurrentAuthentication, observeLoginHandoff } from "./login-handoff.js";
-import type { LoginPreparationOutcome } from "./login-handoff.js";
+import type { LoginPreparationOutcome, ObservePageAccess } from "./login-handoff.js";
 import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
 import type { NavigationResult } from "./page-navigation.js";
 import { inspectPageDocument } from "./page-inspection.js";
@@ -134,14 +134,17 @@ export class BrowserTabs {
     throw new Error(`不支持的标签页动作：${action}`);
   }
 
-  public *prepareLogin(input: Record<string, unknown>): RiteCoroutine<LoginPreparationResult> {
+  public *prepareLogin(
+    input: Record<string, unknown>,
+    observePageAccess: ObservePageAccess,
+  ): RiteCoroutine<LoginPreparationResult> {
     const platformId = readPlatformId(input);
     const adapter = recruitingPlatformAdapters[platformId];
     const existingPlatformPages = [...this.#pages].filter(([_id, page]) =>
       adapter.isInNavigationScope(page.url()),
     );
     for (const [id, page] of existingPlatformPages) {
-      const authenticated = yield* observeCurrentAuthentication(page, adapter);
+      const authenticated = yield* observeCurrentAuthentication(page, adapter, observePageAccess);
       if (authenticated) {
         yield* this.selectPage(page);
         return {
@@ -159,7 +162,7 @@ export class BrowserTabs {
     if (!page || page.isClosed()) {
       throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
     }
-    const observed = yield* observeLoginHandoff(page, adapter);
+    const observed = yield* observeLoginHandoff(page, adapter, observePageAccess);
     return {
       id: navigation.id,
       outcome: observed.outcome,
