@@ -258,6 +258,91 @@ test("classifies canonical changes caused by matching later source evidence", as
   }
 });
 
+test("reconciles and merges a job when an unchanged source becomes canonical again", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    const firstSource = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-a",
+        location: "北京合成甲区",
+        title: "合成身份工程师",
+      }),
+      reason: "test first source",
+    });
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("yupao", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-b",
+        location: "北京合成甲区",
+        observedAt: "2026-07-17T10:10:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test second source",
+    });
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        company: "合成切换乙有限公司",
+        externalJobId: "switching-source-a",
+        location: "北京合成乙区",
+        observedAt: "2026-07-17T10:20:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test first source changes identity",
+    });
+    const matchingParent = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-c",
+        location: "北京合成甲区",
+        observedAt: "2026-07-17T10:25:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test separate matching parent",
+    });
+    expect(repository.listJobPostings()).toHaveLength(twoJobs);
+
+    const reconciliation = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("yupao", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-b",
+        location: "北京合成甲区",
+        observedAt: "2026-07-17T10:30:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test unchanged source becomes canonical",
+    });
+
+    expect(reconciliation).toMatchObject({
+      job: {
+        company: "合成切换甲有限公司",
+        id: matchingParent.job.id,
+        sources: expect.arrayContaining([
+          expect.objectContaining({ externalJobId: "switching-source-a" }),
+          expect.objectContaining({ externalJobId: "switching-source-b" }),
+          expect.objectContaining({ externalJobId: "switching-source-c" }),
+        ]),
+      },
+      outcome: "source-updated",
+    });
+    expect(reconciliation.job.id).not.toBe(firstSource.job.id);
+    expect(repository.listJobPostings()).toHaveLength(singleJob);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
 test("retains enriched descriptions across later card observations", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({

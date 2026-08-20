@@ -1040,7 +1040,7 @@ export class WorkspaceRepository {
     input: PreparedJobObservation,
   ): SaveJobObservationResult {
     const now = new Date().toISOString();
-    const canonicalContentChanged = this.#database.transaction((transaction) => {
+    const reconciliation = this.#database.transaction((transaction) => {
       transaction
         .update(jobPostingSources)
         .set({
@@ -1052,13 +1052,13 @@ export class WorkspaceRepository {
         })
         .where(eq(jobPostingSources.id, existingSource.id))
         .run();
-      const contentChanged = WorkspaceRepository.#refreshCanonicalJob(
+      const reconciled = WorkspaceRepository.#reconcileJobPosting(
         transaction,
         existingSource.jobId,
         now,
         { markJobUpdated: false },
       );
-      if (contentChanged) {
+      if (reconciled.jobChanged) {
         transaction
           .insert(workspaceChanges)
           .values({
@@ -1070,12 +1070,13 @@ export class WorkspaceRepository {
           })
           .run();
       }
-      return contentChanged;
+      return reconciled;
     });
-    return this.#existingJobObservationOutcome(
-      existingSource,
-      canonicalContentChanged ? "source-updated" : "unchanged",
-    );
+    const job = this.#readJobPosting(reconciliation.jobId);
+    if (!job) {
+      throw new Error(`刷新后无法读取岗位：${String(reconciliation.jobId)}`);
+    }
+    return { job, outcome: reconciliation.jobChanged ? "source-updated" : "unchanged" };
   }
 
   #findJobPostingSourceByObservedIdentity(platformId: string, identityKey: string) {
@@ -1157,8 +1158,12 @@ export class WorkspaceRepository {
         .get();
       if (existingJob) {
         WorkspaceRepository.#insertJobSource(transaction, existingJob.id, input);
-        WorkspaceRepository.#refreshCanonicalJob(transaction, existingJob.id, input.now);
-        return { jobId: existingJob.id, outcome: "source-added" as const };
+        const { jobId } = WorkspaceRepository.#reconcileJobPosting(
+          transaction,
+          existingJob.id,
+          input.now,
+        );
+        return { jobId, outcome: "source-added" as const };
       }
       const jobId = transaction
         .insert(jobPostings)
@@ -1200,7 +1205,11 @@ export class WorkspaceRepository {
       })
       .where(eq(jobPostingSources.id, source.id))
       .run();
-    const jobId = WorkspaceRepository.#reconcileJobIdentity(transaction, source.jobId, input.now);
+    const { jobId } = WorkspaceRepository.#reconcileJobPosting(
+      transaction,
+      source.jobId,
+      input.now,
+    );
     return { jobId, outcome: "source-updated" as const };
   }
 
@@ -1250,11 +1259,12 @@ export class WorkspaceRepository {
       .run();
   }
 
-  static #reconcileJobIdentity(
+  static #reconcileJobPosting(
     transaction: WorkspaceTransaction,
     jobId: number,
     updatedAt: string,
-  ): number {
+    options?: { markJobUpdated: boolean },
+  ): { jobChanged: boolean; jobId: number } {
     const sourceEvidence = transaction
       .select()
       .from(jobPostingSources)
@@ -1275,11 +1285,13 @@ export class WorkspaceRepository {
         .run();
       transaction.delete(jobPostings).where(eq(jobPostings.id, jobId)).run();
       WorkspaceRepository.#refreshCanonicalJob(transaction, identityOwner.id, updatedAt);
-      return identityOwner.id;
+      return { jobChanged: true, jobId: identityOwner.id };
     }
     transaction.update(jobPostings).set({ identityKey }).where(eq(jobPostings.id, jobId)).run();
-    WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, updatedAt);
-    return jobId;
+    return {
+      jobChanged: WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, updatedAt, options),
+      jobId,
+    };
   }
 
   static #refreshCanonicalJob(
