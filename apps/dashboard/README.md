@@ -18,13 +18,13 @@ The interface has three primary reader paths:
   `interviewed`; these are views of one collection, not peer pages. The library also provides
   search, platform and description-availability filters, original source links, and server-backed
   pagination. Its heading reports how many jobs have a retained main description, how many do not,
-  and how many of those still lack a stable source identity. The description filter can show jobs
-  with a description, all jobs without one, or only the missing-description subset whose source
-  identity remains unresolved. Cards focus on comparable job facts and available actions. Their
-  source rows show every observed engagement, link to the platform when a detail-page URL is
-  available, and report when engagement records were last observed. A card offers the description
-  dialog only when a collected description is available. The dialog reports when Browser Session
-  reached its local text limit and the displayed description may be incomplete.
+  and how many of those lack both a platform job ID and detail-page link. The description filter can
+  show jobs with a description, all jobs without one, or only that unresolved subset. Cards focus
+  on comparable job facts and available actions. Their source rows show every observed engagement
+  and link to the platform when a detail-page URL is available; the card footer reports when its
+  latest engagement record was observed. A card offers the description dialog only when a collected
+  description is available. The dialog reports when Browser Session reached its local text limit
+  and the displayed description may be incomplete.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
 The header owns only cross-resource navigation. Engagement filters belong to the job library and do

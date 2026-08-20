@@ -7,27 +7,38 @@ import type { PageAccessFacts, RecruitingPlatformAdapter } from "./recruiting-pl
 import { capturePageSnapshot } from "./page-snapshot.js";
 
 const firstObservation = 0;
+const firstPage = 0;
 const loginHandoffMaximumObservations = 6;
 const loginHandoffObservationIntervalMilliseconds = 500;
 const loginHandoffSnapshotTextCharacters = 4000;
+const noPages = 0;
 const nextObservation = 1;
 const userControlRoles = new Set(["button", "checkbox", "combobox", "radio", "textbox"]);
 
 export type LoginPreparationOutcome = "already-authenticated" | "handoff-ready";
 
-export interface ObservedLoginHandoff {
+interface ObservedLoginHandoff {
   readonly outcome: LoginPreparationOutcome;
   readonly title: string;
   readonly url: string;
 }
 
-export type ExistingPageLoginDisposition =
+type ExistingPageLoginDisposition =
   | {
       readonly authentication: ObservedLoginHandoff;
       readonly outcome: "already-authenticated";
     }
+  | {
+      readonly handoff: ObservedLoginHandoff;
+      readonly outcome: "handoff-ready";
+    }
   | { readonly outcome: "login-page" }
   | { readonly outcome: "preserve" };
+
+interface ObservedLoginHandoffPage {
+  readonly handoff: ObservedLoginHandoff;
+  readonly page: Page;
+}
 
 type LoginObservationSnapshot = PageAccessFacts & { readonly title: string };
 type CurrentAuthenticationSnapshot =
@@ -61,7 +72,7 @@ function hasEnabledUserControl(snapshot: LoginObservationSnapshot): boolean {
   );
 }
 
-export function* classifyExistingPageForLogin(
+function* classifyExistingPageForLogin(
   page: Page,
   adapter: RecruitingPlatformAdapter,
   observePageAccess: ObservePageAccess,
@@ -74,9 +85,19 @@ export function* classifyExistingPageForLogin(
   if (authentication) {
     return { authentication, outcome: "already-authenticated" };
   }
-  return adapter.isLoginPage(captured.snapshot.url)
-    ? { outcome: "login-page" }
-    : { outcome: "preserve" };
+  if (!adapter.isLoginPage(captured.snapshot.url)) {
+    return { outcome: "preserve" };
+  }
+  return hasEnabledUserControl(captured.snapshot)
+    ? {
+        handoff: {
+          outcome: "handoff-ready",
+          title: captured.snapshot.title,
+          url: captured.snapshot.url,
+        },
+        outcome: "handoff-ready",
+      }
+    : { outcome: "login-page" };
 }
 
 function* tryCaptureCurrentAuthenticationSnapshot(
@@ -95,40 +116,117 @@ function* tryCaptureCurrentAuthenticationSnapshot(
   }
 }
 
-export function* observeLoginHandoff(
+type LoginCandidateObservation =
+  | { readonly outcome: "preserve" }
+  | { readonly outcome: "retry" }
+  | ({ readonly outcome: "ready" } & ObservedLoginHandoffPage);
+
+function* observeLoginCandidate(
   page: Page,
   adapter: RecruitingPlatformAdapter,
   observePageAccess: ObservePageAccess,
-): RiteCoroutine<ObservedLoginHandoff> {
-  let finalUrl = page.url();
+): RiteCoroutine<LoginCandidateObservation> {
+  if (page.isClosed()) {
+    return { outcome: "preserve" };
+  }
+  const captured = yield* tryCaptureCurrentAuthenticationSnapshot(page);
+  if (captured.outcome === "unreadable") {
+    return { outcome: "retry" };
+  }
+  const { snapshot } = captured;
+  const authenticated = observeAuthentication(adapter, snapshot, observePageAccess);
+  if (authenticated) {
+    return { handoff: authenticated, outcome: "ready", page };
+  }
+  if (!adapter.isLoginPage(snapshot.url) || !adapter.isLoginPage(page.url())) {
+    return { outcome: "preserve" };
+  }
+  return hasEnabledUserControl(snapshot)
+    ? {
+        handoff: {
+          outcome: "handoff-ready",
+          title: snapshot.title,
+          url: snapshot.url,
+        },
+        outcome: "ready",
+        page,
+      }
+    : { outcome: "retry" };
+}
+
+function* observeLoginHandoffCandidates(
+  pages: readonly Page[],
+  adapter: RecruitingPlatformAdapter,
+  observePageAccess: ObservePageAccess,
+): RiteCoroutine<ObservedLoginHandoffPage> {
+  let finalUrl = pages[firstPage]?.url() ?? adapter.loginUrl;
+  const candidates = new Set(pages);
   for (
     let observation = firstObservation;
     observation < loginHandoffMaximumObservations;
     observation += nextObservation
   ) {
-    if (page.isClosed()) {
-      throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
+    for (const page of candidates) {
+      const candidate = yield* observeLoginCandidate(page, adapter, observePageAccess);
+      if (candidate.outcome === "preserve") {
+        candidates.delete(page);
+        continue;
+      }
+      if (candidate.outcome === "ready") {
+        return candidate;
+      }
+      finalUrl = page.url();
     }
-    const snapshot = yield* capturePageSnapshot(page, loginHandoffSnapshotTextCharacters);
-    finalUrl = snapshot.url;
-    const authenticated = observeAuthentication(adapter, snapshot, observePageAccess);
-    if (authenticated) {
-      return authenticated;
-    }
-    if (adapter.isLoginPage(snapshot.url) && hasEnabledUserControl(snapshot)) {
-      return {
-        outcome: "handoff-ready",
-        title: snapshot.title,
-        url: snapshot.url,
-      };
-    }
-    if (observation + nextObservation < loginHandoffMaximumObservations) {
+    if (
+      candidates.size > noPages &&
+      observation + nextObservation < loginHandoffMaximumObservations
+    ) {
       yield* sleep(loginHandoffObservationIntervalMilliseconds);
     }
   }
   throw new Error(
-    `${adapter.label}登录交接尚未就绪；当前页面为 ${describePageLocation(finalUrl)}。`,
+    `${adapter.label}登录交接尚未就绪：无法确认已登录状态或可用登录界面；最后已知页面为 ${describePageLocation(finalUrl)}。`,
   );
+}
+
+export function* observeLoginHandoffPage(
+  page: Page,
+  adapter: RecruitingPlatformAdapter,
+  observePageAccess: ObservePageAccess,
+): RiteCoroutine<ObservedLoginHandoff> {
+  const observed = yield* observeLoginHandoffCandidates([page], adapter, observePageAccess);
+  return observed.handoff;
+}
+
+export function* prepareExistingLoginHandoff(
+  pages: readonly Page[],
+  adapter: RecruitingPlatformAdapter,
+  observePageAccess: ObservePageAccess,
+): RiteCoroutine<ObservedLoginHandoffPage | null> {
+  const candidates: Page[] = [];
+  const ready: ObservedLoginHandoffPage[] = [];
+  for (const page of pages) {
+    const disposition = yield* classifyExistingPageForLogin(page, adapter, observePageAccess);
+    if (disposition.outcome === "already-authenticated") {
+      return { handoff: disposition.authentication, page };
+    }
+    if (disposition.outcome === "handoff-ready") {
+      ready.push({ handoff: disposition.handoff, page });
+    }
+    if (disposition.outcome === "login-page") {
+      candidates.push(page);
+    }
+  }
+  const readyPage = ready.find(({ page }) => !page.isClosed() && adapter.isLoginPage(page.url()));
+  if (readyPage) {
+    return readyPage;
+  }
+  const currentCandidates = candidates.filter(
+    (page) => !page.isClosed() && adapter.isLoginPage(page.url()),
+  );
+  return currentCandidates.length === noPages
+    ? null
+    : yield* observeLoginHandoffCandidates(currentCandidates, adapter, observePageAccess);
 }
 
 function describePageLocation(value: string): string {

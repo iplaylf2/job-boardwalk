@@ -62,8 +62,9 @@ Available now:
   platform filtering, a combined view of all tracked jobs, and category views for interested,
   contacted, applied, and interviewed records while preserving the original recruiting-platform
   sources. It reports description coverage and can show jobs with a description, all jobs without
-  one, or only missing-description jobs that still lack a stable detail-page source. Its report
-  reader keeps saved conclusions available without the agent conversation that produced them.
+  one, or only missing-description jobs that also lack a platform job ID and detail-page link. Its
+  report reader keeps saved conclusions available without the agent conversation that produced
+  them.
 - Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
   address and service log path and directly supervising the product's isolated service processes.
   Browser discovery or launch failure, or a later Browser Session process exit, puts the

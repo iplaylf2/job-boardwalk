@@ -10,7 +10,7 @@ import {
   recruitingPlatformAdapters,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
-import { classifyExistingPageForLogin, observeLoginHandoff } from "./login-handoff.js";
+import { observeLoginHandoffPage, prepareExistingLoginHandoff } from "./login-handoff.js";
 import type { LoginPreparationOutcome, ObservePageAccess } from "./login-handoff.js";
 import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
 import type { NavigationResult } from "./page-navigation.js";
@@ -143,46 +143,36 @@ export class BrowserTabs {
     const existingPlatformPages = [...this.#pages].filter(([_id, page]) =>
       adapter.isInNavigationScope(page.url()),
     );
-    let existingLoginPage: [number, Page] | null = null;
-    for (const [id, page] of existingPlatformPages) {
-      const disposition = yield* classifyExistingPageForLogin(page, adapter, observePageAccess);
-      if (disposition.outcome === "already-authenticated") {
-        yield* this.selectPage(page);
-        return {
-          id,
-          platformId,
-          ...disposition.authentication,
-        };
+    const existing = yield* prepareExistingLoginHandoff(
+      existingPlatformPages.map(([_id, page]) => page),
+      adapter,
+      observePageAccess,
+    );
+    if (existing) {
+      const id = this.#pageIds.get(existing.page);
+      if (!id) {
+        throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
       }
-      if (disposition.outcome === "login-page") {
-        existingLoginPage ??= [id, page];
-      }
+      yield* this.selectPage(existing.page);
+      return { id, platformId, ...existing.handoff };
     }
-    const navigation = yield* this.#openLoginPage(adapter, existingLoginPage);
+
+    const navigation = yield* this.#openLoginPage(adapter);
     const page = this.#pages.get(navigation.id);
     if (!page || page.isClosed()) {
       throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
     }
-    const observed = yield* observeLoginHandoff(page, adapter, observePageAccess);
+    const handoff = yield* observeLoginHandoffPage(page, adapter, observePageAccess);
     return {
       id: navigation.id,
-      outcome: observed.outcome,
       platformId,
-      title: observed.title,
-      url: observed.url,
+      ...handoff,
     };
   }
 
   *#openLoginPage(
     adapter: (typeof recruitingPlatformAdapters)[PlatformId],
-    existingLoginPage: [number, Page] | null,
   ): RiteCoroutine<NavigationResult & { id: number }> {
-    if (existingLoginPage) {
-      const [, page] = existingLoginPage;
-      if (!page.isClosed() && adapter.isLoginPage(page.url())) {
-        return yield* this.#activate(existingLoginPage, adapter.loginUrl);
-      }
-    }
     const blankPage = [...this.#pages].find(
       ([_id, page]) => !page.isClosed() && blankPageUrls.has(page.url()),
     );

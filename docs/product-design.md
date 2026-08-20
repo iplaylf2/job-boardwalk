@@ -182,7 +182,8 @@ Each recruiting platform exposes personal-center categories for interested, cont
 interviewed jobs. Job Boardwalk calls an observed membership in one of these categories a
 **job engagement**. Engagements are non-exclusive relations on a platform source: one source may be
 both contacted and applied, for example. They are evidence of how the platform classified the job
-when observed. The record contains the platform category and observation time.
+when observed. Each record contains the platform category and its first and latest observation
+times.
 
 Browser Session maps the platform categories to `interested`, `contacted`, `applied`, and
 `interviewed`. A user-requested synchronization task addresses one platform and category at a time.
@@ -221,12 +222,13 @@ session used for research:
    Session to prepare login for that platform.
 2. Browser Session pauses passive page reads and observes the existing platform tabs. Conclusive
    authenticated-page evidence completes preparation without navigation or user handoff. Otherwise,
-   Browser Session reuses only a readable tab that remains on the platform's configured login
-   route. It preserves unreadable tabs and readable pages whose meaning remains unclassified,
-   including pages that may be showing verification or another access decision. If no reusable
-   login tab remains, it uses an available blank tab or a new tab for the configured login
-   destination, then waits for a usable login interface. If neither result can be established,
-   preparation fails and passive reads resume.
+   Browser Session retains every readable tab that remains on the platform's configured login route,
+   checks all candidates for a usable login interface, and activates the first candidate that becomes
+   ready. It preserves unreadable tabs and readable pages whose meaning remains unclassified,
+   including pages that may be showing verification or another access decision. If no reusable login
+   tab remains, it uses an available blank tab or a new tab for the configured login destination,
+   then waits for a usable login interface. If neither result can be established, preparation fails
+   and passive reads resume.
 3. Only a ready login interface starts user handoff. The agent stops browser actions and asks the
    user to take over the visible window; readiness does not authorize the agent to enter or submit
    credentials or verification input.
@@ -293,9 +295,9 @@ agent actions within a user-requested task; neither is scheduled as background b
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page
 content. Navigation and document-lifecycle diagnostics remain unclassified until such evidence is
-available. A null adapter observation records that unclassified state. Access observations contain
-only structured assessment metadata; credentials, browser session data, and page content stay
-within their owning boundaries.
+available. When an adapter returns `null`, Browser Session records no access observation for that
+page evidence. Access observations contain only structured assessment metadata; credentials,
+browser session data, and page content stay within their owning boundaries.
 
 The Dashboard displays the definite authentication assessment with its latest observation time and
 any interruption observed later. Browser Session owns live browser inspection.

@@ -13,12 +13,16 @@ interface SyntheticLoginPageOptions {
   readonly afterSnapshot?: (state: SyntheticLoginPage) => void;
   readonly navigationError?: Error;
   readonly snapshotError?: Error;
-  readonly snapshotElements?: readonly {
-    readonly href?: string;
-    readonly name: string;
-    readonly role: string;
-  }[];
+  readonly snapshotElements?:
+    | readonly SyntheticSnapshotElement[]
+    | ((state: SyntheticLoginPage) => readonly SyntheticSnapshotElement[]);
   readonly snapshotText?: string | ((state: SyntheticLoginPage) => string);
+}
+
+interface SyntheticSnapshotElement {
+  readonly href?: string;
+  readonly name: string;
+  readonly role: string;
 }
 
 const navigationIncrement = 1;
@@ -35,13 +39,14 @@ export function syntheticLoginPage(
     page: null as unknown as Page,
     url: initialUrl,
   };
-  const snapshotElements = options.snapshotElements ?? [
-    { name: "Synthetic login control", role: "button" },
-  ];
   function snapshot() {
     if (options.snapshotError) {
       return Promise.reject(options.snapshotError);
     }
+    const snapshotElements =
+      typeof options.snapshotElements === "function"
+        ? options.snapshotElements(state)
+        : (options.snapshotElements ?? [{ name: "Synthetic login control", role: "button" }]);
     const captured = {
       documentReadyState: "complete",
       elements: snapshotElements.map((element, sourceIndex) => ({

@@ -242,15 +242,16 @@ Session implements the browser side of that handoff.
 
 `browser_prepare_login` first blocks new background page work and waits for in-flight page work to
 finish. It then observes the existing platform tabs. Authenticated-page evidence returns
-`outcome=already-authenticated` without navigation or user handoff. Otherwise the tool reuses only
-a readable platform tab that is still on the catalog-defined login route. It preserves unreadable
-tabs and readable pages whose meaning remains unclassified, including pages that may be showing
-verification or another access decision. When no reusable login page remains, it uses an available
-blank tab or a new tab and performs bounded observations on the login destination. It returns
-`outcome=handoff-ready` only when that page exposes an enabled user control; this outcome starts
-user handoff. If neither outcome can be established, preparation fails and passive collection
-resumes. Workspace Service writes already started from previously captured evidence may finish
-during a handoff because they do not drive the browser.
+`outcome=already-authenticated` without navigation or user handoff. Otherwise the tool retains every
+readable platform tab that is still on the catalog-defined login route as a candidate, checks all
+of them for a usable login interface, and activates the first one that becomes ready. It preserves
+unreadable tabs and readable pages whose meaning remains unclassified, including pages that may be
+showing verification or another access decision. When no reusable login page remains, it uses an
+available blank tab or a new tab and performs bounded observations on the login destination. It
+returns `outcome=handoff-ready` only when that page exposes an enabled user control. This outcome
+starts user handoff. If neither outcome can be established, preparation fails and passive
+collection resumes. Workspace Service writes already started from previously captured evidence may
+finish during a handoff because they do not drive the browser.
 
 After the user explicitly returns control, the agent calls `browser_snapshot` with
 `userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit

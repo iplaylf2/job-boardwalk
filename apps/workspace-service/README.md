@@ -61,7 +61,7 @@ The MCP surface provides:
   platform-access summaries, profile facts, and job-search intents;
 - `read_workspace_overview`, which reads the same workspace state;
 - `job-boardwalk://jobs`, which exposes the first page of the current job library, including
-  available collected descriptions and platform sources;
+  description coverage, available collected descriptions, and platform sources;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
   `platformId`, `engagement`, and `descriptionStatus` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
