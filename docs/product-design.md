@@ -157,9 +157,15 @@ separate.
 Job-library reads derive a description capture status from the evidence retained for each source.
 `captured` means a main description is stored. `uncaptured` means an external job ID or job URL is
 available but no description is stored. `identity-unresolved` means neither an external job ID nor a
-job URL is available. These states describe current evidence, not whether Browser Session attempted
-a detail read. Page-level description coverage is calculated for the current search, platform, and
-engagement scope before a description-status filter narrows the results.
+job URL is available. These source states describe current evidence, not whether Browser Session
+attempted a detail read.
+
+Page-level description coverage classifies normalized jobs into three mutually exclusive groups:
+jobs with a retained description, jobs without one whose source identity is available, and jobs
+without one whose source identity remains unresolved. Coverage is calculated for the current
+search, platform, and engagement scope before the description filter narrows the results. The
+filter selects jobs with a description, all jobs without one, or only the missing-description
+subset whose source identity remains unresolved.
 
 For an explicit binding, Workspace Service confirms the platform and equal normalized titles,
 compares normalized companies when both observations include one, and rejects an identity already
@@ -200,6 +206,7 @@ categories provide neither datum.
 
 Engagements share the normalized job collection. Removing an `interested` relation leaves the job,
 its other sources, and its historical engagement evidence in the library.
+
 Dashboard exposes the four engagement kinds as filters within one job library and shows when the
 displayed platform records were most recently observed. A combined tracked view takes the union of
 those relations without turning them into a single workflow state.
@@ -212,10 +219,13 @@ session used for research:
 1. When the user requests login, or visible page evidence shows that the requested workflow
    requires authentication and the current session is unauthenticated, the agent asks Browser
    Session to prepare login for that platform.
-2. Browser Session pauses passive page reads and observes the existing platform tab. Conclusive
+2. Browser Session pauses passive page reads and observes the existing platform tabs. Conclusive
    authenticated-page evidence completes preparation without navigation or user handoff. Otherwise,
-   Browser Session opens the platform's configured login destination and waits for a usable login
-   interface. If neither result can be established, preparation fails and passive reads resume.
+   Browser Session reuses only a platform tab that it successfully observed. If no platform tab can
+   be observed, because none is open or every existing tab is unreadable, it preserves unreadable
+   tabs and uses an available blank tab or a new tab for the platform's configured login
+   destination. It then waits for a usable login interface. If neither result can be established,
+   preparation fails and passive reads resume.
 3. Only a ready login interface starts user handoff. The agent stops browser actions and asks the
    user to take over the visible window; readiness does not authorize the agent to enter or submit
    credentials or verification input.

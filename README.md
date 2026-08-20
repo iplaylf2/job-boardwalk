@@ -61,8 +61,9 @@ Available now:
   lets the user maintain and select job-search intents. Its paginated job library supports search,
   platform filtering, a combined view of all tracked jobs, and category views for interested,
   contacted, applied, and interviewed records while preserving the original recruiting-platform
-  sources. It reports description coverage and filters jobs by description availability, including
-  the subset whose stable source identity remains unresolved. Its report reader keeps saved
+  sources. It reports description coverage and can show jobs with a description, all jobs without
+  one, or the missing-description subset whose stable source identity remains unresolved. Its
+  report reader keeps saved
   conclusions available without the agent conversation that produced them.
 - Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
   address and service log path and directly supervising the product's isolated service processes.

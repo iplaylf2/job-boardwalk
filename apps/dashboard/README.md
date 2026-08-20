@@ -13,20 +13,21 @@ The interface has three primary reader paths:
   default and can all be expanded in place; a separate management surface owns creating, revising,
   selecting, and removing intents and facts. Browser and platform status remains a compact
   secondary rail unless it needs attention.
-- `/jobs` is the single normalized job library. Its in-page follow-up navigation filters that
+- `/jobs` is the single normalized job library. Its in-page engagement navigation filters that
   library by the union of all tracked jobs or by `interested`, `contacted`, `applied`, or
   `interviewed`; these are views of one collection, not peer pages. The library also provides
   search, platform and description-availability filters, original source links, and server-backed
   pagination. Its heading reports how many jobs have a retained main description, how many do not,
-  and how many of those still lack a stable source identity; the description filter narrows the
-  list by those same states. Cards focus on comparable job facts and available actions. Their
+  and how many of those still lack a stable source identity. The description filter can show jobs
+  with a description, all jobs without one, or only the missing-description subset whose source
+  identity remains unresolved. Cards focus on comparable job facts and available actions. Their
   source rows show every observed engagement, link to the platform when a detail-page URL is
   available, and report when engagement records were last observed. A card offers the description
   dialog only when a collected description is available. The dialog reports when Browser Session
   reached its local text limit and the displayed description may be incomplete.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
 
-The header owns only cross-resource navigation. Follow-up filters belong to the job library and do
+The header owns only cross-resource navigation. Engagement filters belong to the job library and do
 not appear as primary destinations.
 
 ## Data ownership and freshness

@@ -156,6 +156,7 @@ automatic access-assessment coverage differs:
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
 agent or a bounded page read already performed by passive job collection or an explicit engagement
 sync. Assessment stays within those existing reads.
+
 `browser_snapshot` returns `platformAccessObservation`; when it is non-null, the same observation is
 already queued for the periodic Workspace Service report. A platform page loaded before monitoring
 begins is also reassessed by its owning collection cycle. The Dashboard presents each observation
@@ -200,6 +201,7 @@ timeout, or the observed document lifecycle state. Other errors retain their ori
 can establish. Verification and access-denial conclusions require visible controls or semantic page
 content. Current adapters classify the authentication cases listed above and return
 `platformAccessObservation=null` for unclassified evidence.
+
 [Reliable browser research](../../docs/product-design.md#reliable-browser-research) owns the
 re-observation and recovery policy. Repeated timeouts do not strengthen the available evidence:
 Browser Session returns them without inferring a cause or initiating page recovery. When bounded
@@ -239,9 +241,12 @@ verification, applications, messages, and account changes remain under user cont
 Session implements the browser side of that handoff.
 
 `browser_prepare_login` first blocks new background page work and waits for in-flight page work to
-finish. It then observes the reused platform tab. Authenticated-page evidence returns
-`outcome=already-authenticated` without navigation or user handoff. Otherwise the tool opens the
-catalog-defined login destination and performs bounded observations. It returns
+finish. It then observes the existing platform tabs. Authenticated-page evidence returns
+`outcome=already-authenticated` without navigation or user handoff. Otherwise the tool reuses only
+a platform tab whose bounded observation succeeded. If no existing platform tab can be observed,
+because none is open or every existing tab is unreadable, the tool preserves unreadable tabs and
+uses an available blank tab or a new tab. It then opens the catalog-defined login destination and
+performs bounded observations. It returns
 `outcome=handoff-ready` only when that page exposes an enabled user control; this outcome starts
 user handoff. If neither outcome can be established, preparation fails and passive collection
 resumes. Workspace Service writes already started from previously captured evidence may finish

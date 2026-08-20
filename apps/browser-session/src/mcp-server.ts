@@ -51,7 +51,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "当用户明确要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，不导航或交出控制权；否则打开平台登录入口并有界观察。登录页出现启用的用户控件时返回 outcome=handoff-ready，开始用户交接；无法建立任一结果时准备失败并恢复被动读取。",
+      "当用户明确要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，不导航或交出控制权；否则只复用已成功观察的候选页。没有可观察候选时保留任何无法读取的现有平台页，改用空白页或新标签页打开登录入口并有界观察。登录页出现启用的用户控件时返回 outcome=handoff-ready，开始用户交接；无法建立任一结果时准备失败并恢复被动读取。",
     name: "browser_prepare_login",
   }),
   defineBrowserTool({

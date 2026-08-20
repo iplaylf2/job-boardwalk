@@ -143,9 +143,14 @@ export class BrowserTabs {
     const existingPlatformPages = [...this.#pages].filter(([_id, page]) =>
       adapter.isInNavigationScope(page.url()),
     );
+    let reusableObservedPage: [number, Page] | null = null;
     for (const [id, page] of existingPlatformPages) {
       const observation = yield* observeCurrentAuthentication(page, adapter, observePageAccess);
-      if (observation.outcome === "observed" && observation.authentication) {
+      if (observation.outcome === "unreadable") {
+        continue;
+      }
+      reusableObservedPage ??= [id, page];
+      if (observation.authentication) {
         yield* this.selectPage(page);
         return {
           id,
@@ -154,7 +159,7 @@ export class BrowserTabs {
         };
       }
     }
-    const navigation = yield* this.#ensure({ platformId, url: adapter.loginUrl });
+    const navigation = yield* this.#openLoginPage(adapter.loginUrl, reusableObservedPage);
     const page = this.#pages.get(navigation.id);
     if (!page || page.isClosed()) {
       throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
@@ -167,6 +172,24 @@ export class BrowserTabs {
       title: observed.title,
       url: observed.url,
     };
+  }
+
+  *#openLoginPage(
+    loginUrl: string,
+    reusableObservedPage: [number, Page] | null,
+  ): RiteCoroutine<NavigationResult & { id: number }> {
+    if (reusableObservedPage) {
+      const [, page] = reusableObservedPage;
+      if (!page.isClosed()) {
+        return page.url() === loginUrl
+          ? yield* this.#activate(reusableObservedPage, loginUrl)
+          : yield* this.#navigate(reusableObservedPage, loginUrl);
+      }
+    }
+    const blankPage = [...this.#pages].find(
+      ([_id, page]) => !page.isClosed() && blankPageUrls.has(page.url()),
+    );
+    return blankPage ? yield* this.#navigate(blankPage, loginUrl) : yield* this.#create(loginUrl);
   }
 
   *#list(): RiteCoroutine<unknown> {

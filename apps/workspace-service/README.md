@@ -235,10 +235,16 @@ description.
 Job-library reads derive `descriptionCaptureStatus` for each source from that retained evidence.
 `captured` means a main description is stored. `uncaptured` means the source has an external job ID
 or job URL but no retained description. `identity-unresolved` means neither an external job ID nor
-a job URL is available. These states describe current evidence; they do not claim that Browser
-Session attempted a detail read. The page-level `descriptionCoverage` counts normalized jobs in the
-current search, platform, and engagement scope before an optional `descriptionStatus` filter is
-applied.
+a job URL is available. These source states describe current evidence; they do not claim that
+Browser Session attempted a detail read.
+
+Page-level `descriptionCoverage` classifies normalized jobs into three mutually exclusive groups.
+`captured` jobs have a retained main description. `identityUnresolved` jobs have no description and
+none of their sources has an external job ID or job URL. `uncaptured` contains the remaining jobs
+without descriptions. Coverage is calculated for the current search, platform, and engagement
+scope before an optional `descriptionStatus` filter is applied. That filter selects jobs with a
+description (`captured`), all jobs without one (`missing`), or the missing-description subset with
+unresolved source identity (`identity-unresolved`).
 
 An explicit description write may include `sourceId` after the caller confirms that the current
 detail page belongs to that tracked workspace source. The selected source must still lack both an

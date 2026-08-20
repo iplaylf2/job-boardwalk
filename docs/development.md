@@ -123,7 +123,7 @@ the release workflow, which confirms that the push tip introduced the version be
 Linux and Windows packaging jobs. A batch push that places later commits after the version change
 is rejected rather than packaging those changes under the new version.
 
-Each packaging job runs on its target operating system, restores compatible Cargo and Rust
+Each packaging job runs on its target operating system, restores compatible Cargo download and
 compilation cache entries, and invokes Desktop Distribution's package-owned native-input
 preparation before passing the resolved Caddy path into the Moon package graph. The [package
 README](../internal/desktop-distribution/README.md) owns the Aqua configuration, native-input
