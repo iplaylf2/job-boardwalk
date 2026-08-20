@@ -1,3 +1,4 @@
+import { errors } from "patchright";
 import type { BrowserContext, Locator, Page } from "patchright";
 import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
@@ -18,6 +19,7 @@ interface FakePage {
 
 interface FakePageOptions {
   readonly afterNavigation?: (state: FakePage) => void;
+  readonly navigationError?: Error;
   readonly snapshotElements?: readonly {
     readonly href?: string;
     readonly name: string;
@@ -85,7 +87,9 @@ function fakePage(initialUrl: string, options: FakePageOptions = {}): FakePage {
       state.navigationCount += firstNavigationCount;
       state.url = url;
       options.afterNavigation?.(state);
-      return Promise.resolve(null);
+      return options.navigationError
+        ? Promise.reject(options.navigationError)
+        : Promise.resolve(null);
     },
     isClosed: () => false,
     locator: createSyntheticPageLocator({
@@ -135,6 +139,25 @@ test.each([
   expect(result).toMatchObject({
     outcome: "handoff-ready",
     platformId: input.platformId,
+  });
+});
+
+test("prepares login from page evidence after the navigation wait times out", async () => {
+  await using scope = createScope();
+  const fake = fakePage("https://www.yupao.com/", {
+    navigationError: new errors.TimeoutError("synthetic navigation timeout"),
+  });
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+
+  const result = await scope.run(() =>
+    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
+  );
+
+  expect(fake.navigationCount).toBe(firstNavigationCount);
+  expect(result).toMatchObject({
+    outcome: "handoff-ready",
+    platformId: "yupao",
+    url: "https://www.yupao.com/web/login/",
   });
 });
 

@@ -155,9 +155,6 @@ export class BrowserTabs {
       }
     }
     const navigation = yield* this.#ensure({ platformId, url: adapter.loginUrl });
-    if (navigation.navigation.outcome === "timed-out") {
-      throw new Error(`${adapter.label}登录交接尚未就绪：导航在等待 DOMContentLoaded 时超时。`);
-    }
     const page = this.#pages.get(navigation.id);
     if (!page || page.isClosed()) {
       throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
