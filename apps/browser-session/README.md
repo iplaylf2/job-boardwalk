@@ -39,7 +39,7 @@ means Browser Session reached its local text limit and characterizes capture com
 Browser Session attributes this explicit write to the agent; passive writes use system attribution.
 When the agent has independently confirmed that the current page belongs to a tracked source with
 no retained description, external job ID, or job URL, it may pass that workspace `sourceId` for an
-explicit bind. Workspace Service validates the source before replacing its provisional card
+explicit bind. Workspace Service validates the source before attaching the stable detail-page
 identity; source binding always requires this explicit input.
 
 The passive collector observes eligible open supported-platform tabs when it starts and every 30

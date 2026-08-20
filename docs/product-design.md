@@ -150,7 +150,9 @@ stored for its sources.
 Within a platform, an external job ID is the preferred source identity, followed by the job URL
 pathname and then normalized company, title, and location when a detail link is unavailable. Across
 platforms, Workspace Service merges sources only when normalized company, title, and location
-identify the same job. Partial cards without that identity remain separate.
+identify the same job. Normalization standardizes Unicode, case, and separators; it does not infer
+company aliases or discard phrases from job titles. Partial cards without that identity remain
+separate.
 
 Job-library reads derive a description capture status from the evidence retained for each source.
 `captured` means a main description is stored. `uncaptured` means an external job ID or job URL is
@@ -161,9 +163,12 @@ engagement scope before a description-status filter narrows the results.
 
 For an explicit binding, Workspace Service confirms the platform and equal normalized titles,
 compares normalized companies when both observations include one, and rejects an identity already
-owned by another source. The source retains its latest card observation as evidence, so a later
-engagement card that still lacks an external job ID or job URL refreshes the bound source without
-replacing its stable identity.
+owned by another source. A successful bind preserves the source and its engagement relations,
+retains the provisional identity used by earlier cards, and adds the stable detail-page identity.
+Workspace Service then reconciles the normalized job from the retained source evidence. Complete
+company, title, and location evidence that matches another normalized job merges their sources
+atomically. A later engagement card that still lacks an external job ID or job URL therefore
+refreshes the bound source without clearing its description or stable identity.
 
 ## Engagement tracking
 

@@ -226,9 +226,11 @@ platform-specific job-detail path exposes one. When that path contains separate 
 display-slug segments, the identifier becomes the preferred identity, so changing the slug does not
 split the source. Workspace Service merges a new cross-platform source only when normalized company,
 title, and location are all available and match. Partial cards remain separate to avoid false
-merges. The database keeps the current normalized result and each source's latest card and
-description observations, not HTML, page snapshots, or match judgments. The two observation types
-are updated independently, so submitting a card never clears a stored description.
+merges. Normalization standardizes Unicode, case, and separators; it does not infer company aliases
+or discard phrases from job titles. The database keeps the current normalized result and each
+source's latest card and description observations, not HTML, page snapshots, or match judgments.
+The two observation types are updated independently, so submitting a card never clears a stored
+description.
 
 Job-library reads derive `descriptionCaptureStatus` for each source from that retained evidence.
 `captured` means a main description is stored. `uncaptured` means the source has an external job ID
@@ -243,10 +245,12 @@ detail page belongs to that tracked workspace source. The selected source must s
 external job ID and job URL, and it must not already have a retained description. Workspace Service
 requires the same platform and equal normalized titles, compares normalized companies when both
 observations provide one, and rejects an identity already owned by another source. A successful
-bind preserves the source ID and its engagement relations while replacing its provisional card
-identity with the stable detail-page identity. Later engagement cards may still omit that stable
-identity; their retained card evidence resolves them to the same source without replacing the
-stable identity or clearing its description.
+bind preserves the source ID, its engagement relations, and its provisional identity while adding
+the stable detail-page identity. Workspace Service then reconciles the owning normalized job from
+the retained source evidence. If complete normalized company, title, and location evidence matches
+another job, their sources are merged atomically instead of leaving duplicate normalized jobs.
+Later engagement cards may still omit the stable identity; their retained card evidence resolves
+them to the same source without clearing its description.
 
 Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
 `engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and

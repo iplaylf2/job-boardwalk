@@ -1,5 +1,4 @@
 import { DatabaseSync } from "node:sqlite";
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 
 // oxlint-disable max-lines -- This class is the cohesive persistence boundary for workspace state.
@@ -47,6 +46,16 @@ import { isPlatformId } from "@job-boardwalk/platform-catalog";
 import { parseJobPostingSalary } from "#/job-library/salary.js";
 import type { JobLibraryQuery } from "#/job-library/query.js";
 import { jobDescriptionCaptureStatus } from "#/job-library/description-capture.js";
+import {
+  cardObservationFingerprint,
+  descriptionObservationFingerprint,
+  jobPostingIdentityKey,
+  jobPostingIdentityKeyFromSources,
+  jobPostingContentFingerprint,
+  jobPostingSourceIdentityKey,
+  jobPostingStateFingerprint,
+  normalizedIdentityPart,
+} from "#/job-library/identity.js";
 
 import {
   jobPostings,
@@ -103,41 +112,6 @@ export function isJobDescriptionSourceBindingError(error: unknown): error is Err
   return error instanceof Error && error.name === "JobDescriptionSourceBindingError";
 }
 
-function hashValue(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-function normalizedIdentityPart(value: string): string {
-  return value
-    .normalize("NFKC")
-    .toLocaleLowerCase("zh-CN")
-    .replaceAll(/[^\p{L}\p{N}]+/gu, "");
-}
-
-function normalizedCompanyIdentity(value: string): string {
-  return normalizedIdentityPart(value).replace(/(?:有限责任公司|股份有限公司|有限公司|公司)$/u, "");
-}
-
-function jobPostingIdentityKey(observation: JobCardObservation): string {
-  if (!observation.company || !observation.location) {
-    return jobPostingSourceIdentityKey(observation);
-  }
-  return hashValue([
-    normalizedCompanyIdentity(observation.company),
-    normalizedIdentityPart(observation.title.replaceAll(/[【[][^】\]]+[】\]]/gu, "")),
-    normalizedIdentityPart(observation.location),
-  ]);
-}
-
-function cardObservationFingerprint(observation: JobCardObservation): string {
-  const { discoveryUrl: _discoveryUrl, jobUrl, observedAt: _observedAt, ...facts } = observation;
-  return hashValue({
-    ...facts,
-    details: [...new Set(facts.details)].toSorted(),
-    jobUrl: jobUrl ? new URL(jobUrl).pathname : null,
-  });
-}
-
 function projectDescriptionAsCardObservation(
   observation: JobDescriptionObservation,
 ): JobCardObservation {
@@ -160,30 +134,6 @@ function projectDescriptionAsCardObservation(
     summary: observation.description.text.replaceAll(/\s+/gu, " ").trim(),
     title: observation.title,
   };
-}
-
-function descriptionObservationFingerprint(observation: JobDescriptionObservation): string {
-  const { description, observedAt: _observedAt, ...facts } = observation;
-  return hashValue({
-    ...facts,
-    description: { text: description.text, truncated: description.truncated },
-    details: [...new Set(facts.details)].toSorted(),
-  });
-}
-
-function jobPostingSourceIdentityKey(observation: JobCardObservation): string {
-  if (observation.externalJobId) {
-    return hashValue([observation.platformId, observation.externalJobId]);
-  }
-  if (observation.jobUrl) {
-    return hashValue([observation.platformId, new URL(observation.jobUrl).pathname]);
-  }
-  return hashValue([
-    observation.platformId,
-    normalizedIdentityPart(observation.company ?? ""),
-    normalizedIdentityPart(observation.title),
-    normalizedIdentityPart(observation.location ?? ""),
-  ]);
 }
 
 function toJobSourceEngagement(row: JobSourceEngagementRow): JobSourceEngagement {
@@ -370,14 +320,6 @@ function storedCanonicalJobPostingValues(job: JobPostingRow): CanonicalJobPostin
     summary: job.summary,
     title: job.title,
   };
-}
-
-function canonicalJobPostingContentFingerprint(values: CanonicalJobPostingValues): string {
-  const { description, ...facts } = values;
-  return hashValue({
-    ...facts,
-    description: description ? { text: description.text, truncated: description.truncated } : null,
-  });
 }
 
 function toJobPosting(
@@ -1178,7 +1120,7 @@ export class WorkspaceRepository {
     if (
       evidence.company &&
       observation.company &&
-      normalizedCompanyIdentity(evidence.company) !== normalizedCompanyIdentity(observation.company)
+      normalizedIdentityPart(evidence.company) !== normalizedIdentityPart(observation.company)
     ) {
       throw jobDescriptionSourceBindingError("当前详情页公司与指定岗位来源不一致。");
     }
@@ -1192,7 +1134,6 @@ export class WorkspaceRepository {
     return source;
   }
 
-  // eslint-disable-next-line max-lines-per-function -- One transaction keeps source identity replacement and canonical refresh atomic.
   #persistJobObservation(input: {
     cardObservation: JobCardObservation;
     existingSource: JobPostingSourceRow | undefined;
@@ -1203,18 +1144,11 @@ export class WorkspaceRepository {
   }) {
     return this.#database.transaction((transaction) => {
       if (input.existingSource) {
-        const { id, jobId } = input.existingSource;
-        WorkspaceRepository.#attachJobSourceIdentity(transaction, id, input);
-        transaction
-          .update(jobPostingSources)
-          .set({
-            ...input.sourceObservations,
-            lastCheckedAt: input.lastCheckedAt,
-          })
-          .where(eq(jobPostingSources.id, id))
-          .run();
-        WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, input.now);
-        return { jobId, outcome: "source-updated" as const };
+        return WorkspaceRepository.#updateExistingJobSource(
+          transaction,
+          input.existingSource,
+          input,
+        );
       }
       const existingJob = transaction
         .select()
@@ -1244,6 +1178,30 @@ export class WorkspaceRepository {
       WorkspaceRepository.#insertJobSource(transaction, jobId, input);
       return { jobId, outcome: "created" as const };
     });
+  }
+
+  static #updateExistingJobSource(
+    transaction: WorkspaceTransaction,
+    source: JobPostingSourceRow,
+    input: {
+      cardObservation: JobCardObservation;
+      lastCheckedAt: string;
+      now: string;
+      sourceIdentityKey: string;
+      sourceObservations: SourceObservations;
+    },
+  ) {
+    WorkspaceRepository.#attachJobSourceIdentity(transaction, source.id, input);
+    transaction
+      .update(jobPostingSources)
+      .set({
+        ...input.sourceObservations,
+        lastCheckedAt: input.lastCheckedAt,
+      })
+      .where(eq(jobPostingSources.id, source.id))
+      .run();
+    const jobId = WorkspaceRepository.#reconcileJobIdentity(transaction, source.jobId, input.now);
+    return { jobId, outcome: "source-updated" as const };
   }
 
   static #attachJobSourceIdentity(
@@ -1292,6 +1250,38 @@ export class WorkspaceRepository {
       .run();
   }
 
+  static #reconcileJobIdentity(
+    transaction: WorkspaceTransaction,
+    jobId: number,
+    updatedAt: string,
+  ): number {
+    const sourceEvidence = transaction
+      .select()
+      .from(jobPostingSources)
+      .where(eq(jobPostingSources.jobId, jobId))
+      .all()
+      .map((source) => jobSourceEvidence(source.cardObservation, source.descriptionObservation));
+    const identityKey = jobPostingIdentityKeyFromSources(sourceEvidence);
+    const identityOwner = transaction
+      .select({ id: jobPostings.id })
+      .from(jobPostings)
+      .where(eq(jobPostings.identityKey, identityKey))
+      .get();
+    if (identityOwner && identityOwner.id !== jobId) {
+      transaction
+        .update(jobPostingSources)
+        .set({ jobId: identityOwner.id })
+        .where(eq(jobPostingSources.jobId, jobId))
+        .run();
+      transaction.delete(jobPostings).where(eq(jobPostings.id, jobId)).run();
+      WorkspaceRepository.#refreshCanonicalJob(transaction, identityOwner.id, updatedAt);
+      return identityOwner.id;
+    }
+    transaction.update(jobPostings).set({ identityKey }).where(eq(jobPostings.id, jobId)).run();
+    WorkspaceRepository.#refreshCanonicalJob(transaction, jobId, updatedAt);
+    return jobId;
+  }
+
   static #refreshCanonicalJob(
     transaction: WorkspaceTransaction,
     jobId: number,
@@ -1316,9 +1306,11 @@ export class WorkspaceRepository {
     const currentValues = storedCanonicalJobPostingValues(currentJob);
     const nextValues = canonicalJobPostingValues(currentSources);
     const contentChanged =
-      canonicalJobPostingContentFingerprint(currentValues) !==
-      canonicalJobPostingContentFingerprint(nextValues);
-    if (markJobUpdated || hashValue(currentValues) !== hashValue(nextValues)) {
+      jobPostingContentFingerprint(currentValues) !== jobPostingContentFingerprint(nextValues);
+    if (
+      markJobUpdated ||
+      jobPostingStateFingerprint(currentValues) !== jobPostingStateFingerprint(nextValues)
+    ) {
       transaction
         .update(jobPostings)
         .set({

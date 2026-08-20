@@ -13,7 +13,8 @@ record.
 When a collected job is missing a description, platform job ID, and detail-page link, delegated
 research can now associate a confirmed detail page with its existing source. Job Boardwalk
 validates the match before retaining the description instead of guessing from incomplete
-information.
+information. The source and its follow-up history are preserved, and complete matching evidence is
+reconciled with an existing normalized job instead of leaving a duplicate.
 
 Login preparation now reuses an existing authenticated session without opening a login page or
 asking you to take control. When login is needed, browser handoff begins only after usable login
