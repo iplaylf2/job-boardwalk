@@ -16,10 +16,9 @@ Browser Session tools never read or return cookies, browser storage, or profile 
 bounded page evidence lets the agent reconcile automation results with the window the user can see.
 
 The current tool surface supports both BOSS直聘 and 鱼泡直聘 through one recruiting-platform adapter
-contract. Shared tools do not imply identical access-assessment coverage: each adapter owns its
-platform-specific navigation and authentication rules. A platform's HTTPS navigation scope permits
-research navigation and explicit login-handoff preparation; it does not authorize login,
-verification, or other account actions.
+contract. Each adapter owns its platform-specific navigation and authentication rules. A platform's
+HTTPS navigation scope permits research navigation and explicit login-handoff preparation; login,
+verification, and other account actions remain under user control.
 
 ## Job evidence reads and passive collection
 
@@ -36,23 +35,23 @@ supported detail page. It reads the main posting description and recognizable jo
 title, company, location, and salary, then submits that observation to Workspace Service. The tool
 returns the captured observation only after Workspace Service accepts and retains it. A rejected
 write or a `stale` outcome fails the call. Recommended job cards are excluded. Its `truncated` flag
-means Browser Session reached its local text limit; it does not imply that the platform hid
-additional text. Browser Session attributes this explicit write to the agent; passive writes use
-system attribution. When the agent has independently confirmed that the current page belongs to a
-tracked source with no retained description, external job ID, or job URL, it may pass that
-workspace `sourceId` for an explicit bind. Workspace Service validates the source before replacing
-its provisional card identity; omitting `sourceId` never triggers a guessed same-platform merge.
+means Browser Session reached its local text limit and characterizes capture completeness only.
+Browser Session attributes this explicit write to the agent; passive writes use system attribution.
+When the agent has independently confirmed that the current page belongs to a tracked source with
+no retained description, external job ID, or job URL, it may pass that workspace `sourceId` for an
+explicit bind. Workspace Service validates the source before replacing its provisional card
+identity; source binding always requires this explicit input.
 
 The passive collector observes eligible open supported-platform tabs when it starts and every 30
 seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their
 main posting description. The collector never navigates, scrolls, clicks, or opens tabs.
 Personal-center pages are excluded. Explicit and passive workflows can submit observations in a
 different order from their page reads. Each submission carries its capture time, and Workspace
-Service owns reconciliation without letting a card observation erase a captured description. A page
-that closes or navigates during its bounded read is reported and skipped without discarding
-evidence from other tabs. The same bounded DOM pass refreshes any conclusive platform-access
-evidence. The collector does not initiate recommendation-page or detail-page navigation; those
-remain explicit agent actions within user-delegated research.
+Service reconciliation preserves a captured description when later card evidence arrives. A page
+that closes or navigates during its bounded read is reported and skipped while evidence from other
+tabs is retained. The same bounded DOM pass refreshes any conclusive platform-access evidence.
+Recommendation-page and detail-page navigation remain explicit agent actions within user-delegated
+research.
 
 [Product design](../../docs/product-design.md#job-discovery-and-evidence) defines the
 cross-application evidence lifecycle.
@@ -63,17 +62,17 @@ cross-application evidence lifecycle.
 only within a user-requested agent task. A scan is scoped to one platform and category. Each call
 opens or reuses the platform tab, brings it to the foreground, reads one bounded batch from the
 category, and immediately writes that evidence to Workspace Service with agent attribution. Browser
-Session does not schedule the tool, rotate categories in the background, or use personal-center
-navigation as session keepalive. Observing a category does not imply that Browser Session performed
-the action represented by it.
+Session invokes this workflow only through explicit agent calls. An observation records the
+platform category in which a job appeared, independent of which actor performed the represented
+action.
 
 When a platform adapter provides a continuation, another call with the same platform and category
 resumes the bounded in-memory scan. The scan accumulates at most 60 distinct jobs and is discarded
 when it completes, reaches the bound, has no continuation, the current batch contains no recognized
-jobs, or Browser Session restarts. `complete=false` identifies partial evidence; it must not be
-interpreted as a complete platform history. Platform cards may omit job links. When a recognized
-link is present, Browser Session preserves it and derives the stable external job ID; otherwise the
-snapshot retains the visible job facts.
+jobs, or Browser Session restarts. `complete=false` identifies partial evidence; `complete=true`
+identifies a complete platform category within the scan bound. Platform cards may omit job links.
+When a recognized link is present, Browser Session preserves it and derives the stable external job
+ID; otherwise the snapshot retains the visible job facts.
 
 A complete `interested` snapshot may remove relations no longer present. The `contacted`, `applied`,
 and `interviewed` relations preserve historical observations even when a later platform list omits
@@ -152,16 +151,15 @@ automatic access-assessment coverage differs:
 | Platform | Automatic access assessment                                                                                                                                                                                                              |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BOSS直聘 | Successful protected navigation records `authenticated`; redirect from protected navigation to login records `unauthenticated`; a bounded snapshot containing the complete set of account-only navigation links records `authenticated`. |
-| 鱼泡直聘 | A bounded snapshot containing a complete job-seeker or recruiter account header records `authenticated`; the route alone does not establish authentication.                                                                              |
+| 鱼泡直聘 | A bounded snapshot containing a complete job-seeker or recruiter account header records `authenticated`.                                                                                                                                 |
 
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
 agent or a bounded page read already performed by passive job collection or an explicit engagement
-sync. Browser Session sends no detection request and does not refresh or open a page for this
-purpose.
+sync. Assessment stays within those existing reads.
 `browser_snapshot` returns `platformAccessObservation`; when it is non-null, the same observation is
 already queued for the periodic Workspace Service report. A platform page loaded before monitoring
-begins is also reassessed by its owning collection cycle. The Dashboard still shows timestamped
-observations, not a timeless live authentication guarantee.
+begins is also reassessed by its owning collection cycle. The Dashboard presents each observation
+with its observation time.
 
 ## Runtime behavior
 
@@ -170,8 +168,8 @@ observations, not a timeless live authentication guarantee.
 One top-level shajara scope owns the HTTP server, visible browser process, persistent context,
 Workspace Service status reporter, recovery loops, and shutdown. If the browser window is closed
 unexpectedly, Browser Session reports the interruption and launches it again with bounded
-exponential backoff. It never replays a failed page action because the visible outcome may already
-have occurred.
+exponential backoff. After a failed page action, the caller re-observes the visible page before
+deciding whether another action is safe.
 
 MCP actions, tab coordination, and snapshots run as `RiteCoroutine` routines. Patchright and Node
 Promises are adapted with `until(...)` at the leaf SDK call; application-owned waits use shajara
@@ -180,6 +178,31 @@ boundaries.
 
 Stopping Browser Session closes the browser it owns. The persistent profile retains ordinary client
 state for the next service run.
+
+### Page inspection and failure classification
+
+Browser availability and page inspection are separate signals. `browser_status.available=false`
+means the managed browser runtime is unavailable. A live runtime can still contain one problematic
+tab: `browser_tabs` probes each supported page with a bounded DOM evaluation and reports
+`pageInspection.outcome` as `observed`, `timed-out`, or `page-closed`. An observed document also
+reports its `documentReadyState` as `loading`, `interactive`, or `complete`. `timed-out` means only
+that the bounded DOM inspection did not finish; cause analysis requires separate evidence.
+`complete` describes the document load lifecycle. Lazy and application-triggered resources require
+their own observation when they matter to the workflow.
+
+Navigation waits 30 seconds for `DOMContentLoaded`. A timeout returns
+`navigation.outcome=timed-out`, `waitUntil=domcontentloaded`, and the independently collected page
+inspection as a structured result. Navigation and inspection remain independent outcomes. Snapshot
+DOM evaluation waits up to five seconds. A read timeout reports a closed tab, a page-inspection
+timeout, or the observed document lifecycle state. Other errors retain their original failure.
+
+[Access observations](../../docs/product-design.md#access-observations) defines what these signals
+can establish. Verification and access-denial conclusions require visible controls or semantic page
+content. Current adapters classify the authentication cases listed above and return
+`platformAccessObservation=null` for unclassified evidence.
+[Reliable browser research](../../docs/product-design.md#reliable-browser-research) owns the
+re-observation and retry policy. When an action has no confirmed visible outcome, the caller
+re-observes the page before deciding the next action.
 
 ### Tabs and page evidence
 
@@ -225,8 +248,8 @@ during a handoff because they do not drive the browser.
 After the user explicitly returns control, the agent calls `browser_snapshot` with
 `userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit
 the flag. The flag resumes passive page reads and authorizes a later explicit job-engagement
-sync to reuse the observed platform tab. It records returned control, not successful
-authentication.
+sync to reuse the observed platform tab. It records returned control; subsequent page evidence
+determines authentication status.
 
 ## Maintenance constraints
 

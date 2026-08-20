@@ -11,7 +11,7 @@ import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
 import type { BackgroundCollectionControl } from "./background-collection-control.js";
-import { parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
+import { parseOptionalTabId } from "./browser-tabs.js";
 import type { BrowserTabs } from "./browser-tabs.js";
 import { clickAndCapturePopup } from "./click-popup.js";
 import {
@@ -20,6 +20,7 @@ import {
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
 import {
   capturePageSnapshot,
   maximumElementHrefCharacters,
@@ -190,9 +191,8 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolvePlatformPage(platformId, parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     yield* until(() => page.bringToFront());
-    yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
     this.#clearElementReferences();
-    return yield* readNavigationPageSummary(page);
+    return yield* navigatePage(page, url);
   }
 
   #reference(params: Record<string, unknown>): ElementReference {

@@ -12,6 +12,9 @@ import {
 } from "./recruiting-platform-adapters.js";
 import { observeCurrentAuthentication, observeLoginHandoff } from "./login-handoff.js";
 import type { LoginPreparationOutcome } from "./login-handoff.js";
+import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
+import type { NavigationResult } from "./page-navigation.js";
+import { inspectPageDocument } from "./page-inspection.js";
 
 const blankPageUrls = new Set(["about:blank", "edge://newtab/", "chrome://newtab/"]);
 const firstPageId = 1;
@@ -20,24 +23,12 @@ export function parseOptionalTabId(params: Record<string, unknown>): number | nu
   return (params["tabId"] as number | undefined) ?? null;
 }
 
-export function* readNavigationPageSummary(
-  page: Page,
-): RiteCoroutine<{ platformId: PlatformId; title: string; url: string }> {
-  const url = page.url();
-  const { platformId } = requireRecruitingPlatformAdapter(url);
-  const title = yield* until(() => page.title());
-  return { platformId, title, url };
-}
-
-interface NavigationTabSummary {
+export interface LoginPreparationResult {
   readonly id: number;
+  readonly outcome: LoginPreparationOutcome;
   readonly platformId: PlatformId;
   readonly title: string;
   readonly url: string;
-}
-
-export interface LoginPreparationResult extends NavigationTabSummary {
-  readonly outcome: LoginPreparationOutcome;
 }
 
 export class BrowserTabs {
@@ -162,6 +153,9 @@ export class BrowserTabs {
       }
     }
     const navigation = yield* this.#ensure({ platformId, url: adapter.loginUrl });
+    if (navigation.navigation.outcome === "timed-out") {
+      throw new Error(`${adapter.label}登录交接尚未就绪：导航在等待 DOMContentLoaded 时超时。`);
+    }
     const page = this.#pages.get(navigation.id);
     if (!page || page.isClosed()) {
       throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
@@ -182,18 +176,20 @@ export class BrowserTabs {
     );
     const tabs = [];
     for (const [id, page] of navigationPages) {
+      const pageInspection = yield* inspectPageDocument(page);
       tabs.push({
         active: id === this.#selectedPageId,
         id,
+        pageInspection,
         platformId: requireRecruitingPlatformAdapter(page.url()).platformId,
-        title: yield* until(() => page.title()),
+        ...(pageInspection.outcome === "observed" ? { title: pageInspection.title } : {}),
         url: page.url(),
       });
     }
     return { tabs };
   }
 
-  *#ensure(params: Record<string, unknown>): RiteCoroutine<NavigationTabSummary> {
+  *#ensure(params: Record<string, unknown>): RiteCoroutine<NavigationResult & { id: number }> {
     const platformId = readPlatformId(params);
     const adapter = recruitingPlatformAdapters[platformId];
     const requestedUrl = params["url"];
@@ -206,7 +202,7 @@ export class BrowserTabs {
     if (existingNavigationPage) {
       const [, existingPage] = existingNavigationPage;
       if (!hasRequestedUrl || existingPage.url() === url) {
-        return yield* this.#activate(existingNavigationPage);
+        return yield* this.#activate(existingNavigationPage, url);
       }
       return yield* this.#navigate(existingNavigationPage, url);
     }
@@ -217,25 +213,36 @@ export class BrowserTabs {
     return yield* this.#create(url);
   }
 
-  *#activate([tabId, page]: [number, Page]): RiteCoroutine<NavigationTabSummary> {
+  *#activate(
+    [tabId, page]: [number, Page],
+    requestedUrl: string,
+  ): RiteCoroutine<NavigationResult & { id: number }> {
     yield* this.selectPage(page);
-    return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
+    return {
+      id: tabId,
+      ...(yield* readNavigationPageSummary(page)),
+      navigation: { outcome: "already-current" },
+      requestedUrl,
+    };
   }
 
-  *#create(url: string): RiteCoroutine<NavigationTabSummary> {
+  *#create(url: string): RiteCoroutine<NavigationResult & { id: number }> {
     const page = yield* until(() => this.#context.newPage());
     const tabId = this.#register(page);
     this.markSelected(tabId);
-    yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
+    const navigation = yield* navigatePage(page, url);
     yield* until(() => page.bringToFront());
-    return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
+    return { id: tabId, ...navigation };
   }
 
-  *#navigate([tabId, page]: [number, Page], url: string): RiteCoroutine<NavigationTabSummary> {
+  *#navigate(
+    [tabId, page]: [number, Page],
+    url: string,
+  ): RiteCoroutine<NavigationResult & { id: number }> {
     this.markSelected(tabId);
-    yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
+    const navigation = yield* navigatePage(page, url);
     yield* until(() => page.bringToFront());
-    return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
+    return { id: tabId, ...navigation };
   }
 
   #register(page: Page): number {

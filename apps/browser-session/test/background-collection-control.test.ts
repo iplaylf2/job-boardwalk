@@ -9,6 +9,7 @@ import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { PassiveJobObservationCollector } from "#/browser/job-observation/passive-collector.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 import type { JobObservationWriter } from "#/workspace-service/job-observation-writer.js";
+import { createSyntheticPageLocator } from "./synthetic-page-locator.js";
 
 const noCollections = 0;
 const oneCollection = 1;
@@ -28,35 +29,38 @@ function* recordedCollection(recordCollection: () => void): RiteCoroutine<void> 
 
 function fakeLoginContext(navigationError?: Error): BrowserContext {
   let url = "https://www.zhipin.com/web/geek/jobs";
+  function snapshot() {
+    return Promise.resolve({
+      accessElements: [],
+      accessText: "登录",
+      cards: [
+        {
+          details: [],
+          href: "https://www.zhipin.com/job_detail/example.html",
+          text: "后端开发",
+          title: "后端开发",
+        },
+      ],
+      documentReadyState: "complete",
+      elements: [
+        {
+          disabled: false,
+          name: "Synthetic login control",
+          role: "button",
+          signature: "synthetic-login-control",
+          sourceIndex: 0,
+        },
+      ],
+      text: "登录",
+      title: "BOSS直聘",
+      truncated: false,
+      url,
+      viewport: { height: 900, scrollY: 0, width: 1200 },
+    });
+  }
   const page = {
     bringToFront: () => Promise.resolve(),
-    evaluate: () =>
-      Promise.resolve({
-        accessElements: [],
-        accessText: "登录",
-        cards: [
-          {
-            details: [],
-            href: "https://www.zhipin.com/job_detail/example.html",
-            text: "后端开发",
-            title: "后端开发",
-          },
-        ],
-        elements: [
-          {
-            disabled: false,
-            name: "Synthetic login control",
-            role: "button",
-            signature: "synthetic-login-control",
-            sourceIndex: 0,
-          },
-        ],
-        text: "登录",
-        title: "BOSS直聘",
-        truncated: false,
-        url,
-        viewport: { height: 900, scrollY: 0, width: 1200 },
-      }),
+    evaluate: snapshot,
     goto: (targetUrl: string) => {
       if (navigationError) {
         return Promise.reject(navigationError);
@@ -65,7 +69,11 @@ function fakeLoginContext(navigationError?: Error): BrowserContext {
       return Promise.resolve(null);
     },
     isClosed: () => false,
-    locator: () => ({ nth: () => null }),
+    locator: createSyntheticPageLocator({
+      nth: () => null,
+      readSnapshot: snapshot,
+      title: "BOSS直聘",
+    }),
     once: () => page,
     title: () => Promise.resolve("BOSS直聘"),
     url: () => url,
@@ -79,19 +87,26 @@ function fakeLoginContext(navigationError?: Error): BrowserContext {
 
 function fakeAuthenticatedYupaoContext(): BrowserContext {
   const url = "https://www.yupao.com/a2/";
+  function snapshot() {
+    return Promise.resolve({
+      documentReadyState: "complete",
+      elements: [],
+      text: ["首页", "职位", "公司", "校园", "消息", "简历", "合成求职者"].join("\n"),
+      title: "Synthetic Yupao jobs",
+      truncated: false,
+      url,
+      viewport: { height: 900, scrollY: 0, width: 1200 },
+    });
+  }
   const page = {
     bringToFront: () => Promise.resolve(),
-    evaluate: () =>
-      Promise.resolve({
-        elements: [],
-        text: ["首页", "职位", "公司", "校园", "消息", "简历", "合成求职者"].join("\n"),
-        title: "Synthetic Yupao jobs",
-        truncated: false,
-        url,
-        viewport: { height: 900, scrollY: 0, width: 1200 },
-      }),
+    evaluate: snapshot,
     isClosed: () => false,
-    locator: () => ({ nth: () => null }),
+    locator: createSyntheticPageLocator({
+      nth: () => null,
+      readSnapshot: snapshot,
+      title: "Synthetic Yupao jobs",
+    }),
     once: () => page,
     title: () => Promise.resolve("Synthetic Yupao jobs"),
     url: () => url,

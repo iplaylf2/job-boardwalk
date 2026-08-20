@@ -1,8 +1,9 @@
-import type { BrowserContext, Page } from "patchright";
+import type { BrowserContext, Locator, Page } from "patchright";
 import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BrowserTabs } from "#/browser/browser-tabs.js";
+import { createSyntheticPageLocator } from "./synthetic-page-locator.js";
 
 interface FakePage {
   navigationCount: number;
@@ -35,28 +36,31 @@ function fakePage(initialUrl: string, options: FakePageOptions = {}): FakePage {
   const snapshotElements = options.snapshotElements ?? [
     { name: "Synthetic login control", role: "button" },
   ];
+  function snapshot() {
+    return Promise.resolve({
+      documentReadyState: "complete",
+      elements: snapshotElements.map((element, sourceIndex) => ({
+        disabled: false,
+        href: element.href,
+        name: element.name,
+        role: element.role,
+        signature: `synthetic-${String(sourceIndex)}`,
+        sourceIndex,
+      })),
+      text: options.snapshotText ?? "Synthetic visible login interface",
+      title: "Synthetic recruiting platform",
+      truncated: false,
+      url: state.url,
+      viewport: {
+        height: syntheticViewportHeight,
+        scrollY: noNavigations,
+        width: syntheticViewportWidth,
+      },
+    });
+  }
   state.page = {
     bringToFront: () => Promise.resolve(),
-    evaluate: () =>
-      Promise.resolve({
-        elements: snapshotElements.map((element, sourceIndex) => ({
-          disabled: false,
-          href: element.href,
-          name: element.name,
-          role: element.role,
-          signature: `synthetic-${String(sourceIndex)}`,
-          sourceIndex,
-        })),
-        text: options.snapshotText ?? "Synthetic visible login interface",
-        title: "Synthetic recruiting platform",
-        truncated: false,
-        url: state.url,
-        viewport: {
-          height: syntheticViewportHeight,
-          scrollY: noNavigations,
-          width: syntheticViewportWidth,
-        },
-      }),
+    evaluate: snapshot,
     goto: (url: string) => {
       state.navigationCount += firstNavigationCount;
       state.url = url;
@@ -64,7 +68,11 @@ function fakePage(initialUrl: string, options: FakePageOptions = {}): FakePage {
       return Promise.resolve(null);
     },
     isClosed: () => false,
-    locator: () => ({ nth: () => ({}) }),
+    locator: createSyntheticPageLocator({
+      nth: () => ({}) as Locator,
+      readSnapshot: snapshot,
+      title: "Synthetic recruiting platform",
+    }),
     once: () => state.page,
     title: () => Promise.resolve("Synthetic recruiting platform"),
     url: () => state.url,

@@ -19,10 +19,11 @@ const supportedPlatformLabels = platformIds
   .join("、");
 const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
-  "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
-  "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
+  "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
+  "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
   "用户交接：需要登录时，使用 browser_prepare_login 检查现有会话并按需准备登录界面。只有 outcome=handoff-ready 才开始交接；此后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
-  "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
+  "可见结果：判断以用户看到的当前窗口和重新观察结果为准；工具返回冲突时先重新观察。",
+  "诊断流程：browser_status 的 available=false 表示浏览器运行时整体不可用。navigation.outcome=timed-out 记录目标页未在时限内达到 DOMContentLoaded；pageInspection 记录页面关闭、检查超时或观察到的文档生命周期。验证和拒绝访问的判断以可见控件或页面语义为依据。操作结果未知时，先重新观察页面，再决定下一步。",
 ].join("\n\n");
 
 function defineBrowserTool(
@@ -43,7 +44,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "列出或激活受支持招聘平台的标签页，也可按 platformId 准备标签页。action 为 ensure 时优先复用该平台已有标签页。",
+      "列出或激活受支持招聘平台的标签页，也可按 platformId 准备标签页。action 为 ensure 时优先复用该平台已有标签页。list 返回每页有界的 pageInspection，每页检查均有独立等待上限。",
     name: "browser_tabs",
   }),
   defineBrowserTool({
@@ -54,13 +55,14 @@ const browserTools = [
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。",
+    description:
+      "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。返回 navigation 和 pageInspection；达到 DOMContentLoaded 时 outcome=completed，等待超时时 outcome=timed-out。超时后根据页面检查和新的可见页面证据决定下一步。",
     name: "browser_navigate",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面读取，并允许后续显式岗位跟进同步复用该平台原标签页，但不表示登录成功。普通快照省略该字段。",
+      "在有界等待内读取可见文本和通用交互元素，并返回 documentReadyState 与短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。正文读取超时时会报告标签页关闭、页面检查超时或已观察到的文档生命周期，后续操作以新的显式观察为依据。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法分类时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面读取，并允许后续显式岗位跟进同步复用该平台原标签页。该字段记录控制权已归还；认证状态由随后取得的页面证据判定。普通快照省略该字段。",
     name: "browser_snapshot",
   }),
   defineBrowserTool({

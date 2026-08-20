@@ -1,10 +1,14 @@
+import type { Page } from "patchright";
+import { errors } from "patchright";
+import { run } from "@shajara/host";
 import { afterEach, expect, test, vi } from "vitest";
 
-import { captureSnapshotMetadata } from "#/browser/page-snapshot.js";
+import { capturePageSnapshot, captureSnapshotMetadata } from "#/browser/page-snapshot.js";
 
 const viewportHeight = 800;
 const viewportWidth = 1200;
 const viewportScrollY = 100;
+const snapshotTextLimit = 100;
 
 interface FakeElementOptions {
   attributes?: Record<string, string>;
@@ -53,18 +57,25 @@ test("bounds snapshot evidence without exposing password controls or form values
     }),
     fakeElement({ matchingSelectors: ["button"], tagName: "BUTTON", textContent: "More" }),
   ];
-  vi.stubGlobal("document", {
-    body: { innerText: "Rendered workspace evidence" },
+  const view = {
+    getComputedStyle: () => ({ display: "block", visibility: "visible" }),
+    innerHeight: viewportHeight,
+    innerWidth: viewportWidth,
+    scrollY: viewportScrollY,
+  };
+  const document = {
+    defaultView: view,
+    location: { href: "https://www.zhipin.com/web/geek/jobs" },
     querySelectorAll: () => elements,
+    readyState: "complete",
     title: "Jobs",
-  });
-  vi.stubGlobal("getComputedStyle", () => ({ display: "block", visibility: "visible" }));
-  vi.stubGlobal("innerHeight", viewportHeight);
-  vi.stubGlobal("innerWidth", viewportWidth);
-  vi.stubGlobal("location", { href: "https://www.zhipin.com/web/geek/jobs" });
-  vi.stubGlobal("scrollY", viewportScrollY);
+  } as unknown as Document;
+  const body = {
+    innerText: "Rendered workspace evidence",
+    ownerDocument: document,
+  } as unknown as HTMLElement;
 
-  const snapshot = captureSnapshotMetadata({
+  const snapshot = captureSnapshotMetadata(body, {
     maximumElements: 1,
     maximumHrefCharacters: 12,
     maximumNameCharacters: 6,
@@ -74,6 +85,7 @@ test("bounds snapshot evidence without exposing password controls or form values
   });
 
   expect(snapshot).toMatchObject({
+    documentReadyState: "complete",
     elements: [{ name: "Search", role: "textbox" }],
     text: "Rendered",
     truncated: true,
@@ -81,4 +93,53 @@ test("bounds snapshot evidence without exposing password controls or form values
     viewport: { height: viewportHeight, scrollY: viewportScrollY, width: viewportWidth },
   });
   expect(JSON.stringify(snapshot)).not.toMatch(/private query|secret-password/u);
+});
+
+test("does not retry a snapshot failure that is not a driver timeout", async () => {
+  const evaluations: string[] = [];
+  const failure = new Error("synthetic page evaluation failure");
+  const page = {
+    isClosed: () => false,
+    locator: (selector: string) => ({
+      evaluate: () => {
+        evaluations.push(selector);
+        return Promise.reject(failure);
+      },
+    }),
+  } as unknown as Page;
+
+  const observedFailure = await run(() => capturePageSnapshot(page, snapshotTextLimit)).catch(
+    (error: unknown) => error,
+  );
+
+  expect(observedFailure).toBeDefined();
+  expect(evaluations).toEqual(["body"]);
+});
+
+test("inspects the page after a snapshot timeout without retrying the snapshot", async () => {
+  const timeout = new errors.TimeoutError("synthetic snapshot timeout");
+  const evaluations: string[] = [];
+  const page = {
+    isClosed: () => false,
+    locator: (selector: string) => ({
+      evaluate: () => {
+        evaluations.push(selector);
+        if (selector === "html") {
+          return Promise.resolve({
+            documentReadyState: "loading",
+            outcome: "observed",
+            title: "Loading",
+          });
+        }
+        return Promise.reject(timeout);
+      },
+    }),
+  } as unknown as Page;
+
+  const observedFailure = await run(() => capturePageSnapshot(page, snapshotTextLimit)).catch(
+    (error: unknown) => error,
+  );
+
+  expect(observedFailure).toBeDefined();
+  expect(evaluations).toEqual(["body", "html"]);
 });

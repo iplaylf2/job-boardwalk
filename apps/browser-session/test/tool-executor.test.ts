@@ -8,6 +8,7 @@ import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { PlatformAccessObserver } from "#/browser/platform-access-observer.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 import type { BrowserToolExecutorCoordination } from "#/browser/tool-executor.js";
+import { createSyntheticPageLocator } from "./synthetic-page-locator.js";
 
 const accountLinks = [
   ["消息", "https://www.zhipin.com/web/geek/chat"],
@@ -43,28 +44,32 @@ function browserToolExecutor(
 }
 
 function fakeAuthenticatedBossPage(): Page {
-  const locator = {
-    nth: () => ({}) as Locator,
-  };
+  function snapshot() {
+    return Promise.resolve({
+      documentReadyState: "complete",
+      elements: accountLinks.map(([name, href], sourceIndex) => ({
+        disabled: false,
+        href,
+        name,
+        role: "link",
+        signature: `${name}:${href}`,
+        sourceIndex,
+      })),
+      text: "消息 简历 个人中心",
+      title: "BOSS直聘",
+      truncated: false,
+      url: "https://www.zhipin.com/beijing/",
+      viewport: { height: 900, scrollY: 0, width: 1200 },
+    });
+  }
   const page = {
-    evaluate: () =>
-      Promise.resolve({
-        elements: accountLinks.map(([name, href], sourceIndex) => ({
-          disabled: false,
-          href,
-          name,
-          role: "link",
-          signature: `${name}:${href}`,
-          sourceIndex,
-        })),
-        text: "消息 简历 个人中心",
-        title: "BOSS直聘",
-        truncated: false,
-        url: "https://www.zhipin.com/beijing/",
-        viewport: { height: 900, scrollY: 0, width: 1200 },
-      }),
+    evaluate: snapshot,
     isClosed: () => false,
-    locator: () => locator,
+    locator: createSyntheticPageLocator({
+      nth: () => ({}) as Locator,
+      readSnapshot: snapshot,
+      title: "BOSS直聘",
+    }),
     once: () => page,
     url: () => "https://www.zhipin.com/beijing/",
   } as unknown as Page;
@@ -98,10 +103,6 @@ function fakeAuthenticatedYupaoJobCardPage(): Page {
   return page;
 }
 
-function fakePageEventMethods(readPage: () => Page) {
-  return { off: () => readPage(), on: () => readPage() };
-}
-
 function fakeActionPage(element: { href?: string; name: string; role: string }) {
   const signature = `${element.role}:${element.name}:${element.href ?? ""}`;
   const state = {
@@ -126,28 +127,35 @@ function fakeActionPage(element: { href?: string; name: string; role: string }) 
       return Promise.resolve([]);
     },
   } as unknown as Locator;
+  function snapshot() {
+    return Promise.resolve({
+      documentReadyState: "complete",
+      elements: [
+        {
+          ...element,
+          disabled: false,
+          signature,
+          sourceIndex: firstLocatorIndex,
+        },
+      ],
+      text: element.name,
+      title: "BOSS直聘",
+      truncated: false,
+      url: state.url,
+      viewport: { height: 900, scrollY: 0, width: 1200 },
+    });
+  }
   const page = {
-    evaluate: () =>
-      Promise.resolve({
-        elements: [
-          {
-            ...element,
-            disabled: false,
-            signature,
-            sourceIndex: firstLocatorIndex,
-          },
-        ],
-        text: element.name,
-        title: "BOSS直聘",
-        truncated: false,
-        url: state.url,
-        viewport: { height: 900, scrollY: 0, width: 1200 },
-      }),
+    evaluate: snapshot,
     isClosed: () => false,
-    locator: () => ({ nth: () => locator }),
-    ...fakePageEventMethods(() => page),
+    locator: createSyntheticPageLocator({
+      nth: () => locator,
+      readSnapshot: snapshot,
+      title: "BOSS直聘",
+    }),
+    off: () => page,
+    on: () => page,
     once: () => page,
-    title: () => Promise.resolve("BOSS直聘"),
     url: () => state.url,
   } as unknown as Page;
   return { page, state };

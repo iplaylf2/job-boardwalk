@@ -171,7 +171,7 @@ Each recruiting platform exposes personal-center categories for interested, cont
 interviewed jobs. Job Boardwalk calls an observed membership in one of these categories a
 **job engagement**. Engagements are non-exclusive relations on a platform source: one source may be
 both contacted and applied, for example. They are evidence of how the platform classified the job
-when observed, not a reconstructed workflow status or a semantic interpretation of message prose.
+when observed. The record contains the platform category and observation time.
 
 Browser Session maps the platform categories to `interested`, `contacted`, `applied`, and
 `interviewed`. A user-requested synchronization task addresses one platform and category at a time.
@@ -182,20 +182,19 @@ for the same platform and category continues the current scan.
 A scan accumulates at most 60 distinct jobs. `complete` is true only when the platform-maintained
 total and the captured evidence establish the full category within that bound; otherwise the
 snapshot remains partial. The quantity bound limits collected evidence, not the age of an
-interaction: platform cards do not establish when the underlying action occurred. A redirected
-category tab remains associated with the platform instead of being automatically replaced or
-retried. During user handoff it remains untouched; after control returns, a later explicit call may
-reuse it.
+interaction: platform cards carry category membership without an event time. A redirected category
+tab remains associated with the platform. During user handoff it remains untouched; after control
+returns, a later explicit call may reuse it.
 
 `interested` represents a reversible current classification, so a complete snapshot may remove
 relations absent from the platform list. The other engagement kinds preserve historical evidence
 that the platform once included the source in that category; a later omission does not remove them
 because a platform may limit or age out personal-center history. Partial snapshots only add or
-refresh observed relations. No category establishes when the underlying action occurred or which
-resume artifact was sent.
+refresh observed relations. Event time and the resume artifact remain unknown because platform
+categories provide neither datum.
 
-Engagements do not create separate job collections. Removing an `interested` relation leaves the
-normalized job, its other sources, and its historical engagement evidence in the library.
+Engagements share the normalized job collection. Removing an `interested` relation leaves the job,
+its other sources, and its historical engagement evidence in the library.
 Dashboard exposes the four engagement kinds as filters within one job library and shows when the
 displayed platform records were most recently observed. A combined tracked view takes the union of
 those relations without turning them into a single workflow state.
@@ -219,7 +218,8 @@ session used for research:
    the agent.
 5. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
    resumes read-only research in the same browser profile and records results through Workspace
-   Service. The flag records returned control and does not assert that authentication succeeded.
+   Service. The flag records returned control; subsequent page evidence determines authentication
+   status.
 6. A later verification request or user-controlled action pauses research and returns control to the
    user again.
 
@@ -251,10 +251,9 @@ conclusions are ordered by their latest observation time.
 
 Browser Session passively observes navigation responses the visible browser already receives and
 applies deterministic adapter rules to bounded page reads initiated by explicit snapshots, passive
-job collection, or an explicit job-engagement synchronization task. It does not issue a detection
-request, refresh a page, or open a tab to check authentication. An adapter with a conclusive
-navigation rule may use response success, the final URL, and the server redirect chain to produce
-one of two authentication results:
+job collection, or an explicit job-engagement synchronization task. Assessment stays within those
+existing reads. An adapter with a conclusive navigation rule may use response success, the final
+URL, and the server redirect chain to produce one of two authentication results:
 
 - `protected-resource` records `authenticated` when a known protected navigation succeeds;
 - `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
@@ -263,8 +262,8 @@ one of two authentication results:
 An adapter may also produce `authenticated-page` when a bounded snapshot contains a complete,
 platform-specific set of account controls that establishes an authenticated session. The snapshot
 returns the same structured observation so the agent can answer without submitting it again.
-Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
-alone, display names alone, and cookie presence do not establish authentication.
+This rule requires the complete platform-specific control set; other page and session signals remain
+unclassified.
 
 Explicit job-card and job-description snapshots derive their evidence from the current eligible
 page rather than durable Workspace Service content. Unlike the job-card snapshot, the
@@ -277,35 +276,34 @@ agent actions within a user-requested task; neither is scheduled as background b
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page
-content. No observation includes credentials, cookie values, browser storage, protected response
-content, or unrestricted page text.
+content. Navigation and document-lifecycle diagnostics remain unclassified until such evidence is
+available. A null adapter observation records that unclassified state. Access observations contain
+only structured assessment metadata; credentials, browser session data, and page content stay
+within their owning boundaries.
 
-The Dashboard displays the definite authentication assessment with the latest observation time and
-any interruption observed later. It includes that time rather than presenting historical evidence
-as a timeless live guarantee, and it does not open or verify the browser itself.
+The Dashboard displays the definite authentication assessment with its latest observation time and
+any interruption observed later. Browser Session owns live browser inspection.
 
 ## Reliable browser research
 
-Browser research should behave like a continuous user-delegated session, not a stateless bulk
-fetcher. Execution therefore favors a visible browser and reuse of the selected tab and session
-while they remain healthy, low concurrency, and ordinary navigation flow.
+Browser research operates as a continuous user-delegated session. Execution therefore favors a
+visible browser and reuse of the selected tab and session while they remain healthy, low
+concurrency, and ordinary navigation flow.
 
 The agent observes the page at workflow boundaries and after meaningful page or handoff changes.
-Navigation, paging, refreshes, and retries remain paced and bounded: the agent does not create tight
-polling loops, repeated visible page churn, or retries that continue without new evidence.
+Navigation, paging, refreshes, and retries use bounded pacing. Each retry requires new evidence and a
+finite limit.
 
 The visible browser outcome and the user's observation govern whether an action visibly succeeded.
-A backend URL, page title, tool response, or other automation signal does not override the user's
-report that a different page or window is visible; the agent re-observes and reconciles the live
-page before continuing.
+When a backend URL, page title, or tool response conflicts with the user's report, the agent
+re-observes and reconciles the live page before continuing.
 
 Recovery must preserve the platform's visible access decisions. If a platform presents verification
-or denies access, the agent reports the interruption and waits for the user; it does not report
-denied content as a successful result.
+or denies access, the agent records the interruption and waits for the user.
 
 A browser action whose response is lost has an unknown outcome. Browser Session contains that
-failure to the request and does not automatically replay the action; after the browser is
-restored, the agent re-observes the visible page before deciding whether another action is safe.
+failure to the request. After the browser is restored, the agent re-observes the visible page before
+deciding whether another action is safe.
 
 ## Research reports
 

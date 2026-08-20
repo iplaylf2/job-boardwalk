@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from "patchright";
+import { errors } from "patchright";
 import { createScope } from "@shajara/host";
 import { expect, test } from "vitest";
 import { resolvePlatformWebUrl } from "@job-boardwalk/platform-catalog";
@@ -8,7 +9,8 @@ import {
   assertPlatformNavigationUrl,
   findRecruitingPlatformAdapter,
 } from "#/browser/recruiting-platform-adapters.js";
-import { BrowserTabs, readNavigationPageSummary } from "#/browser/browser-tabs.js";
+import { BrowserTabs } from "#/browser/browser-tabs.js";
+import { readNavigationPageSummary } from "#/browser/page-navigation.js";
 
 interface FakePage {
   activationCount: number;
@@ -19,6 +21,7 @@ interface FakePage {
 
 const firstNavigationCount = 1;
 const firstActivationCount = 1;
+const noNavigations = 0;
 // eslint-disable-next-line no-script-url
 const scriptControlHref = "javascript:;";
 
@@ -40,6 +43,10 @@ function fakePage(initialUrl: string, title = "Jobs"): FakePage {
       return Promise.resolve(null);
     },
     isClosed: () => false,
+    locator: () => ({
+      evaluate: () =>
+        Promise.resolve({ documentReadyState: "complete", outcome: "observed", title }),
+    }),
     once: () => state.page,
     title: () => Promise.resolve(title),
     url: () => state.url,
@@ -144,15 +151,67 @@ test.each([
 
     expect(fake.navigationCount).toBe(firstNavigationCount);
     expect(fake.url).toBe(requestedUrl);
-    expect(result).toMatchObject({ platformId, title: "Jobs", url: requestedUrl });
+    expect(result).toMatchObject({
+      navigation: { outcome: "completed", waitUntil: "domcontentloaded" },
+      pageInspection: { documentReadyState: "complete", outcome: "observed" },
+      platformId,
+      title: "Jobs",
+      url: requestedUrl,
+    });
   },
 );
+
+test("returns a timed-out navigation with an independent page inspection", async () => {
+  await using scope = createScope();
+  const requestedUrl = "https://www.zhipin.com/beijing/";
+  const fake = fakePage("about:blank");
+  fake.page.goto = (url: string) => {
+    fake.navigationCount += firstNavigationCount;
+    fake.url = url;
+    return Promise.reject(new errors.TimeoutError("synthetic navigation timeout"));
+  };
+  fake.page.locator = () =>
+    ({
+      evaluate: () =>
+        Promise.resolve({
+          documentReadyState: "loading",
+          outcome: "observed",
+          title: "Loading",
+        }),
+    }) as never;
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+
+  const result = await scope.run(() =>
+    tabs.executeAction({ action: "ensure", platformId: "boss", url: requestedUrl }),
+  );
+
+  expect(fake.navigationCount).toBe(firstNavigationCount);
+  expect(result).toMatchObject({
+    navigation: { outcome: "timed-out", waitUntil: "domcontentloaded" },
+    pageInspection: { documentReadyState: "loading", outcome: "observed" },
+    requestedUrl,
+    url: requestedUrl,
+  });
+});
 
 test("requires a supported platform when ensuring a tab", () => {
   const fake = fakePage("about:blank");
   const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
 
   expect(() => tabs.executeAction({ action: "ensure" }).next()).toThrow(/platformId/u);
+});
+
+test("reports that navigation was already current when ensure reuses the platform page", async () => {
+  await using scope = createScope();
+  const fake = fakePage("https://www.zhipin.com/beijing/");
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+
+  const result = await scope.run(() =>
+    tabs.executeAction({ action: "ensure", platformId: "boss" }),
+  );
+
+  expect(fake.navigationCount).toBe(noNavigations);
+  expect(result).toMatchObject({ navigation: { outcome: "already-current" } });
 });
 
 test("selects an externally managed page through the shared tab owner", async () => {
