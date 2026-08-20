@@ -242,6 +242,9 @@ catalogs:
 
 packageExtensionsChecksum: sha256-UoFVZ00pIgonL97kJPdseUwHWTR6RHjiSCZVYNEkzf8=
 
+patchedDependencies:
+  patchright-core@1.62.1: 5d55c6c7228c4e7044892da533de8fce46fe0d7f821127565c52aa18fb395215
+
 importers:
 
   .:
@@ -5000,11 +5003,11 @@ snapshots:
 
   parseurl@1.3.3: {}
 
-  patchright-core@1.62.1: {}
+  patchright-core@1.62.1(patch_hash=5d55c6c7228c4e7044892da533de8fce46fe0d7f821127565c52aa18fb395215): {}
 
   patchright@1.62.1:
     dependencies:
-      patchright-core: 1.62.1
+      patchright-core: 1.62.1(patch_hash=5d55c6c7228c4e7044892da533de8fce46fe0d7f821127565c52aa18fb395215)
     optionalDependencies:
       fsevents: 2.3.2
 

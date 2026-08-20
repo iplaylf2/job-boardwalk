@@ -44,3 +44,8 @@ allowBuilds:
   oxlint: true
 
 minimumReleaseAge: 0
+
+# Browser Session owns the rationale and removal criteria:
+# apps/browser-session/README.md#demand-driven-request-interception
+patchedDependencies:
+  patchright-core@1.62.1: patches/patchright-core@1.62.1.patch

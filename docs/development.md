@@ -8,9 +8,10 @@ runtime topology and deployable artifacts.
 
 Each ecosystem retains its native dependency and workspace authority:
 
-- `pnpm-workspace.yaml` defines the Node.js workspace and shared dependency requirements.
-  Root `package.json` declares the Node.js and pnpm toolchain requirements used by development, CI,
-  and source image builds. `pnpm-lock.yaml` records the exact dependency and toolchain resolutions.
+- `pnpm-workspace.yaml` defines the Node.js workspace, shared dependency requirements, and applied
+  dependency patches. Root `package.json` declares the Node.js and pnpm toolchain requirements used
+  by development, CI, and source image builds. `pnpm-lock.yaml` records the exact dependency and
+  toolchain resolutions.
 - Root `Cargo.toml` defines the Rust workspace and compatible dependency requirements. `Cargo.lock`
   records the exact resolution.
 - `rust-toolchain.toml` pins the Rust compiler and required components. The project does not
