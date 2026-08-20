@@ -11,9 +11,14 @@ COPY internal/presets/package.json internal/presets/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/platform-catalog/package.json packages/platform-catalog/package.json
 
+RUN pnpm runtime set node \
+    "$(pnpm --silent pkg get devEngines.runtime.version)" \
+    --global && \
+    install -D -m 0755 "$(command -v node)" /usr/local/bin/node
+
 RUN --mount=type=cache,id=job-boardwalk-pnpm-store,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && \
-    pnpm install --filter @job-boardwalk/dashboard... --frozen-lockfile
+    pnpm install --filter @job-boardwalk/dashboard... --frozen-lockfile --no-runtime
 
 COPY apps/dashboard/ apps/dashboard/
 COPY internal/presets/ internal/presets/

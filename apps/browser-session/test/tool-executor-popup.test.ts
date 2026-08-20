@@ -8,6 +8,7 @@ import { expect, test } from "vitest";
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
+import { createSyntheticPageLocator } from "./synthetic-page-locator.js";
 
 const sourceUrl = "https://www.zhipin.com/beijing/";
 const popupUrl = "https://www.zhipin.com/job_detail/example.html";
@@ -19,18 +20,25 @@ function fakePage(input: {
   url: string;
 }) {
   const events = input.events ?? new EventEmitter();
+  function snapshot() {
+    return Promise.resolve({
+      documentReadyState: "complete",
+      elements: input.elements ?? [],
+      text: "职位详情",
+      title: "BOSS直聘",
+      truncated: false,
+      url: input.url,
+      viewport: { height: 900, scrollY: 0, width: 1200 },
+    });
+  }
   return Object.assign(events, {
-    evaluate: () =>
-      Promise.resolve({
-        elements: input.elements ?? [],
-        text: "职位详情",
-        title: "BOSS直聘",
-        truncated: false,
-        url: input.url,
-        viewport: { height: 900, scrollY: 0, width: 1200 },
-      }),
+    evaluate: snapshot,
     isClosed: () => false,
-    locator: () => ({ nth: () => input.locator }),
+    locator: createSyntheticPageLocator({
+      nth: () => input.locator,
+      readSnapshot: snapshot,
+      title: "BOSS直聘",
+    }),
     title: () => Promise.resolve("BOSS直聘"),
     url: () => input.url,
   }) as unknown as Page;

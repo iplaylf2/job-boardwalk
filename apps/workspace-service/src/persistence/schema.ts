@@ -1,5 +1,6 @@
 import {
   check,
+  index,
   integer,
   primaryKey,
   sqliteTable,
@@ -134,7 +135,6 @@ export const jobPostingSources = sqliteTable(
       mode: "json",
     }).$type<JobDescriptionObservation>(),
     id: integer().primaryKey({ autoIncrement: true }),
-    identityKey: text("identity_key").notNull(),
     jobId: integer("job_id")
       .notNull()
       .references(() => jobPostings.id, { onDelete: "cascade" }),
@@ -142,11 +142,25 @@ export const jobPostingSources = sqliteTable(
     platformId: text("platform_id").notNull(),
   },
   (table) => [
-    uniqueIndex("job_posting_sources_platform_identity").on(table.platformId, table.identityKey),
     check(
       "job_posting_sources_observation",
       sql`${table.cardObservation} is not null or ${table.descriptionObservation} is not null`,
     ),
+  ],
+);
+
+export const jobPostingSourceIdentities = sqliteTable(
+  "job_posting_source_identities",
+  {
+    identityKey: text("identity_key").notNull(),
+    platformId: text("platform_id").notNull(),
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => jobPostingSources.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.platformId, table.identityKey] }),
+    index("job_posting_source_identities_source").on(table.sourceId),
   ],
 );
 

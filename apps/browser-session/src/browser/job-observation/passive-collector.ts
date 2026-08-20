@@ -34,7 +34,7 @@ interface PassiveJobObservationCollectionCoordination {
 
 export function observationsFromJobCardSnapshot(snapshot: JobCardSnapshot): JobCardObservation[] {
   return snapshot.cards.map((card) => {
-    const sourceId = extractExternalJobId(snapshot.platformId, card.href);
+    const externalJobId = extractExternalJobId(snapshot.platformId, card.href);
     return {
       observedAt: snapshot.capturedAt,
       ...(card.company ? { company: card.company } : {}),
@@ -42,7 +42,7 @@ export function observationsFromJobCardSnapshot(snapshot: JobCardSnapshot): JobC
       discoveryUrl: snapshot.sourceUrl,
       ...(card.educationRequirement ? { educationRequirement: card.educationRequirement } : {}),
       ...(card.experienceRequirement ? { experienceRequirement: card.experienceRequirement } : {}),
-      ...(sourceId ? { externalJobId: sourceId } : {}),
+      ...(externalJobId ? { externalJobId } : {}),
       jobUrl: card.href,
       ...(card.location ? { location: card.location } : {}),
       platformId: snapshot.platformId,

@@ -11,7 +11,7 @@ import { sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
 import type { BackgroundCollectionControl } from "./background-collection-control.js";
-import { parseOptionalTabId, readNavigationPageSummary } from "./browser-tabs.js";
+import { parseOptionalTabId } from "./browser-tabs.js";
 import type { BrowserTabs } from "./browser-tabs.js";
 import { clickAndCapturePopup } from "./click-popup.js";
 import {
@@ -20,6 +20,7 @@ import {
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
 import {
   capturePageSnapshot,
   maximumElementHrefCharacters,
@@ -50,6 +51,7 @@ export interface BrowserToolExecutorCoordination {
   writeJobDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
+    sourceId?: number,
   ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 }
 
@@ -66,6 +68,7 @@ export class BrowserToolExecutor {
   readonly #writeJobDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
+    sourceId?: number,
   ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
 
   public constructor(
@@ -157,8 +160,12 @@ export class BrowserToolExecutor {
   *#prepareLogin(params: Record<string, unknown>): RiteCoroutine<unknown> {
     yield* this.#collectionControl.pauseForUserHandoff();
     try {
-      const result = yield* this.#tabs.prepareLogin(params);
-      this.#collectionControl.completeUserHandoff();
+      const result = yield* this.#tabs.prepareLogin(params, this.#observePageAccess);
+      if (result.outcome === "handoff-ready") {
+        this.#collectionControl.completeUserHandoff();
+      } else {
+        this.#collectionControl.cancelUserHandoff();
+      }
       return result;
     } catch (error) {
       this.#collectionControl.cancelUserHandoff();
@@ -184,9 +191,8 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolvePlatformPage(platformId, parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     yield* until(() => page.bringToFront());
-    yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
     this.#clearElementReferences();
-    return yield* readNavigationPageSummary(page);
+    return yield* navigatePage(page, url);
   }
 
   #reference(params: Record<string, unknown>): ElementReference {
@@ -265,6 +271,7 @@ export class BrowserToolExecutor {
     const writeResult = yield* this.#writeJobDescriptionObservation(
       observation,
       explicitDescriptionAttribution,
+      params["sourceId"] as number | undefined,
     );
     if (writeResult.outcome === "stale") {
       throw new Error(

@@ -1,9 +1,13 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "a29a76f2-a092-42d7-be1d-a6cd3a5c8dfa",
+  "id": "4395b7e6-8a78-4da9-8ebb-a71ef8381dd6",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
+    {
+      "name": "job_posting_source_identities",
+      "entityType": "tables"
+    },
     {
       "name": "job_posting_sources",
       "entityType": "tables"
@@ -42,6 +46,36 @@
     },
     {
       "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identity_key",
+      "entityType": "columns",
+      "table": "job_posting_source_identities"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "platform_id",
+      "entityType": "columns",
+      "table": "job_posting_source_identities"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_id",
+      "entityType": "columns",
+      "table": "job_posting_source_identities"
+    },
+    {
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -67,16 +101,6 @@
       "default": null,
       "generated": null,
       "name": "id",
-      "entityType": "columns",
-      "table": "job_posting_sources"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "identity_key",
       "entityType": "columns",
       "table": "job_posting_sources"
     },
@@ -651,6 +675,17 @@
       "table": "workspace_changes"
     },
     {
+      "columns": ["source_id"],
+      "tableTo": "job_posting_sources",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_job_posting_source_identities_source_id_job_posting_sources_id_fk",
+      "entityType": "fks",
+      "table": "job_posting_source_identities"
+    },
+    {
       "columns": ["job_id"],
       "tableTo": "job_postings",
       "columnsTo": ["id"],
@@ -682,6 +717,13 @@
       "name": "fk_job_source_engagements_source_id_job_posting_sources_id_fk",
       "entityType": "fks",
       "table": "job_source_engagements"
+    },
+    {
+      "columns": ["platform_id", "identity_key"],
+      "nameExplicit": false,
+      "name": "job_posting_source_identities_pk",
+      "entityType": "pks",
+      "table": "job_posting_source_identities"
     },
     {
       "columns": ["source_id", "kind"],
@@ -749,20 +791,16 @@
     {
       "columns": [
         {
-          "value": "platform_id",
-          "isExpression": false
-        },
-        {
-          "value": "identity_key",
+          "value": "source_id",
           "isExpression": false
         }
       ],
-      "isUnique": true,
+      "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "job_posting_sources_platform_identity",
+      "name": "job_posting_source_identities_source",
       "entityType": "indexes",
-      "table": "job_posting_sources"
+      "table": "job_posting_source_identities"
     },
     {
       "columns": [

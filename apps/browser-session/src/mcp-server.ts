@@ -19,10 +19,12 @@ const supportedPlatformLabels = platformIds
   .join("、");
 const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
-  "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，调用方不得重复提交；null 表示适配器未能分类，调用方仍需解释有界页面证据。",
-  "账号边界：招聘平台的 HTTPS 导航范围只允许研究导航和登录交接准备，不授权登录、验证、投递、消息或账号变更。",
-  "用户交接：需要打开登录界面时，使用 browser_prepare_login 准备交接；界面打开后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
-  "可见结果：工具返回值不能覆盖用户对当前窗口的观察；两者不一致时，以重新观察和用户可见页面为准。",
+  "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
+  "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
+  "用户交接：需要登录时，使用 browser_prepare_login 检查现有会话并按需准备登录界面。只有 outcome=handoff-ready 才开始交接；此后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
+  "可见结果：判断以用户看到的当前窗口和重新观察结果为准；工具返回冲突时先重新观察。",
+  "故障分类：browser_status 的 available=false 表示浏览器运行时整体不可用。navigation.outcome=timed-out 只表示目标页未在时限内达到 DOMContentLoaded；pageInspection 分别报告页面关闭、检查超时或观察到的文档生命周期。验证和拒绝访问仍须由可见控件或页面语义确定。",
+  "恢复边界：重复超时仍不能确定原因；超时本身不会触发自动重试、刷新、换页或重启。先重新观察；仍无法读取时，询问用户可见窗口显示了什么，再决定有界的下一步。",
 ].join("\n\n");
 
 function defineBrowserTool(
@@ -43,24 +45,25 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "列出或激活受支持招聘平台的标签页，也可按 platformId 准备标签页。action 为 ensure 时优先复用该平台已有标签页。",
+      "列出或激活受支持招聘平台的标签页，也可按 platformId 准备标签页。action 为 ensure 时优先复用该平台已有标签页。list 返回每页有界的 pageInspection，每页检查均有独立等待上限。",
     name: "browser_tabs",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "当用户明确要求登录，或可见页面证据表明当前会话未登录且所请求的流程需要登录时，先暂停被动页面读取，再复用该平台标签页并打开登录界面。此工具只准备用户交接；界面打开后立即停止浏览器输入，由用户填写凭据、扫码或输入验证码，并决定是否提交。",
+      "当用户明确要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，不导航或交出控制权。否则保留所有已成功读取且仍位于平台登录路由的标签页作为候选，逐一进行有界检查，并只激活已出现可用登录控件的候选。无法读取或尚未分类的其他平台页保持不变，以免覆盖可能的验证或访问决定；没有可复用登录页时，改用空白页或新标签页打开登录入口并有界观察。登录页出现启用的用户控件时返回 outcome=handoff-ready，开始用户交接；无法建立任一结果时准备失败并恢复被动读取。",
     name: "browser_prepare_login",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。",
+    description:
+      "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。返回 navigation 和 pageInspection；达到 DOMContentLoaded 时 outcome=completed，等待超时时 outcome=timed-out。超时后根据页面检查和新的可见页面证据决定下一步。",
     name: "browser_navigate",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "读取有界的可见文本和通用交互元素，并返回短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法确定时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面读取，并允许后续显式岗位跟进同步复用该平台原标签页，但不表示登录成功。普通快照省略该字段。",
+      "在有界等待内读取可见文本和通用交互元素，并返回 documentReadyState 与短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。正文读取超时时会报告标签页关闭、页面检查超时或已观察到的文档生命周期，后续操作以新的显式观察为依据。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法分类时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面读取，并允许后续显式岗位跟进同步复用该平台原标签页。该字段记录控制权已归还；认证状态由随后取得的页面证据判定。普通快照省略该字段。",
     name: "browser_snapshot",
   }),
   defineBrowserTool({
@@ -82,7 +85,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description:
-      "读取当前岗位详情页的职位描述正文和可识别的标题、公司、地点、薪资等岗位字段，并将本次观察写入 Workspace Service。仅在服务接受并保留观察后返回；写入失败或结果为 `stale` 时，调用失败。不会导航、滚动或点击，也不会把周边推荐职位误作当前职位描述；同一次读取可能刷新平台访问观察。",
+      "读取当前岗位详情页的职位描述正文和可识别的标题、公司、地点、薪资等字段，并将观察写入 Workspace Service。若已确认某个工作区来源尚无已采集详情、外部岗位 ID 和详情链接，且当前页面属于该来源，可传入其 sourceId；服务会校验后显式绑定，未传入时不会猜测合并。仅在观察被接受并保留后返回；写入失败或结果为 `stale` 时调用失败。不会导航、滚动或点击，也不会把周边推荐岗位当作当前岗位；同一次读取可能刷新平台访问观察。",
     name: "browser_job_description_snapshot",
   }),
   defineBrowserTool({

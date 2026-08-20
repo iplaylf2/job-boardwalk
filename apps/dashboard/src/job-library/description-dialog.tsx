@@ -64,7 +64,7 @@ export function JobDescriptionDialog(props: { job: JobPosting; onClose: () => vo
         <JobDescriptionHeader job={props.job} onClose={props.onClose} />
         <div class={styles["body"]}>
           <Show when={props.job.description?.truncated}>
-            <p class={styles["notice"]}>采集文本已达到本地长度上限，以下内容可能不完整。</p>
+            <p class={styles["notice"]}>职位描述已达到本地采集长度上限，显示内容可能不完整。</p>
           </Show>
           <p class={styles["description"]}>{props.job.description?.text}</p>
         </div>

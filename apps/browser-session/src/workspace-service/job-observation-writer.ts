@@ -16,6 +16,7 @@ export interface JobObservationWriter {
   writeDescriptionObservation: (
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
+    sourceId?: number,
   ) => RiteCoroutine<JobObservationWriteResult>;
 }
 
@@ -42,20 +43,23 @@ export class WorkspaceJobObservationWriter implements JobObservationWriter {
   public *writeDescriptionObservation(
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
+    sourceId?: number,
   ): RiteCoroutine<SaveJobObservationResult> {
-    return yield* this.#write(this.#descriptionEndpoint, observation, attribution);
+    return yield* this.#write(this.#descriptionEndpoint, observation, attribution, sourceId);
   }
 
   *#write(
     endpoint: URL,
     observation: JobCardObservation | JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
+    sourceId?: number,
   ): RiteCoroutine<SaveJobObservationResult> {
     const response = yield* until(() =>
       this.#fetch(endpoint, {
         body: JSON.stringify({
           ...observation,
           ...attribution,
+          ...(sourceId ? { sourceId } : {}),
         }),
         headers: { "content-type": "application/json" },
         method: "POST",

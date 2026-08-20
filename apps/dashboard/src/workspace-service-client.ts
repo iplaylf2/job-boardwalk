@@ -4,7 +4,11 @@ import {
   ResearchReportList,
   WorkspaceOverview,
 } from "@job-boardwalk/contracts";
-import type { JobEngagementKind, RecommendationPageReference } from "@job-boardwalk/contracts";
+import type {
+  JobDescriptionStatusFilter,
+  JobEngagementFilter,
+  RecommendationPageReference,
+} from "@job-boardwalk/contracts";
 import { CanceledError, InterruptedError, ScopeError, abortSignal, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
@@ -111,7 +115,8 @@ export function* readWorkspaceOverview(): RiteCoroutine<WorkspaceOverview> {
 }
 
 export function* readJobPostingPage(input: {
-  engagement?: JobEngagementKind;
+  descriptionStatus?: JobDescriptionStatusFilter;
+  engagement?: JobEngagementFilter;
   page: number;
   pageSize: number;
   platform?: string;
@@ -121,6 +126,7 @@ export function* readJobPostingPage(input: {
     page: String(input.page),
     pageSize: String(input.pageSize),
     ...(input.engagement ? { engagement: input.engagement } : {}),
+    ...(input.descriptionStatus ? { descriptionStatus: input.descriptionStatus } : {}),
     ...(input.platform ? { platform: input.platform } : {}),
     ...(input.query ? { query: input.query } : {}),
   });

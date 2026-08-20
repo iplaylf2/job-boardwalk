@@ -109,13 +109,18 @@ description snapshot returns its captured observation only after Workspace Servi
 the evidence is preserved, so preservation does not depend on the detail page remaining open until
 a later passive collection pass. If Workspace Service rejects the submission or reports it as
 `stale` without applying it, the snapshot action fails instead of returning evidence that was not
-preserved. Card collection pages and detail pages are disjoint: recommendations surrounding a
-detail page cannot be reinterpreted as the main posting. Passive collection observes recognizable
-cards and main descriptions from already-open supported-platform tabs, except for personal-center
-engagement pages. Explicit description writes carry agent attribution; passive observations carry
-system attribution. A selected job-search intent supplies recommendation pages as agent research
-context, but the collector never opens or navigates a tab for them. Browser navigation remains an
-explicit action in a user-requested research task.
+preserved. When an agent has independently confirmed that the open detail belongs to a tracked
+source with no retained description, external job ID, or job URL, the explicit snapshot may name
+that workspace source. Workspace Service validates this explicit binding and never infers it from
+similarity alone.
+
+Card collection pages and detail pages are disjoint: recommendations surrounding a detail page
+cannot be reinterpreted as the main posting. Passive collection observes recognizable cards and
+main descriptions from already-open supported-platform tabs, except for personal-center engagement
+pages. Explicit description writes carry agent attribution; passive observations carry system
+attribution. A selected job-search intent supplies recommendation pages as agent research context,
+but the collector never opens or navigates a tab for them. Browser navigation remains an explicit
+action in a user-requested research task.
 
 Every recognizable card on an eligible page contributes an observation regardless of which seed,
 search path, or other research action led to it. A page with no recognizable cards contributes no
@@ -145,7 +150,31 @@ stored for its sources.
 Within a platform, an external job ID is the preferred source identity, followed by the job URL
 pathname and then normalized company, title, and location when a detail link is unavailable. Across
 platforms, Workspace Service merges sources only when normalized company, title, and location
-identify the same job. Partial cards without that identity remain separate.
+identify the same job. Normalization standardizes Unicode, case, and separators; it does not infer
+company aliases or discard phrases from job titles. Partial cards without that identity remain
+separate.
+
+Job-library reads derive a description capture status from the evidence retained for each source.
+`captured` means a main description is stored. `uncaptured` means an external job ID or job URL is
+available but no description is stored. `identity-unresolved` means neither an external job ID nor a
+job URL is available. These source states describe current evidence, not whether Browser Session
+attempted a detail read.
+
+Page-level description coverage classifies normalized jobs into three mutually exclusive groups:
+jobs with a retained description, jobs without one whose source identity is available, and jobs
+without one whose source identity remains unresolved. Coverage is calculated for the current
+search, platform, and engagement scope before the description filter narrows the results. The
+filter selects jobs with a description, all jobs without one, or only the missing-description
+subset whose source identity remains unresolved.
+
+For an explicit binding, Workspace Service confirms the platform and equal normalized titles,
+compares normalized companies when both observations include one, and rejects an identity already
+owned by another source. A successful bind preserves the source and its engagement relations,
+retains the provisional identity used by earlier cards, and adds the stable detail-page identity.
+Workspace Service then reconciles the normalized job from the retained source evidence. Complete
+company, title, and location evidence that matches another normalized job merges their sources
+atomically. A later engagement card that still lacks an external job ID or job URL therefore
+refreshes the bound source without clearing its description or stable identity.
 
 ## Engagement tracking
 
@@ -153,7 +182,8 @@ Each recruiting platform exposes personal-center categories for interested, cont
 interviewed jobs. Job Boardwalk calls an observed membership in one of these categories a
 **job engagement**. Engagements are non-exclusive relations on a platform source: one source may be
 both contacted and applied, for example. They are evidence of how the platform classified the job
-when observed, not a reconstructed workflow status or a semantic interpretation of message prose.
+when observed. Each record contains the platform category and its first and latest observation
+times.
 
 Browser Session maps the platform categories to `interested`, `contacted`, `applied`, and
 `interviewed`. A user-requested synchronization task addresses one platform and category at a time.
@@ -164,22 +194,23 @@ for the same platform and category continues the current scan.
 A scan accumulates at most 60 distinct jobs. `complete` is true only when the platform-maintained
 total and the captured evidence establish the full category within that bound; otherwise the
 snapshot remains partial. The quantity bound limits collected evidence, not the age of an
-interaction: platform cards do not establish when the underlying action occurred. A redirected
-category tab remains associated with the platform instead of being automatically replaced or
-retried. During user handoff it remains untouched; after control returns, a later explicit call may
-reuse it.
+interaction: platform cards carry category membership without an event time. A redirected category
+tab remains associated with the platform. During user handoff it remains untouched; after control
+returns, a later explicit call may reuse it.
 
 `interested` represents a reversible current classification, so a complete snapshot may remove
 relations absent from the platform list. The other engagement kinds preserve historical evidence
 that the platform once included the source in that category; a later omission does not remove them
 because a platform may limit or age out personal-center history. Partial snapshots only add or
-refresh observed relations. No category establishes when the underlying action occurred or which
-resume artifact was sent.
+refresh observed relations. Event time and the resume artifact remain unknown because platform
+categories provide neither datum.
 
-Engagements do not create separate job collections. Removing an `interested` relation leaves the
-normalized job, its other sources, and its historical engagement evidence in the library.
+Engagements share the normalized job collection. Removing an `interested` relation leaves the job,
+its other sources, and its historical engagement evidence in the library.
+
 Dashboard exposes the four engagement kinds as filters within one job library and shows when the
-displayed platform records were most recently observed.
+displayed platform records were most recently observed. A combined tracked view takes the union of
+those relations without turning them into a single workflow state.
 
 ## Browser handoff
 
@@ -188,17 +219,26 @@ session used for research:
 
 1. When the user requests login, or visible page evidence shows that the requested workflow
    requires authentication and the current session is unauthenticated, the agent asks Browser
-   Session to reuse the platform tab and open its login interface.
-2. Browser Session pauses passive page reads before opening the login interface. Once the
-   interface is visibly ready, the agent stops browser actions and asks the user to take over that
-   window. Opening the interface prepares the handoff; it does not authorize the agent to enter or
-   submit credentials or verification input.
-3. The user completes or stops the login or verification attempt and explicitly returns control to
+   Session to prepare login for that platform.
+2. Browser Session pauses passive page reads and observes the existing platform tabs. Conclusive
+   authenticated-page evidence completes preparation without navigation or user handoff. Otherwise,
+   Browser Session retains every readable tab that remains on the platform's configured login route,
+   checks all candidates for a usable login interface, and activates the first candidate that becomes
+   ready. It preserves unreadable tabs and readable pages whose meaning remains unclassified,
+   including pages that may be showing verification or another access decision. If no reusable login
+   tab remains, it uses an available blank tab or a new tab for the configured login destination,
+   then waits for a usable login interface. If neither result can be established, preparation fails
+   and passive reads resume.
+3. Only a ready login interface starts user handoff. The agent stops browser actions and asks the
+   user to take over the visible window; readiness does not authorize the agent to enter or submit
+   credentials or verification input.
+4. The user completes or stops the login or verification attempt and explicitly returns control to
    the agent.
-4. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
+5. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
    resumes read-only research in the same browser profile and records results through Workspace
-   Service. The flag records returned control and does not assert that authentication succeeded.
-5. A later verification request or user-controlled action pauses research and returns control to the
+   Service. The flag records returned control; subsequent page evidence determines authentication
+   status.
+6. A later verification request or user-controlled action pauses research and returns control to the
    user again.
 
 Only one actor drives a browser session at a time. Human takeover pauses agent input. Agent control
@@ -229,10 +269,9 @@ conclusions are ordered by their latest observation time.
 
 Browser Session passively observes navigation responses the visible browser already receives and
 applies deterministic adapter rules to bounded page reads initiated by explicit snapshots, passive
-job collection, or an explicit job-engagement synchronization task. It does not issue a detection
-request, refresh a page, or open a tab to check authentication. An adapter with a conclusive
-navigation rule may use response success, the final URL, and the server redirect chain to produce
-one of two authentication results:
+job collection, or an explicit job-engagement synchronization task. Assessment stays within those
+existing reads. An adapter with a conclusive navigation rule may use response success, the final
+URL, and the server redirect chain to produce one of two authentication results:
 
 - `protected-resource` records `authenticated` when a known protected navigation succeeds;
 - `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
@@ -241,8 +280,8 @@ one of two authentication results:
 An adapter may also produce `authenticated-page` when a bounded snapshot contains a complete,
 platform-specific set of account controls that establishes an authenticated session. The snapshot
 returns the same structured observation so the agent can answer without submitting it again.
-Missing or incomplete controls produce no conclusion. Opening a login page directly, route names
-alone, display names alone, and cookie presence do not establish authentication.
+This rule requires the complete platform-specific control set; other page and session signals remain
+unclassified.
 
 Explicit job-card and job-description snapshots derive their evidence from the current eligible
 page rather than durable Workspace Service content. Unlike the job-card snapshot, the
@@ -255,35 +294,37 @@ agent actions within a user-requested task; neither is scheduled as background b
 
 Verification requests and access denial are separate interruptions rather than additional
 authentication states. The agent derives those conclusions from visible controls or semantic page
-content. No observation includes credentials, cookie values, browser storage, protected response
-content, or unrestricted page text.
+content. Navigation and document-lifecycle diagnostics remain unclassified until such evidence is
+available. When an adapter returns `null`, Browser Session records no access observation for that
+page evidence. Access observations contain only structured assessment metadata; credentials,
+browser session data, and page content stay within their owning boundaries.
 
-The Dashboard displays the definite authentication assessment with the latest observation time and
-any interruption observed later. It includes that time rather than presenting historical evidence
-as a timeless live guarantee, and it does not open or verify the browser itself.
+The Dashboard displays the definite authentication assessment with its latest observation time and
+any interruption observed later. Browser Session owns live browser inspection.
 
 ## Reliable browser research
 
-Browser research should behave like a continuous user-delegated session, not a stateless bulk
-fetcher. Execution therefore favors a visible browser and reuse of the selected tab and session
-while they remain healthy, low concurrency, and ordinary navigation flow.
+Browser research operates as a continuous user-delegated session. Execution therefore favors a
+visible browser and reuse of the selected tab and session while they remain healthy, low
+concurrency, and ordinary navigation flow.
 
 The agent observes the page at workflow boundaries and after meaningful page or handoff changes.
-Navigation, paging, refreshes, and retries remain paced and bounded: the agent does not create tight
-polling loops, repeated visible page churn, or retries that continue without new evidence.
+Navigation, paging, refreshes, and retries use bounded pacing. Each retry requires new evidence and a
+finite limit.
 
 The visible browser outcome and the user's observation govern whether an action visibly succeeded.
-A backend URL, page title, tool response, or other automation signal does not override the user's
-report that a different page or window is visible; the agent re-observes and reconciles the live
-page before continuing.
-
-Recovery must preserve the platform's visible access decisions. If a platform presents verification
-or denies access, the agent reports the interruption and waits for the user; it does not report
-denied content as a successful result.
+When a backend URL, page title, or tool response conflicts with the user's report, the agent
+re-observes and reconciles the live page before continuing.
 
 A browser action whose response is lost has an unknown outcome. Browser Session contains that
-failure to the request and does not automatically replay the action; after the browser is
-restored, the agent re-observes the visible page before deciding whether another action is safe.
+failure to the request rather than replaying the action. Navigation and inspection timeouts,
+including repeated timeouts, establish neither their cause nor the absence of a visible access
+decision and do not authorize a reload, replacement page, or browser restart.
+
+Before recovery changes the visible page, the agent re-observes when possible. If the driver still
+cannot inspect the page, the agent asks what the user sees in the visible window. Recovery preserves
+the platform's visible access decisions: if the platform presents verification or denies access,
+the agent stops browser input, records the interruption, and waits for the user.
 
 ## Research reports
 
@@ -304,8 +345,8 @@ Dashboard has three reader paths:
 
 - the workspace overview for the current job-search intent, personal context, leased Browser
   Session presence, and platform-access observations;
-- a paginated job library for normalized job facts and merged platform sources, including filters
-  for interested, contacted, applied, and interviewed engagement records;
+- a paginated job library for normalized job facts and merged platform sources, including a combined
+  tracked view, engagement-category filters, and filters for description availability;
 - a report library and Markdown reader for conclusions, comparisons, uncertainty, and recommended
   next steps.
 
@@ -325,11 +366,15 @@ change attribution separately.
 
 ### Job library
 
-Job cards remain compact and comparable regardless of description length. A collected description
-opens in a dedicated dialog rather than expanding inside its card, so reading one job does not
-reflow the surrounding list. Only one description is open at a time, and closing it returns the
-user to the same list context. On a narrow screen, the dialog fills the viewport; its header remains
-visible while the description scrolls independently.
+Job cards remain compact and comparable regardless of description length. Description availability
+belongs to the library-level summary and filters; a card presents a description action only when
+there is content to read. A collected description opens in a dedicated dialog rather than expanding
+inside its card, so reading one job does not reflow the surrounding list. Only one description is
+open at a time, and closing it returns the user to the same list context. On a narrow screen, the
+dialog fills the viewport; its header remains visible while the description scrolls independently.
+The list heading reports description coverage for the current search, platform, and engagement
+scope before a description filter narrows the cards, so selecting jobs without descriptions does
+not hide the baseline needed to understand the result.
 
 ### Product direction
 

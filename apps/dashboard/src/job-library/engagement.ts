@@ -1,6 +1,6 @@
-import type { JobEngagementKind } from "@job-boardwalk/contracts";
+import type { JobEngagementFilter, JobEngagementKind } from "@job-boardwalk/contracts";
 
-export type JobLibraryView = "all" | JobEngagementKind;
+export type JobLibraryView = "all" | JobEngagementFilter;
 
 export const jobEngagementLabels: Record<JobEngagementKind, string> = {
   applied: "已投递",
@@ -11,6 +11,7 @@ export const jobEngagementLabels: Record<JobEngagementKind, string> = {
 
 export const jobLibraryViews = [
   "all",
+  "tracked",
   "interested",
   "contacted",
   "applied",
@@ -18,7 +19,10 @@ export const jobLibraryViews = [
 ] as const;
 
 export function jobLibraryViewLabel(view: JobLibraryView): string {
-  return view === "all" ? "全部" : jobEngagementLabels[view];
+  if (view === "all") {
+    return "全部岗位";
+  }
+  return view === "tracked" ? "全部跟进" : jobEngagementLabels[view];
 }
 
 export function readJobLibraryView(value: string | null): JobLibraryView {

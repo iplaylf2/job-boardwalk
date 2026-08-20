@@ -5,6 +5,7 @@ import { WorkspaceJobObservationWriter } from "#/workspace-service/job-observati
 
 const firstRequestIndex = 0;
 const secondRequestIndex = 1;
+const sourceId = 71;
 const savedObservation = {
   job: {
     createdAt: "2026-07-17T10:00:00.000Z",
@@ -13,6 +14,7 @@ const savedObservation = {
     sources: [
       {
         company: "示例科技甲",
+        descriptionCaptureStatus: "captured",
         details: ["Node.js"],
         discoveryUrl: "https://www.zhipin.com/job_detail/example.html",
         engagements: [],
@@ -82,6 +84,7 @@ test("preserves the caller's attribution when writing job observations", async (
         initiatedBy: "agent",
         reason: "Agent 显式采集当前页面的岗位详情观察",
       },
+      sourceId,
     ),
   );
 
@@ -99,6 +102,7 @@ test("preserves the caller's attribution when writing job observations", async (
   expect(JSON.parse(String(requests[secondRequestIndex]?.init?.body))).toMatchObject({
     initiatedBy: "agent",
     reason: "Agent 显式采集当前页面的岗位详情观察",
+    sourceId,
   });
   expect(cardResult).toEqual(savedObservation);
   expect(descriptionResult).toEqual(savedObservation);

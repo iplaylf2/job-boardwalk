@@ -6,7 +6,12 @@ import type { JobLibraryQuery } from "#/job-library/query.js";
 import { toolInput } from "#/mcp/contract.js";
 
 const PlatformId = toolInput.enumerated(...platformIds);
-const JobEngagementKind = toolInput.enumerated(...platformJobEngagementKinds);
+const JobEngagementFilter = toolInput.enumerated("tracked", ...platformJobEngagementKinds);
+const JobDescriptionStatusFilter = toolInput.enumerated(
+  "captured",
+  "missing",
+  "identity-unresolved",
+);
 
 export const ReadWorkspaceOverviewInput = toolInput({});
 export const ListResearchReportsInput = toolInput({});
@@ -16,7 +21,8 @@ export const ReadResearchReportInput = toolInput({
 });
 
 export const ReadJobLibraryInput = toolInput({
-  "engagement?": JobEngagementKind,
+  "descriptionStatus?": JobDescriptionStatusFilter,
+  "engagement?": JobEngagementFilter,
   page: `number.integer >= ${firstJobPage} = ${firstJobPage}`,
   pageSize: `${firstJobPage} <= number.integer <= ${maximumJobPageSize} = ${defaultJobPageSize}`,
   "platformId?": PlatformId,

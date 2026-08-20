@@ -2,6 +2,7 @@ import { contract } from "./internal/contract.ts";
 import {
   minimumNonEmptyArrayLength,
   normalizedTimestamp,
+  positiveInteger,
   trimmedNonEmptyString,
 } from "./internal/contract-fields.ts";
 import { JobCardObservation, JobDescriptionObservation } from "./job-observation.ts";
@@ -48,7 +49,7 @@ export type SaveJobCardObservationCommand = typeof SaveJobCardObservationCommand
 
 export const SaveJobDescriptionObservationCommand = JobDescriptionObservation.merge(
   WorkspaceChangeAttribution,
-);
+).merge({ "sourceId?": positiveInteger });
 export type SaveJobDescriptionObservationCommand =
   typeof SaveJobDescriptionObservationCommand.infer;
 

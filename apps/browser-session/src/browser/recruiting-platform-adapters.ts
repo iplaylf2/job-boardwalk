@@ -14,6 +14,23 @@ import { jobDescriptionExtractionConfigs } from "./job-observation/description-e
 import type { JobDescriptionExtractionConfig } from "./job-observation/description-extraction-config.js";
 import { platformJobLinkPathPatterns } from "./platform-job-links.js";
 
+const emptyVisibleEvidenceLength = 0;
+const firstHeaderLineIndex = 0;
+const identityHeaderLineOffset = 2;
+const maximumYupaoHeaderLines = 30;
+const nextHeaderLineOffset = 1;
+const yupaoLoginLabelFragments = ["登录", "注册"] as const;
+const yupaoRecruiterIdentityAnchor = ["账号权益", "升级VIP"] as const;
+const yupaoRecruiterNavigationLabels = [
+  "职位管理",
+  "推荐牛人",
+  "搜索牛人",
+  "沟通",
+  "公司管理",
+] as const;
+const yupaoSeekerIdentityAnchor = ["消息", "简历"] as const;
+const yupaoSeekerNavigationLabels = ["首页", "职位", "公司", "校园"] as const;
+
 interface NavigationResponseFacts {
   readonly ok: boolean;
   readonly redirectSourceUrls: readonly string[];
@@ -21,12 +38,15 @@ interface NavigationResponseFacts {
 }
 export interface PageAccessFacts {
   readonly elements: readonly {
+    readonly disabled?: boolean;
     readonly href?: string;
+    readonly name?: string;
+    readonly role?: string;
   }[];
   readonly text: string;
   readonly url: string;
 }
-interface RecruitingPlatformAdapter {
+export interface RecruitingPlatformAdapter {
   readonly entryUrl: string;
   readonly label: string;
   readonly loginUrl: string;
@@ -37,6 +57,7 @@ interface RecruitingPlatformAdapter {
   readonly isInNavigationScope: (value: string) => boolean;
   readonly isJobCardCollectionPage: (value: string) => boolean;
   readonly isJobDetailPage: (value: string) => boolean;
+  readonly isLoginPage: (value: string) => boolean;
   readonly assessNavigation?: (
     response: NavigationResponseFacts,
   ) => PlatformAccessAssessment | null;
@@ -109,36 +130,51 @@ function assessBossPage(page: PageAccessFacts): PlatformAccessAssessment | null 
     : null;
 }
 
-function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null {
-  const maximumHeaderLines = 20;
-  const emptyLineCount = 0;
-  const firstLineIndex = 0;
-  const nextLineOffset = 1;
-  const resumeLineOffset = 2;
-  const loginLabelFragments = ["登录", "注册"] as const;
-  const requiredNavigationLabels = ["首页", "职位", "公司", "校园"] as const;
-  const headerLines = page.text
+function yupaoHeaderLines(text: string): string[] {
+  return text
     .split(/\r?\n/u)
     .map((line) => line.trim())
-    .filter((line) => line.length > emptyLineCount)
-    .slice(firstLineIndex, maximumHeaderLines);
-  const messageLineIndex = headerLines.findIndex(
+    .filter((line) => line.length > emptyVisibleEvidenceLength)
+    .slice(firstHeaderLineIndex, maximumYupaoHeaderLines);
+}
+
+function hasYupaoAuthenticatedSurface(
+  headerLines: readonly string[],
+  identityAnchor: readonly [string, string],
+  requiredNavigationLabels: readonly string[],
+): boolean {
+  const identityAnchorIndex = headerLines.findIndex(
     (line, index) =>
-      line === "消息" &&
-      headerLines[index + nextLineOffset] === "简历" &&
-      Boolean(headerLines[index + resumeLineOffset]),
+      line === identityAnchor[firstHeaderLineIndex] &&
+      headerLines[index + nextHeaderLineOffset] === identityAnchor[nextHeaderLineOffset] &&
+      Boolean(headerLines[index + identityHeaderLineOffset]),
   );
-  if (messageLineIndex < firstLineIndex) {
-    return null;
+  if (identityAnchorIndex < firstHeaderLineIndex) {
+    return false;
   }
-  const identity = headerLines[messageLineIndex + resumeLineOffset];
-  const headerNavigation = new Set(headerLines.slice(firstLineIndex, messageLineIndex));
-  const showsYupaoHeader = requiredNavigationLabels.every((label) => headerNavigation.has(label));
-  const hasAccountIdentity =
-    showsYupaoHeader &&
+  const identity = headerLines[identityAnchorIndex + identityHeaderLineOffset];
+  const navigation = new Set(headerLines.slice(firstHeaderLineIndex, identityAnchorIndex));
+  return (
+    requiredNavigationLabels.every((label) => navigation.has(label)) &&
     Boolean(identity) &&
-    !loginLabelFragments.some((fragment) => identity?.includes(fragment));
-  return hasAccountIdentity
+    !yupaoLoginLabelFragments.some((fragment) => identity?.includes(fragment))
+  );
+}
+
+function assessYupaoPage(page: PageAccessFacts): PlatformAccessAssessment | null {
+  const headerLines = yupaoHeaderLines(page.text);
+  const hasAuthenticatedSurface =
+    hasYupaoAuthenticatedSurface(
+      headerLines,
+      yupaoSeekerIdentityAnchor,
+      yupaoSeekerNavigationLabels,
+    ) ||
+    hasYupaoAuthenticatedSurface(
+      headerLines,
+      yupaoRecruiterIdentityAnchor,
+      yupaoRecruiterNavigationLabels,
+    );
+  return hasAuthenticatedSurface
     ? { authenticationState: "authenticated", evidence: "authenticated-page" }
     : null;
 }
@@ -164,6 +200,7 @@ function createRecruitingPlatformAdapter(
   jobCardCollectionMatcher: (value: string) => boolean,
 ): RecruitingPlatformAdapter {
   const metadata = platformCatalog[platformId];
+  const loginUrl = resolvePlatformWebUrl(platformId, "login");
   return {
     entryUrl: resolvePlatformWebUrl(platformId, "entry"),
     isInNavigationScope(value) {
@@ -171,10 +208,11 @@ function createRecruitingPlatformAdapter(
     },
     isJobCardCollectionPage: jobCardCollectionMatcher,
     isJobDetailPage: (value) => isPlatformJobDetailPage(platformId, value),
+    isLoginPage: (value) => isLoginPageUrl(value, loginUrl),
     jobCardExtractionConfig,
     jobDescriptionExtractionConfig: jobDescriptionExtractionConfigs[platformId],
     label: metadata.label,
-    loginUrl: resolvePlatformWebUrl(platformId, "login"),
+    loginUrl,
     platformId,
   };
 }

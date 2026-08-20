@@ -775,7 +775,10 @@ test("advertises job-library filters by public tool name", async () => {
       {
         inputSchema: {
           properties: {
-            engagement: { enum: ["applied", "contacted", "interested", "interviewed"] },
+            descriptionStatus: { enum: ["captured", "identity-unresolved", "missing"] },
+            engagement: {
+              enum: ["applied", "contacted", "interested", "interviewed", "tracked"],
+            },
             page: { minimum: 1, type: "integer" },
             pageSize: { maximum: 48, minimum: 1, type: "integer" },
             platformId: { enum: ["boss", "yupao"] },
@@ -837,14 +840,25 @@ test("synchronizes job engagements and filters the library through HTTP", async 
     expect(await response.json()).toMatchObject({ observed: 1, platformId: "boss" });
     const listResponse = await httpApp.request("/api/jobs?engagement=applied");
     expect(JobPostingPage.assert(await listResponse.json())).toMatchObject({
+      descriptionCoverage: { captured: 0, identityUnresolved: 0, total: 1, uncaptured: 1 },
       jobs: [
         {
           company: "示例科技丁",
-          sources: [{ engagements: [{ kind: "applied" }], platformId: "boss" }],
+          sources: [
+            {
+              descriptionCaptureStatus: "uncaptured",
+              engagements: [{ kind: "applied" }],
+              platformId: "boss",
+            },
+          ],
         },
       ],
       total: 1,
     });
+    const trackedResponse = await httpApp.request(
+      "/api/jobs?engagement=tracked&descriptionStatus=missing",
+    );
+    expect(JobPostingPage.assert(await trackedResponse.json())).toMatchObject({ total: 1 });
 
     const invalidResponse = await httpApp.request("/api/job-engagements", {
       body: JSON.stringify({

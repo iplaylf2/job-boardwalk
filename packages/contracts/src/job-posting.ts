@@ -18,8 +18,23 @@ export const NormalizedSalary = contract({
 });
 export type NormalizedSalary = typeof NormalizedSalary.infer;
 
+export const JobDescriptionCaptureStatus = contract.enumerated(
+  "captured",
+  "uncaptured",
+  "identity-unresolved",
+);
+export type JobDescriptionCaptureStatus = typeof JobDescriptionCaptureStatus.infer;
+
+export const JobDescriptionStatusFilter = contract.enumerated(
+  "captured",
+  "missing",
+  "identity-unresolved",
+);
+export type JobDescriptionStatusFilter = typeof JobDescriptionStatusFilter.infer;
+
 export const JobPostingSource = JobCardObservation.merge({
   "description?": JobPostingDescription,
+  descriptionCaptureStatus: JobDescriptionCaptureStatus,
   engagements: JobSourceEngagement.array(),
   id: positiveInteger,
   jobId: positiveInteger,
@@ -44,7 +59,16 @@ export const JobPosting = contract({
 });
 export type JobPosting = typeof JobPosting.infer;
 
+export const JobDescriptionCoverage = contract({
+  captured: nonNegativeInteger,
+  identityUnresolved: nonNegativeInteger,
+  total: nonNegativeInteger,
+  uncaptured: nonNegativeInteger,
+});
+export type JobDescriptionCoverage = typeof JobDescriptionCoverage.infer;
+
 export const JobPostingPage = contract({
+  descriptionCoverage: JobDescriptionCoverage,
   jobs: JobPosting.array(),
   page: positiveInteger,
   pageCount: nonNegativeInteger,

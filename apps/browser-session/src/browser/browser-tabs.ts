@@ -10,6 +10,11 @@ import {
   recruitingPlatformAdapters,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
+import { observeLoginHandoffPage, prepareExistingLoginHandoff } from "./login-handoff.js";
+import type { LoginPreparationOutcome, ObservePageAccess } from "./login-handoff.js";
+import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
+import type { NavigationResult } from "./page-navigation.js";
+import { inspectPageDocument } from "./page-inspection.js";
 
 const blankPageUrls = new Set(["about:blank", "edge://newtab/", "chrome://newtab/"]);
 const firstPageId = 1;
@@ -18,13 +23,12 @@ export function parseOptionalTabId(params: Record<string, unknown>): number | nu
   return (params["tabId"] as number | undefined) ?? null;
 }
 
-export function* readNavigationPageSummary(
-  page: Page,
-): RiteCoroutine<{ platformId: PlatformId; title: string; url: string }> {
-  const url = page.url();
-  const { platformId } = requireRecruitingPlatformAdapter(url);
-  const title = yield* until(() => page.title());
-  return { platformId, title, url };
+export interface LoginPreparationResult {
+  readonly id: number;
+  readonly outcome: LoginPreparationOutcome;
+  readonly platformId: PlatformId;
+  readonly title: string;
+  readonly url: string;
 }
 
 export class BrowserTabs {
@@ -130,10 +134,51 @@ export class BrowserTabs {
     throw new Error(`不支持的标签页动作：${action}`);
   }
 
-  public *prepareLogin(input: Record<string, unknown>): RiteCoroutine<unknown> {
+  public *prepareLogin(
+    input: Record<string, unknown>,
+    observePageAccess: ObservePageAccess,
+  ): RiteCoroutine<LoginPreparationResult> {
     const platformId = readPlatformId(input);
     const adapter = recruitingPlatformAdapters[platformId];
-    return yield* this.#ensure({ platformId, url: adapter.loginUrl });
+    const existingPlatformPages = [...this.#pages].filter(([_id, page]) =>
+      adapter.isInNavigationScope(page.url()),
+    );
+    const existing = yield* prepareExistingLoginHandoff(
+      existingPlatformPages.map(([_id, page]) => page),
+      adapter,
+      observePageAccess,
+    );
+    if (existing) {
+      const id = this.#pageIds.get(existing.page);
+      if (!id) {
+        throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
+      }
+      yield* this.selectPage(existing.page);
+      return { id, platformId, ...existing.handoff };
+    }
+
+    const navigation = yield* this.#openLoginPage(adapter);
+    const page = this.#pages.get(navigation.id);
+    if (!page || page.isClosed()) {
+      throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
+    }
+    const handoff = yield* observeLoginHandoffPage(page, adapter, observePageAccess);
+    return {
+      id: navigation.id,
+      platformId,
+      ...handoff,
+    };
+  }
+
+  *#openLoginPage(
+    adapter: (typeof recruitingPlatformAdapters)[PlatformId],
+  ): RiteCoroutine<NavigationResult & { id: number }> {
+    const blankPage = [...this.#pages].find(
+      ([_id, page]) => !page.isClosed() && blankPageUrls.has(page.url()),
+    );
+    return blankPage
+      ? yield* this.#navigate(blankPage, adapter.loginUrl)
+      : yield* this.#create(adapter.loginUrl);
   }
 
   *#list(): RiteCoroutine<unknown> {
@@ -142,18 +187,20 @@ export class BrowserTabs {
     );
     const tabs = [];
     for (const [id, page] of navigationPages) {
+      const pageInspection = yield* inspectPageDocument(page);
       tabs.push({
         active: id === this.#selectedPageId,
         id,
+        pageInspection,
         platformId: requireRecruitingPlatformAdapter(page.url()).platformId,
-        title: yield* until(() => page.title()),
+        ...(pageInspection.outcome === "observed" ? { title: pageInspection.title } : {}),
         url: page.url(),
       });
     }
     return { tabs };
   }
 
-  *#ensure(params: Record<string, unknown>): RiteCoroutine<unknown> {
+  *#ensure(params: Record<string, unknown>): RiteCoroutine<NavigationResult & { id: number }> {
     const platformId = readPlatformId(params);
     const adapter = recruitingPlatformAdapters[platformId];
     const requestedUrl = params["url"];
@@ -166,7 +213,7 @@ export class BrowserTabs {
     if (existingNavigationPage) {
       const [, existingPage] = existingNavigationPage;
       if (!hasRequestedUrl || existingPage.url() === url) {
-        return yield* this.#activate(existingNavigationPage);
+        return yield* this.#activate(existingNavigationPage, url);
       }
       return yield* this.#navigate(existingNavigationPage, url);
     }
@@ -177,25 +224,36 @@ export class BrowserTabs {
     return yield* this.#create(url);
   }
 
-  *#activate([tabId, page]: [number, Page]): RiteCoroutine<unknown> {
+  *#activate(
+    [tabId, page]: [number, Page],
+    requestedUrl: string,
+  ): RiteCoroutine<NavigationResult & { id: number }> {
     yield* this.selectPage(page);
-    return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
+    return {
+      id: tabId,
+      ...(yield* readNavigationPageSummary(page)),
+      navigation: { outcome: "already-current" },
+      requestedUrl,
+    };
   }
 
-  *#create(url: string): RiteCoroutine<unknown> {
+  *#create(url: string): RiteCoroutine<NavigationResult & { id: number }> {
     const page = yield* until(() => this.#context.newPage());
     const tabId = this.#register(page);
     this.markSelected(tabId);
-    yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
+    const navigation = yield* navigatePage(page, url);
     yield* until(() => page.bringToFront());
-    return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
+    return { id: tabId, ...navigation };
   }
 
-  *#navigate([tabId, page]: [number, Page], url: string): RiteCoroutine<unknown> {
+  *#navigate(
+    [tabId, page]: [number, Page],
+    url: string,
+  ): RiteCoroutine<NavigationResult & { id: number }> {
     this.markSelected(tabId);
-    yield* until(() => page.goto(url, { waitUntil: "domcontentloaded" }));
+    const navigation = yield* navigatePage(page, url);
     yield* until(() => page.bringToFront());
-    return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
+    return { id: tabId, ...navigation };
   }
 
   #register(page: Page): number {

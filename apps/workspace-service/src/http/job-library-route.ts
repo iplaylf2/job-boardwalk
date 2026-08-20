@@ -5,17 +5,32 @@ import type { WorkspaceRepository } from "#/persistence/workspace-repository.js"
 import { defaultJobPageSize, firstJobPage, maximumJobPageSize } from "#/job-library/query.js";
 import type { JobLibraryQuery } from "#/job-library/query.js";
 import { isPlatformId, isPlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
-import type { PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
+import { JobDescriptionStatusFilter } from "@job-boardwalk/contracts";
+import type { JobEngagementFilter } from "@job-boardwalk/contracts";
 
 import { InvalidRequestError, requestErrorResponse } from "./request.js";
 
-function readJobEngagement(value: string | undefined): PlatformJobEngagementKind | null {
+function readJobEngagement(value: string | undefined): JobEngagementFilter | null {
   if (!value) {
     return null;
   }
-  if (!isPlatformJobEngagementKind(value)) {
+  if (value !== "tracked" && !isPlatformJobEngagementKind(value)) {
     throw new InvalidRequestError(
-      "engagement 必须是 interested、contacted、applied 或 interviewed",
+      "engagement 必须是 tracked、interested、contacted、applied 或 interviewed",
+    );
+  }
+  return value;
+}
+
+function readDescriptionStatus(
+  value: string | undefined,
+): JobLibraryQuery["descriptionStatus"] | null {
+  if (!value) {
+    return null;
+  }
+  if (!JobDescriptionStatusFilter.allows(value)) {
+    throw new InvalidRequestError(
+      "descriptionStatus 必须是 captured、missing 或 identity-unresolved",
     );
   }
   return value;
@@ -34,7 +49,11 @@ function readJobLibraryQuery(context: Context) {
   const query = context.req.query("query")?.trim();
   const platform = context.req.query("platform");
   const engagement = readJobEngagement(context.req.query("engagement"));
+  const descriptionStatus = readDescriptionStatus(context.req.query("descriptionStatus"));
   const engagementFilter: Pick<JobLibraryQuery, "engagement"> = engagement ? { engagement } : {};
+  const descriptionFilter: Pick<JobLibraryQuery, "descriptionStatus"> = descriptionStatus
+    ? { descriptionStatus }
+    : {};
   if (platform) {
     if (!isPlatformId(platform)) {
       throw new InvalidRequestError("platform 不是受支持的招聘平台");
@@ -43,6 +62,7 @@ function readJobLibraryQuery(context: Context) {
       page,
       pageSize,
       platformId: platform,
+      ...descriptionFilter,
       ...engagementFilter,
       ...(query ? { query } : {}),
     };
@@ -50,6 +70,7 @@ function readJobLibraryQuery(context: Context) {
   return {
     page,
     pageSize,
+    ...descriptionFilter,
     ...engagementFilter,
     ...(query ? { query } : {}),
   };

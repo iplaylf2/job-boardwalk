@@ -79,6 +79,18 @@ The package task writes the versioned output described by Desktop Distribution's
 
 ## Continuous integration
 
+Workflows use GitHub's floating hosted-runner labels so image updates arrive through the managed
+environment. Workflow actions use maintainer-published major release tags when available and exact
+release tags otherwise. Installed project tools take their versions from the repository
+configuration that owns them; CI-only setup helpers use their action's supported default unless the
+repository needs a specific version.
+
+Rust jobs cache Cargo downloads and installed command-line tools. Compilation uses sccache with
+GitHub Actions as its cache backend. The complete Cargo `target/` tree is excluded because it also
+contains unrelated application staging artifacts. GitHub's native cache scopes determine which
+compatible entries a run can reuse; a cache hit or miss changes execution time but never changes
+the checks or packaging work.
+
 ### Merge checks
 
 Non-draft pull requests targeting `master` run the [affected CI plan](../.moon/ci.json) on Ubuntu.
@@ -88,20 +100,9 @@ Merge checks reject Rust dependencies covered by RustSec security or soundness a
 unmaintained dependency blocks a merge only when a workspace package depends on it directly. The
 advisory result remains uncached because its database changes independently of the repository.
 
-CI caches Cargo downloads and repository-pinned command-line tools. Rust compilation uses sccache
-with GitHub Actions as its cache backend. The complete Cargo `target/` tree is excluded because it
-also contains unrelated application staging artifacts. These caches accelerate work without
-bypassing Cargo's dependency graph or moon's task graph.
-
 To avoid compiling cargo-binstall during every merge check, the workflow downloads a prebuilt binary
 for the version declared in [`.moon/toolchains.yml`](../.moon/toolchains.yml). Moon then provisions
 the remaining Cargo tools from the same configuration.
-
-Workflow actions use maintainer-published major release tags when available and exact release tags
-otherwise. Installed project tools take their versions from the repository configuration that owns
-them; CI-only setup helpers use their action's supported default unless the repository needs a
-specific version. Desktop release runner versions are explicit so their image migrations happen as
-reviewed repository changes.
 
 ### Desktop releases
 
@@ -122,17 +123,19 @@ the release workflow, which confirms that the push tip introduced the version be
 Linux and Windows packaging jobs. A batch push that places later commits after the version change
 is rejected rather than packaging those changes under the new version.
 
-Each packaging job runs on its target operating system and invokes Desktop Distribution's
-package-owned native-input preparation before passing the resolved Caddy path into the Moon package
-graph. The [package README](../internal/desktop-distribution/README.md) owns the Aqua configuration,
-native-input checksums, maintenance commands, and portable archive filename contract. Once the
-release resolver confirms the version change, packaging bypasses Moon's general-purpose CI affected
-checks. Each matrix row builds and attests one native archive, then uploads that file directly,
-making the archive filename its Actions artifact name. Publication collects every artifact in the
-current product version's filename namespace into one release directory without decompressing the
-archives and publishes the result as a `v<version>` GitHub prerelease using the Changesets
-changelog. The package matrix remains the only release-target inventory: a new row whose output
-follows the archive output contract automatically joins publication.
+Each packaging job runs on its target operating system, restores compatible Cargo download and
+compilation cache entries, and invokes Desktop Distribution's package-owned native-input
+preparation before passing the resolved Caddy path into the Moon package graph. The [package
+README](../internal/desktop-distribution/README.md) owns the Aqua configuration, native-input
+checksums, maintenance commands, and portable archive filename contract. Once the release resolver
+confirms the version change, packaging bypasses Moon's general-purpose CI affected checks.
+
+Each matrix row builds and attests one native archive, then uploads that file directly, making the
+archive filename its Actions artifact name. Publication collects every artifact in the current
+product version's filename namespace into one release directory without decompressing the archives
+and publishes the result as a `v<version>` GitHub prerelease using the Changesets changelog. The
+package matrix remains the only release-target inventory: a new row whose output follows the
+archive output contract automatically joins publication.
 
 If packaging or publication fails, rerun the original **Desktop release** workflow. Use
 **Re-run failed jobs** while successful platform artifacts remain within their seven-day retention;

@@ -1,49 +1,26 @@
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import type { JobPosting, JobPostingPage } from "@job-boardwalk/contracts";
+import { JobDescriptionStatusFilter } from "@job-boardwalk/contracts";
+import type { JobPosting } from "@job-boardwalk/contracts";
 
 import { AppShell } from "#/app-shell.js";
-import { SectionKicker } from "#/ui/section-kicker.js";
 import { WorkspaceDataBoundary } from "#/workspace-data-boundary.js";
 import { createWorkspaceRead } from "#/workspace-read.js";
 import { readJobPostingPage } from "#/workspace-service-client.js";
 
-import { JobCard } from "./card.js";
 import { JobDescriptionDialog } from "./description-dialog.js";
 import { jobLibraryViewLabel, jobLibraryViews, readJobLibraryView } from "./engagement.js";
 import type { JobLibraryView } from "./engagement.js";
+import { JobResults } from "./results.js";
 import styles from "./page.module.css";
 
 const allPlatforms = "all";
-const emptyCollectionLength = 0;
+const allDescriptionStatuses = "all";
 const firstPage = 1;
-const jobLibraryLede = "集中查看已收录岗位，并按感兴趣、沟通过、已投递等平台记录筛选。";
-const pageStep = 1;
+const jobLibraryLede = "集中查看已收录岗位、平台跟进记录和职位描述采集情况。";
 const pageSize = 24;
 const refreshIntervalMilliseconds = 30_000;
-
-const jobLibraryPageCopy = {
-  all: {
-    empty: "没有找到符合条件的岗位。可以调整关键词或平台。",
-    kicker: "已整理岗位",
-  },
-  applied: {
-    empty: "尚未从招聘平台个人中心同步到“已投递”岗位。",
-    kicker: "岗位跟进",
-  },
-  contacted: {
-    empty: "尚未从招聘平台个人中心同步到“沟通过”岗位。",
-    kicker: "岗位跟进",
-  },
-  interested: {
-    empty: "尚未从招聘平台个人中心同步到“感兴趣”岗位。你可以在平台标记岗位，再让助手同步该列表。",
-    kicker: "岗位跟进",
-  },
-  interviewed: {
-    empty: "尚未从招聘平台个人中心同步到面试岗位。",
-    kicker: "岗位跟进",
-  },
-} as const;
+type DescriptionStatusSelection = typeof allDescriptionStatuses | JobDescriptionStatusFilter;
 
 function engagementHref(view: JobLibraryView): string {
   return view === "all" ? "/jobs" : `/jobs?engagement=${view}`;
@@ -65,7 +42,9 @@ function JobEngagementNavigation(props: { view: JobLibraryView }): JSX.Element {
 }
 
 function JobLibraryFilters(props: {
+  descriptionStatus: DescriptionStatusSelection;
   draftQuery: string;
+  onDescriptionStatusChanged: (descriptionStatus: DescriptionStatusSelection) => void;
   onPlatformChanged: (platform: string) => void;
   onQueryChanged: (query: string) => void;
   onSubmitted: () => void;
@@ -99,82 +78,73 @@ function JobLibraryFilters(props: {
           <option value="yupao">鱼泡直聘</option>
         </select>
       </label>
+      <DescriptionStatusSelect
+        value={props.descriptionStatus}
+        onChanged={props.onDescriptionStatusChanged}
+      />
       <button type="submit">搜索</button>
     </form>
   );
 }
 
-function JobResults(props: {
-  onPageChanged: (page: number) => void;
-  onShowDescription: (job: JobPosting) => void;
-  result: JobPostingPage;
-  view: JobLibraryView;
+function DescriptionStatusSelect(props: {
+  onChanged: (descriptionStatus: DescriptionStatusSelection) => void;
+  value: DescriptionStatusSelection;
 }): JSX.Element {
-  const copy = jobLibraryPageCopy[props.view];
   return (
-    <>
-      <div class={styles["heading"]}>
-        <div>
-          <SectionKicker>{copy.kicker}</SectionKicker>
-          <h2 id="job-results-heading">岗位列表</h2>
-        </div>
-        <span class={styles["count"]}>{String(props.result.total)} 个岗位</span>
-      </div>
-      <Show
-        when={props.result.jobs.length !== emptyCollectionLength}
-        fallback={<p class={styles["empty"]}>{copy.empty}</p>}
+    <label>
+      职位描述
+      <select
+        value={props.value}
+        onChange={(event) => {
+          const { value } = event.currentTarget;
+          props.onChanged(
+            JobDescriptionStatusFilter.allows(value) ? value : allDescriptionStatuses,
+          );
+        }}
       >
-        <div class={styles["grid"]}>
-          <For each={props.result.jobs}>
-            {(job) => <JobCard job={job} onShowDescription={props.onShowDescription} />}
-          </For>
-        </div>
-      </Show>
-      <nav class={styles["pagination"]} aria-label="岗位页码">
-        <button
-          type="button"
-          disabled={props.result.page === firstPage}
-          onClick={() => props.onPageChanged(props.result.page - pageStep)}
-        >
-          上一页
-        </button>
-        <span>
-          第 {String(props.result.page)} / {String(props.result.pageCount)} 页
-        </span>
-        <button
-          type="button"
-          disabled={props.result.page >= props.result.pageCount}
-          onClick={() => props.onPageChanged(props.result.page + pageStep)}
-        >
-          下一页
-        </button>
-      </nav>
-    </>
+        <option value={allDescriptionStatuses}>全部岗位</option>
+        <option value="captured">已采集</option>
+        <option value="missing">未采集</option>
+        <option value="identity-unresolved">未采集且详情来源待补全</option>
+      </select>
+    </label>
   );
 }
 
+// eslint-disable-next-line max-lines-per-function -- One reactive owner keeps list filters, paging, and selection synchronized.
 function createJobLibraryPageState(view: JobLibraryView) {
   const engagement = view === "all" ? null : view;
   const [draftQuery, setDraftQuery] = createSignal("");
   const [query, setQuery] = createSignal("");
   const [platform, setPlatform] = createSignal(allPlatforms);
+  const [descriptionStatus, setDescriptionStatus] =
+    createSignal<DescriptionStatusSelection>(allDescriptionStatuses);
   const [page, setPage] = createSignal(firstPage);
   const [selectedJob, setSelectedJob] = createSignal<JobPosting | null>(null);
-  const jobPage = createWorkspaceRead(
-    () =>
-      readJobPostingPage({
-        ...(engagement ? { engagement } : {}),
-        page: page(),
-        pageSize,
-        ...(platform() === allPlatforms ? {} : { platform: platform() }),
-        ...(query() ? { query: query() } : {}),
-      }),
-    refreshIntervalMilliseconds,
-  );
-  function changePlatform(value: string): void {
+  const jobPage = createWorkspaceRead(() => {
+    const selectedDescriptionStatus = descriptionStatus();
+    return readJobPostingPage({
+      ...(engagement ? { engagement } : {}),
+      ...(selectedDescriptionStatus === allDescriptionStatuses
+        ? {}
+        : { descriptionStatus: selectedDescriptionStatus }),
+      page: page(),
+      pageSize,
+      ...(platform() === allPlatforms ? {} : { platform: platform() }),
+      ...(query() ? { query: query() } : {}),
+    });
+  }, refreshIntervalMilliseconds);
+  function changeFilter(setter: (value: string) => void, value: string): void {
     setSelectedJob(null);
     setPage(firstPage);
-    setPlatform(value);
+    setter(value);
+  }
+  function changeDescriptionStatus(value: DescriptionStatusSelection): void {
+    changeFilter(setDescriptionStatus, value);
+  }
+  function changePlatform(value: string): void {
+    changeFilter(setPlatform, value);
   }
   function submitQuery(): void {
     setSelectedJob(null);
@@ -185,10 +155,20 @@ function createJobLibraryPageState(view: JobLibraryView) {
     setSelectedJob(null);
     setPage(nextPage);
   }
+  function hasNarrowingFilters(): boolean {
+    return (
+      Boolean(query()) ||
+      platform() !== allPlatforms ||
+      descriptionStatus() !== allDescriptionStatuses
+    );
+  }
   return {
+    changeDescriptionStatus,
     changePage,
     changePlatform,
+    descriptionStatus,
     draftQuery,
+    hasNarrowingFilters,
     jobPage,
     platform,
     selectedJob,
@@ -207,7 +187,9 @@ export function JobLibraryPage(props: { requestedEngagement: string | null }): J
       <section class={styles["library"]} aria-labelledby="job-results-heading">
         <JobEngagementNavigation view={view} />
         <JobLibraryFilters
+          descriptionStatus={state.descriptionStatus()}
           draftQuery={state.draftQuery()}
+          onDescriptionStatusChanged={state.changeDescriptionStatus}
           platform={state.platform()}
           onPlatformChanged={state.changePlatform}
           onQueryChanged={state.setDraftQuery}
@@ -217,6 +199,7 @@ export function JobLibraryPage(props: { requestedEngagement: string | null }): J
           <Show when={state.jobPage.data()}>
             {(result) => (
               <JobResults
+                hasNarrowingFilters={state.hasNarrowingFilters()}
                 result={result()}
                 view={view}
                 onPageChanged={state.changePage}

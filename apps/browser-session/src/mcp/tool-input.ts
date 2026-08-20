@@ -37,6 +37,7 @@ const BrowserJobCardSnapshotInput = toolInput({
 });
 
 const BrowserJobDescriptionSnapshotInput = toolInput({
+  "sourceId?": "number.integer >= 1",
   "tabId?": OptionalTabId,
 });
 

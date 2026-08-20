@@ -11,6 +11,7 @@ import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 const migrationsDirectory = path.resolve(import.meta.dirname, "../migrations");
 const filterPageSize = 10;
 const emptyCount = 0;
+const firstIndex = 0;
 const firstPage = 1;
 const singleJob = 1;
 const twoJobs = 2;
@@ -205,11 +206,12 @@ test("classifies canonical changes caused by matching later source evidence", as
 
     const secondSource = repository.saveJobCardObservation({
       initiatedBy: "system",
-      observation: jobCardObservation("yupao", {
-        company: "示例科技甲",
-        observedAt: "2026-07-17T10:10:00.000Z",
-        title: "【急聘】后端开发",
-      }),
+      observation: {
+        ...jobCardObservation("yupao", {
+          observedAt: "2026-07-17T10:10:00.000Z",
+        }),
+        summary: "另一个平台提供的合成岗位摘要。",
+      },
       reason: "test",
     });
     expect(secondSource).toMatchObject({
@@ -250,6 +252,91 @@ test("classifies canonical changes caused by matching later source evidence", as
       job: { company: "示例科技甲有限公司", title: "后端开发" },
       outcome: "unchanged",
     });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("reconciles and merges a job when an unchanged source becomes canonical again", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    const firstSource = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-a",
+        location: "北京合成甲区",
+        title: "合成身份工程师",
+      }),
+      reason: "test first source",
+    });
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("yupao", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-b",
+        location: "北京合成甲区",
+        observedAt: "2026-07-17T10:10:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test second source",
+    });
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        company: "合成切换乙有限公司",
+        externalJobId: "switching-source-a",
+        location: "北京合成乙区",
+        observedAt: "2026-07-17T10:20:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test first source changes identity",
+    });
+    const matchingParent = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-c",
+        location: "北京合成甲区",
+        observedAt: "2026-07-17T10:25:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test separate matching parent",
+    });
+    expect(repository.listJobPostings()).toHaveLength(twoJobs);
+
+    const reconciliation = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("yupao", {
+        company: "合成切换甲有限公司",
+        externalJobId: "switching-source-b",
+        location: "北京合成甲区",
+        observedAt: "2026-07-17T10:30:00.000Z",
+        title: "合成身份工程师",
+      }),
+      reason: "test unchanged source becomes canonical",
+    });
+
+    expect(reconciliation).toMatchObject({
+      job: {
+        company: "合成切换甲有限公司",
+        id: matchingParent.job.id,
+        sources: expect.arrayContaining([
+          expect.objectContaining({ externalJobId: "switching-source-a" }),
+          expect.objectContaining({ externalJobId: "switching-source-b" }),
+          expect.objectContaining({ externalJobId: "switching-source-c" }),
+        ]),
+      },
+      outcome: "source-updated",
+    });
+    expect(reconciliation.job.id).not.toBe(firstSource.job.id);
+    expect(repository.listJobPostings()).toHaveLength(singleJob);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -869,6 +956,439 @@ test("preserves historical job engagements when later complete lists omit them",
       ],
       total: 1,
     });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("reports description coverage and source identity gaps across all tracked jobs", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test unresolved tracked source",
+      snapshot: {
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        engagement: "contacted",
+        jobs: [
+          {
+            company: "合成互动甲",
+            details: [],
+            location: "北京海淀区",
+            summary: "来源身份未展示的合成岗位",
+            title: "合成数据工程师",
+          },
+        ],
+        platformId: "yupao",
+        sourceUrl: "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
+        total: 1,
+      },
+    });
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test locatable tracked source",
+      snapshot: {
+        capturedAt: "2026-07-19T10:05:00.000Z",
+        complete: true,
+        engagement: "applied",
+        jobs: [
+          {
+            company: "合成服务乙",
+            details: [],
+            externalJobId: "locatable-role",
+            jobUrl: "https://www.zhipin.com/job_detail/locatable-role.html",
+            location: "北京朝阳区",
+            summary: "尚未采集详情的合成岗位",
+            title: "合成服务工程师",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        total: 1,
+      },
+    });
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test captured tracked source",
+      snapshot: {
+        capturedAt: "2026-07-19T10:10:00.000Z",
+        complete: true,
+        engagement: "interested",
+        jobs: [
+          {
+            company: "示例科技甲有限公司",
+            details: [],
+            externalJobId: "progressive-123",
+            jobUrl: "https://www.zhipin.com/job_detail/example.html",
+            location: "北京",
+            summary: "已经采集详情的合成岗位",
+            title: "后端开发",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+        total: 1,
+      },
+    });
+    repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: jobDescriptionObservation(),
+      reason: "test captured description",
+    });
+
+    const tracked = repository.listJobPostingPage({
+      engagement: "tracked",
+      page: 1,
+      pageSize: 10,
+    });
+    const capturedSource = expect.objectContaining({ descriptionCaptureStatus: "captured" });
+    const uncapturedSource = expect.objectContaining({ descriptionCaptureStatus: "uncaptured" });
+    const unresolvedSource = expect.objectContaining({
+      descriptionCaptureStatus: "identity-unresolved",
+    });
+    expect(tracked).toMatchObject({
+      descriptionCoverage: {
+        captured: 1,
+        identityUnresolved: 1,
+        total: 3,
+        uncaptured: 1,
+      },
+      jobs: expect.arrayContaining([
+        expect.objectContaining({
+          sources: [capturedSource],
+        }),
+        expect.objectContaining({
+          sources: [uncapturedSource],
+        }),
+        expect.objectContaining({
+          sources: [unresolvedSource],
+        }),
+      ]),
+      total: 3,
+    });
+    expect(
+      repository.listJobPostingPage({
+        descriptionStatus: "missing",
+        engagement: "tracked",
+        page: 1,
+        pageSize: 10,
+      }),
+    ).toMatchObject({ descriptionCoverage: tracked.descriptionCoverage, total: 2 });
+    const missingPages = [firstPage, twoJobs].map((page) =>
+      repository.listJobPostingPage({
+        descriptionStatus: "missing",
+        engagement: "tracked",
+        page,
+        pageSize: 1,
+      }),
+    );
+    expect(missingPages).toEqual([
+      expect.objectContaining({
+        descriptionCoverage: tracked.descriptionCoverage,
+        pageCount: 2,
+        total: 2,
+      }),
+      expect.objectContaining({
+        descriptionCoverage: tracked.descriptionCoverage,
+        pageCount: 2,
+        total: 2,
+      }),
+    ]);
+    expect(missingPages.flatMap(({ jobs }) => jobs)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sources: [uncapturedSource] }),
+        expect.objectContaining({ sources: [unresolvedSource] }),
+      ]),
+    );
+    expect(
+      repository.listJobPostingPage({
+        descriptionStatus: "identity-unresolved",
+        engagement: "tracked",
+        page: 1,
+        pageSize: 10,
+      }),
+    ).toMatchObject({ total: 1 });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("explicitly binds a confirmed detail page to one unresolved tracked source", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test unresolved source",
+      snapshot: {
+        capturedAt: "2026-07-19T10:00:00.000Z",
+        complete: true,
+        engagement: "contacted",
+        jobs: [
+          {
+            company: "合成智能甲有限公司",
+            details: ["Java"],
+            location: "海淀区·合成街道",
+            summary: "缺少稳定来源身份的合成岗位",
+            title: "后端平台工程师",
+          },
+        ],
+        platformId: "yupao",
+        sourceUrl: "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
+        total: 1,
+      },
+    });
+    const before = repository.listJobPostingPage({
+      engagement: "tracked",
+      page: 1,
+      pageSize: 10,
+    });
+    const sourceId = before.jobs[firstIndex]?.sources[firstIndex]?.id;
+    if (!sourceId) {
+      throw new Error("expected unresolved test source");
+    }
+
+    const detailObservation = {
+      company: "合成智能甲有限公司",
+      description: {
+        capturedAt: "2026-07-19T10:05:00.000Z",
+        text: "岗位职责\n建设合成后端平台。\n任职要求\n熟悉 Java。",
+        truncated: false,
+      },
+      details: ["Java"],
+      externalJobId: "987654321",
+      jobUrl: "https://www.yupao.com/zhaogong/987654321/synthetic-role.html",
+      location: "北京海淀区合成科技园",
+      observedAt: "2026-07-19T10:05:00.000Z",
+      platformId: "yupao" as const,
+      title: "后端平台工程师",
+    };
+    expect(() =>
+      repository.saveJobDescriptionObservation({
+        initiatedBy: "agent",
+        observation: { ...detailObservation, title: "不同的合成岗位" },
+        reason: "test rejected source binding",
+        sourceId,
+      }),
+    ).toThrow(/标题/u);
+
+    const saved = repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: detailObservation,
+      reason: "test confirmed source binding",
+      sourceId,
+    });
+
+    expect(saved).toMatchObject({
+      job: {
+        description: { text: expect.stringContaining("合成后端平台") },
+        id: before.jobs[firstIndex]?.id,
+        sources: [
+          {
+            descriptionCaptureStatus: "captured",
+            engagements: [expect.objectContaining({ kind: "contacted" })],
+            externalJobId: "987654321",
+            id: sourceId,
+          },
+        ],
+      },
+      outcome: "source-updated",
+    });
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test later unresolved card refresh",
+      snapshot: {
+        capturedAt: "2026-07-19T10:10:00.000Z",
+        complete: true,
+        engagement: "contacted",
+        jobs: [
+          {
+            company: "合成智能甲有限公司",
+            details: ["Java", "MySQL"],
+            location: "海淀区·合成街道",
+            summary: "后续同步仍未展示稳定身份",
+            title: "后端平台工程师",
+          },
+        ],
+        platformId: "yupao",
+        sourceUrl: "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
+        total: 1,
+      },
+    });
+    expect(
+      repository.listJobPostingPage({ engagement: "tracked", page: 1, pageSize: 10 }),
+    ).toMatchObject({
+      descriptionCoverage: { captured: 1, identityUnresolved: 0, total: 1, uncaptured: 0 },
+      jobs: [
+        {
+          description: { text: expect.stringContaining("合成后端平台") },
+          sources: [{ id: sourceId }],
+        },
+      ],
+      total: 1,
+    });
+
+    repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: {
+        company: detailObservation.company,
+        details: detailObservation.details,
+        discoveryUrl: detailObservation.jobUrl,
+        externalJobId: detailObservation.externalJobId,
+        jobUrl: detailObservation.jobUrl,
+        location: detailObservation.location,
+        observedAt: "2026-07-19T10:15:00.000Z",
+        platformId: detailObservation.platformId,
+        summary: "稳定身份卡片再次出现",
+        title: detailObservation.title,
+      },
+      reason: "test stable source identity refresh",
+    });
+    const provisionalRefresh = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: {
+        company: "合成智能甲有限公司",
+        details: ["Java", "MySQL"],
+        discoveryUrl: "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
+        location: "海淀区·合成街道",
+        observedAt: "2026-07-19T10:20:00.000Z",
+        platformId: "yupao",
+        summary: "临时身份卡片再次出现",
+        title: "后端平台工程师",
+      },
+      reason: "test retained provisional source identity",
+    });
+    expect(provisionalRefresh.job.sources).toEqual([expect.objectContaining({ id: sourceId })]);
+
+    const laterEquivalentSource = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: {
+        ...jobCardObservation("boss", {
+          company: detailObservation.company,
+          externalJobId: "boss-equivalent-role",
+          jobUrl: "https://www.zhipin.com/job_detail/boss-equivalent-role.html",
+          location: detailObservation.location,
+          observedAt: "2026-07-19T10:25:00.000Z",
+          title: detailObservation.title,
+        }),
+        summary: "另一平台稍后出现的同一合成岗位",
+      },
+      reason: "test later equivalent source",
+    });
+    expect(laterEquivalentSource).toMatchObject({
+      job: {
+        id: before.jobs[firstIndex]?.id,
+        sources: expect.arrayContaining([
+          expect.objectContaining({ id: sourceId, platformId: "yupao" }),
+          expect.objectContaining({ platformId: "boss" }),
+        ]),
+      },
+      outcome: "source-added",
+    });
+    expect(repository.listJobPostings()).toHaveLength(singleJob);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("merges a provisional parent when an explicit bind reveals an existing normalized job", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+
+  try {
+    const existing = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        company: "合成归并甲有限公司",
+        externalJobId: "existing-normalized-role",
+        jobUrl: "https://www.zhipin.com/job_detail/existing-normalized-role.html",
+        location: "北京合成区",
+        title: "合成归并工程师",
+      }),
+      reason: "test existing normalized job",
+    });
+    repository.synchronizeJobEngagement({
+      initiatedBy: "system",
+      reason: "test provisional tracked source",
+      snapshot: {
+        capturedAt: "2026-07-19T11:00:00.000Z",
+        complete: true,
+        engagement: "contacted",
+        jobs: [
+          {
+            details: ["TypeScript"],
+            summary: "缺少公司与地点的合成来源",
+            title: "合成归并工程师",
+          },
+        ],
+        platformId: "yupao",
+        sourceUrl: "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
+        total: 1,
+      },
+    });
+    const before = repository.listJobPostingPage({ page: firstPage, pageSize: filterPageSize });
+    expect(before.total).toBe(twoJobs);
+    const provisionalSource = before.jobs
+      .flatMap(({ sources }) => sources)
+      .find(({ platformId }) => platformId === "yupao");
+    if (!provisionalSource) {
+      throw new Error("expected provisional test source");
+    }
+
+    const bound = repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: {
+        company: "合成归并甲有限公司",
+        description: {
+          capturedAt: "2026-07-19T11:05:00.000Z",
+          text: "岗位职责\n维护合成归并平台。",
+          truncated: false,
+        },
+        details: ["TypeScript"],
+        externalJobId: "bound-normalized-role",
+        jobUrl: "https://www.yupao.com/zhaogong/bound-normalized-role.html",
+        location: "北京合成区",
+        observedAt: "2026-07-19T11:05:00.000Z",
+        platformId: "yupao",
+        title: "合成归并工程师",
+      },
+      reason: "test bind into existing normalized job",
+      sourceId: provisionalSource.id,
+    });
+
+    const contacted = expect.objectContaining({ kind: "contacted" });
+    expect(bound).toMatchObject({
+      job: {
+        id: existing.job.id,
+        sources: expect.arrayContaining([
+          expect.objectContaining({ platformId: "boss" }),
+          expect.objectContaining({
+            descriptionCaptureStatus: "captured",
+            engagements: [contacted],
+            id: provisionalSource.id,
+            platformId: "yupao",
+          }),
+        ]),
+      },
+      outcome: "source-updated",
+    });
+    expect(repository.listJobPostings()).toHaveLength(singleJob);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

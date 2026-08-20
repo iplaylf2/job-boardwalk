@@ -14,11 +14,12 @@ COPY packages/platform-catalog/package.json packages/platform-catalog/package.js
 RUN pnpm runtime set node \
     "$(pnpm --silent pkg get devEngines.runtime.version)" \
     --global && \
-    install -D -m 0755 "$(command -v node)" /opt/job-boardwalk/node
+    install -D -m 0755 "$(command -v node)" /opt/job-boardwalk/node && \
+    ln -s /opt/job-boardwalk/node /usr/local/bin/node
 
 RUN --mount=type=cache,id=job-boardwalk-pnpm-store,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && \
-    pnpm install --filter @job-boardwalk/workspace-service... --frozen-lockfile
+    pnpm install --filter @job-boardwalk/workspace-service... --frozen-lockfile --no-runtime
 
 COPY apps/workspace-service/ apps/workspace-service/
 COPY internal/presets/ internal/presets/

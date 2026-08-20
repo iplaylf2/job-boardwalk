@@ -51,6 +51,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-targets: false
+          shared-key: workspace
 
       - name: Set up Rust compilation cache
         uses: mozilla-actions/sccache-action@v0.0.11

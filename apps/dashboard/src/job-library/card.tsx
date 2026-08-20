@@ -46,10 +46,10 @@ function displaySalary(job: JobPosting): string | null {
   return null;
 }
 
-function JobSourceActions(props: { job: JobPosting; onShowDescription: () => void }): JSX.Element {
+function JobSources(props: { sources: JobPosting["sources"] }): JSX.Element {
   return (
     <div class={styles["sources"]}>
-      <For each={props.job.sources}>
+      <For each={props.sources}>
         {(source) => {
           const engagementText = source.engagements
             .map(({ kind }) => jobEngagementLabels[kind])
@@ -66,6 +66,14 @@ function JobSourceActions(props: { job: JobPosting; onShowDescription: () => voi
           );
         }}
       </For>
+    </div>
+  );
+}
+
+function JobCardActions(props: { job: JobPosting; onShowDescription: () => void }): JSX.Element {
+  return (
+    <div class={styles["actions"]}>
+      <JobSources sources={props.job.sources} />
       <Show when={props.job.description}>
         <button
           aria-haspopup="dialog"
@@ -116,7 +124,7 @@ export function JobCard(props: {
         </div>
       </Show>
       <footer>
-        <JobSourceActions
+        <JobCardActions
           job={props.job}
           onShowDescription={() => props.onShowDescription(props.job)}
         />
