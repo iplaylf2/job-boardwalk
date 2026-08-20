@@ -23,7 +23,8 @@ const browserServerInstructions = [
   "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
   "用户交接：需要登录时，使用 browser_prepare_login 检查现有会话并按需准备登录界面。只有 outcome=handoff-ready 才开始交接；此后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
   "可见结果：判断以用户看到的当前窗口和重新观察结果为准；工具返回冲突时先重新观察。",
-  "诊断流程：browser_status 的 available=false 表示浏览器运行时整体不可用。navigation.outcome=timed-out 记录目标页未在时限内达到 DOMContentLoaded；pageInspection 记录页面关闭、检查超时或观察到的文档生命周期。验证和拒绝访问的判断以可见控件或页面语义为依据。操作结果未知时，先重新观察页面，再决定下一步。",
+  "故障分类：browser_status 的 available=false 表示浏览器运行时整体不可用。navigation.outcome=timed-out 只表示目标页未在时限内达到 DOMContentLoaded；pageInspection 分别报告页面关闭、检查超时或观察到的文档生命周期。验证和拒绝访问仍须由可见控件或页面语义确定。",
+  "恢复边界：重复超时仍不能确定原因；超时本身不会触发自动重试、刷新、换页或重启。先重新观察；仍无法读取时，询问用户可见窗口显示了什么，再决定有界的下一步。",
 ].join("\n\n");
 
 function defineBrowserTool(

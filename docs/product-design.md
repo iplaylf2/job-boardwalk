@@ -298,12 +298,15 @@ The visible browser outcome and the user's observation govern whether an action 
 When a backend URL, page title, or tool response conflicts with the user's report, the agent
 re-observes and reconciles the live page before continuing.
 
-Recovery must preserve the platform's visible access decisions. If a platform presents verification
-or denies access, the agent records the interruption and waits for the user.
-
 A browser action whose response is lost has an unknown outcome. Browser Session contains that
-failure to the request. After the browser is restored, the agent re-observes the visible page before
-deciding whether another action is safe.
+failure to the request rather than replaying the action. Navigation and inspection timeouts,
+including repeated timeouts, establish neither their cause nor the absence of a visible access
+decision and do not authorize a reload, replacement page, or browser restart.
+
+Before recovery changes the visible page, the agent re-observes when possible. If the driver still
+cannot inspect the page, the agent asks what the user sees in the visible window. Recovery preserves
+the platform's visible access decisions: if the platform presents verification or denies access,
+the agent stops browser input, records the interruption, and waits for the user.
 
 ## Research reports
 

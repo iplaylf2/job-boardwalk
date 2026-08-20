@@ -20,6 +20,7 @@ interface FakePage {
 }
 
 const firstNavigationCount = 1;
+const secondNavigationCount = 2;
 const firstActivationCount = 1;
 const noNavigations = 0;
 // eslint-disable-next-line no-script-url
@@ -192,6 +193,39 @@ test("returns a timed-out navigation with an independent page inspection", async
     requestedUrl,
     url: requestedUrl,
   });
+});
+
+test("leaves repeated unclassified timeouts to the caller without automatic page recovery", async () => {
+  await using scope = createScope();
+  const requestedUrl = "https://www.zhipin.com/web/geek/jobs";
+  const fake = fakePage("https://www.zhipin.com/");
+  fake.page.goto = () => {
+    fake.navigationCount += firstNavigationCount;
+    return Promise.reject(new errors.TimeoutError("synthetic navigation timeout"));
+  };
+  fake.page.locator = () =>
+    ({
+      evaluate: () => Promise.reject(new errors.TimeoutError("synthetic inspection timeout")),
+    }) as never;
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+
+  const first = await scope.run(() =>
+    tabs.executeAction({ action: "ensure", platformId: "boss", url: requestedUrl }),
+  );
+  const second = await scope.run(() =>
+    tabs.executeAction({ action: "ensure", platformId: "boss", url: requestedUrl }),
+  );
+
+  expect(first).toMatchObject({
+    navigation: { outcome: "timed-out" },
+    pageInspection: { outcome: "timed-out" },
+  });
+  expect(second).toMatchObject({
+    navigation: { outcome: "timed-out" },
+    pageInspection: { outcome: "timed-out" },
+  });
+  expect(fake.navigationCount).toBe(secondNavigationCount);
+  expect(tabs.tabCount).toBe(firstNavigationCount);
 });
 
 test("requires a supported platform when ensuring a tab", () => {

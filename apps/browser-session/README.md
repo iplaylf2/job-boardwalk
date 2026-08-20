@@ -168,8 +168,8 @@ with its observation time.
 One top-level shajara scope owns the HTTP server, visible browser process, persistent context,
 Workspace Service status reporter, recovery loops, and shutdown. If the browser window is closed
 unexpectedly, Browser Session reports the interruption and launches it again with bounded
-exponential backoff. After a failed page action, the caller re-observes the visible page before
-deciding whether another action is safe.
+exponential backoff. A failed page action remains contained to its request; Browser Session does not
+replay it.
 
 MCP actions, tab coordination, and snapshots run as `RiteCoroutine` routines. Patchright and Node
 Promises are adapted with `until(...)` at the leaf SDK call; application-owned waits use shajara
@@ -201,8 +201,10 @@ can establish. Verification and access-denial conclusions require visible contro
 content. Current adapters classify the authentication cases listed above and return
 `platformAccessObservation=null` for unclassified evidence.
 [Reliable browser research](../../docs/product-design.md#reliable-browser-research) owns the
-re-observation and retry policy. When an action has no confirmed visible outcome, the caller
-re-observes the page before deciding the next action.
+re-observation and recovery policy. Repeated timeouts do not strengthen the available evidence:
+Browser Session returns them without inferring a cause or initiating page recovery. When bounded
+driver reads cannot inspect the visible page, the caller follows the linked policy and uses the
+user's observation before deciding the next action.
 
 ### Tabs and page evidence
 
