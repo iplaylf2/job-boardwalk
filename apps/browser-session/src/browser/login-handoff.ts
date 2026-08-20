@@ -21,12 +21,13 @@ export interface ObservedLoginHandoff {
   readonly url: string;
 }
 
-export type CurrentAuthenticationObservation =
+export type ExistingPageLoginDisposition =
   | {
-      readonly authentication: ObservedLoginHandoff | null;
-      readonly outcome: "observed";
+      readonly authentication: ObservedLoginHandoff;
+      readonly outcome: "already-authenticated";
     }
-  | { readonly outcome: "unreadable" };
+  | { readonly outcome: "login-page" }
+  | { readonly outcome: "preserve" };
 
 type LoginObservationSnapshot = PageAccessFacts & { readonly title: string };
 type CurrentAuthenticationSnapshot =
@@ -60,19 +61,22 @@ function hasEnabledUserControl(snapshot: LoginObservationSnapshot): boolean {
   );
 }
 
-export function* observeCurrentAuthentication(
+export function* classifyExistingPageForLogin(
   page: Page,
   adapter: RecruitingPlatformAdapter,
   observePageAccess: ObservePageAccess,
-): RiteCoroutine<CurrentAuthenticationObservation> {
+): RiteCoroutine<ExistingPageLoginDisposition> {
   const captured = yield* tryCaptureCurrentAuthenticationSnapshot(page);
   if (captured.outcome === "unreadable") {
-    return captured;
+    return { outcome: "preserve" };
   }
-  return {
-    authentication: observeAuthentication(adapter, captured.snapshot, observePageAccess),
-    outcome: "observed",
-  };
+  const authentication = observeAuthentication(adapter, captured.snapshot, observePageAccess);
+  if (authentication) {
+    return { authentication, outcome: "already-authenticated" };
+  }
+  return adapter.isLoginPage(captured.snapshot.url)
+    ? { outcome: "login-page" }
+    : { outcome: "preserve" };
 }
 
 function* tryCaptureCurrentAuthenticationSnapshot(

@@ -10,6 +10,7 @@ export interface SyntheticLoginPage {
 
 interface SyntheticLoginPageOptions {
   readonly afterNavigation?: (state: SyntheticLoginPage) => void;
+  readonly afterSnapshot?: (state: SyntheticLoginPage) => void;
   readonly navigationError?: Error;
   readonly snapshotError?: Error;
   readonly snapshotElements?: readonly {
@@ -41,7 +42,7 @@ export function syntheticLoginPage(
     if (options.snapshotError) {
       return Promise.reject(options.snapshotError);
     }
-    return Promise.resolve({
+    const captured = {
       documentReadyState: "complete",
       elements: snapshotElements.map((element, sourceIndex) => ({
         disabled: false,
@@ -63,7 +64,9 @@ export function syntheticLoginPage(
         scrollY: noScroll,
         width: syntheticViewportWidth,
       },
-    });
+    };
+    options.afterSnapshot?.(state);
+    return Promise.resolve(captured);
   }
   state.page = {
     bringToFront: () => Promise.resolve(),
@@ -97,11 +100,14 @@ export function syntheticBrowserContext(...pages: Page[]): BrowserContext {
   return context;
 }
 
-export function syntheticBrowserContextWithNewPage(existing: Page, created: Page): BrowserContext {
+export function syntheticBrowserContextWithNewPage(
+  created: Page,
+  ...existing: Page[]
+): BrowserContext {
   const context = {
     newPage: () => Promise.resolve(created),
     on: () => context,
-    pages: () => [existing],
+    pages: () => existing,
   } as unknown as BrowserContext;
   return context;
 }

@@ -221,10 +221,11 @@ session used for research:
    Session to prepare login for that platform.
 2. Browser Session pauses passive page reads and observes the existing platform tabs. Conclusive
    authenticated-page evidence completes preparation without navigation or user handoff. Otherwise,
-   Browser Session reuses only a platform tab that it successfully observed. If no platform tab can
-   be observed, because none is open or every existing tab is unreadable, it preserves unreadable
-   tabs and uses an available blank tab or a new tab for the platform's configured login
-   destination. It then waits for a usable login interface. If neither result can be established,
+   Browser Session reuses only a readable tab that remains on the platform's configured login
+   route. It preserves unreadable tabs and readable pages whose meaning remains unclassified,
+   including pages that may be showing verification or another access decision. If no reusable
+   login tab remains, it uses an available blank tab or a new tab for the configured login
+   destination, then waits for a usable login interface. If neither result can be established,
    preparation fails and passive reads resume.
 3. Only a ready login interface starts user handoff. The agent stops browser actions and asks the
    user to take over the visible window; readiness does not authorize the agent to enter or submit

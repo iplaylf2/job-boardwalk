@@ -243,10 +243,10 @@ Session implements the browser side of that handoff.
 `browser_prepare_login` first blocks new background page work and waits for in-flight page work to
 finish. It then observes the existing platform tabs. Authenticated-page evidence returns
 `outcome=already-authenticated` without navigation or user handoff. Otherwise the tool reuses only
-a platform tab whose bounded observation succeeded. If no existing platform tab can be observed,
-because none is open or every existing tab is unreadable, the tool preserves unreadable tabs and
-uses an available blank tab or a new tab. It then opens the catalog-defined login destination and
-performs bounded observations. It returns
+a readable platform tab that is still on the catalog-defined login route. It preserves unreadable
+tabs and readable pages whose meaning remains unclassified, including pages that may be showing
+verification or another access decision. When no reusable login page remains, it uses an available
+blank tab or a new tab and performs bounded observations on the login destination. It returns
 `outcome=handoff-ready` only when that page exposes an enabled user control; this outcome starts
 user handoff. If neither outcome can be established, preparation fails and passive collection
 resumes. Workspace Service writes already started from previously captured evidence may finish

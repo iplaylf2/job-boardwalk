@@ -35,7 +35,7 @@ const workspaceOverviewDescription =
 const jobLibraryResourceDescription =
   "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
 const jobLibraryToolDescription =
-  "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，也可读取全部跟进岗位。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 进一步限定为来源身份尚未解决的暂无描述岗位。结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
+  "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，也可读取全部跟进岗位。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 进一步限定为缺少平台岗位 ID 和详情页链接的暂无描述岗位。结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
 const researchReportListDescription =
   "读取未过期的研究报告目录。报告可由用户、agent 或系统写入，以 Markdown 保存，并包含草稿或完成状态与更新时间。";
 const researchReportDetailDescription =

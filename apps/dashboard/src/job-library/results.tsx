@@ -50,7 +50,7 @@ function JobDescriptionCoverageSummary(props: { result: JobPostingPage }): JSX.E
       共 {String(props.result.descriptionCoverage.total)} 个岗位 · 职位描述：
       {String(props.result.descriptionCoverage.captured)} 个已采集 · {String(missing)} 个未采集
       <Show when={props.result.descriptionCoverage.identityUnresolved > emptyCollectionLength}>
-        {`（其中 ${String(props.result.descriptionCoverage.identityUnresolved)} 个还需补全来源信息）`}
+        {`（其中 ${String(props.result.descriptionCoverage.identityUnresolved)} 个还需补全详情来源）`}
       </Show>
       <Show when={props.result.total !== props.result.descriptionCoverage.total}>
         {` · 当前显示 ${String(props.result.total)} 个`}

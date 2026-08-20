@@ -28,8 +28,8 @@ function* recordedCollection(recordCollection: () => void): RiteCoroutine<void> 
   recordCollection();
 }
 
-function fakeLoginContext(navigationError?: Error): BrowserContext {
-  let url = "https://www.zhipin.com/web/geek/jobs";
+function fakeLoginPage(initialUrl: string, navigationError?: Error): Page {
+  let url = initialUrl;
   function snapshot() {
     return Promise.resolve({
       accessElements: [],
@@ -59,7 +59,7 @@ function fakeLoginContext(navigationError?: Error): BrowserContext {
       viewport: { height: 900, scrollY: 0, width: 1200 },
     });
   }
-  const page = {
+  return {
     bringToFront: () => Promise.resolve(),
     evaluate: snapshot,
     goto: (targetUrl: string) => {
@@ -75,15 +75,19 @@ function fakeLoginContext(navigationError?: Error): BrowserContext {
       readSnapshot: snapshot,
       title: "BOSS直聘",
     }),
-    once: () => page,
+    once: () => null,
     title: () => Promise.resolve("BOSS直聘"),
     url: () => url,
   } as unknown as Page;
-  const context = {
-    on: () => context,
-    pages: () => [page],
+}
+
+function fakeLoginContext(navigationError?: Error): BrowserContext {
+  const existingPage = fakeLoginPage("https://www.zhipin.com/web/geek/jobs");
+  return {
+    newPage: () => Promise.resolve(fakeLoginPage("about:blank", navigationError)),
+    on: () => null,
+    pages: () => [existingPage],
   } as unknown as BrowserContext;
-  return context;
 }
 
 function fakeAuthenticatedYupaoContext(): BrowserContext {
@@ -112,11 +116,10 @@ function fakeAuthenticatedYupaoContext(): BrowserContext {
     title: () => Promise.resolve("Synthetic Yupao jobs"),
     url: () => url,
   } as unknown as Page;
-  const context = {
-    on: () => context,
+  return {
+    on: () => null,
     pages: () => [page],
   } as unknown as BrowserContext;
-  return context;
 }
 
 test("quiesces active work and blocks collection until control returns", async () => {
