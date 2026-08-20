@@ -144,13 +144,13 @@ export class BrowserTabs {
       adapter.isInNavigationScope(page.url()),
     );
     for (const [id, page] of existingPlatformPages) {
-      const authenticated = yield* observeCurrentAuthentication(page, adapter, observePageAccess);
-      if (authenticated) {
+      const observation = yield* observeCurrentAuthentication(page, adapter, observePageAccess);
+      if (observation.outcome === "observed" && observation.authentication) {
         yield* this.selectPage(page);
         return {
           id,
           platformId,
-          ...authenticated,
+          ...observation.authentication,
         };
       }
     }

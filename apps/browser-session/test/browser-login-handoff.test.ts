@@ -20,6 +20,7 @@ interface FakePage {
 interface FakePageOptions {
   readonly afterNavigation?: (state: FakePage) => void;
   readonly navigationError?: Error;
+  readonly snapshotError?: Error;
   readonly snapshotElements?: readonly {
     readonly href?: string;
     readonly name: string;
@@ -56,6 +57,9 @@ function fakePage(initialUrl: string, options: FakePageOptions = {}): FakePage {
     { name: "Synthetic login control", role: "button" },
   ];
   function snapshot() {
+    if (options.snapshotError) {
+      return Promise.reject(options.snapshotError);
+    }
     return Promise.resolve({
       documentReadyState: "complete",
       elements: snapshotElements.map((element, sourceIndex) => ({
@@ -197,6 +201,30 @@ test("checks every platform page before preparing a login handoff", async () => 
   );
 
   expect(unauthenticated.navigationCount).toBe(noNavigations);
+  expect(authenticated.navigationCount).toBe(noNavigations);
+  expect(result).toMatchObject({
+    id: 2,
+    outcome: "already-authenticated",
+    url: "https://www.yupao.com/a2/",
+  });
+});
+
+test("continues past an unreadable platform page when checking authentication", async () => {
+  await using scope = createScope();
+  const unreadable = fakePage("https://www.yupao.com/a2/", {
+    snapshotError: new errors.TimeoutError("synthetic snapshot timeout"),
+  });
+  const authenticated = fakePage("https://www.yupao.com/a2/", {
+    snapshotElements: [],
+    snapshotText: syntheticYupaoAuthenticatedText,
+  });
+  const tabs = new BrowserTabs(fakeBrowserContext(unreadable.page, authenticated.page));
+
+  const result = await scope.run(() =>
+    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
+  );
+
+  expect(unreadable.navigationCount).toBe(noNavigations);
   expect(authenticated.navigationCount).toBe(noNavigations);
   expect(result).toMatchObject({
     id: 2,
