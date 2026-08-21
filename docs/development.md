@@ -8,7 +8,7 @@ runtime topology and deployable artifacts.
 
 Each ecosystem retains its native dependency and workspace authority:
 
-- `pnpm-workspace.yaml` defines the Node.js workspace, shared dependency requirements, and applied
+- `pnpm-workspace.yaml` defines the Node.js workspace and its shared dependency policy, including
   dependency patches. Root `package.json` declares the Node.js and pnpm toolchain requirements used
   by development, CI, and source image builds. `pnpm-lock.yaml` records the exact dependency and
   toolchain resolutions.

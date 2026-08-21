@@ -1,9 +1,12 @@
-# This image builds from the repository root but owns only this workspace dependency closure.
+# Resolve one application closure under the root workspace's dependency policy.
 **
 
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
+
+!patches/
+!patches/**
 
 !apps/
 !apps/dashboard/

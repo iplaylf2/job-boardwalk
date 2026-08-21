@@ -29,11 +29,16 @@ The build overlay is needed only when producing images from this repository. Sub
 commands use the root Compose model.
 
 The Dockerfiles start from pnpm's standalone image, which bootstraps the pnpm version requirement
-declared by `devEngines.packageManager`. The frozen install then resolves `devEngines.runtime` and
-runs application scripts with the locked Node.js version. Workspace Service also uses pnpm's public
-`runtime set` command to export that Node.js executable into its runtime image. The exact toolchain
-resolutions and checksums remain in `pnpm-lock.yaml`, so a Node.js or pnpm update changes the root
-toolchain declaration and lockfile rather than either Dockerfile.
+declared by `devEngines.packageManager`. Each builder uses pnpm's public `runtime set` command to
+prepare the Node.js version selected by `devEngines.runtime`, then performs a filtered frozen install
+for its application dependency closure. Build scripts run with that Node.js version; Workspace
+Service also exports the same executable into its runtime image. The exact toolchain resolutions and
+checksums remain in `pnpm-lock.yaml`, so a Node.js or pnpm update changes the root toolchain
+declaration and lockfile rather than either Dockerfile.
+
+The filtered frozen install is each image's dependency-validation boundary. When invoking the
+application-owned build script, the builder disables pnpm's full-workspace pre-run status check so
+that pnpm does not replace the filtered closure with a complete workspace install.
 
 ## Deploy existing images
 
@@ -185,9 +190,11 @@ directory:
   excludes unrelated applications from its build context. Dashboard's runtime stage uses the
   pinned Caddy image and its application-owned Caddyfile.
 - Both Dockerfiles use the repository as their build context because their builder stages compile
-  workspace-owned packages. The Dockerfile location and build context express different
-  boundaries: image ownership belongs to the application, while source dependency resolution
-  belongs to the workspace.
+  workspace-owned packages. Root manifests, the lockfile, and dependency patches remain build inputs
+  because pnpm resolves each filtered application closure under the workspace dependency policy;
+  those inputs do not become application runtime contents. The Dockerfile location and build context
+  therefore express different boundaries: image ownership belongs to the application, while source
+  dependency resolution belongs to the workspace.
 
 The `x-container-runtime-policy` Compose fragment names the security, lifecycle, and logging policy
 shared by both containers. Each service declaration then describes only its own image reference,
