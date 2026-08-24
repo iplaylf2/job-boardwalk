@@ -7,7 +7,7 @@ javascript:
 node: {}
 pnpm: {}
 rust:
-  binstallVersion: "1.21.1"
+  binstallVersion: "1.22.0"
   bins:
     - "cargo-deny@0.20.2"
   syncToolchainConfig: false

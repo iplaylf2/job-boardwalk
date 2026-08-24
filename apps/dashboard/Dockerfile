@@ -6,6 +6,7 @@ FROM ghcr.io/pnpm/pnpm:latest AS build
 WORKDIR /workspace
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches/ patches/
 COPY apps/dashboard/package.json apps/dashboard/package.json
 COPY internal/presets/package.json internal/presets/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
@@ -25,7 +26,8 @@ COPY internal/presets/ internal/presets/
 COPY packages/contracts/ packages/contracts/
 COPY packages/platform-catalog/ packages/platform-catalog/
 
-RUN pnpm --filter @job-boardwalk/dashboard build
+# The filtered frozen install validates this closure; pnpm's full-workspace pre-run check does not.
+RUN pnpm --config.verify-deps-before-run=false --filter @job-boardwalk/dashboard build
 
 FROM docker.io/library/caddy:2.11.4-alpine
 

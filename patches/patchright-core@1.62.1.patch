@@ -1,0 +1,13 @@
+diff --git a/lib/coreBundle.js b/lib/coreBundle.js
+index 223361080ee47fe8e41b4e899db15b399d938f04..508384d43a6f1662e95bc41877d60acc4f0e0a8b 100644
+--- a/lib/coreBundle.js
++++ b/lib/coreBundle.js
+@@ -39085,7 +39085,7 @@ var init_crPage = __esm({
+         this.updateOffline();
+         this.updateExtraHTTPHeaders();
+         this.updateHttpCredentials();
+-        this._networkManager.setRequestInterception(true);
++        this.updateRequestInterception();
+         this.initScriptTag = import_crypto16.default.randomBytes(20).toString("hex");
+         this._mainFrameSession = new FrameSession(this, client, targetId, null);
+         this._sessions.set(targetId, this._mainFrameSession);

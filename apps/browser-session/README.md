@@ -270,15 +270,43 @@ The platform job-link boundary owns each supported job-detail path and its stabl
 capture. Job-card recognition, passive submission, and engagement synchronization consume that same
 path contract, so a display slug or another incidental trailing segment cannot become source
 identity.
+
 Cross-application navigation origins and destinations remain in the platform catalog; page-specific
 job-link shapes remain inside Browser Session.
 
-### Driver and launch boundary
+### Driver boundary
 
-Patchright replaces Playwright at the driver boundary because enabling the Runtime protocol domain
-made BOSS navigate itself to `about:blank` during live testing. Patchright keeps the familiar page
-API without enabling that domain. Browser Session also leaves console event collection disabled; do
-not add Playwright or raw `Runtime.enable`/`Console.enable` calls alongside it.
+Browser Session uses Patchright rather than Playwright because live testing showed BOSS navigating
+itself to `about:blank` when the Runtime protocol domain was enabled. Patchright provides the
+required page API without enabling that domain. Browser Session also leaves console event
+collection disabled; do not add Playwright or raw `Runtime.enable` or `Console.enable` calls
+alongside it.
+
+#### Demand-driven request interception
+
+Patchright avoids `Runtime.enable` for initialization scripts by registering a Playwright route
+that intercepts HTML responses. Patchright 1.62.1 also enables Chromium's Fetch interception for
+every page at construction, before any route exists. Browser Session does not register request
+routes or use `addInitScript`, `exposeFunction`, `exposeBinding`, tracing, or clock features. Eager
+interception therefore puts every request through a pause-and-continue exchange without serving a
+Browser Session requirement.
+
+The workspace patch restores the constructor's existing demand-driven
+`updateRequestInterception()` call. Registering a route still makes `needsRequestInterception()`
+enable Fetch interception, so the patch narrows when interception starts; it does not remove
+Patchright's initialization-script mechanism. In live A/B testing, eager interception allowed the
+BOSS root and city document responses to return but left the city document uncommitted.
+Demand-driven interception completed the same-tab root-to-city navigation. The fix is driver-wide,
+not a BOSS URL exception.
+
+The root `pnpm-workspace.yaml` applies the version-specific patch. Reassess it before Browser
+Session adopts a request-routing, initialization-script, binding-exposure, tracing, or clock API.
+Test both the new interceptor and visible BOSS root-to-city navigation before accepting such a
+change. Remove the patch when Patchright no longer enables Fetch interception without an active
+interceptor; after removal, perform a frozen install, build the Browser Session artifact, and
+repeat the navigation check.
+
+### Browser launch policy
 
 Browser Session explicitly enables Chromium's process sandbox for every launch. Patchright
 otherwise passes `--no-sandbox` by default; do not restore that default to work around host setup or
@@ -294,6 +322,8 @@ with another switch or host policy, and do not filter a Patchright default in is
 that identifies another switch still requires investigation. A change to driver defaults requires
 representative compatibility evidence for Patchright's installed Chromium and for Chrome, Edge,
 and Chromium launched through the supported channel and executable-path inputs.
+
+### Runtime dependency packaging
 
 Patchright remains an external runtime dependency so its generated modules and package-relative
 resources stay together. A Patchright upgrade must preserve that package boundary and pass the
