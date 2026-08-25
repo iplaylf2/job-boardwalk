@@ -41,6 +41,12 @@
   text-underline-offset: 3px;
 }
 
+.markdown [data-report-source-link-cue] {
+  margin-inline-start: 0.2em;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
 .markdown blockquote {
   border-left: 3px solid var(--brand);
   margin-left: 0;

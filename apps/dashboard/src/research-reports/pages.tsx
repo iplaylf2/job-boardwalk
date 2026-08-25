@@ -110,7 +110,7 @@ export function ResearchReportDetailPage(props: { reportId: number }): JSX.Eleme
     <AppShell
       active="reports"
       title="研究报告"
-      lede="研究报告记录阶段性判断；岗位与跟进记录仍应回到招聘平台核验。"
+      lede="报告呈现阶段性判断；后续决定应结合工作区记录与原始来源核验。"
     >
       <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取研究报告…</p>}>
         <Show when={report.data()}>{(result) => <ResearchReportDocument report={result()} />}</Show>
