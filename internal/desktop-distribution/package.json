@@ -1,6 +1,6 @@
 {
   "name": "@job-boardwalk/desktop-distribution",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "description": "Coordinates Job Boardwalk's directory-contained desktop distribution.",
   "bin": {
