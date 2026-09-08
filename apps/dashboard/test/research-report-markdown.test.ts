@@ -4,9 +4,9 @@ import { expect, test } from "vitest";
 
 import { renderResearchReportMarkdown } from "#/research-reports/markdown.js";
 
-test("renders report tables, HTTPS links, and Dashboard-local links", () => {
+test("renders report tables without inline presentation styles", () => {
   const html = renderResearchReportMarkdown(
-    "| 岗位 | 数量 | 判断 |\n| --- | ---: | :---: |\n| Node.js | 3 | 推荐 |\n\n[查看岗位](https://example.com/job)\n\n[岗位库](/jobs)\n\n[结论](#结论)",
+    "| 岗位 | 数量 | 判断 |\n| --- | ---: | :---: |\n| Node.js | 3 | 推荐 |",
   );
 
   expect(html).toContain("<table>");
@@ -14,9 +14,20 @@ test("renders report tables, HTTPS links, and Dashboard-local links", () => {
   expect(html).toContain('<th data-alignment="right">数量</th>');
   expect(html).toContain('<td data-alignment="center">推荐</td>');
   expect(html).not.toContain(' style="');
-  expect(html).toContain('<a href="https://example.com/job">查看岗位</a>');
+});
+
+test("opens HTTPS source links separately and keeps document links local", () => {
+  const html = renderResearchReportMarkdown(
+    "[查看岗位](https://example.com/job)\n\n[岗位库](/jobs)\n\n[结论](#结论)",
+  );
+
+  expect(html).toContain(
+    '<a href="https://example.com/job" target="_blank" rel="noreferrer" data-report-source-link="">查看岗位<span data-report-source-link-cue role="img" aria-label="在新标签页中打开">↗</span></a>',
+  );
   expect(html).toContain('<a href="/jobs">岗位库</a>');
   expect(html).toContain('<a href="#%E7%BB%93%E8%AE%BA">结论</a>');
+  expect(html).not.toContain('<a href="/jobs" target=');
+  expect(html).not.toContain('<a href="#%E7%BB%93%E8%AE%BA" target=');
 });
 
 test("does not activate raw HTML, unsafe links, or images", () => {

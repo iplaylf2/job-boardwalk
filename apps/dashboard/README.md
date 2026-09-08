@@ -59,9 +59,13 @@ page.
 
 ## Report rendering
 
-Dashboard treats raw HTML as text and does not load Markdown images. The renderer supports prose,
-headings, lists, links, tables, quotes, code, section anchors, local Dashboard links, and HTTPS
-source links. It is a document reader, not an agent UI or browser-control surface.
+Dashboard renders each report as a document. It supports headings, prose, lists, tables, block
+quotes, code, section anchors, Dashboard-local links, and HTTPS source links. Raw HTML remains text,
+and Markdown images are not rendered.
+
+Section anchors and Dashboard-local links stay in the current tab. HTTPS source links carry a `↗`
+marker and open in a new tab, so readers can consult a source without losing their place in the
+report. Report content cannot embed pages or expose browser or agent controls.
 
 ## Concurrency model
 

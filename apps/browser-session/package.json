@@ -24,7 +24,7 @@
     "@shajara/host": "catalog:",
     "arktype": "catalog:",
     "hono": "catalog:",
-    "patchright": "^1.62.1"
+    "patchright": "^1.62.3"
   },
   "devDependencies": {
     "@job-boardwalk/contracts": "workspace:*",

@@ -1,8 +1,8 @@
 diff --git a/lib/coreBundle.js b/lib/coreBundle.js
-index 223361080ee47fe8e41b4e899db15b399d938f04..508384d43a6f1662e95bc41877d60acc4f0e0a8b 100644
+index 7d38afcb713a4ca31526e9edff5ef044487260a9..5c6cbf4cc5fc68f5ba8d73bb51162cb9b8ada002 100644
 --- a/lib/coreBundle.js
 +++ b/lib/coreBundle.js
-@@ -39085,7 +39085,7 @@ var init_crPage = __esm({
+@@ -39151,7 +39151,7 @@ var init_crPage = __esm({
          this.updateOffline();
          this.updateExtraHTTPHeaders();
          this.updateHttpCredentials();

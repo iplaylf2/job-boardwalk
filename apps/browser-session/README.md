@@ -285,7 +285,7 @@ alongside it.
 #### Demand-driven request interception
 
 Patchright avoids `Runtime.enable` for initialization scripts by registering a Playwright route
-that intercepts HTML responses. Patchright 1.62.1 also enables Chromium's Fetch interception for
+that intercepts HTML responses. Patchright 1.62.3 also enables Chromium's Fetch interception for
 every page at construction, before any route exists. Browser Session does not register request
 routes or use `addInitScript`, `exposeFunction`, `exposeBinding`, tracing, or clock features. Eager
 interception therefore puts every request through a pause-and-continue exchange without serving a

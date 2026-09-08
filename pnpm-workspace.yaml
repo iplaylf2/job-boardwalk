@@ -3,7 +3,7 @@ packages:
   - packages/*
   - internal/*
 
-nodeVersion: 26.7.0
+nodeVersion: 26.8.1
 engineStrict: true
 injectWorkspacePackages: true
 
@@ -25,14 +25,14 @@ catalog:
   "@hono/node-server": ^2.1.1
   "@modelcontextprotocol/sdk": ^1.30.0
   "@shajara/host": ^0.11.0
-  "@types/node": ^26.2.0
+  "@types/node": ^26.5.0
   arktype: ^2.2.3
-  hono: ^4.13.4
-  oxlint: ^1.80.0
-  tsx: ^4.23.12
+  hono: ^4.13.7
+  oxlint: ^1.82.0
+  tsx: ^4.23.13
   typescript: ^7.0.2
   vite: ^8.2.2
-  vitest: ^4.1.11
+  vitest: ^5.0.0
 
 catalogMode: prefer
 cleanupUnusedCatalogs: true
@@ -48,4 +48,4 @@ minimumReleaseAge: 0
 # Browser Session owns the rationale and removal criteria:
 # apps/browser-session/README.md#demand-driven-request-interception
 patchedDependencies:
-  patchright-core@1.62.1: patches/patchright-core@1.62.1.patch
+  patchright-core@1.62.3: patches/patchright-core@1.62.3.patch

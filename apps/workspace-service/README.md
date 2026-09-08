@@ -303,9 +303,10 @@ and an optional expiration time. List and detail reads omit expired reports. Cre
 and deleting a report records a workspace change with its user, agent, or system attribution.
 
 Markdown is stored as authored. Workspace Service validates the report contract but does not turn
-the document into HTML; each presentation boundary owns its rendering policy. Report authors should
-keep supporting evidence and uncertainty beside their conclusions and link back to durable
-workspace facts or original sources when available.
+the document into HTML; each presentation boundary owns its rendering policy. See
+[Research reports](../../docs/product-design.md#research-reports) for the cross-application
+boundary. Report authors should keep supporting evidence and uncertainty beside their conclusions
+and link back to durable workspace facts or original sources when available.
 
 ## Persistence
 

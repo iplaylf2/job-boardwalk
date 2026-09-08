@@ -333,11 +333,15 @@ an optional expiration time. A report is a reader-facing interpretation of works
 a replacement for normalized job facts or the underlying platform links. Users, agents, and system
 workflows use the same report command and attribution model.
 
-Dashboard renders a deliberately bounded Markdown surface: prose, lists, links, tables, quotes, and
-code remain presentation content. It treats raw HTML as text, does not render Markdown images, and
-does not provide embedded pages, browser controls, or executable agent UI. An expired report is no
-longer returned to readers. A completed report may remain available without requiring the
-conversation or producer that created it.
+Dashboard owns the browser presentation of that Markdown. Its deliberately bounded document
+surface supports headings, prose, lists, tables, block quotes, code, section anchors,
+Dashboard-local links, and HTTPS source links. Raw HTML remains text, Markdown images are not
+rendered, and report content cannot embed pages or expose browser or agent controls.
+
+Report navigation preserves reading context. Section anchors and Dashboard-local links stay in the
+current tab; marked HTTPS source links open in a new tab. An expired report is no longer returned to
+readers. A completed report may remain available without requiring the conversation or producer
+that created it.
 
 ## Dashboard surface
 

@@ -29,7 +29,7 @@ COPY packages/platform-catalog/ packages/platform-catalog/
 # The filtered frozen install validates this closure; pnpm's full-workspace pre-run check does not.
 RUN pnpm --config.verify-deps-before-run=false --filter @job-boardwalk/dashboard build
 
-FROM docker.io/library/caddy:2.11.4-alpine
+FROM docker.io/library/caddy:2-alpine
 
 ENV XDG_CONFIG_HOME=/tmp/caddy-config \
     XDG_DATA_HOME=/tmp/caddy-data \
