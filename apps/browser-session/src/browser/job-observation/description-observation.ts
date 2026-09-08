@@ -8,8 +8,8 @@ import { requireJobDetailExtractionConfigs } from "#/browser/recruiting-platform
 import type {
   JobCardExtractionConfig,
   PageAccessFacts,
-} from "#/browser/recruiting-platform-adapters.js";
-import type { JobDescriptionExtractionConfig } from "./description-extraction-config.js";
+  JobDescriptionExtractionConfig,
+} from "#/browser/platforms/types.js";
 
 const accessTextCharacters = 5000;
 const maximumAccessElements = 300;
@@ -121,8 +121,17 @@ export function captureJobDescriptionMetadata(input: {
   unboundedDescription ||= helpers.textWithin(input.descriptionConfig.descriptionTextRanges);
   const normalizedDescription = helpers.normalized(unboundedDescription);
   const description = normalizedDescription.slice(firstIndex, input.maximumDescriptionCharacters);
-  const pageText = helpers.bounded(bodyText, Number.MAX_SAFE_INTEGER);
-  const details = input.cardConfig.detailsSelectors.flatMap((selector) =>
+  const factText = input.descriptionConfig.factTextSelectors
+    ? input.descriptionConfig.factTextSelectors
+        .flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)])
+        // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Match facts only in rendered posting text.
+        .map((element) => element.innerText || "")
+        .join("\n")
+    : bodyText;
+  const pageText = helpers.bounded(factText, Number.MAX_SAFE_INTEGER);
+  const details = (
+    input.descriptionConfig.detailsSelectors ?? input.cardConfig.detailsSelectors
+  ).flatMap((selector) =>
     [...document.querySelectorAll(selector)]
       .map((element) => helpers.bounded(element.textContent ?? "", input.maximumFieldCharacters))
       .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index),
@@ -137,12 +146,17 @@ export function captureJobDescriptionMetadata(input: {
     details,
     educationRequirement: helpers.firstPattern(pageText, input.cardConfig.educationTextPattern),
     experienceRequirement: helpers.firstPattern(pageText, input.cardConfig.experienceTextPattern),
-    location: helpers.firstText(input.cardConfig.locationSelectors),
+    location: helpers.firstText(
+      input.descriptionConfig.locationSelectors ?? input.cardConfig.locationSelectors,
+    ),
     salaryText:
-      helpers.firstText(input.cardConfig.salarySelectors) ??
-      helpers.firstPattern(pageText, input.cardConfig.salaryTextPattern),
+      helpers.firstText(
+        input.descriptionConfig.salarySelectors ?? input.cardConfig.salarySelectors,
+      ) ?? helpers.firstPattern(pageText, input.cardConfig.salaryTextPattern),
     title:
-      helpers.firstText(input.cardConfig.titleSelectors) ??
+      helpers.firstText(
+        input.descriptionConfig.titleSelectors ?? input.cardConfig.titleSelectors,
+      ) ??
       helpers.firstText(["h1"]) ??
       helpers.lineBefore(input.descriptionConfig.titleLineBeforeMarker) ??
       "",

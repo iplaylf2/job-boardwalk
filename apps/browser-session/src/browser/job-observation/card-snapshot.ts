@@ -4,10 +4,7 @@ import type { RiteCoroutine } from "@shajara/host";
 import type { JobCardEvidence, JobCardSnapshot } from "@job-boardwalk/contracts";
 
 import { requireJobCardExtractionConfig } from "#/browser/recruiting-platform-adapters.js";
-import type {
-  JobCardExtractionConfig,
-  PageAccessFacts,
-} from "#/browser/recruiting-platform-adapters.js";
+import type { JobCardExtractionConfig, PageAccessFacts } from "#/browser/platforms/types.js";
 
 const accessTextCharacters = 5000;
 const firstIndex = 0;
@@ -116,35 +113,43 @@ export function captureJobCardMetadata(input: {
   const seenJobIds = new Set<string>();
   const cards: JobCardEvidence[] = [];
   let matchingLinkCount = 0;
-  for (const link of document.querySelectorAll<HTMLAnchorElement>("a[href]")) {
-    // eslint-disable-next-line init-declarations
-    let href: URL;
-    try {
-      href = new URL(link.href, globalThis.location.href);
-    } catch {
+  const candidates = document.querySelectorAll<HTMLElement>(input.config.cardSelector ?? "a[href]");
+  for (const candidate of candidates) {
+    const links = input.config.cardSelector
+      ? [...candidate.querySelectorAll<HTMLAnchorElement>("a[href]")]
+      : [candidate as HTMLAnchorElement];
+    let href: URL | null = null;
+    for (const link of links) {
+      try {
+        const url = new URL(link.href, globalThis.location.href);
+        const allowedOrigin = input.config.jobLinkOrigins
+          ? input.config.jobLinkOrigins.includes(url.origin)
+          : url.origin === globalThis.location.origin;
+        if (allowedOrigin && !url.username && !url.password && linkPathPattern.test(url.pathname)) {
+          href = url;
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+    if (!href && !input.config.cardSelector) {
       continue;
     }
-    const jobLinkMatch = linkPathPattern.exec(href.pathname);
-    const stableJobId = jobLinkMatch?.groups?.["externalJobId"] ?? href.pathname;
-    if (
-      href.origin !== globalThis.location.origin ||
-      !jobLinkMatch ||
-      seenJobIds.has(stableJobId)
-    ) {
-      continue;
-    }
-    const container = helpers.closestContainer(link);
+    const container = input.config.cardSelector
+      ? candidate
+      : helpers.closestContainer(candidate as HTMLAnchorElement);
     if (!container) {
       continue;
     }
     // InnerText preserves the rendered block boundaries that separate Yupao card fields.
     // eslint-disable-next-line unicorn/prefer-dom-node-text-content
-    const renderedLinkText = (link as HTMLElement).innerText || link.textContent || "";
+    const renderedLinkText = candidate.innerText || candidate.textContent || "";
     const text = helpers.normalized(container.textContent ?? "", input.maximumCardTextCharacters);
     const selectorTitle = helpers.firstText(container, input.config.titleSelectors);
     const fallbackTitle = input.config.titleFromFirstLine
       ? helpers.firstLine(renderedLinkText)
-      : helpers.normalized(link.textContent ?? "", input.maximumFieldCharacters);
+      : helpers.normalized(candidate.textContent ?? "", input.maximumFieldCharacters);
     const titleBoundary = helpers.firstPattern(fallbackTitle, input.config.titleBoundaryPattern);
     const title =
       selectorTitle ??
@@ -154,12 +159,12 @@ export function captureJobCardMetadata(input: {
           : fallbackTitle,
         input.maximumFieldCharacters,
       );
-    if (!title || !text || excludedTitlePattern?.test(title)) {
-      continue;
-    }
-    seenJobIds.add(stableJobId);
-    matchingLinkCount += increment;
-    if (cards.length === input.maximumCards) {
+    if (
+      (input.config.cardSelector && !selectorTitle) ||
+      !title ||
+      !text ||
+      excludedTitlePattern?.test(title)
+    ) {
       continue;
     }
     const details = input.config.detailsSelectors.flatMap((selector) =>
@@ -178,6 +183,17 @@ export function captureJobCardMetadata(input: {
       (company && companyOffset >= company.length
         ? helpers.normalized(text.slice(companyOffset), input.maximumFieldCharacters) || null
         : null);
+    const stableJobId = href
+      ? (linkPathPattern.exec(href.pathname)?.groups?.["externalJobId"] ?? href.pathname)
+      : JSON.stringify([title, company, location]);
+    if (seenJobIds.has(stableJobId)) {
+      continue;
+    }
+    seenJobIds.add(stableJobId);
+    matchingLinkCount += increment;
+    if (cards.length === input.maximumCards) {
+      continue;
+    }
     const educationRequirement = helpers.firstPattern(text, input.config.educationTextPattern);
     const experienceRequirement = helpers.firstPattern(text, input.config.experienceTextPattern);
     const salary =
@@ -190,7 +206,7 @@ export function captureJobCardMetadata(input: {
       ),
       ...(educationRequirement ? { educationRequirement } : {}),
       ...(experienceRequirement ? { experienceRequirement } : {}),
-      href: href.href,
+      ...(href ? { href: href.href } : {}),
       ...(location ? { location } : {}),
       ...(salary ? { salary } : {}),
       text,

@@ -8,29 +8,15 @@ import type {
 } from "@job-boardwalk/contracts";
 
 import { extractExternalJobId } from "#/browser/platform-job-links.js";
-import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 
 import { jobEngagementPlatformAdapters, matchJobEngagementPage } from "./platform-adapters.js";
-import type { JobEngagementPageMetadata } from "./platform-adapters.js";
+import type { JobEngagementPageMetadata } from "./types.js";
 
 const emptyCollectionLength = 0;
 
 export interface CapturedJobEngagementSnapshot extends JobEngagementSnapshot {
   readonly completionTotal: number | null;
-}
-
-export function parseJobEngagementTotal(
-  text: string,
-  engagement: JobEngagementKind,
-): number | null {
-  const patterns = {
-    applied: /累计投递简历数量\s*(?<total>\d+)/u,
-    contacted: /累计沟通职位数量\s*(?<total>\d+)/u,
-    interested: /感兴趣\s*(?<total>\d+)/u,
-    interviewed: /面试\s*(?<total>\d+)/u,
-  } as const;
-  const match = patterns[engagement].exec(text);
-  return match?.groups?.["total"] ? Number(match.groups["total"]) : null;
 }
 
 function jobsWithExternalIds(
@@ -50,8 +36,8 @@ export function jobEngagementSnapshotFromPageMetadata(
   platformId: PlatformId,
 ): CapturedJobEngagementSnapshot {
   const jobs = jobsWithExternalIds(platformId, metadata.jobs);
-  const visibleTotal = parseJobEngagementTotal(metadata.text, engagement);
   const adapter = jobEngagementPlatformAdapters[platformId];
+  const visibleTotal = adapter.readTotal(metadata.text, engagement);
   const isInitialTarget = adapter.matchesTarget(adapter.initialTarget(engagement), metadata.url);
   if (jobs.length === emptyCollectionLength && isInitialTarget) {
     if (visibleTotal === null) {

@@ -105,7 +105,7 @@ test("always exposes the project-owned browser tools", async () => {
     | undefined;
   expect(new Set(actionSchema?.enum)).toEqual(new Set(["list", "ensure", "activate"]));
   expect(tabsTool?.inputSchema.properties?.["platformId"]).toMatchObject({
-    enum: ["boss", "yupao"],
+    enum: ["51job", "boss", "yupao"],
   });
   const snapshotTool = listedTools.tools.find(({ name }) => name === "browser_snapshot");
   expect(snapshotTool?.annotations).toMatchObject({

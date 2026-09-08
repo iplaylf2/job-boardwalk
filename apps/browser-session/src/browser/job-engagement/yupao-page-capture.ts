@@ -1,22 +1,12 @@
 import type { JobEngagementEvidence } from "@job-boardwalk/contracts";
 
-export interface YupaoJobEngagementMetadata {
-  cards: JobEngagementEvidence[];
-  text: string;
-  truncated: boolean;
-  url: string;
-}
-
-interface JobEngagementPageCaptureLimits {
-  maximumCards: number;
-  maximumSummaryCharacters: number;
-}
+import type { JobEngagementPageMetadata, JobEngagementPageCaptureLimits } from "./types.js";
 
 // This callback is self-contained because Patchright serializes it into the page realm.
 // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- One bounded pass extracts non-link Yupao engagement cards.
 export function captureYupaoJobEngagementMetadata(
   input: JobEngagementPageCaptureLimits,
-): YupaoJobEngagementMetadata {
+): JobEngagementPageMetadata {
   const { document } = globalThis;
   const salaryPattern =
     /^\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元\/月$|^\d+(?:-\d+)?元\/(?:月|天|小时)$|^(?:薪资面议|面议)$/u;
@@ -81,7 +71,7 @@ export function captureYupaoJobEngagementMetadata(
           helpers.matchingSalaryCount(helpers.lines(other)) === increment,
       ),
   );
-  const cards: JobEngagementEvidence[] = [];
+  const jobs: JobEngagementEvidence[] = [];
   for (const candidate of uniqueCandidates.slice(startIndex, input.maximumCards)) {
     const lines = helpers.lines(candidate);
     const salaryIndex = lines.findIndex((line) => salaryPattern.test(line));
@@ -112,7 +102,7 @@ export function captureYupaoJobEngagementMetadata(
           line !== company &&
           !/^\d+-\d+人$|^\d+人以上$/u.test(line),
       );
-    cards.push({
+    jobs.push({
       ...(company ? { company } : {}),
       details: [...new Set(details)],
       ...(educationRequirement ? { educationRequirement } : {}),
@@ -127,7 +117,7 @@ export function captureYupaoJobEngagementMetadata(
   // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Rendered lines expose the platform count.
   const text = document.body?.innerText ?? "";
   return {
-    cards,
+    jobs,
     text,
     truncated: uniqueCandidates.length > input.maximumCards,
     url: globalThis.location.href,

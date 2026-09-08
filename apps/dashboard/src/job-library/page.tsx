@@ -1,4 +1,5 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
+import { platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
 import type { JSX } from "@solidjs/web";
 import { JobDescriptionStatusFilter } from "@job-boardwalk/contracts";
 import type { JobPosting } from "@job-boardwalk/contracts";
@@ -12,6 +13,7 @@ import { JobDescriptionDialog } from "./description-dialog.js";
 import { jobLibraryViewLabel, jobLibraryViews, readJobLibraryView } from "./engagement.js";
 import type { JobLibraryView } from "./engagement.js";
 import { JobResults } from "./results.js";
+// eslint-disable-next-line import/max-dependencies -- The page reads platform options directly from their shared catalog alongside its existing view dependencies.
 import styles from "./page.module.css";
 
 const allPlatforms = "all";
@@ -74,8 +76,11 @@ function JobLibraryFilters(props: {
           onChange={(event) => props.onPlatformChanged(event.currentTarget.value)}
         >
           <option value={allPlatforms}>全部平台</option>
-          <option value="boss">BOSS直聘</option>
-          <option value="yupao">鱼泡直聘</option>
+          <For each={platformIds}>
+            {(platformId) => (
+              <option value={platformId}>{platformCatalog[platformId].label}</option>
+            )}
+          </For>
         </select>
       </label>
       <DescriptionStatusSelect

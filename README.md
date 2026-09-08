@@ -43,16 +43,15 @@ boundaries.
 
 Available now:
 
-- Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
-  with platform-specific navigation and access-assessment rules behind adapters. It can also take a
-  bounded, structured snapshot of job cards or the main description on an already-open detail page.
-  Explicit description snapshots return only after Workspace Service preserves their observations;
-  passive collection submits evidence from eligible tabs that are already open. Neither workflow
-  opens or navigates research pages. The selected job-search intent guides explicit agent
-  navigation, not background browsing. Platform lists of interested, contacted, applied, and
-  interviewed jobs are synchronized for one platform and category at a time, only within a
-  user-requested agent task; supported continuations require another explicit call and remain
-  bounded to 60 distinct jobs.
+- Browser Session supports BOSS直聘, 鱼泡直聘, and 前程无忧51job through shared browser and
+  collection workflows. It reads job cards and main descriptions from eligible open pages;
+  explicit description reads and passive collection preserve observations in Workspace Service.
+  Research navigation remains an explicit agent action guided by the selected job-search intent.
+  Within a user-requested task, the agent can also synchronize a platform's supported engagement
+  categories, one platform and category at a time. See
+  [evidence collection](apps/browser-session/README.md#job-evidence-reads-and-passive-collection)
+  and [synchronization support](apps/browser-session/README.md#supported-categories-and-continuation)
+  for capture semantics, platform capabilities, and scan limits.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
   sources, source-specific descriptions, and Markdown research reports. It merges confident

@@ -141,7 +141,8 @@ Every record retains when its assessment was first observed and when that same a
 recently observed. Browser Session status reconciliation extends the latest transition when an
 assessment repeats; an agent-submitted observation remains a separate record. Current conclusions
 are ordered by the latest observation time, so delayed historical evidence cannot supersede newer
-evidence. `platformId` accepts the catalog identifiers `boss` and `yupao`. Authentication evidence
+evidence. `platformId` accepts identifiers from the [platform catalog](../../packages/platform-catalog/src/index.ts).
+Authentication evidence
 distinguishes how the conclusion was established:
 
 - `protected-resource` records `authenticated` from a successful navigation known to require
@@ -221,7 +222,8 @@ left unapplied.
 
 Within one platform, Workspace Service identifies a source by its external job ID when available,
 then by the pathname of its job URL, and finally by normalized company, title, and location when no
-detail link is available. Browser Session supplies an external ID only when a recognized
+detail link is available. Card submissions may omit `jobUrl` and retain their discovery page as
+provenance. Browser Session supplies an external ID only when a recognized
 platform-specific job-detail path exposes one. When that path contains separate identifier and
 display-slug segments, the identifier becomes the preferred identity, so changing the slug does not
 split the source. Workspace Service merges a new cross-platform source only when normalized company,
@@ -276,7 +278,9 @@ evidence lifecycle.
 Salary normalization preserves the platform's original `salaryText` and adds a CNY amount in K
 with its source period. Monthly salary carries a month count only when the source explicitly says
 something such as `13薪`. No annual package is calculated from monthly, daily, or hourly rates;
-annual values are shown only when the source itself uses an annual salary period.
+annual values are shown only when the source itself uses an annual salary period. 51job-style
+`千` and `万` amounts support mixed units, such as `8千-1.2万·13薪`; amounts without a period
+use the platform's monthly salary notation, while `/年` remains annual.
 
 #### Job engagement synchronization
 

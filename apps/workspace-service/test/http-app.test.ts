@@ -7,6 +7,7 @@ import {
   JobPostingPage,
   ResearchReport,
   ResearchReportList,
+  SaveJobObservationResult,
   WorkspaceOverview,
 } from "@job-boardwalk/contracts";
 import { createScope } from "@shajara/host";
@@ -494,11 +495,12 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     });
     expect(invalidSourceResponse.status).toBe(badRequestStatus);
 
-    const missingJobUrlResponse = await httpApp.request("/api/job-card-observations", {
+    const emptyJobUrlResponse = await httpApp.request("/api/job-card-observations", {
       body: JSON.stringify({
         details: [],
         discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
         initiatedBy: "system",
+        jobUrl: "",
         observedAt: "2026-07-17T10:00:00.000Z",
         platformId: "boss",
         reason: "test",
@@ -508,7 +510,7 @@ test("stores and reads collected page facts through the public HTTP boundary", a
       headers: { "content-type": "application/json" },
       method: "POST",
     });
-    expect(missingJobUrlResponse.status).toBe(badRequestStatus);
+    expect(emptyJobUrlResponse.status).toBe(badRequestStatus);
 
     const libraryResponse = await httpApp.request("/api/jobs?page=1&pageSize=1&platform=boss");
     const library = JobPostingPage.assert(await libraryResponse.json());
@@ -781,7 +783,7 @@ test("advertises job-library filters by public tool name", async () => {
             },
             page: { minimum: 1, type: "integer" },
             pageSize: { maximum: 48, minimum: 1, type: "integer" },
-            platformId: { enum: ["boss", "yupao"] },
+            platformId: { enum: ["51job", "boss", "yupao"] },
             query: { type: "string" },
           },
         },
@@ -983,6 +985,101 @@ test("rejects an unknown MCP resource without failing the service scope", async 
     });
     const followingOverviewResponse = await httpApp.request("/api/workspace/overview");
     expect(followingOverviewResponse.status).toBe(successfulStatus);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("retains 51job linkless cards, binds descriptions, and filters their sources", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-51job-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+  const observation = {
+    company: "合成雇主甲",
+    details: ["合成业务"],
+    discoveryUrl: "https://we.51job.com/pc/search?keyword=synthetic",
+    initiatedBy: "system",
+    location: "合成市",
+    observedAt: "2026-08-01T00:00:00.000Z",
+    platformId: "51job",
+    reason: "合成测试",
+    salaryText: "8千-1.2万·13薪",
+    summary: "维护合成业务系统。",
+    title: "合成系统工程师",
+  };
+  try {
+    const intentResponse = await httpApp.request("/api/search-intents", {
+      body: JSON.stringify({
+        city: "合成市",
+        initiatedBy: "user",
+        name: "合成求职方向",
+        position: "合成系统工程师",
+        reason: "合成测试",
+        recommendationPages: [
+          { label: "合成搜索", platformId: "51job", url: observation.discoveryUrl },
+        ],
+        selected: true,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(intentResponse.status).toBe(createdStatus);
+    const overviewResponse = await httpApp.request("/api/workspace/overview");
+    expect(await overviewResponse.json()).toMatchObject({
+      platformAccessSummaries: expect.arrayContaining([
+        expect.objectContaining({ label: "前程无忧51job", platformId: "51job" }),
+      ]),
+    });
+
+    const saved = await httpApp.request("/api/job-card-observations", {
+      body: JSON.stringify(observation),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(saved.status).toBe(createdStatus);
+    const result = SaveJobObservationResult.assert(await saved.json());
+    const source = result.job.sources[firstCollectionIndex];
+    expect(source).toMatchObject({
+      descriptionCaptureStatus: "identity-unresolved",
+      platformId: "51job",
+    });
+    expect(source).not.toHaveProperty("jobUrl");
+    const rejected = await httpApp.request("/api/job-card-observations", {
+      body: JSON.stringify({ ...observation, jobUrl: "https://evil.invalid/role" }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(rejected.status).toBe(badRequestStatus);
+    const description = await httpApp.request("/api/job-description-observations", {
+      body: JSON.stringify({
+        company: observation.company,
+        description: {
+          capturedAt: "2026-08-01T01:00:00.000Z",
+          text: "维护合成业务系统。",
+          truncated: false,
+        },
+        details: observation.details,
+        externalJobId: "900000001",
+        initiatedBy: "agent",
+        jobUrl: "https://jobs.51job.com/synthetic-city/900000001.html",
+        location: observation.location,
+        observedAt: "2026-08-01T01:00:00.000Z",
+        platformId: "51job",
+        reason: "合成详情绑定测试",
+        sourceId: source?.id,
+        title: observation.title,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(description.status).toBe(createdStatus);
+    const pageResponse = await httpApp.request(
+      "/api/jobs?platform=51job&descriptionStatus=captured",
+    );
+    const page = JobPostingPage.assert(await pageResponse.json());
+    expect(page.jobs).toMatchObject([{ sources: [{ id: source?.id, platformId: "51job" }] }]);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

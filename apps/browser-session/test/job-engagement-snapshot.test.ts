@@ -1,3 +1,4 @@
+import { parseJobEngagementTotal } from "#/browser/job-engagement/page-totals.js";
 import type { Page } from "patchright";
 import { runInNewContext } from "node:vm";
 import { createScope } from "@shajara/host";
@@ -6,7 +7,6 @@ import { expect, test } from "vitest";
 import {
   captureJobEngagementSnapshot,
   jobEngagementSnapshotFromPageMetadata,
-  parseJobEngagementTotal,
 } from "#/browser/job-engagement/snapshot.js";
 import { maximumJobsPerEngagementScan } from "#/browser/job-engagement/scan-limit.js";
 import { captureYupaoJobEngagementMetadata } from "#/browser/job-engagement/yupao-page-capture.js";
@@ -33,10 +33,10 @@ test("keeps the serialized Yupao extractor self-contained", () => {
         href: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
       },
     },
-  ) as { cards: unknown[]; text: string; url: string };
+  ) as { jobs: unknown[]; text: string; url: string };
 
   expect(result).toEqual({
-    cards: [],
+    jobs: [],
     text: "感兴趣0",
     truncated: false,
     url: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
@@ -138,7 +138,7 @@ test("reports Yupao page access from a stable interest snapshot", async () => {
   const page = {
     evaluate: () =>
       Promise.resolve({
-        cards: [],
+        jobs: [],
         text: "首页\n消息\n简历\n鱼泡用户\n推荐\n感兴趣0",
         url,
       }),

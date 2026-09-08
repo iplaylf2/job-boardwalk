@@ -10,7 +10,7 @@ export const JobCardEvidence = contract({
   details: trimmedNonEmptyString.array(),
   "educationRequirement?": trimmedNonEmptyString,
   "experienceRequirement?": trimmedNonEmptyString,
-  href: trimmedNonEmptyString,
+  "href?": trimmedNonEmptyString,
   "location?": trimmedNonEmptyString,
   "salary?": trimmedNonEmptyString,
   text: trimmedNonEmptyString,

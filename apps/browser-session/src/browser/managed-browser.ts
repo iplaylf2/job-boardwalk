@@ -16,7 +16,7 @@ import { PassiveJobObservationCollector } from "./job-observation/passive-collec
 import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { launchPersistentContext } from "./persistent-context-launch.js";
 import type { BrowserChannel } from "./persistent-context-launch.js";
-import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
 const initialFailureCount = 0;

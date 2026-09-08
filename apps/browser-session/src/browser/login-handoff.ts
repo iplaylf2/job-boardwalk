@@ -3,7 +3,7 @@ import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { CanceledError, ScopeError, sleep } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 
-import type { PageAccessFacts, RecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
+import type { PageAccessFacts, RecruitingPlatformAdapter } from "#/browser/platforms/types.js";
 import { capturePageSnapshot } from "./page-snapshot.js";
 
 const firstObservation = 0;

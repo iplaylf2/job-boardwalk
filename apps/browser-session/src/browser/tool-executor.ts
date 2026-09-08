@@ -19,7 +19,7 @@ import {
   findRecruitingPlatformAdapter,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
-import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
 import {
   capturePageSnapshot,

@@ -40,11 +40,7 @@ export const SaveJobSearchIntentCommand = WorkspaceChangeAttribution.merge({
 });
 export type SaveJobSearchIntentCommand = typeof SaveJobSearchIntentCommand.infer;
 
-export const SaveJobCardObservationCommand = JobCardObservation.merge(
-  WorkspaceChangeAttribution,
-).merge({
-  jobUrl: trimmedNonEmptyString,
-});
+export const SaveJobCardObservationCommand = JobCardObservation.merge(WorkspaceChangeAttribution);
 export type SaveJobCardObservationCommand = typeof SaveJobCardObservationCommand.infer;
 
 export const SaveJobDescriptionObservationCommand = JobDescriptionObservation.merge(

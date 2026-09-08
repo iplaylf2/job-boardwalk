@@ -11,10 +11,14 @@ import {
   matchJobEngagementPage,
 } from "#/browser/job-engagement/platform-adapters.js";
 
-test("every platform adapter owns valid targets for every engagement category", () => {
+test("each supported engagement adapter owns valid category targets", () => {
   for (const platformId of platformIds) {
     const adapter = jobEngagementPlatformAdapters[platformId];
     for (const engagement of platformJobEngagementKinds) {
+      if (!platformCatalog[platformId].web.jobEngagement.destinations[engagement]) {
+        expect(() => adapter.initialTarget(engagement)).toThrow(/不支持/u);
+        continue;
+      }
       const target = adapter.initialTarget(engagement);
 
       expect(adapter.platformId).toBe(platformId);
@@ -46,9 +50,9 @@ test("BOSS engagement targets preserve each live category's own filter contract"
 test("platform continuation capability follows catalog pagination metadata", () => {
   for (const platformId of platformIds) {
     const adapter = jobEngagementPlatformAdapters[platformId];
-    const target = adapter.initialTarget("contacted");
+    const target = adapter.initialTarget("applied");
     const continuation = adapter.nextTarget(target);
-    const { pagination } = platformCatalog[platformId].web.jobEngagement;
+    const pagination = platformCatalog[platformId].web.jobEngagement?.pagination;
 
     if (pagination) {
       if (!continuation) {

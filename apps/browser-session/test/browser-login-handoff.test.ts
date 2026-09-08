@@ -7,7 +7,7 @@ import {
   derivePageAccessObservation,
   PlatformAccessObserver,
 } from "#/browser/platform-access-observer.js";
-import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import {
   syntheticBrowserContext,
   syntheticBrowserContextWithNewPage,

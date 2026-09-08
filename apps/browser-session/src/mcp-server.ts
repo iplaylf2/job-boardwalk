@@ -96,7 +96,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description:
-      "仅在用户发起的岗位跟进同步任务中调用。每次调用打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。若平台支持继续读取且返回 complete=false，请先检查可见页面，再以同一平台和类别调用；当前扫描最多累计 60 个不同岗位。complete=false 表示证据不完整，不得视为平台完整历史。complete=true 的感兴趣快照可能移除平台列表中已不存在的本地关系。",
+      "仅在用户发起的岗位跟进同步任务中调用。BOSS直聘、鱼泡直聘支持四类同步；51job 支持收藏、投递和面试邀请，不支持已沟通。51job 每次只读取当前分类页已加载的链接岗位，不提供翻页续读，面试邀请有岗位时返回部分证据。每次调用打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。若平台支持继续读取且返回 complete=false，请先检查可见页面，再以同一平台和类别调用；当前扫描最多累计 60 个不同岗位。complete=false 表示证据不完整，不得视为平台完整历史。complete=true 的感兴趣快照可能移除平台列表中已不存在的本地关系。",
     name: "browser_sync_job_engagement",
   }),
   defineBrowserTool({

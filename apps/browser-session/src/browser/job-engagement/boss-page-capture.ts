@@ -1,22 +1,16 @@
 import type { JobEngagementEvidence } from "@job-boardwalk/contracts";
 
-export interface BossJobEngagementMetadata {
-  jobs: JobEngagementEvidence[];
-  text: string;
-  truncated: boolean;
-  url: string;
-}
+import type { JobEngagementPageMetadata, JobEngagementPageCaptureLimits } from "./types.js";
 
-interface JobEngagementPageCaptureLimits {
-  maximumCards: number;
-  maximumSummaryCharacters: number;
+interface BossJobEngagementCaptureInput extends JobEngagementPageCaptureLimits {
+  jobLinkPathPattern: string;
 }
 
 // This callback is self-contained because Patchright serializes it into the page realm.
 // eslint-disable-next-line complexity, max-lines-per-function, max-statements -- One bounded pass owns BOSS personal-center engagement extraction.
 export function captureBossJobEngagementMetadata(
-  input: JobEngagementPageCaptureLimits,
-): BossJobEngagementMetadata {
+  input: BossJobEngagementCaptureInput,
+): JobEngagementPageMetadata {
   const { document } = globalThis;
   const maximumAncestorDepth = 10;
   const firstIndex = 0;
@@ -24,7 +18,7 @@ export function captureBossJobEngagementMetadata(
   const salaryPattern = /\d+(?:-\d+)?K(?:·\d+薪)?|\d+(?:-\d+)?元\/(?:天|小时)|面议/u;
   const experiencePattern = /经验不限|在校\/应届|1年以内|1-3年|3-5年|5-10年|10年以上/u;
   const educationPattern = /学历不限|初中及以下|中专(?:\/中技)?|高中|大专|本科|硕士|博士/u;
-  const jobPathPattern = /^\/job_detail\/(?<externalJobId>[^/]+)\.html$/u;
+  const jobPathPattern = new RegExp(input.jobLinkPathPattern, "u");
   const helpers = {
     normalized(value: string): string {
       return value.replaceAll(/\s+/gu, " ").trim();

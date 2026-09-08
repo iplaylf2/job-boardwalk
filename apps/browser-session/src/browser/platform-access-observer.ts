@@ -4,7 +4,7 @@ import { completer } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
 
-import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
 
 function collectRedirectSourceUrls(request: Request): string[] {

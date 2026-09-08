@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- Supported and unsupported synchronization behavior stays in the collector boundary suite.
 import type { BrowserContext, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope, run } from "@shajara/host";
@@ -285,3 +286,29 @@ test("continues an explicitly requested paginated scan before another category",
 
   expect(snapshots.at(-onePage)).toEqual({ complete: true, engagement: "applied" });
 });
+
+test.each(["contacted"] as const)(
+  "rejects unsupported 51job %s synchronization before opening a page or writing",
+  async (engagement) => {
+    const context = {
+      newPage: () => expect.unreachable("不支持的同步不应打开页面"),
+      pages: () => [],
+    } as unknown as BrowserContext;
+    const writer = {
+      *write() {
+        yield* [];
+        expect.unreachable("不支持的同步不应写入或清除岗位关系");
+      },
+    } satisfies JobEngagementWriter;
+    const collector = jobEngagementCollector(context, writer, () => initialRecoveryRevision);
+    const message = await run(function* synchronizeUnsupportedPlatform() {
+      try {
+        yield* collector.synchronize("51job", engagement);
+        return "";
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+    });
+    expect(message).toMatch(/不支持/u);
+  },
+);

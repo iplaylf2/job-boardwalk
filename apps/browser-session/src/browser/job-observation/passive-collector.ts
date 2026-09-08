@@ -15,7 +15,7 @@ import {
   isJobCardCollectionPage,
   isJobDetailPage,
 } from "#/browser/recruiting-platform-adapters.js";
-import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { captureJobCardSnapshot } from "./card-snapshot.js";
 import { captureJobDescriptionObservation } from "./description-observation.js";
 
@@ -34,7 +34,7 @@ interface PassiveJobObservationCollectionCoordination {
 
 export function observationsFromJobCardSnapshot(snapshot: JobCardSnapshot): JobCardObservation[] {
   return snapshot.cards.map((card) => {
-    const externalJobId = extractExternalJobId(snapshot.platformId, card.href);
+    const externalJobId = card.href ? extractExternalJobId(snapshot.platformId, card.href) : null;
     return {
       observedAt: snapshot.capturedAt,
       ...(card.company ? { company: card.company } : {}),
@@ -43,7 +43,7 @@ export function observationsFromJobCardSnapshot(snapshot: JobCardSnapshot): JobC
       ...(card.educationRequirement ? { educationRequirement: card.educationRequirement } : {}),
       ...(card.experienceRequirement ? { experienceRequirement: card.experienceRequirement } : {}),
       ...(externalJobId ? { externalJobId } : {}),
-      jobUrl: card.href,
+      ...(card.href ? { jobUrl: card.href } : {}),
       ...(card.location ? { location: card.location } : {}),
       platformId: snapshot.platformId,
       ...(card.salary ? { salaryText: card.salary } : {}),

@@ -1,7 +1,11 @@
 import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { JobSearchIntent, RecommendationPageReference } from "@job-boardwalk/contracts";
-import { platformCatalog } from "@job-boardwalk/platform-catalog";
+import {
+  platformCatalog,
+  platformIds,
+  resolvePlatformWebUrl,
+} from "@job-boardwalk/platform-catalog";
 
 // oxlint-disable max-lines, max-lines-per-function -- The editor state stays next to the intent collection it controls.
 import { useDashboardRuntime } from "#/dashboard-runtime.js";
@@ -30,10 +34,11 @@ export function JobSearchIntentsSection(props: {
   const [name, setName] = createSignal("");
   const [position, setPosition] = createSignal("");
   const [city, setCity] = createSignal("");
-  const [bossLabel, setBossLabel] = createSignal("");
-  const [bossUrl, setBossUrl] = createSignal("");
-  const [yupaoLabel, setYupaoLabel] = createSignal("");
-  const [yupaoUrl, setYupaoUrl] = createSignal("");
+  const recommendationFields = platformIds.map((platformId) => {
+    const [label, setLabel] = createSignal("");
+    const [url, setUrl] = createSignal("");
+    return { label, platformId, setLabel, setUrl, url };
+  });
   const [error, setError] = createSignal("");
   const [saving, setSaving] = createSignal(false);
 
@@ -41,20 +46,22 @@ export function JobSearchIntentsSection(props: {
     setName(intent?.name ?? "");
     setPosition(intent?.position ?? "");
     setCity(intent?.city ?? "");
-    setBossLabel(recommendationPageFor(intent, "boss")?.label ?? "");
-    setBossUrl(recommendationPageFor(intent, "boss")?.url ?? "");
-    setYupaoLabel(recommendationPageFor(intent, "yupao")?.label ?? "");
-    setYupaoUrl(recommendationPageFor(intent, "yupao")?.url ?? "");
+    for (const field of recommendationFields) {
+      const page = recommendationPageFor(intent, field.platformId);
+      field.setLabel(page?.label ?? "");
+      field.setUrl(page?.url ?? "");
+    }
     setError("");
     setRemovingId(null);
     setEditingId(intent?.id ?? "new");
   }
 
   function readRecommendationPages(): RecommendationPageReference[] {
-    const candidates = [
-      { label: bossLabel().trim(), platformId: "boss" as const, url: bossUrl().trim() },
-      { label: yupaoLabel().trim(), platformId: "yupao" as const, url: yupaoUrl().trim() },
-    ];
+    const candidates = recommendationFields.map((field) => ({
+      label: field.label().trim(),
+      platformId: field.platformId,
+      url: field.url().trim(),
+    }));
     for (const page of candidates) {
       if (Boolean(page.label) !== Boolean(page.url)) {
         throw new Error(`${platformCatalog[page.platformId].label}的页面名称和网址需要同时填写。`);
@@ -264,40 +271,29 @@ export function JobSearchIntentsSection(props: {
               onInput={(event) => setCity(event.currentTarget.value)}
             />
           </label>
-          <label>
-            BOSS直聘页面名称
-            <input
-              value={bossLabel()}
-              placeholder="例如：Node.js(北京)"
-              onInput={(event) => setBossLabel(event.currentTarget.value)}
-            />
-          </label>
-          <label class={styles["wideField"]}>
-            BOSS直聘页面网址
-            <input
-              type="url"
-              value={bossUrl()}
-              placeholder="https://www.zhipin.com/web/geek/jobs"
-              onInput={(event) => setBossUrl(event.currentTarget.value)}
-            />
-          </label>
-          <label>
-            鱼泡直聘页面名称
-            <input
-              value={yupaoLabel()}
-              placeholder="例如：北京后端开发"
-              onInput={(event) => setYupaoLabel(event.currentTarget.value)}
-            />
-          </label>
-          <label class={styles["wideField"]}>
-            鱼泡直聘页面网址
-            <input
-              type="url"
-              value={yupaoUrl()}
-              placeholder="https://www.yupao.com/topic/a2c1488/"
-              onInput={(event) => setYupaoUrl(event.currentTarget.value)}
-            />
-          </label>
+          <For each={recommendationFields}>
+            {(field) => (
+              <>
+                <label>
+                  {platformCatalog[field.platformId].label}页面名称
+                  <input
+                    value={field.label()}
+                    placeholder="例如：北京后端开发"
+                    onInput={(event) => field.setLabel(event.currentTarget.value)}
+                  />
+                </label>
+                <label class={styles["wideField"]}>
+                  {platformCatalog[field.platformId].label}页面网址
+                  <input
+                    type="url"
+                    value={field.url()}
+                    placeholder={resolvePlatformWebUrl(field.platformId, "entry")}
+                    onInput={(event) => field.setUrl(event.currentTarget.value)}
+                  />
+                </label>
+              </>
+            )}
+          </For>
           <Show when={error()}>
             <p class={styles["formError"]} role="alert">
               {error()}

@@ -1,7 +1,12 @@
 import type { Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
-import type { JobEngagementEvidence } from "@job-boardwalk/contracts";
+import type {
+  JobEngagementPageMetadata,
+  JobEngagementPlatformAdapter,
+  JobEngagementTarget,
+} from "./types.js";
+import { bossPageDefinition } from "#/browser/platforms/boss.js";
 import {
   parsePlatformJobEngagementUrl,
   parsePlatformWebUrl,
@@ -11,6 +16,9 @@ import {
 } from "@job-boardwalk/platform-catalog";
 import type { PlatformId, PlatformJobEngagementKind } from "@job-boardwalk/platform-catalog";
 
+import { capture51jobEngagementMetadata } from "./51job-page-capture.js";
+import { job51EvidenceConfig } from "#/browser/platforms/51job.js";
+import { parseJobEngagementTotal, parse51jobEngagementTotal } from "./page-totals.js";
 import { captureBossJobEngagementMetadata } from "./boss-page-capture.js";
 import { maximumJobsPerEngagementScan } from "./scan-limit.js";
 import { captureYupaoJobEngagementMetadata } from "./yupao-page-capture.js";
@@ -21,26 +29,6 @@ const pageCaptureLimits = {
   maximumCards: maximumJobsPerEngagementScan,
   maximumSummaryCharacters,
 };
-
-export interface JobEngagementPageMetadata {
-  jobs: JobEngagementEvidence[];
-  text: string;
-  truncated: boolean;
-  url: string;
-}
-
-export interface JobEngagementTarget {
-  engagement: PlatformJobEngagementKind;
-  url: string;
-}
-
-export interface JobEngagementPlatformAdapter {
-  capturePage: (page: Page) => RiteCoroutine<JobEngagementPageMetadata>;
-  initialTarget: (engagement: PlatformJobEngagementKind) => JobEngagementTarget;
-  matchesTarget: (target: JobEngagementTarget, value: string) => boolean;
-  nextTarget: (target: JobEngagementTarget) => JobEngagementTarget | null;
-  platformId: PlatformId;
-}
 
 function matchesTarget(
   platformId: PlatformId,
@@ -69,50 +57,58 @@ function initialTarget(
   };
 }
 
-function bossPageTarget(engagement: PlatformJobEngagementKind, page: number): JobEngagementTarget {
-  const target = initialTarget("boss", engagement);
-  const url = new URL(target.url);
-  const { parameter } = platformCatalog.boss.web.jobEngagement.pagination;
-  url.searchParams.set(parameter, String(page));
-  return { ...target, url: url.href };
-}
-
-function* captureBossPageMetadata(page: Page): RiteCoroutine<JobEngagementPageMetadata> {
-  return yield* until(() => page.evaluate(captureBossJobEngagementMetadata, pageCaptureLimits));
-}
-
-function* captureYupaoPageMetadata(page: Page): RiteCoroutine<JobEngagementPageMetadata> {
-  const metadata = yield* until(() =>
-    page.evaluate(captureYupaoJobEngagementMetadata, pageCaptureLimits),
-  );
+function createEngagementAdapter(
+  platformId: PlatformId,
+  capturePage: JobEngagementPlatformAdapter["capturePage"],
+  readTotal: JobEngagementPlatformAdapter["readTotal"],
+): JobEngagementPlatformAdapter {
+  const { pagination } = platformCatalog[platformId].web.jobEngagement;
   return {
-    jobs: metadata.cards,
-    text: metadata.text,
-    truncated: metadata.truncated,
-    url: metadata.url,
+    capturePage,
+    initialTarget: (engagement) => initialTarget(platformId, engagement),
+    matchesTarget: (target, value) => matchesTarget(platformId, target, value),
+    nextTarget(target) {
+      if (!pagination) {
+        return null;
+      }
+      const url = new URL(target.url);
+      const page = Number(url.searchParams.get(pagination.parameter));
+      url.searchParams.set(pagination.parameter, String(page + nextPageIncrement));
+      return { ...target, url: url.href };
+    },
+    platformId,
+    readTotal,
   };
 }
 
+function* captureBossPageMetadata(page: Page): RiteCoroutine<JobEngagementPageMetadata> {
+  return yield* until(() =>
+    page.evaluate(captureBossJobEngagementMetadata, {
+      ...pageCaptureLimits,
+      ...bossPageDefinition.jobLink,
+    }),
+  );
+}
+
+function* captureYupaoPageMetadata(page: Page): RiteCoroutine<JobEngagementPageMetadata> {
+  return yield* until(() => page.evaluate(captureYupaoJobEngagementMetadata, pageCaptureLimits));
+}
+
+function* capture51jobPageMetadata(page: Page): RiteCoroutine<JobEngagementPageMetadata> {
+  return yield* until(() =>
+    page.evaluate(capture51jobEngagementMetadata, {
+      ...pageCaptureLimits,
+      jobLinkOrigins: job51EvidenceConfig.jobLinkOrigins,
+      jobLinkPathPattern: job51EvidenceConfig.jobLinkPathPattern,
+      salaryTextPattern: job51EvidenceConfig.salaryTextPattern,
+    }),
+  );
+}
+
 export const jobEngagementPlatformAdapters = {
-  boss: {
-    capturePage: captureBossPageMetadata,
-    initialTarget: (engagement) =>
-      bossPageTarget(engagement, platformCatalog.boss.web.jobEngagement.pagination.firstPage),
-    matchesTarget: (target, value) => matchesTarget("boss", target, value),
-    nextTarget(target) {
-      const { parameter } = platformCatalog.boss.web.jobEngagement.pagination;
-      const page = Number(new URL(target.url).searchParams.get(parameter));
-      return bossPageTarget(target.engagement, page + nextPageIncrement);
-    },
-    platformId: "boss",
-  },
-  yupao: {
-    capturePage: captureYupaoPageMetadata,
-    initialTarget: (engagement) => initialTarget("yupao", engagement),
-    matchesTarget: (target, value) => matchesTarget("yupao", target, value),
-    nextTarget: () => null,
-    platformId: "yupao",
-  },
+  "51job": createEngagementAdapter("51job", capture51jobPageMetadata, parse51jobEngagementTotal),
+  boss: createEngagementAdapter("boss", captureBossPageMetadata, parseJobEngagementTotal),
+  yupao: createEngagementAdapter("yupao", captureYupaoPageMetadata, parseJobEngagementTotal),
 } as const satisfies Record<PlatformId, JobEngagementPlatformAdapter>;
 
 export function matchJobEngagementPage(value: string): {
@@ -121,8 +117,9 @@ export function matchJobEngagementPage(value: string): {
 } | null {
   for (const platformId of platformIds) {
     const engagement = parsePlatformJobEngagementUrl(platformId, value);
+    const adapter = jobEngagementPlatformAdapters[platformId];
     if (engagement) {
-      return { adapter: jobEngagementPlatformAdapters[platformId], engagement };
+      return { adapter, engagement };
     }
   }
   return null;

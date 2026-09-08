@@ -13,12 +13,12 @@ import type { JobEngagementWriter } from "#/workspace-service/job-engagement-wri
 
 import type { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { ManagedPageTargets } from "#/browser/managed-page-targets.js";
-import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 
 import { captureJobEngagementSnapshot } from "./snapshot.js";
 import type { CapturedJobEngagementSnapshot } from "./snapshot.js";
 import { isJobEngagementPage, jobEngagementPlatformAdapters } from "./platform-adapters.js";
-import type { JobEngagementPlatformAdapter, JobEngagementTarget } from "./platform-adapters.js";
+import type { JobEngagementPlatformAdapter, JobEngagementTarget } from "./types.js";
 import { maximumJobsPerEngagementScan } from "./scan-limit.js";
 
 const emptyCollectionLength = 0;
