@@ -7,6 +7,6 @@ checksum:
     - windows/amd64
 registries:
   - type: standard
-    ref: v4.554.0 # renovate: depName=aquaproj/aqua-registry
+    ref: v4.558.1 # renovate: depName=aquaproj/aqua-registry
 packages:
   - name: caddyserver/caddy@v2.11.4

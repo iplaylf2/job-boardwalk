@@ -17,9 +17,9 @@
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@shajara/host": "catalog:",
-    "@solidjs/web": "^2.0.0-rc.1",
-    "markdown-it": "^15.0.0",
-    "solid-js": "^2.0.0-rc.1"
+    "@solidjs/web": "^2.0.0-rc.6",
+    "markdown-it": "^15.0.1",
+    "solid-js": "^2.0.0-rc.6"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",

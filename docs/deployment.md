@@ -188,7 +188,7 @@ directory:
 - `apps/dashboard/Dockerfile` and `apps/workspace-service/Dockerfile` belong to their
   independently deployable applications. Each has a colocated `Dockerfile.dockerignore` that
   excludes unrelated applications from its build context. Dashboard's runtime stage uses the
-  pinned Caddy image and its application-owned Caddyfile.
+  Caddy 2 Alpine image and its application-owned Caddyfile.
 - Both Dockerfiles use the repository as their build context because their builder stages compile
   workspace-owned packages. Root manifests, the lockfile, and dependency patches remain build inputs
   because pnpm resolves each filtered application closure under the workspace dependency policy;
@@ -210,7 +210,7 @@ produces a complete deployment artifact under its own `dist/` directory:
   migration baseline.
 
 The runtime stages combine those artifacts only with their runtime-owned inputs: Dashboard adds its
-Caddyfile and built client to the pinned Caddy image, while Workspace Service copies the completed
+Caddyfile and built client to the Caddy 2 Alpine image, while Workspace Service copies the completed
 Node service directory unchanged and adds the locked Node.js executable and system libraries. The
 desktop product consumes the same Workspace Service directory through its shared Node host. Its
 public runtime entrypoint is `index.mjs`; the service artifact contains no pnpm, `node_modules`,
