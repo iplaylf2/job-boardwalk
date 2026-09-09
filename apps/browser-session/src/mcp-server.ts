@@ -3,8 +3,13 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { CanceledError, ScopeError } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
-import { platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
+import {
+  platformCatalog,
+  platformIds,
+  platformJobEngagementKinds,
+} from "@job-boardwalk/platform-catalog";
 
+import { maximumJobsPerEngagementScan } from "#/browser/job-engagement/scan-limit.js";
 import type { BrowserControl } from "#/browser/browser-control.js";
 import {
   browserToolInputContracts,
@@ -17,6 +22,19 @@ const jsonIndentationSpaces = 2;
 const supportedPlatformLabels = platformIds
   .map((platformId) => platformCatalog[platformId].label)
   .join("、");
+const engagementCapabilities = platformIds
+  .map((platformId) => {
+    const {
+      label,
+      web: { jobEngagement },
+    } = platformCatalog[platformId];
+    const categories = platformJobEngagementKinds.filter(
+      (kind) => jobEngagement.destinations[kind] !== null,
+    );
+    const continuation = jobEngagement.pagination ? "支持翻页续读" : "不支持翻页续读";
+    return `${label}（${platformId}）：${categories.join("、")}；${continuation}。`;
+  })
+  .join("\n");
 const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
   "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
@@ -62,8 +80,11 @@ const browserTools = [
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description:
-      "在有界等待内读取可见文本和通用交互元素，并返回 documentReadyState 与短期有效的元素引用；truncated 表示内容被裁剪，快照不包含表单当前值和密码框。正文读取超时时会报告标签页关闭、页面检查超时或已观察到的文档生命周期，后续操作以新的显式观察为依据。平台适配器会同时判定其明确支持的登录证据，将结论加入 Browser Session 状态上报，并在 platformAccessObservation 中返回；无法分类时该字段为 null。userReturnedControl 只用于用户明确交还控制权后的第一次快照：它恢复后台页面读取，并允许后续显式岗位跟进同步复用该平台原标签页。该字段记录控制权已归还；认证状态由随后取得的页面证据判定。普通快照省略该字段。",
+    description: [
+      "在有界等待内读取可见文本、通用交互元素及适配器补充的详情入口，返回 documentReadyState 和短期有效的 ref。入口可附带 context，提供所属卡片的可见文字，帮助区分同名岗位；将 ref 传给 browser_click 可操作该入口。新快照会使旧引用失效，动作前会重新核对节点及有界内容。",
+      "快照不包含表单当前值和密码框。truncated 表示正文或元素集合被裁剪，或超长链接被省略；名称和 context 另有长度上限，其缩短不设置该标志。读取超时会报告标签页关闭、页面检查超时或已观察到的文档生命周期。platformAccessObservation 非 null 时，结论已加入状态上报；null 表示访问证据尚未分类。",
+      "仅在用户明确交还控制权后的第一次快照中设置 userReturnedControl=true，以恢复后台读取并允许后续同步复用该平台标签页。该字段不表示认证成功；普通快照省略它。",
+    ].join("\n\n"),
     name: "browser_snapshot",
   }),
   defineBrowserTool({
@@ -73,8 +94,10 @@ const browserTools = [
       openWorldHint: true,
       readOnlyHint: false,
     },
-    description:
-      "读取当前招聘平台标签页中已加载的岗位卡片，返回有界、去重的页面证据；个人中心岗位跟进页面不属于此工具的读取范围，调用会失败。此工具不会导航、滚动、点击或持久化岗位，但同一次读取可能刷新平台适配器能够明确判定的访问观察，并将其加入 Browser Session 状态上报。独立的被动采集流程会定期提交所有已打开合格页面中的岗位卡片，但不会为当前求职方向自动打开或导航研究页面。",
+    description: [
+      "读取当前招聘平台标签页中已加载的岗位卡片。仅按可靠详情身份去重，无链接的独立卡片分别保留。truncated 表示卡片集合被数量上限裁剪；空集合不能证明零结果，truncated=false 不能证明已遍历全部结果。个人中心岗位跟进页不属于此工具的读取范围。",
+      "本次读取不导航、滚动、点击或持久化岗位，但可能刷新平台访问观察。被动采集流程会另行提交合格页面中的岗位证据；工作区按自身身份规则归并来源，快照中分开的卡片不一定对应不同的持久化来源。需要详情入口的操作引用时，调用 browser_snapshot。",
+    ].join("\n\n"),
     name: "browser_job_card_snapshot",
   }),
   defineBrowserTool({
@@ -95,23 +118,29 @@ const browserTools = [
       openWorldHint: true,
       readOnlyHint: false,
     },
-    description:
-      "仅在用户发起的岗位跟进同步任务中调用。BOSS直聘、鱼泡直聘支持四类同步；51job 支持收藏、投递和面试邀请，不支持已沟通。51job 每次只读取当前分类页已加载的链接岗位，不提供翻页续读，面试邀请有岗位时返回部分证据。每次调用打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。若平台支持继续读取且返回 complete=false，请先检查可见页面，再以同一平台和类别调用；当前扫描最多累计 60 个不同岗位。complete=false 表示证据不完整，不得视为平台完整历史。complete=true 的感兴趣快照可能移除平台列表中已不存在的本地关系。",
+    description: [
+      `仅在用户发起的岗位跟进同步任务中调用。每次打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。不支持的类别在导航前被拒绝。一次扫描最多累计 ${maximumJobsPerEngagementScan} 个不同岗位。`,
+      "complete=true 表示证据覆盖平台可见的类别总数及历史窗口，不代表全部历史；完整的 interested（感兴趣）快照可能移除平台列表中已不存在的本地关系。complete=false 仅表示证据不完整，不保证有下一批。",
+      "续读前检查下方能力和可见页面；平台支持续读且扫描未结束时，以相同 platformId 和 engagement 再次调用。扫描在完成、达到上限、当前批次没有可识别岗位、没有续读目标或服务重启时结束；结束后再次调用会从分类入口开始。",
+      `当前同步能力：\n${engagementCapabilities}`,
+    ].join("\n\n"),
     name: "browser_sync_job_engagement",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
-    description: "点击最近一次快照中的元素引用；显式链接必须属于当前招聘平台的 HTTPS 导航范围。",
+    description:
+      "点击最近一次 browser_snapshot 返回的有效 ref；显式链接必须属于当前招聘平台的 HTTPS 导航范围。点击期间及完成后一秒内收到的弹窗会成为选中标签页，并返回该页摘要；否则返回原页摘要。此等待不保证页面数据就绪，更晚出现的标签页需通过 browser_tabs 检查。操作后引用失效。",
     name: "browser_click",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "填写最近一次快照中的文本控件；密码框不进入快照。",
+    description:
+      "使用最近一次 browser_snapshot 的有效 ref 填写文本控件；密码框不进入快照。操作后引用失效。",
     name: "browser_fill",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "在最近一次快照的选择控件中选择选项。",
+    description: "使用最近一次 browser_snapshot 的有效 ref 在选择控件中选择选项。操作后引用失效。",
     name: "browser_select",
   }),
   defineBrowserTool({

@@ -185,11 +185,13 @@ export function captureJobCardMetadata(input: {
         : null);
     const stableJobId = href
       ? (linkPathPattern.exec(href.pathname)?.groups?.["externalJobId"] ?? href.pathname)
-      : JSON.stringify([title, company, location]);
-    if (seenJobIds.has(stableJobId)) {
+      : null;
+    if (stableJobId && seenJobIds.has(stableJobId)) {
       continue;
     }
-    seenJobIds.add(stableJobId);
+    if (stableJobId) {
+      seenJobIds.add(stableJobId);
+    }
     matchingLinkCount += increment;
     if (cards.length === input.maximumCards) {
       continue;

@@ -21,15 +21,12 @@ import {
 } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
-import {
-  capturePageSnapshot,
-  maximumElementHrefCharacters,
-  maximumElementNameCharacters,
-} from "./page-snapshot.js";
+import { capturePageSnapshot } from "./page-snapshot.js";
 import { captureJobCardSnapshot } from "./job-observation/card-snapshot.js";
 import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
 
 const zero = 0;
+const firstElementReference = 1;
 const explicitDescriptionAttribution = {
   initiatedBy: "agent",
   reason: "Agent 显式采集当前页面的岗位详情观察",
@@ -37,7 +34,6 @@ const explicitDescriptionAttribution = {
 
 interface ElementReference {
   href?: string;
-  locator: Locator;
   signature: string;
   tabId: number;
 }
@@ -56,6 +52,7 @@ export interface BrowserToolExecutorCoordination {
 }
 
 export class BrowserToolExecutor {
+  #nextElementReference = firstElementReference;
   readonly #elementReferences = new Map<string, ElementReference>();
   readonly #collectionControl: BackgroundCollectionControl;
   readonly #observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null;
@@ -151,6 +148,9 @@ export class BrowserToolExecutor {
       }
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
       const popupPage = yield* clickAndCapturePopup(sourcePage, reference.locator);
+      if (popupPage) {
+        yield* this.#tabs.selectPage(popupPage);
+      }
       return yield* readNavigationPageSummary(popupPage ?? sourcePage);
     } finally {
       this.#clearElementReferences();
@@ -204,42 +204,21 @@ export class BrowserToolExecutor {
     return reference;
   }
 
-  *#verifiedReference(params: Record<string, unknown>): RiteCoroutine<ElementReference> {
+  *#verifiedReference(
+    params: Record<string, unknown>,
+  ): RiteCoroutine<ElementReference & { locator: Locator }> {
     const reference = this.#reference(params);
-    this.#tabs.requireNavigationPage(reference.tabId);
-    const signature = yield* until(() =>
-      reference.locator.evaluate(
-        (element, limits) => {
-          const startIndex = 0;
-          const href = element.matches("a[href]") ? (element as HTMLAnchorElement).href : "";
-          if (href.length > limits.maximumHrefCharacters) {
-            return "oversized-link";
-          }
-          return [
-            element.tagName,
-            element.getAttribute("type") ?? "",
-            href,
-            element.getAttribute("role") ?? "",
-            element.getAttribute("aria-label") ?? "",
-            element.getAttribute("title") ?? "",
-            element.getAttribute("placeholder") ?? "",
-            element.getAttribute("alt") ?? "",
-            (element.textContent ?? "")
-              .replaceAll(/\s+/gu, " ")
-              .trim()
-              .slice(startIndex, limits.maximumNameCharacters),
-          ].join("\u001F");
-        },
-        {
-          maximumHrefCharacters: maximumElementHrefCharacters,
-          maximumNameCharacters: maximumElementNameCharacters,
-        },
-      ),
+    const page = this.#tabs.requireNavigationPage(reference.tabId);
+    // Compare the bounded signature with a fresh capture of visible elements.
+    const current = yield* capturePageSnapshot(page, zero);
+    const element = current.elements.find(
+      (candidate) => candidate.signature === reference.signature,
     );
-    if (signature !== reference.signature) {
+    if (!element) {
+      this.#clearElementReferences();
       throw new Error("元素引用对应的页面内容已经变化；请重新调用 browser_snapshot 后再操作。");
     }
-    return reference;
+    return { ...reference, locator: element.locator };
   }
 
   *#scroll(params: Record<string, unknown>): RiteCoroutine<unknown> {
@@ -321,10 +300,12 @@ export class BrowserToolExecutor {
       this.#recordReturnedControl(adapter.platformId);
     }
     const platformAccessObservation = this.#observePageAccess(snapshot);
-    for (const { href, locator, ref, signature } of snapshot.elements) {
+    for (const element of snapshot.elements) {
+      element.ref = `e${this.#nextElementReference}`;
+      this.#nextElementReference += 1;
+      const { href, ref, signature } = element;
       this.#elementReferences.set(ref, {
         ...(href ? { href } : {}),
-        locator,
         signature,
         tabId,
       });

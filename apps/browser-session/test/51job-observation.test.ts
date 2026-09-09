@@ -103,16 +103,16 @@ test.each([
 
 test("captures linkless 51job cards without manufacturing source identity", () => {
   const metadata = capture([card("合成系统工程师"), card("合成系统工程师"), card("")]);
-  expect(metadata.cards).toEqual([
-    {
-      company: "合成雇主甲",
-      details: ["合成平台"],
-      location: "合成市·测试区",
-      salary: "8千-1.2万·13薪",
-      text: "合成市·测试区 合成雇主甲 合成系统工程师 8千-1.2万·13薪",
-      title: "合成系统工程师",
-    },
-  ]);
+  expect(metadata.cards).toHaveLength(twoCards);
+  expect(metadata.cards[firstIndex]).toEqual({
+    company: "合成雇主甲",
+    details: ["合成平台"],
+    location: "合成市·测试区",
+    salary: "8千-1.2万·13薪",
+    text: "合成市·测试区 合成雇主甲 合成系统工程师 8千-1.2万·13薪",
+    title: "合成系统工程师",
+  });
+  expect(metadata.cards[secondIndex]).toEqual(metadata.cards[firstIndex]);
   const snapshot = JobCardSnapshot.assert({
     capturedAt,
     cards: structuredClone(metadata.cards),
@@ -148,7 +148,7 @@ test("preserves cross-subdomain job links while excluding untrusted link identit
 });
 
 test("bounds distinct cards and accepts a collection with no recognizable cards", () => {
-  expect(capture([card("合成甲"), card("合成乙")], singleCard)).toMatchObject({ truncated: true });
+  expect(capture([card("合成甲"), card("合成甲")], singleCard)).toMatchObject({ truncated: true });
   expect(capture([])).toMatchObject({ cards: [], truncated: false });
 });
 

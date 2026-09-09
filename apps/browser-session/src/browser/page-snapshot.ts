@@ -1,31 +1,31 @@
+import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
+
+import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
+import type { PageInteractionDefinition } from "./platforms/types.js";
 
 import { inspectPageDocument } from "./page-inspection.js";
 import type { DocumentReadyState, PageInspection } from "./page-inspection.js";
 import { isPatchrightTimeout } from "./patchright-timeout.js";
 
 const firstElementNumber = 1;
-export const maximumElementNameCharacters = 300;
-export const maximumElementHrefCharacters = 2048;
+const maximumElementNameCharacters = 300;
+const maximumElementHrefCharacters = 2048;
 const maximumSnapshotElements = 300;
 const snapshotTextStartIndex = 0;
 const snapshotEvaluationTimeoutMilliseconds = 5000;
 const interactiveElementSelector =
   "a[href], button, input:not([type='password' i]), textarea, select, [role='button'], [role='link'], [role='textbox'], [contenteditable='true']";
 
-interface CapturedElement {
-  disabled: boolean;
-  href?: string;
+interface CapturedElement extends Omit<ElementMetadata, "sourceIndex"> {
   locator: Locator;
-  name: string;
   ref: string;
-  role: string;
-  signature: string;
 }
 
 interface ElementMetadata {
+  context?: string;
   disabled: boolean;
   href?: string;
   name: string;
@@ -45,6 +45,8 @@ interface SnapshotMetadata {
 }
 
 interface SnapshotCaptureInput {
+  interactions?: readonly PageInteractionDefinition[];
+  referenceScope: string;
   maximumElements: number;
   maximumHrefCharacters: number;
   maximumNameCharacters: number;
@@ -83,11 +85,17 @@ export function captureSnapshotMetadata(
   input: SnapshotCaptureInput,
 ): SnapshotMetadata {
   const emptyDimension = 0;
+  const maximumContextCharacters = 1500;
   const document = body.ownerDocument;
   const view = document.defaultView;
   if (!view) {
     throw new Error("页面快照不可用：当前文档没有活动浏览上下文。");
   }
+  // Keep node identity in the document realm, without adding attributes to the platform DOM.
+  const identityKey = Symbol.for("job-boardwalk.snapshot-node-identities");
+  const registry = document as Document & { [identityKey]?: WeakMap<Element, string> };
+  const identities = registry[identityKey] ?? new WeakMap<Element, string>();
+  registry[identityKey] = identities;
   const candidates = [...document.querySelectorAll<HTMLElement>(input.selector)];
   const elements: ElementMetadata[] = [];
   let elementsTruncated = false;
@@ -121,13 +129,22 @@ export function captureSnapshotMetadata(
     } else if (element.matches("input, textarea, [contenteditable='true']")) {
       role = "textbox";
     }
+    const interaction = input.interactions?.find(({ selector }) => element.matches(selector));
+    // eslint-disable-next-line unicorn/prefer-dom-node-text-content
+    const renderedText = element.innerText ?? "";
+    const context = interaction
+      ? // eslint-disable-next-line unicorn/prefer-dom-node-text-content
+        (element.closest<HTMLElement>(interaction.contextSelector)?.innerText ?? "")
+          .replaceAll(/\s+/gu, " ")
+          .trim()
+          .slice(input.startIndex, maximumContextCharacters)
+      : null;
     const rawName =
       element.getAttribute("aria-label") ??
       element.getAttribute("title") ??
       element.getAttribute("placeholder") ??
       element.getAttribute("alt") ??
-      element.textContent ??
-      "";
+      renderedText;
     const rawHref = element.matches("a[href]") ? (element as HTMLAnchorElement).href : "";
     if (rawHref.length > input.maximumHrefCharacters) {
       hrefTruncated = true;
@@ -137,7 +154,13 @@ export function captureSnapshotMetadata(
       elementsTruncated = true;
       break;
     }
+    let identity = identities.get(element);
+    if (!identity) {
+      identity = `${input.referenceScope}:${sourceIndex}`;
+      identities.set(element, identity);
+    }
     const metadata: ElementMetadata = {
+      ...(context ? { context } : {}),
       disabled: element.matches(
         "button:disabled, input:disabled, textarea:disabled, select:disabled",
       ),
@@ -145,8 +168,11 @@ export function captureSnapshotMetadata(
         .replaceAll(/\s+/gu, " ")
         .trim()
         .slice(input.startIndex, input.maximumNameCharacters),
-      role: element.getAttribute("role") ?? role,
+      role: element.getAttribute("role") ?? interaction?.role ?? role,
       signature: [
+        identity,
+        document.location.href,
+        context ?? "",
         element.tagName,
         element.getAttribute("type") ?? "",
         rawHref,
@@ -155,7 +181,7 @@ export function captureSnapshotMetadata(
         element.getAttribute("title") ?? "",
         element.getAttribute("placeholder") ?? "",
         element.getAttribute("alt") ?? "",
-        (element.textContent ?? "")
+        renderedText
           .replaceAll(/\s+/gu, " ")
           .trim()
           .slice(input.startIndex, input.maximumNameCharacters),
@@ -187,22 +213,32 @@ export function captureSnapshotMetadata(
 
 export function* capturePageSnapshot(page: Page, textLimit: number): RiteCoroutine<PageSnapshot> {
   try {
+    const adapter = findRecruitingPlatformAdapter(page.url());
+    const interactions = adapter?.isJobCardCollectionPage(page.url())
+      ? (adapter.collectionPageInteractions ?? [])
+      : [];
+    const selector = [
+      interactiveElementSelector,
+      ...interactions.map((item) => item.selector),
+    ].join(", ");
     const body = page.locator("body");
     const metadata = yield* until(() =>
       body.evaluate(
         captureSnapshotMetadata,
         {
+          interactions,
           maximumElements: maximumSnapshotElements,
           maximumHrefCharacters: maximumElementHrefCharacters,
           maximumNameCharacters: maximumElementNameCharacters,
-          selector: interactiveElementSelector,
+          referenceScope: randomUUID(),
+          selector,
           startIndex: snapshotTextStartIndex,
           textLimit,
         },
         { timeout: snapshotEvaluationTimeoutMilliseconds },
       ),
     );
-    const candidates = page.locator(interactiveElementSelector);
+    const candidates = page.locator(selector);
     return {
       ...metadata,
       elements: metadata.elements.map((element, index) => {

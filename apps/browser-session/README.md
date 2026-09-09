@@ -6,129 +6,122 @@ browser process, coordinates tabs and page actions, and derives authentication o
 top-level navigation responses and bounded snapshots when a platform adapter has a conclusive
 rule. Page meaning not covered by an adapter remains with the agent.
 
-Browser Session is a host companion by design. It runs in the same graphical session the user can
-observe and take over; it is not part of the Compose deployment. Workspace Service and Dashboard
-run in containers, while Workspace Service's loopback-published port preserves the existing local
-HTTP relationship without giving either container access to the browser profile or desktop.
+Browser Session is a host companion by design. It runs in the same graphical session the user
+can observe and take over; it is not part of the Compose deployment. Workspace Service and
+Dashboard run in containers, while Workspace Service's loopback-published port preserves the
+existing local HTTP relationship without giving either container access to the browser profile
+or desktop.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
-bounded page evidence lets the agent reconcile automation results with the window the user can see.
+bounded page evidence lets the agent reconcile automation results with the window the user can
+see.
 
-The current tool surface supports BOSS直聘, 鱼泡直聘, and 前程无忧51job through one
-recruiting-platform adapter contract. The catalog defines navigation destinations and scope;
-platform modules recognize page content and authentication evidence. A platform's HTTPS scope
-permits research navigation and explicit login-handoff preparation; login,
+The tool surface supports the platforms listed under [Platform coverage](#platform-coverage)
+through one recruiting-platform adapter contract. The catalog defines navigation destinations
+and scope; platform modules recognize page content and authentication evidence. A platform's
+HTTPS scope permits research navigation and explicit login-handoff preparation; login,
 verification, and other account actions remain under user control.
+
+## Platform coverage
+
+Each platform document owns its page coverage, interpretation rules, and validation limits.
+Shared browser behavior is defined in this README.
+
+- [BOSS直聘](docs/platforms/boss.md)
+- [鱼泡直聘](docs/platforms/yupao.md)
+- [前程无忧51job](docs/platforms/51job.md)
 
 ## Job evidence reads and passive collection
 
-`browser_job_card_snapshot` is the structured job-card read boundary. It reads eligible collection
-pages within each supported platform's HTTPS navigation scope and returns bounded, deduplicated
-job-card evidence already present in that document without navigating, scrolling, clicking,
-opening details, or persisting jobs. A page with no recognizable cards returns an empty card
-collection; a personal-center engagement page is rejected instead. Workspace Service owns the
-selected intent and its platform recommendation pages; the agent compares that context with live
-page evidence and explicitly navigates when the user requests research.
+### Job cards
 
-`browser_job_description_snapshot` is the corresponding structured job-description boundary for a
-supported detail page. It reads the main posting description and recognizable job facts such as
-title, company, location, and salary, then submits that observation to Workspace Service. The tool
-returns the captured observation only after Workspace Service accepts and retains it. A rejected
-write or a `stale` outcome fails the call. Recommended job cards are excluded. Its `truncated` flag
-means Browser Session reached its local text limit and characterizes capture completeness only.
-Browser Session attributes this explicit write to the agent; passive writes use system attribution.
-When the agent has independently confirmed that the current page belongs to a tracked source with
-no retained description, external job ID, or job URL, it may pass that workspace `sourceId` for an
-explicit bind. Workspace Service validates the source before attaching the stable detail-page
-identity; source binding always requires this explicit input.
+`browser_job_card_snapshot` reads recognizable cards already loaded on an eligible collection
+page. It returns each card's title, company, salary, location, tags, bounded text, and
+same-platform detail link when available. It returns up to 50 cards by default, with a maximum
+of 100. `truncated` reports clipping at the requested card limit; it does not describe coverage
+beyond the current document. An empty collection does not establish that the platform has no
+results. Personal-center engagement pages are outside this tool's collection scope.
+
+Deduplication requires a reliable detail identity. Independent linkless cards remain separate
+even when their visible facts are identical. This read does not navigate, scroll, click, open
+details, or persist jobs. It may refresh conclusive platform-access evidence from the same
+document. To open a card through a page control, use the references returned by
+`browser_snapshot`, as described in [Tabs and page evidence](#tabs-and-page-evidence).
+
+### Job descriptions and source binding
+
+`browser_job_description_snapshot` reads the main posting description and recognizable job facts
+from a supported detail page, excluding surrounding recommendations. It submits the observation
+to Workspace Service with agent attribution and returns only after the service accepts and
+retains it. A rejected write or a `stale` outcome fails the call. Its `truncated` flag describes
+clipping at the local description-text limit.
+
+When the agent has independently confirmed that the current page belongs to a tracked source
+with no retained description, external job ID, or job URL, it may pass that workspace `sourceId`
+for an explicit bind. Workspace Service validates the source before attaching the stable
+detail-page identity. Source binding requires this explicit input.
+
+### Passive collection and persistence
 
 The passive collector observes eligible open supported-platform tabs when it starts and every 30
 seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their
-main posting description. The collector never navigates, scrolls, clicks, or opens tabs.
-Personal-center pages are excluded. Explicit and passive workflows can submit observations in a
-different order from their page reads. Each submission carries its capture time, and Workspace
-Service reconciliation preserves a captured description when later card evidence arrives. A page
-that closes or navigates during its bounded read is reported and skipped while evidence from other
-tabs is retained. The same bounded DOM pass refreshes any conclusive platform-access evidence.
-Recommendation-page and detail-page navigation remain explicit agent actions within user-delegated
-research.
+main posting description. The collector submits observations with system attribution. It never
+navigates, scrolls, clicks, or opens tabs, and excludes personal-center pages.
 
-[Product design](../../docs/product-design.md#job-discovery-and-evidence) defines the
+Workspace Service reconciles submitted observations into durable sources. A card without a
+detail link is submitted without an external ID or job URL. Keeping those cards separate in a
+snapshot does not establish separate durable identities for otherwise indistinguishable
+observations. The agent can use the explicit source-binding workflow after confirming a tracked
+source's identity.
+
+Explicit and passive workflows can submit observations in a different order from their page
+reads. Each submission carries its capture time, and Workspace Service preserves a captured
+description when later card evidence arrives. A page that closes or navigates during its bounded
+read is reported and skipped while evidence from other tabs is retained. The same DOM pass
+refreshes any conclusive platform-access evidence.
+
+Workspace Service owns the selected intent and its platform recommendation pages. The agent
+compares that context with page evidence and explicitly navigates within the user's research
+task. [Product design](../../docs/product-design.md#job-discovery-and-evidence) defines the
 cross-application evidence lifecycle.
-
-### 51job page coverage
-
-51job uses `https://www.51job.com/` as its entry and
-`https://login.51job.com/login.php` for login preparation. Its current search-card boundary is
-`https://we.51job.com/pc/search`, including search parameters. Detail pages use
-`https://jobs.51job.com/<location>/<numeric-job-id>.html`; the numeric segment supplies the
-external job ID. Company pages are excluded.
-
-Search results render `.joblist-item` containers whose job titles may have no anchor. Browser
-Session reads their visible facts and preserves a detail link only when the card exposes one.
-Cards without a link enter Workspace Service without an external ID or job URL. They can later
-use the existing explicit description-binding workflow. Cross-subdomain job links are accepted
-only for the configured HTTPS detail origin. Detail reads select the main posting description,
-title, and benefits independently of surrounding recommendations. Salary, experience, and
-education patterns read only the posting header, description, and tags; absent facts remain absent.
 
 ## Explicit job-engagement synchronization
 
 `browser_sync_job_engagement` reads a supported platform-maintained category only within a
-user-requested agent task. A scan is scoped to one platform and category. Each call opens or reuses
-the platform tab, brings it to the foreground, reads one bounded batch from the category, and
-immediately writes that evidence to Workspace Service with agent attribution. An observation records the
-platform category in which a job appeared, independent of which actor performed the represented
-action.
+user-requested agent task. A scan is scoped to one platform and category. Each call opens or
+reuses the platform tab, brings it to the foreground, reads one bounded batch from the category,
+and immediately writes that evidence to Workspace Service with agent attribution. An observation
+records the platform category in which a job appeared, independent of which actor performed the
+represented action.
 
-When a platform adapter provides a continuation, another call with the same platform and category
-resumes the bounded in-memory scan. The scan accumulates at most 60 distinct jobs and is discarded
-when it completes, reaches the bound, has no continuation, the current batch contains no recognized
-jobs, or Browser Session restarts. `complete=false` identifies partial evidence; `complete=true`
-identifies complete evidence for the platform-visible category within the scan bound. Platform
-cards may omit job links. When a recognized link is present, Browser Session preserves it and
-derives the stable external job ID; otherwise the snapshot retains the visible job facts.
+When a platform adapter provides a continuation, another call with the same platform and
+category resumes the bounded in-memory scan. The scan accumulates at most 60 distinct jobs and
+is discarded when it completes, reaches the bound, has no continuation, the current batch
+contains no recognized jobs, or Browser Session restarts. `complete=true` requires the
+accumulated evidence to match the platform-visible category total without exceeding the scan
+bound. `complete=false` identifies partial evidence; it does not promise that the scan can
+continue. Platform cards may omit job links. When a recognized link is present, Browser Session
+preserves it and derives the stable external job ID; otherwise the snapshot retains the visible
+job facts.
 
-A complete `interested` snapshot may remove relations no longer present. The `contacted`, `applied`,
-and `interviewed` relations preserve historical observations even when a later platform list omits
-them. [Product design](../../docs/product-design.md#engagement-tracking) defines the
-cross-application meaning of engagements and complete or partial snapshots.
+A complete `interested` snapshot may remove relations no longer present. The `contacted`,
+`applied`, and `interviewed` relations preserve historical observations even when a later
+platform list omits them. [Product design](../../docs/product-design.md#engagement-tracking)
+defines the cross-application meaning of engagements and complete or partial snapshots.
 
 ### Supported categories and continuation
 
-The following capabilities are exposed by Browser Session. Requests for an unsupported category
+Supported categories and pagination come from the [platform
+catalog](../../packages/platform-catalog/src/index.ts). The `browser_sync_job_engagement` MCP
+description derives its capability summary from that same configuration. Unsupported categories
 fail before browser navigation or workspace writes.
 
-| Capability                             | BOSS直聘  | 鱼泡直聘    | 前程无忧51job |
-| -------------------------------------- | --------- | ----------- | ------------- |
-| Favorites / interested synchronization | Supported | Supported   | Supported     |
-| Application synchronization            | Supported | Supported   | Supported     |
-| Interview synchronization              | Supported | Supported   | Supported     |
-| Contacted synchronization              | Supported | Supported   | Unsupported   |
-| Engagement pagination continuation     | Supported | Unsupported | Unsupported   |
-
-### 51job category mapping and evidence
-
-| Engagement    | 51job category and destination                                                        |
-| ------------- | ------------------------------------------------------------------------------------- |
-| `interested`  | 职位收藏 at `https://www.51job.com/userset/my_collection`                             |
-| `applied`     | 社会申请 / 全部 at `https://i.51job.com/userset/my_apply.php?type=sh&tagType=&lang=c` |
-| `interviewed` | 邀面试 at `https://i.51job.com/userset/my_apply.php?type=sh&tagType=ms&lang=c`        |
-
-51job's application-page “感兴趣” filter is employer feedback, not the seeker's favorites.
-The adapter reads recognizable linked jobs in the loaded category document. A category total
-larger than the captured set yields partial evidence. Interview invitations with
-jobs remain partial because the application header counts all applications, not invitations.
-An empty favorites or invitation list requires its explicit empty-state evidence; loading or
-unrecognized cards never establish an empty category.
-
-51job displays applications from the last 60 days and favorites from the last 180 days. Completeness
-covers that platform-visible window; it is not a claim about all-time activity. Application and
-interview relations retain their existing historical semantics. Nonempty application extraction
-and empty favorites and invitation states have been checked live; linked favorites and invitation
-cards are covered by synthetic extraction tests. Nonempty favorites and invitation layouts have
-not been verified live.
+Check the capability summary and visible page before requesting another batch. Once a scan ends,
+another call starts from the category entry page. Completeness covers the platform-visible
+category and history window, not all-time activity. Platform-specific category meanings,
+evidence limits, and validation coverage are documented under [Platform
+coverage](#platform-coverage).
 
 ## Run Browser Session from source
 
@@ -194,21 +187,11 @@ write or a `stale` outcome fails the tool call. A failed passive write is report
 the current collection pass without stopping browser control; a later pass may submit fresh
 evidence if the page remains eligible.
 
-### Platform adapter coverage
+### Access assessment
 
-All adapters use the same tab, navigation, snapshot, and login-handoff workflow. Their current
-automatic access-assessment coverage differs:
-
-| Platform      | Automatic access assessment                                                                                                                                                                                                              |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BOSS直聘      | Successful protected navigation records `authenticated`; redirect from protected navigation to login records `unauthenticated`; a bounded snapshot containing the complete set of account-only navigation links records `authenticated`. |
-| 鱼泡直聘      | A bounded snapshot containing a complete job-seeker or recruiter account header records `authenticated`.                                                                                                                                 |
-| 前程无忧51job | A bounded snapshot containing a complete supported account header records `authenticated`.                                                                                                                                               |
-
-51job recognizes either a visible personal-name profile link with the matching online-resume
-control, or the application site's complete logout, account-settings, and resume-center control
-set. A URL alone or unnamed links from passive collection remain unclassified. Login and account
-controls remain subject to the shared user-handoff workflow.
+Adapters classify only the authentication evidence their page definitions recognize. Their
+specific rules are documented under [Platform coverage](#platform-coverage); unclassified evidence
+returns `platformAccessObservation=null`.
 
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
 agent or a bounded page read already performed by passive job collection or an explicit engagement
@@ -256,8 +239,7 @@ timeout, or the observed document lifecycle state. Other errors retain their ori
 
 [Access observations](../../docs/product-design.md#access-observations) defines what these signals
 can establish. Verification and access-denial conclusions require visible controls or semantic page
-content. Current adapters classify the authentication cases listed above and return
-`platformAccessObservation=null` for unclassified evidence.
+content. Adapters return `platformAccessObservation=null` for unclassified evidence.
 
 [Reliable browser research](../../docs/product-design.md#reliable-browser-research) owns the
 re-observation and recovery policy. Repeated timeouts do not strengthen the available evidence:
@@ -267,29 +249,43 @@ user's observation before deciding the next action.
 
 ### Tabs and page evidence
 
-Tabs for supported platforms are discovered, selected, validated, and controlled through the same
-adapter-driven workflow. `browser_tabs ensure` requires a `platformId` (`boss`, `yupao`, or `51job`), then
-reuses a tab for that platform before creating one at its catalog entry URL. The service can list
-and activate all in-scope tabs, but does not expose unconditional tab creation or a tab-close
-action. The platform catalog owns each platform's label and web navigation metadata: its canonical
-origin, navigation domain, and absolute entry and login URLs. Adapters derive destinations and the HTTPS
-navigation boundary from that one contract. Page actions remain platform-independent.
+Tabs for supported platforms are discovered, selected, validated, and controlled through the
+same adapter-driven workflow. `browser_tabs ensure` requires a catalog `platformId`, then reuses
+a tab for that platform before creating one at its catalog entry URL. The service can list and
+activate all in-scope tabs, but does not expose unconditional tab creation or a tab-close
+action. The platform catalog owns each platform's label and web navigation metadata: its
+canonical origin, navigation domain, and absolute entry and login URLs. Adapters derive
+destinations and the HTTPS navigation boundary from that one contract. Page actions remain
+platform-independent.
 
-Snapshots bound rendered text, element count, element names, and link lengths, and report any
-clipping through `truncated`. They omit all form-control values and do not expose password controls.
-Before using a ref, Browser Session verifies that the referenced element still matches the latest
-snapshot. An explicit link outside the current tab's platform scope is rejected before clicking.
-Clicking, filling, and selecting otherwise operate on the captured element without attempting to
-classify its business purpose. The agent applies the user-handoff rules before login, verification,
+`browser_snapshot` returns rendered page text and references to visible interactive elements.
+Names use explicit labels when present and otherwise rendered text, excluding hidden child
+content. Snapshots omit form-control values and password controls. Names are limited to 300
+characters; adapter-provided card context is limited to 1500. These field limits do not set
+`truncated`. That flag reports clipping of page text or the element collection, or omission of
+oversized links.
+
+Adapters can expose additional detail-opening controls with `context` containing bounded text
+from the owning card. Use that context to distinguish same-name postings and pass the control's
+`ref` to `browser_click`. References belong to page control and are never persisted job
+identities.
+
+Before using a reference, Browser Session repeats the bounded snapshot and matches the original
+DOM node, URL, captured attributes, and bounded element text and card context. Replaced nodes
+fail validation even when their names are identical. This comparison covers the captured
+signature; it does not detect every change elsewhere in the page or beyond the text limits.
+Reference numbers are not reused within an executor. A new `browser_snapshot`, navigation, or
+page action expires previous references.
+
+An explicit link outside the current tab's platform scope is rejected before clicking. Clicking,
+filling, and selecting otherwise operate on the captured element without classifying its
+business purpose. The agent applies the user-handoff rules before login, verification,
 application, message, or account actions.
 
-Job-card snapshots separately bound the number of job cards to 100 and return the card's
-title, company, salary, location, tags, bounded card text, and same-platform detail link when the
-page exposes those fields. The default limit is 50. The snapshot covers only job cards already
-loaded into the current document; `truncated` reports clipping at the requested card limit.
-BOSS salary digits rendered through the page's private-use character set are deterministically
-mapped to their displayed decimal digits before the bounded card evidence is returned; this does
-not alter navigation or bypass an access decision.
+The click path listens for popup events during the click and for up to one second after click
+completion. An observed popup becomes the selected tab and supplies the returned page summary;
+otherwise the summary describes the source tab. A popup arriving later requires an explicit tab
+observation. This event window does not establish that job results have loaded.
 
 ### Browser handoff
 
@@ -319,26 +315,34 @@ determines authentication status.
 ## Maintenance constraints
 
 The [platform catalog](../../packages/platform-catalog/src/index.ts) owns cross-application
-navigation scope, entry and login URLs, engagement destinations, and pagination. A null engagement
-destination declares an unsupported category.
+navigation scope, entry and login URLs, engagement destinations, and pagination. A null
+engagement destination declares an unsupported category.
 
-Within Browser Session, [page definitions](src/browser/platforms/page-definitions.ts) register one
-module per catalog `PlatformId`. Each module owns collection-page recognition, authentication
-evidence, search-card and detail selectors, and job-link rules. The recruiting adapter factory
-combines those definitions with catalog metadata. Job-link recognition and extraction consume the
-same path rules when assigning stable external IDs.
+Within Browser Session, [page definitions](src/browser/platforms/page-definitions.ts) register
+one module per catalog `PlatformId`. Each module owns collection-page recognition,
+authentication evidence, search-card and detail selectors, and job-link rules. The recruiting
+adapter factory combines those definitions with catalog metadata. Job-link recognition and
+extraction consume the same path rules when assigning stable external IDs.
 
-[Engagement adapters](src/browser/job-engagement/platform-adapters.ts) own page capture and category
-totals. Their shared factory derives targets, URL matching, and continuation from the catalog.
-All engagement DOM captures implement the [capture contract](src/browser/job-engagement/types.ts);
-callbacks remain self-contained because they execute in the browser page realm. Shared job-link rules
-are passed as input rather than copied into a callback.
+[Engagement adapters](src/browser/job-engagement/platform-adapters.ts) own page capture and
+category totals. Their shared factory derives targets, URL matching, and continuation from the
+catalog. All engagement DOM captures implement the [capture
+contract](src/browser/job-engagement/types.ts); callbacks remain self-contained because they
+execute in the browser page realm. Shared job-link rules are passed as input rather than copied
+into a callback.
+
+Page definitions may expose collection-page interaction selectors with a role and an owning
+context selector. These only apply on recognized collection pages; the shared snapshot and
+action boundary owns visibility, references, validation, and popup handling.
 
 To add a platform, update the catalog, register its page definition, and provide its engagement
-capture and total handling. Validate accepted and rejected page boundaries, source identity,
-empty and partial categories, and any continuation behavior. Page actions and collection
-orchestration consume the shared interfaces. Access conclusions requiring general page
-interpretation remain the agent's responsibility.
+capture and total handling. Add its document under `docs/platforms/` and link it from [Platform
+coverage](#platform-coverage). Keep platform-specific interpretation and validation limits
+there; common tool instructions describe shared behavior, and capability summaries derive from
+the catalog. Validate accepted and rejected page boundaries, source identity, empty and partial
+categories, and any continuation behavior. Page actions and collection orchestration consume the
+shared interfaces. Access conclusions requiring general page interpretation remain the agent's
+responsibility.
 
 ### Driver boundary
 

@@ -57,6 +57,9 @@ function assess51jobPage(page: PageAccessFacts): PlatformAccessAssessment | null
 
 export const job51PageDefinition = {
   assessPage: assess51jobPage,
+  collectionPageInteractions: [
+    { contextSelector: ".joblist-item", role: "link", selector: ".joblist-item .jname" },
+  ],
   isJobCardCollectionPage(value: string): boolean {
     const url = parsePlatformWebUrl("51job", value);
     return Boolean(url && url.hostname === "we.51job.com" && url.pathname === "/pc/search");

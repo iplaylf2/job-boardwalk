@@ -48,7 +48,14 @@ export interface JobCardExtractionConfig extends JobLinkConfig {
   readonly titleSelectors: readonly string[];
 }
 
+export interface PageInteractionDefinition {
+  readonly selector: string;
+  readonly role: string;
+  readonly contextSelector: string;
+}
+
 export interface PlatformPageDefinition {
+  readonly collectionPageInteractions?: readonly PageInteractionDefinition[];
   readonly jobLink: JobLinkConfig;
   readonly jobCardExtractionConfig: JobCardExtractionConfig;
   readonly jobDescriptionExtractionConfig: JobDescriptionExtractionConfig;
