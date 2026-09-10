@@ -7,7 +7,6 @@ import { expect, test } from "vitest";
 
 import { createWorkspaceServiceHttpApp } from "#/http/app.js";
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
@@ -28,7 +27,6 @@ function createTestHttpApp(
   serviceScope: ReturnType<typeof createScope>,
 ) {
   return createWorkspaceServiceHttpApp({
-    browserSessionPresenceTracker: new BrowserSessionPresenceTracker(),
     repository,
     serviceScope,
   });
@@ -178,25 +176,22 @@ test("keeps state-change history while advancing the latest observation time", a
     authenticationState: "authenticated" | "unauthenticated",
     observedAt: string,
   ) {
-    return httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true, tabCount: 1 },
-        platformAccessObservations: [
-          authenticationState === "authenticated"
-            ? {
-                authenticationState,
-                evidence: "protected-resource",
-                observedAt,
-                platformId: "boss",
-              }
-            : {
-                authenticationState,
-                evidence: "login-redirect",
-                observedAt,
-                platformId: "boss",
-              },
-        ],
-      }),
+    return httpApp.request("/api/platform-access/observations", {
+      body: JSON.stringify(
+        authenticationState === "authenticated"
+          ? {
+              authenticationState,
+              evidence: "protected-resource",
+              observedAt,
+              platformId: "boss",
+            }
+          : {
+              authenticationState,
+              evidence: "login-redirect",
+              observedAt,
+              platformId: "boss",
+            },
+      ),
       headers: { "content-type": "application/json" },
       method: "PUT",
     });
@@ -273,3 +268,31 @@ test("keeps state-change history while advancing the latest observation time", a
     await rm(directory, { recursive: true });
   }
 });
+
+test.each([{ evidence: "process-started" }, { browserStatus: { available: true } }])(
+  "rejects invalid access evidence or runtime metadata: %j",
+  async (extra) => {
+    const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
+    const repository = createTestRepository(directory);
+    await using serviceScope = createScope();
+    const httpApp = createTestHttpApp(repository, serviceScope);
+    try {
+      const response = await httpApp.request("/api/platform-access/observations", {
+        body: JSON.stringify({
+          authenticationState: "authenticated",
+          evidence: "protected-resource",
+          observedAt: "2026-07-15T02:00:00.000Z",
+          platformId: "boss",
+          ...extra,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+      });
+      expect(response.status).toBe(badRequestStatus);
+      expect(repository.listPlatformAccessObservations()).toEqual([]);
+    } finally {
+      repository.close();
+      await rm(directory, { recursive: true });
+    }
+  },
+);

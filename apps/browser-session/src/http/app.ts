@@ -28,9 +28,23 @@ function localOriginGuard(context: Context, next: Next) {
     if (!originUrl) {
       return Promise.resolve(context.json({ error: "Origin 必须是有效 URL" }, badRequestStatus));
     }
-    if (originUrl.hostname !== "127.0.0.1" && originUrl.hostname !== "localhost") {
+    if (
+      (originUrl.hostname !== "127.0.0.1" && originUrl.hostname !== "localhost") ||
+      (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") ||
+      originUrl.origin !== origin
+    ) {
       return Promise.resolve(context.json({ error: "拒绝来自非本地页面的请求" }, forbiddenStatus));
     }
+  }
+  return next();
+}
+
+function healthReadHeaders(context: Context, next: Next) {
+  const origin = context.req.header("origin");
+  context.header("Cache-Control", "no-store");
+  context.header("Vary", "Origin");
+  if (origin && context.req.method === "GET") {
+    context.header("Access-Control-Allow-Origin", origin);
   }
   return next();
 }
@@ -38,6 +52,7 @@ function localOriginGuard(context: Context, next: Next) {
 export function createBrowserSessionHttpApp(dependencies: BrowserSessionHttpDependencies): Hono {
   const app = new Hono();
 
+  app.use("/health", localOriginGuard, healthReadHeaders);
   app.get("/health", (requestContext) =>
     requestContext.json({
       browser: dependencies.browserControl.status,

@@ -1,4 +1,6 @@
+// oxlint-disable import/max-dependencies -- The process composition root assembles concrete browser, HTTP, and workspace clients.
 import process from "node:process";
+import type { BrowserRuntimeStatus } from "@job-boardwalk/contracts";
 
 import { serve } from "@hono/node-server";
 import type { ServerType } from "@hono/node-server";
@@ -10,11 +12,10 @@ import { ManagedBrowser } from "./browser/managed-browser.js";
 import type { BrowserChannel } from "./browser/persistent-context-launch.js";
 import { prepareBrowserProfilePath } from "./browser/profile-path.js";
 import { createBrowserSessionHttpApp } from "./http/app.js";
-import {
-  BrowserSessionStatusReporter,
-  resolveWorkspaceServiceUrl,
-} from "./workspace-service/status-reporter.js";
-import { createWorkspaceServiceClients } from "./workspace-service/dependencies.js";
+import { PlatformAccessObservationReporter } from "./workspace-service/platform-access-observation-reporter.js";
+import { resolveWorkspaceServiceUrl } from "./workspace-service/configuration.js";
+import { WorkspaceJobEngagementWriter } from "./workspace-service/job-engagement-writer.js";
+import { WorkspaceJobObservationWriter } from "./workspace-service/job-observation-writer.js";
 
 const browserSessionPort = 54_312;
 const serverNotRunningErrorCode = "ERR_SERVER_NOT_RUNNING";
@@ -50,11 +51,19 @@ function errorDetail(error: Error): string {
 }
 
 function reportBrowserError(error: Error): void {
-  process.stderr.write(`[Browser Session] ${errorDetail(error)}\n`);
+  process.stderr.write(`[${new Date().toISOString()}] [Browser Session] ${errorDetail(error)}\n`);
 }
 
-function reportWorkspaceStatusError(error: Error): void {
-  process.stderr.write(`[Browser Session → Workspace Service] ${errorDetail(error)}\n`);
+function reportPlatformAccessError(error: Error): void {
+  process.stderr.write(
+    `[${new Date().toISOString()}] [Browser Session → Workspace Service] ${errorDetail(error)}\n`,
+  );
+}
+
+function reportBrowserLifecycle(status: BrowserRuntimeStatus): void {
+  process.stderr.write(
+    `[${new Date().toISOString()}] [Browser lifecycle] ${JSON.stringify(status)}\n`,
+  );
 }
 
 function connectShutdownSignal(
@@ -76,15 +85,15 @@ function* runBrowserSession(
   const profilePath = yield* prepareBrowserProfilePath(options.profilePath);
   const workspaceServiceUrl = options.workspaceServiceUrl ?? resolveWorkspaceServiceUrl();
   const browserControl = new ManagedBrowser(profilePath, {
-    ...createWorkspaceServiceClients(workspaceServiceUrl),
+    jobEngagementWriter: new WorkspaceJobEngagementWriter(workspaceServiceUrl),
+    jobObservationWriter: new WorkspaceJobObservationWriter(workspaceServiceUrl),
     ...(options.browserChannel ? { browserChannel: options.browserChannel } : {}),
     ...(options.browserExecutablePath
       ? { browserExecutablePath: options.browserExecutablePath }
       : {}),
   });
-  const statusReporter = new BrowserSessionStatusReporter(
+  const platformAccessReporter = new PlatformAccessObservationReporter(
     workspaceServiceUrl,
-    () => browserControl.status,
     () => browserControl.platformAccessObservations,
   );
   const httpApp = createBrowserSessionHttpApp({
@@ -110,8 +119,8 @@ function* runBrowserSession(
   const disconnectShutdownSignal = connectShutdownSignal(options.shutdownSignal, requestShutdown);
   try {
     yield* race([
-      () => browserControl.supervise(reportBrowserError),
-      () => statusReporter.run(reportWorkspaceStatusError),
+      () => browserControl.supervise(reportBrowserError, reportBrowserLifecycle),
+      () => platformAccessReporter.run(reportPlatformAccessError),
       () => wait(shutdown.future),
     ]);
   } finally {

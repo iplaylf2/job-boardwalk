@@ -1,0 +1,26 @@
+.panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px 24px;
+  margin-block-end: 22px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.status time {
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}

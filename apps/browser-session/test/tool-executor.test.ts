@@ -1,6 +1,7 @@
+// oxlint-disable max-lines -- Shared synthetic action setup keeps accepted and rejected tool behavior together.
 import type { BrowserContext, Locator, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
-import { createScope } from "@shajara/host";
+import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
@@ -296,4 +297,35 @@ test("selects an option in a captured selection control", async () => {
   await scope.run(() => executor.execute("browser_snapshot", {}));
   await scope.run(() => executor.execute("browser_select", { ref: "e1", value: "3-5年" }));
   expect(select.state.selectedValues).toEqual(["3-5年"]);
+});
+
+// eslint-disable-next-line no-script-url -- Synthetic observed page-control hrefs exercise URL validation.
+test.each(["javascript:;", "javascript:void(0);", "https://www.zhipin.com/#filters"])(
+  "clicks an observed page control at %s and expires its reference",
+  async (href) => {
+    const fake = fakeActionPage({ href, name: "合成岗位分类", role: "link" });
+    const executor = browserToolExecutor(fakeContext(fake.page));
+    await using scope = createScope();
+    await scope.run(() => executor.execute("browser_snapshot", {}));
+    await scope.run(() => executor.execute("browser_click", { ref: "e1" }));
+    expect(fake.state.clickCount).toBe(expectedActionCount);
+    expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(/过期/u);
+  },
+);
+
+test.each([
+  // eslint-disable-next-line no-script-url -- Synthetic arbitrary script destination must be rejected.
+  "javascript:sendMessage()",
+  // eslint-disable-next-line no-script-url -- A no-op prefix must not allow executable suffixes.
+  "javascript:void(0);submitApplication()",
+  "https://outside.example/jobs",
+  "http://www.zhipin.com/",
+  "data:text/html,synthetic",
+])("rejects a captured destination at %s before clicking", async (href) => {
+  const fake = fakeActionPage({ href, name: "合成控件", role: "link" });
+  const executor = browserToolExecutor(fakeContext(fake.page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  await expect(run(() => executor.execute("browser_click", { ref: "e1" }))).rejects.toThrow();
+  expect(fake.state.clickCount).toBe(firstLocatorIndex);
 });

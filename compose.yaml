@@ -43,6 +43,8 @@ services:
   dashboard:
     <<: *container-runtime-policy
     image: ${JOB_BOARDWALK_DASHBOARD_IMAGE:-job-boardwalk/dashboard:local}
+    environment:
+      JOB_BOARDWALK_BROWSER_SESSION_ORIGIN: ${JOB_BOARDWALK_BROWSER_SESSION_ORIGIN-http://127.0.0.1:54312}
     depends_on:
       workspace-service:
         condition: service_healthy

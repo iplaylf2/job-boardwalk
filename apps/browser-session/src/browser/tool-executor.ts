@@ -15,7 +15,7 @@ import { parseOptionalTabId } from "./browser-tabs.js";
 import type { BrowserTabs } from "./browser-tabs.js";
 import { clickAndCapturePopup } from "./click-popup.js";
 import {
-  assertPlatformNavigationLink,
+  assertPlatformClickTarget,
   findRecruitingPlatformAdapter,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
@@ -144,7 +144,7 @@ export class BrowserToolExecutor {
         if (!adapter) {
           throw new Error("当前页面不属于受支持招聘平台的 HTTPS 导航范围。");
         }
-        assertPlatformNavigationLink(adapter.platformId, reference.href);
+        assertPlatformClickTarget(adapter.platformId, reference.href);
       }
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
       const popupPage = yield* clickAndCapturePopup(sourcePage, reference.locator);

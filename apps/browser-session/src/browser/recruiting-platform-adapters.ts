@@ -38,6 +38,10 @@ function createRecruitingPlatformAdapter(
     },
     isJobDetailPage: (value) => isPlatformJobDetailPage(platformId, value),
     isLoginPage: (value) => isLoginPageUrl(value, loginUrl),
+    jobCardExtractionConfig: {
+      ...definition.jobCardExtractionConfig,
+      ...(definition.textReplacements ? { textReplacements: definition.textReplacements } : {}),
+    },
     label: metadata.label,
     loginUrl,
     platformId,
@@ -122,6 +126,11 @@ export function assertPlatformNavigationUrl(platformId: PlatformId, url: string)
   }
 }
 
-export function assertPlatformNavigationLink(platformId: PlatformId, href: string): void {
+export function assertPlatformClickTarget(platformId: PlatformId, href: string): void {
+  // Empty script links are page controls, with no explicit navigation destination.
+  // Arbitrary javascript URLs remain outside the navigation boundary.
+  if (/^javascript:\s*(?:;|void\s*\(\s*0\s*\)\s*;?)?\s*$/iu.test(href)) {
+    return;
+  }
   assertPlatformNavigationUrl(platformId, href);
 }

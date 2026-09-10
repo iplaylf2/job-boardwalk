@@ -4,7 +4,6 @@ import type { Context, Next } from "hono";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 import { registerApiRoutes } from "./api-routes.js";
 import { registerMcpEndpoint } from "./mcp-endpoint.js";
@@ -40,7 +39,6 @@ function registerLocalOriginGuard(app: Hono): void {
 }
 
 export interface WorkspaceServiceHttpDependencies {
-  browserSessionPresenceTracker: BrowserSessionPresenceTracker;
   repository: WorkspaceRepository;
   serviceScope: Scope;
 }
@@ -52,18 +50,8 @@ export function createWorkspaceServiceHttpApp(
 
   app.get("/health", (context) => context.json({ status: "ok" }));
   registerLocalOriginGuard(app);
-  registerApiRoutes(
-    app,
-    dependencies.repository,
-    dependencies.browserSessionPresenceTracker,
-    dependencies.serviceScope,
-  );
-  registerMcpEndpoint(
-    app,
-    dependencies.repository,
-    dependencies.browserSessionPresenceTracker,
-    dependencies.serviceScope,
-  );
+  registerApiRoutes(app, dependencies.repository, dependencies.serviceScope);
+  registerMcpEndpoint(app, dependencies.repository, dependencies.serviceScope);
 
   return app;
 }

@@ -75,7 +75,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。返回 navigation 和 pageInspection；达到 DOMContentLoaded 时 outcome=completed，等待超时时 outcome=timed-out。超时后根据页面检查和新的可见页面证据决定下一步。",
+      "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。返回 navigation 和 pageInspection；达到 DOMContentLoaded 时 outcome=completed，等待超时时 outcome=timed-out。最终 URL 离开受支持平台时仍返回行动结果与 URL，platformId 和 pageInspection 均为 null，表示未读取该文档。超时后根据页面检查和新的可见页面证据决定下一步。",
     name: "browser_navigate",
   }),
   defineBrowserTool({

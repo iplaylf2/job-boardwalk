@@ -86,6 +86,11 @@ private, start-scoped loopback admin endpoint selected by Manager. Manager reser
 until it hands the endpoint to Caddy at process launch; the address is never displayed or
 persisted. Manager forcibly terminates a child only when it exceeds the bounded shutdown period.
 
+Manager supplies `JOB_BOARDWALK_BROWSER_SESSION_ORIGIN` to Dashboard from the configured browser
+port, or an empty value when no browser launch candidate exists. Dashboard uses it for independent
+[health checks](../dashboard/README.md#optional-browser-session-health-checks); Manager retains
+process supervision.
+
 The services expose no manager-specific control protocol. Manager relies on explicit arguments,
 health endpoints, exit status, and log streams. It does not expose a tray, install the application,
 perform updates, read workspace persistence, or control recruiting pages.

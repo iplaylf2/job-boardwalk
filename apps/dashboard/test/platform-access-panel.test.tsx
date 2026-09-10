@@ -1,19 +1,11 @@
 import { renderToString } from "@solidjs/web";
 import { expect, test } from "vitest";
 
-import { WorkspaceStatusPanel } from "#/workspace-status-panel.js";
+import { PlatformAccessPanel } from "#/platform-access-panel.js";
 
-const onlinePresence = {
-  browserStatus: { available: true, tabCount: 1 },
-  leaseExpiresAt: "2026-08-17T02:00:15.000Z",
-  receivedAt: "2026-08-17T02:00:00.000Z",
-  state: "online",
-} as const;
-
-test("presents authentication as historical evidence with its latest confirmation", () => {
+test("dates authentication evidence by its latest confirmation", () => {
   const html = renderToString(() => (
-    <WorkspaceStatusPanel
-      presence={onlinePresence}
+    <PlatformAccessPanel
       platforms={[
         {
           label: "示例招聘平台",
@@ -36,8 +28,7 @@ test("presents authentication as historical evidence with its latest confirmatio
 
 test("presents the latest recurrence of an unresolved interruption", () => {
   const html = renderToString(() => (
-    <WorkspaceStatusPanel
-      presence={onlinePresence}
+    <PlatformAccessPanel
       platforms={[
         {
           label: "示例招聘平台",

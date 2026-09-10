@@ -77,8 +77,16 @@ pnpm exec moon run browser-session:dev
 ```
 
 The agent host connects to <http://127.0.0.1:54312/mcp>. Browser Session uses
-<http://127.0.0.1:54310> for status reports, selected-intent reads, and job writes. It may start
-before the containers: those operations retry without transferring browser ownership to Compose.
+<http://127.0.0.1:54310> to submit job and platform-access observations. It may start
+before the containers: platform-access submissions retry, and passive job collection can submit
+fresh evidence on a later pass. Browser Session remains outside the Compose lifecycle.
+
+Compose configures Dashboard's optional health checks with
+`JOB_BOARDWALK_BROWSER_SESSION_ORIGIN`, defaulting to `http://127.0.0.1:54312`. Set it to an empty
+value to disable requests to Browser Session. The origin addresses the user's graphical machine;
+it is not a container upstream or a Compose dependency. Dashboard's
+[application README](../apps/dashboard/README.md#service-origin-configuration) defines the accepted
+origin and direct-request behavior.
 
 ## Observe and update
 
@@ -96,7 +104,7 @@ docker compose -f compose.yaml -f deploy/compose.build.yaml up --build --detach
 ```
 
 Compose replaces the affected containers without replacing the named volume. Browser Session keeps
-running and renews its status lease when Workspace Service becomes available again.
+running and can resume evidence submission when Workspace Service becomes available again.
 
 Stop containers while retaining the workspace:
 

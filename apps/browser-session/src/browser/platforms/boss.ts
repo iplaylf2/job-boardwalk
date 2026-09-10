@@ -80,7 +80,6 @@ const bossJobCardExtraction = {
   requireContainerMatch: true,
   salarySelectors: [".salary"],
   salaryTextPattern: String.raw`\d+(?:-\d+)?K(?:·\d+薪)?|\d+(?:-\d+)?元/(?:天|小时)|面议`,
-  textReplacements: bossTextReplacements,
   titleSelectors: [".job-name", ".job-title"],
 } as const satisfies JobCardExtractionConfig;
 
@@ -97,4 +96,5 @@ export const bossPageDefinition = {
     descriptionSelectors: [".job-sec-text"],
   },
   jobLink: bossJobLink,
+  textReplacements: bossTextReplacements,
 } as const satisfies PlatformPageDefinition;

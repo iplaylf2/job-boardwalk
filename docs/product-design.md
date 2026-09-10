@@ -42,18 +42,17 @@ agent host connects directly to the service and discovers stable project-owned t
 owning browser lifecycle.
 
 The **Workspace Service** owns recruiting context, normalized job facts, platform-access
-observations, research reports, and their persistence. It also owns the in-memory presence tracker
-that applies short leases to Browser Session status reports. It exposes domain resources and tools
+observations, research reports, and their persistence. It exposes domain resources and tools
 to the agent and a local API to the Dashboard. It is headless and does not own browser automation,
 browser profiles, authentication cookies, or desktop windows.
 
-The **Dashboard** is an independent view of durable workspace data and leased Browser Session
-presence. It also lets the user maintain personal context and a collection of job-search intents.
-At most one intent is selected as the current research direction; it supplies platform
-recommendation pages that the agent may visit during user-requested research. Each intent
-associates a target position and city with those pages. Dashboard also presents unexpired research
-reports as workspace documents. It neither controls the browser nor requires an active agent
-conversation.
+The **Dashboard** is an independent view of durable workspace data. It also lets the user maintain
+personal context and a collection of job-search intents. At most one intent is selected as the
+current research direction; it supplies platform recommendation pages that the agent may visit
+during user-requested research. Each intent associates a target position and city with those pages. Dashboard also presents unexpired research
+reports as workspace documents. It can consume Browser Session as an optional capability service;
+its current browser integration checks service health. Workspace reading does not require an
+active browser or agent conversation.
 
 The **Desktop Manager** owns the native local-runtime control surface and operating-system
 integration. It is not a WebView host: Dashboard remains a browser application, and recruiting
@@ -84,17 +83,38 @@ desktop release status.
 A virtual desktop or remote desktop transport is not part of the product: a host without a
 user-observable graphical session cannot run Browser Session.
 
-## Runtime presence and reporting
+## Runtime ownership and research evidence
 
-Browser Session sends bounded status reports directly to Workspace Service. Each status report
-includes browser availability, version, and tab count, plus a generic failure summary when
-unavailable and any platform authentication observations derived from navigation responses or
-bounded snapshots. Detailed browser errors remain in the Browser Session process log so status
-reports do not expose local paths or launch parameters. Workspace Service treats runtime status as
-a short lease and stores only changed access observations: before the first status report, presence
-is unknown; after a lease expires, presence is offline. Reporting failure never prevents Browser
-Session from operating. Status reports contain no cookies, credentials, storage contents, or
-unrestricted page text.
+Browser Session uses Workspace Service to retain job and platform-access observations. Dashboard
+uses Workspace Service to read and maintain that durable workspace. Browser unavailability can
+interrupt new live research; existing workspace operations depend on Workspace Service and do not
+require a running browser.
+
+Browser Session owns browser startup, recovery, and runtime diagnostics. The product form owns
+service-process supervision: Desktop Manager checks the services it starts and presents their
+availability in its native UI. Dashboard can independently check Browser Session health when that
+optional integration is configured. It reports the outcome and time of its own check. Workspace
+Service neither relays health reads nor tracks browser presence.
+
+Platform-access observations retain the time and basis of a research assessment. Workspace Service
+reconciles them into the history described under [Access observations](#access-observations).
+Dashboard presents that history separately from current browser readiness. Browser Session's
+[evidence submission](../apps/browser-session/README.md#evidence-submission) handles delivery
+failures without stopping browser control.
+
+### Dashboard as a browser-capability client
+
+Browser Session is an application service whose MCP interface is one client adapter. Dashboard's
+current integration reads health only; a healthy browser establishes neither platform
+authentication nor authority to act. Dashboard may acquire purpose-specific HTTP operations as
+product needs become concrete, with action contracts and authority checks defined for each feature.
+
+Browser operations reuse Browser Session's in-process coordination and apply platform scope,
+reference validation, and user handoff where relevant. One actor drives the session at a time.
+Login, verification, messages, applications, and account changes retain their user-control boundary
+regardless of which client initiated the workflow. The
+[Dashboard README](../apps/dashboard/README.md#optional-browser-session-health-checks) documents the
+current health-check behavior and configuration.
 
 ## Job discovery and evidence
 
@@ -261,9 +281,9 @@ applies the delegation boundary before acting.
 
 ## Access observations
 
-Workspace Service reconciles Browser Session reports into a per-platform transition history. A
-newer changed assessment appends a transition; a newer repeated assessment advances that
-transition's latest observation time. A delayed status report cannot alter a newer platform
+Workspace Service reconciles submitted platform-access observations into a per-platform transition
+history. A newer changed assessment appends a transition; a newer repeated assessment advances that
+transition's latest observation time. A delayed observation cannot alter a newer platform
 conclusion. An agent may separately record evidence that no adapter classified, and all current
 conclusions are ordered by their latest observation time.
 
@@ -347,8 +367,8 @@ that created it.
 
 Dashboard has three reader paths:
 
-- the workspace overview for the current job-search intent, personal context, leased Browser
-  Session presence, and platform-access observations;
+- the workspace overview for the current job-search intent, personal context, and platform-access
+  observations;
 - a paginated job library for normalized job facts and merged platform sources, including a combined
   tracked view, engagement-category filters, and filters for description availability;
 - a report library and Markdown reader for conclusions, comparisons, uncertainty, and recommended
@@ -357,10 +377,11 @@ Dashboard has three reader paths:
 ### Workspace overview
 
 The overview follows task relevance rather than the order in which capabilities were added. The
-selected job-search intent and current personal context form the primary research basis. Browser
-and platform status appears in a compact secondary rail and gains visual emphasis only for an
-interruption or unavailable runtime. Counts already present in global navigation are not repeated
-as overview sections.
+selected job-search intent and current personal context form the primary research basis.
+Platform-access evidence appears in a compact secondary rail and gains visual emphasis only for an
+unresolved access interruption. Counts already present in global navigation are not repeated
+as overview sections. The independent browser-service panel reports optional health checks as
+described under [Runtime ownership and research evidence](#runtime-ownership-and-research-evidence).
 
 Personal context is current research input, not immutable history. The overview initially shows a
 bounded read-only summary, and the user can expand every current personal fact in place. A separate
@@ -388,5 +409,5 @@ As the product grows, it should also include:
 - research runs, partial progress, and interruptions;
 - further report formats and exports when Markdown is no longer sufficient.
 
-Future additions do not change the control boundary: browser interaction and user handoff happen
-through the agent conversation and the visible platform window, not through Dashboard controls.
+Browser features follow the [browser-capability client boundary](#dashboard-as-a-browser-capability-client).
+Reports remain documents, including when other Dashboard features gain browser operations.

@@ -17,11 +17,9 @@ Live web interaction belongs to the separate [`browser-session`](../browser-sess
 which owns the visible persistent browser. The agent coordinates that live browser work with the
 durable workspace exposed by this service.
 
-Browser Session also sends status reports directly to Workspace Service. An in-memory presence
-tracker renews a short lease for each accepted status report and makes the result available to
-Dashboard and MCP readers. A status report may also carry authentication observations derived from
-real platform navigation responses or bounded page reads; the service validates, deduplicates, and
-persists them. An expired lease is shown as offline rather than current browser state.
+Browser Session submits platform-access observations through the domain API. Workspace Service
+validates and persists this historical research evidence independently of the producer's runtime.
+It neither calls Browser Session to fulfill workspace requests nor tracks its availability.
 
 ## Run Workspace Service
 
@@ -57,8 +55,8 @@ top-level shajara scope with the HTTP API.
 
 The MCP surface provides:
 
-- `job-boardwalk://workspace/overview`, a resource containing Browser Session presence,
-  platform-access summaries, profile facts, and job-search intents;
+- `job-boardwalk://workspace/overview`, a resource containing platform-access summaries,
+  profile facts, and job-search intents;
 - `read_workspace_overview`, which reads the same workspace state;
 - `job-boardwalk://jobs`, which exposes the first page of the current job library, including
   description coverage, available collected descriptions, and platform sources;
@@ -75,8 +73,8 @@ The HTTP surface currently exposes:
 
 - `GET /health`
 - `GET /api/workspace/overview`
-- `PUT /api/browser-session/status`
 - `POST /api/platform-access/observations`
+- `PUT /api/platform-access/observations`
 - `POST /api/profile/facts`
 - `PUT /api/profile/facts/:id`
 - `DELETE /api/profile/facts/:id`
@@ -98,35 +96,17 @@ The HTTP surface currently exposes:
 Shared request and response types live in
 [`@job-boardwalk/contracts`](../../packages/contracts/).
 
-### Browser Session status
-
-Browser Session renews its presence lease with a bounded status report:
-
-```json
-{
-  "browserStatus": {
-    "available": true,
-    "browserVersion": "150.0.0.0",
-    "tabCount": 1
-  },
-  "platformAccessObservations": []
-}
-```
-
-Workspace Service assigns `receivedAt` when it accepts the status report. A current lease appears
-as `online`; an expired lease appears as `offline`; before the first status report, presence is
-`unknown`. This presence state remains in memory and resets to `unknown` when Workspace Service
-restarts. Platform-access observations carried in the status report are durable. A changed
-assessment appends a transition; a repeated assessment advances that transition's latest
-observation time. A report no newer than the latest accepted observation for its platform is stale
-and does not alter the transition history.
-
 ### Platform-access observations
 
-Browser Session includes structured platform-access conclusions in its status reports when an
-adapter derives an authentication observation from a qualifying top-level navigation response or
-bounded page snapshot. An agent may instead post to `/api/platform-access/observations`, but only
-for evidence that no adapter classified:
+Browser Session submits adapter-derived authentication evidence to
+`PUT /api/platform-access/observations`. The endpoint reconciles one observation: a changed
+assessment appends a transition, a newer repeated assessment advances its latest observation time,
+and stale evidence leaves the history unchanged. It returns the retained observation, or `null`
+when no newer evidence is applied.
+
+An agent may post independently interpreted evidence to `POST /api/platform-access/observations`
+when no adapter classified it. This appends a separate record. Both operations accept the same
+observation contract; neither accepts browser runtime status:
 
 ```json
 {
@@ -137,12 +117,10 @@ for evidence that no adapter classified:
 }
 ```
 
-Every record retains when its assessment was first observed and when that same assessment was most
-recently observed. Browser Session status reconciliation extends the latest transition when an
-assessment repeats; an agent-submitted observation remains a separate record. Current conclusions
-are ordered by the latest observation time, so delayed historical evidence cannot supersede newer
-evidence. `platformId` accepts identifiers from the [platform catalog](../../packages/platform-catalog/src/index.ts).
-Authentication evidence
+Every record retains its first and latest observation times. Current conclusions are ordered by
+the latest observation time, so delayed historical evidence cannot supersede newer evidence.
+`platformId` accepts identifiers from the
+[platform catalog](../../packages/platform-catalog/src/index.ts). Authentication evidence
 distinguishes how the conclusion was established:
 
 - `protected-resource` records `authenticated` from a successful navigation known to require

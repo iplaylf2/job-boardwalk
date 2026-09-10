@@ -8,9 +8,11 @@ Job-card collection covers `/web/geek/job-recommend` and `/web/geek/jobs`. Detai
 come from `/job_detail/<external-job-id>.html`. Detail-panel links outside recognized card
 containers are excluded from card snapshots.
 
-Salary digits rendered through the page's private-use character set are deterministically mapped
-to their displayed decimal digits before bounded card evidence is returned. This does not alter
-navigation or bypass an access decision.
+The page definition owns the known private-use digit mapping shared by generic snapshots, job
+cards, and descriptions. Decoding occurs before description fact matching, including salary and
+experience. Generic snapshots decode visible text, element names, and card context while retaining
+raw element signatures for reference validation. Unknown characters remain unchanged; the mapping
+covers only the known platform digit encoding.
 
 ## Access assessment
 

@@ -79,7 +79,11 @@ export function captureJobDescriptionMetadata(input: {
       return helpers.normalized(bodyText.slice(firstIndex, end)).split("\n").at(lastIndex) ?? null;
     },
     normalized(value: string): string {
-      return value
+      let decodedValue = value;
+      for (const [encoded, decoded] of Object.entries(input.cardConfig.textReplacements ?? {})) {
+        decodedValue = decodedValue.replaceAll(encoded, decoded);
+      }
+      return decodedValue
         .replaceAll("\r", "")
         .split("\n")
         .map((line) => line.replaceAll(/\s+/gu, " ").trim())

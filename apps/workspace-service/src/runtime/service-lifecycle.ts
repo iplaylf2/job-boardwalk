@@ -10,7 +10,6 @@ import { wait } from "@shajara/host/primitives";
 import { createWorkspaceServiceHttpApp } from "#/http/app.js";
 import { prepareWorkspaceDatabasePath } from "#/persistence/database-path.js";
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 import { resolveHttpServerAddress } from "#/runtime/http-server-address.js";
 import type { HttpServerAddress } from "#/runtime/http-server-address.js";
 
@@ -58,9 +57,7 @@ export function* runWorkspaceService(
   const migrationsDirectory =
     options.migrationsDirectory ?? path.resolve(import.meta.dirname, "migrations");
   const repository = new WorkspaceRepository({ databasePath, migrationsDirectory });
-  const browserSessionPresenceTracker = new BrowserSessionPresenceTracker();
   const httpApp = createWorkspaceServiceHttpApp({
-    browserSessionPresenceTracker,
     repository,
     serviceScope,
   });

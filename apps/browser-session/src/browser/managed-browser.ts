@@ -23,23 +23,17 @@ const initialFailureCount = 0;
 const initialReturnedControlRevision = 0;
 const firstFailureCount = 1;
 const nextReturnedControl = 1;
-const minimumRetryExponent = 0;
 const retryDelayBaseMilliseconds = 1000;
 const retryDelayMaximumMilliseconds = 30_000;
-const retryExponentMaximum = 5;
 const retryExponentBase = 2;
 const publicBrowserFailureMessage = "浏览器启动或运行失败。";
 
 type PersistentContextLauncher = (profilePath: string) => Promise<BrowserContext>;
 
 function retryDelay(failureCount: number): number {
-  const exponent = Math.min(
-    Math.max(failureCount - firstFailureCount, minimumRetryExponent),
-    retryExponentMaximum,
-  );
   return Math.min(
     retryDelayMaximumMilliseconds,
-    retryDelayBaseMilliseconds * retryExponentBase ** exponent,
+    retryDelayBaseMilliseconds * retryExponentBase ** (failureCount - firstFailureCount),
   );
 }
 
@@ -68,7 +62,10 @@ export class ManagedBrowser implements BrowserControl {
   readonly #returnedControlRevisions = new Map<PlatformId, number>();
   #platformAccessObserver: PlatformAccessObserver | null = null;
   #toolExecutor: BrowserToolExecutor | null = null;
-  #hasFailed = false;
+  #lifecycle: Extract<BrowserRuntimeStatus, { available: false }>["lifecycle"] = {
+    phase: "starting",
+    phaseStartedAt: new Date().toISOString(),
+  };
 
   public constructor(
     profilePath: string,
@@ -100,7 +97,7 @@ export class ManagedBrowser implements BrowserControl {
     if (!this.#context || !this.#toolExecutor) {
       return {
         available: false,
-        ...(this.#hasFailed ? { lastError: publicBrowserFailureMessage } : {}),
+        lifecycle: this.#lifecycle,
       };
     }
     const browserVersion = this.#context.browser()?.version();
@@ -113,8 +110,8 @@ export class ManagedBrowser implements BrowserControl {
 
   public *executeTool(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
     if (!this.#toolExecutor) {
-      const detail = this.#hasFailed ? publicBrowserFailureMessage : "浏览器尚未就绪。";
-      throw new Error(`浏览器暂不可用，Browser Session 正在启动或恢复。${detail}`);
+      const detail = this.#lifecycle.lastFailure ? publicBrowserFailureMessage : "浏览器尚未就绪。";
+      throw new Error(`浏览器暂不可用。${detail}`);
     }
     return yield* this.#toolExecutor.execute(toolName, input);
   }
@@ -123,31 +120,87 @@ export class ManagedBrowser implements BrowserControl {
     return this.#platformAccessObserver?.observations ?? [];
   }
 
-  public *supervise(reportError: (error: Error) => void): RiteCoroutine<never> {
+  public *supervise(
+    reportError: (error: Error) => void,
+    reportLifecycle: (status: BrowserRuntimeStatus) => void = () => null,
+  ): RiteCoroutine<never> {
     let failureCount = initialFailureCount;
-    while (true) {
-      try {
-        const closed = yield* this.#launchOnce(reportError);
-        if (!closed) {
-          throw new CanceledError();
+    try {
+      while (true) {
+        this.#setPhase("starting", reportLifecycle);
+        try {
+          const closed = yield* this.#runBrowserAttempt(reportError, reportLifecycle);
+          // Cancellation can unwind the attempt without a close result; shutdown must not retry.
+          if (!closed) {
+            throw new CanceledError();
+          }
+          failureCount = recordFailure(closed, initialFailureCount, reportError);
+        } catch (error) {
+          if (error instanceof CanceledError || error instanceof ScopeError) {
+            throw error;
+          }
+          const runtimeError = error instanceof Error ? error : new Error(String(error));
+          this.#lifecycle = {
+            ...this.#lifecycle,
+            lastFailure: {
+              category: this.#lifecycle.phase === "starting" ? "launch-failed" : "runtime-failed",
+              occurredAt: new Date().toISOString(),
+            },
+          };
+          failureCount = recordFailure(runtimeError, failureCount, reportError);
         }
-        failureCount = this.#recordFailure(closed, initialFailureCount, reportError);
-      } catch (error) {
-        if (error instanceof CanceledError || error instanceof ScopeError) {
-          throw error;
-        }
-        const launchError = error instanceof Error ? error : new Error(String(error));
-        failureCount = this.#recordFailure(launchError, failureCount, reportError);
+        const delay = retryDelay(failureCount);
+        this.#setPhase("retry-wait", reportLifecycle, new Date(Date.now() + delay).toISOString());
+        yield* sleep(delay);
       }
-      yield* sleep(retryDelay(failureCount));
+    } finally {
+      this.#setPhase("stopped", reportLifecycle);
     }
   }
 
-  *#launchOnce(reportError: (error: Error) => void): RiteCoroutine<Error> {
+  #setPhase(
+    phase: Extract<BrowserRuntimeStatus, { available: false }>["lifecycle"]["phase"],
+    reportLifecycle: (status: BrowserRuntimeStatus) => void,
+    nextAttemptAt?: string,
+  ): void {
+    this.#lifecycle = {
+      phase,
+      phaseStartedAt: new Date().toISOString(),
+      ...(this.#lifecycle.lastFailure ? { lastFailure: this.#lifecycle.lastFailure } : {}),
+      ...(nextAttemptAt ? { nextAttemptAt } : {}),
+    };
+    reportLifecycle(this.status);
+  }
+
+  *#runBrowserAttempt(
+    reportError: (error: Error) => void,
+    reportLifecycle: (status: BrowserRuntimeStatus) => void,
+  ): RiteCoroutine<Error> {
     const context = yield* until(() => this.#persistentContextLauncher(this.#profilePath));
+    try {
+      return yield* this.#runContext(context, reportError, reportLifecycle);
+    } finally {
+      this.#context = null;
+      this.#platformAccessObserver = null;
+      this.#toolExecutor = null;
+      if (this.#lifecycle.phase !== "closing") {
+        this.#setPhase("closing", reportLifecycle);
+      }
+      yield* until(() => context.close());
+    }
+  }
+
+  *#runContext(
+    context: BrowserContext,
+    reportError: (error: Error) => void,
+    reportLifecycle: (status: BrowserRuntimeStatus) => void,
+  ): RiteCoroutine<Error> {
     this.#returnedControlRevisions.clear();
     const closed = yield* completer<Error>();
-    context.once("close", () => closed.resolve(new Error("浏览器窗口已经关闭。")));
+    context.once("close", () => {
+      this.#recordWindowClosed(reportLifecycle);
+      closed.resolve(new Error("浏览器窗口已经关闭。"));
+    });
     this.#context = context;
     const platformAccessObserver = new PlatformAccessObserver(context);
     const collectionControl = new BackgroundCollectionControl();
@@ -177,19 +230,23 @@ export class ManagedBrowser implements BrowserControl {
           this.#jobObservationWriter.writeDescriptionObservation(...input),
       },
     );
-    this.#hasFailed = false;
-    try {
-      const result = yield* race([
-        () => platformAccessObserver.run(),
-        () => jobObservationCollector.run(reportError),
-        () => wait(closed.future),
-      ]);
-      return result;
-    } finally {
-      this.#context = null;
-      this.#platformAccessObserver = null;
+    reportLifecycle(this.status);
+    const result = yield* race([
+      () => platformAccessObserver.run(),
+      () => jobObservationCollector.run(reportError),
+      () => wait(closed.future),
+    ]);
+    return result;
+  }
+
+  #recordWindowClosed(reportLifecycle: (status: BrowserRuntimeStatus) => void): void {
+    if (this.#lifecycle.phase !== "closing") {
+      this.#lifecycle = {
+        ...this.#lifecycle,
+        lastFailure: { category: "window-closed", occurredAt: new Date().toISOString() },
+      };
       this.#toolExecutor = null;
-      yield* until(() => context.close());
+      this.#setPhase("closing", reportLifecycle);
     }
   }
 
@@ -198,10 +255,13 @@ export class ManagedBrowser implements BrowserControl {
       this.#returnedControlRevisions.get(platformId) ?? initialReturnedControlRevision;
     this.#returnedControlRevisions.set(platformId, currentRevision + nextReturnedControl);
   }
+}
 
-  #recordFailure(error: Error, failureCount: number, reportError: (error: Error) => void): number {
-    this.#hasFailed = true;
-    reportError(error);
-    return failureCount + firstFailureCount;
-  }
+function recordFailure(
+  error: Error,
+  failureCount: number,
+  reportError: (error: Error) => void,
+): number {
+  reportError(error);
+  return failureCount + firstFailureCount;
 }

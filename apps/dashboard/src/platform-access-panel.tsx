@@ -1,13 +1,12 @@
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type {
-  BrowserSessionPresence,
   PlatformAccessSummary,
   RecordedPlatformAuthenticationObservation,
 } from "@job-boardwalk/contracts";
 
 import { SectionKicker } from "./ui/section-kicker.js";
-import styles from "./workspace-status-panel.module.css";
+import styles from "./platform-access-panel.module.css";
 
 const authenticationCopy = {
   "authenticated-page": { label: "当时已登录", tone: "positive" },
@@ -38,39 +37,6 @@ function formatTimestamp(timestamp: string): string {
     minute: "2-digit",
     month: "numeric",
   }).format(new Date(timestamp));
-}
-
-function BrowserStatus(props: { presence: BrowserSessionPresence }): JSX.Element {
-  if (props.presence.state === "unknown") {
-    return (
-      <>
-        <span class={statusClass("unknown")}>状态未知</span>
-        <span class={styles["meta"]}>尚未收到会话状态</span>
-      </>
-    );
-  }
-  if (props.presence.state === "offline") {
-    return (
-      <>
-        <span class={statusClass("warning")}>会话离线</span>
-        <span class={styles["meta"]}>
-          最后更新于 {formatTimestamp(props.presence.lastReceivedAt)}
-        </span>
-      </>
-    );
-  }
-  return (
-    <>
-      <span class={statusClass(props.presence.browserStatus.available ? "positive" : "attention")}>
-        {props.presence.browserStatus.available ? "浏览器可用" : "浏览器不可用"}
-      </span>
-      <span class={styles["meta"]}>
-        {props.presence.browserStatus.available
-          ? `${String(props.presence.browserStatus.tabCount)} 个标签页`
-          : `记录于 ${formatTimestamp(props.presence.receivedAt)}`}
-      </span>
-    </>
-  );
 }
 
 function PlatformAuthenticationStatus(props: {
@@ -122,43 +88,28 @@ function PlatformStatus(props: { platform: PlatformAccessSummary }): JSX.Element
   );
 }
 
-function needsAttention(
-  presence: BrowserSessionPresence,
-  platforms: PlatformAccessSummary[],
-): boolean {
-  const browserNeedsAttention =
-    presence.state === "offline" ||
-    (presence.state === "online" && !presence.browserStatus.available);
-  return browserNeedsAttention || platforms.some((platform) => platform.unresolvedInterruption);
+function needsAttention(platforms: PlatformAccessSummary[]): boolean {
+  return platforms.some((platform) => platform.unresolvedInterruption);
 }
 
-export function WorkspaceStatusPanel(props: {
-  presence: BrowserSessionPresence;
-  platforms: PlatformAccessSummary[];
-}): JSX.Element {
+export function PlatformAccessPanel(props: { platforms: PlatformAccessSummary[] }): JSX.Element {
   return (
     <aside
       class={`${styles["panel"]} ${
-        needsAttention(props.presence, props.platforms) ? styles["panelAttention"] : ""
+        needsAttention(props.platforms) ? styles["panelAttention"] : ""
       }`}
-      aria-labelledby="workspace-status-heading"
+      aria-labelledby="platform-access-heading"
     >
       <div class={styles["heading"]}>
         <div>
-          <SectionKicker>运行状态</SectionKicker>
-          <h2 id="workspace-status-heading">浏览器与平台</h2>
+          <SectionKicker>研究上下文</SectionKicker>
+          <h2 id="platform-access-heading">平台访问记录</h2>
         </div>
-        <Show when={needsAttention(props.presence, props.platforms)}>
+        <Show when={needsAttention(props.platforms)}>
           <span class={styles["signal"]}>需要处理</span>
         </Show>
       </div>
       <div class={styles["items"]}>
-        <article class={styles["item"]}>
-          <span class={styles["itemName"]}>浏览器会话</span>
-          <div class={styles["itemValue"]}>
-            <BrowserStatus presence={props.presence} />
-          </div>
-        </article>
         <For each={props.platforms}>
           {(platform) => (
             <article class={styles["item"]}>

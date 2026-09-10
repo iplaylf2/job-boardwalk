@@ -45,6 +45,7 @@ interface SnapshotMetadata {
 }
 
 interface SnapshotCaptureInput {
+  textReplacements?: Readonly<Record<string, string>>;
   interactions?: readonly PageInteractionDefinition[];
   referenceScope: string;
   maximumElements: number;
@@ -84,6 +85,15 @@ export function captureSnapshotMetadata(
   body: HTMLElement,
   input: SnapshotCaptureInput,
 ): SnapshotMetadata {
+  const helpers = {
+    decode(value: string): string {
+      let decodedValue = value;
+      for (const [encoded, decoded] of Object.entries(input.textReplacements ?? {})) {
+        decodedValue = decodedValue.replaceAll(encoded, decoded);
+      }
+      return decodedValue;
+    },
+  };
   const emptyDimension = 0;
   const maximumContextCharacters = 1500;
   const document = body.ownerDocument;
@@ -160,11 +170,12 @@ export function captureSnapshotMetadata(
       identities.set(element, identity);
     }
     const metadata: ElementMetadata = {
-      ...(context ? { context } : {}),
+      ...(context ? { context: helpers.decode(context) } : {}),
       disabled: element.matches(
         "button:disabled, input:disabled, textarea:disabled, select:disabled",
       ),
-      name: rawName
+      name: helpers
+        .decode(rawName)
         .replaceAll(/\s+/gu, " ")
         .trim()
         .slice(input.startIndex, input.maximumNameCharacters),
@@ -195,12 +206,12 @@ export function captureSnapshotMetadata(
   }
   // InnerText intentionally reflects rendered text; textContent includes hidden page content.
   // eslint-disable-next-line unicorn/prefer-dom-node-text-content
-  const rawText = body.innerText;
+  const rawText = helpers.decode(body.innerText);
   return {
     documentReadyState: document.readyState,
     elements,
     text: rawText.slice(input.startIndex, input.textLimit),
-    title: document.title,
+    title: helpers.decode(document.title),
     truncated: elementsTruncated || hrefTruncated || rawText.length > input.textLimit,
     url: document.location.href,
     viewport: {
@@ -227,6 +238,7 @@ export function* capturePageSnapshot(page: Page, textLimit: number): RiteCorouti
         captureSnapshotMetadata,
         {
           interactions,
+          ...(adapter?.textReplacements ? { textReplacements: adapter.textReplacements } : {}),
           maximumElements: maximumSnapshotElements,
           maximumHrefCharacters: maximumElementHrefCharacters,
           maximumNameCharacters: maximumElementNameCharacters,

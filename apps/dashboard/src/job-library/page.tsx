@@ -6,7 +6,7 @@ import type { JobPosting } from "@job-boardwalk/contracts";
 
 import { AppShell } from "#/app-shell.js";
 import { WorkspaceDataBoundary } from "#/workspace-data-boundary.js";
-import { createWorkspaceRead } from "#/workspace-read.js";
+import { createPolledRead } from "#/polled-read.js";
 import { readJobPostingPage } from "#/workspace-service-client.js";
 
 import { JobDescriptionDialog } from "./description-dialog.js";
@@ -127,7 +127,7 @@ function createJobLibraryPageState(view: JobLibraryView) {
     createSignal<DescriptionStatusSelection>(allDescriptionStatuses);
   const [page, setPage] = createSignal(firstPage);
   const [selectedJob, setSelectedJob] = createSignal<JobPosting | null>(null);
-  const jobPage = createWorkspaceRead(() => {
+  const jobPage = createPolledRead(() => {
     const selectedDescriptionStatus = descriptionStatus();
     return readJobPostingPage({
       ...(engagement ? { engagement } : {}),

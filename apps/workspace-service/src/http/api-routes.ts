@@ -2,9 +2,7 @@ import type { Hono } from "hono";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
-import { registerBrowserSessionStatusRoute } from "./browser-session-status-route.js";
 import { registerJobSearchIntentRoute } from "./job-search-intent-route.js";
 import { registerJobEngagementRoute } from "./job-engagement-route.js";
 import { registerJobLibraryRoute } from "./job-library-route.js";
@@ -17,11 +15,9 @@ import { registerWorkspaceOverviewRoute } from "./workspace-overview-route.js";
 export function registerApiRoutes(
   app: Hono,
   repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): void {
-  registerWorkspaceOverviewRoute(app, repository, presenceTracker, serviceScope);
-  registerBrowserSessionStatusRoute(app, presenceTracker, repository, serviceScope);
+  registerWorkspaceOverviewRoute(app, repository, serviceScope);
   registerPlatformAccessObservationRoute(app, repository, serviceScope);
   registerProfileFactRoute(app, repository, serviceScope);
   registerResearchReportRoute(app, repository, serviceScope);

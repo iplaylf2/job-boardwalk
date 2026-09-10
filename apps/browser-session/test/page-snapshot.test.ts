@@ -3,6 +3,8 @@ import { errors } from "patchright";
 import { run } from "@shajara/host";
 import { afterEach, expect, test, vi } from "vitest";
 
+import { recruitingPlatformAdapters } from "#/browser/recruiting-platform-adapters.js";
+
 import { capturePageSnapshot, captureSnapshotMetadata } from "#/browser/page-snapshot.js";
 
 const firstIndex = 0;
@@ -153,7 +155,11 @@ test("inspects the page after a snapshot timeout without retrying the snapshot",
   expect(evaluations).toEqual(["body", "html"]);
 });
 
-function syntheticSnapshot(elements: HTMLElement[]) {
+function syntheticSnapshot(
+  elements: HTMLElement[],
+  textReplacements?: Readonly<Record<string, string>>,
+  bodyText = "合成岗位列表",
+) {
   const document = {
     defaultView: {
       getComputedStyle: () => ({ display: "block", visibility: "visible" }),
@@ -166,9 +172,10 @@ function syntheticSnapshot(elements: HTMLElement[]) {
     readyState: "complete",
     title: "合成岗位列表",
   } as unknown as Document;
-  const body = { innerText: "合成岗位列表", ownerDocument: document } as HTMLElement;
+  const body = { innerText: bodyText, ownerDocument: document } as HTMLElement;
   return (referenceScope: string) =>
     captureSnapshotMetadata(body, {
+      ...(textReplacements ? { textReplacements } : {}),
       interactions: [
         { contextSelector: ".joblist-item", role: "link", selector: ".joblist-item .jname" },
       ],
@@ -234,4 +241,17 @@ test("distinguishes identical title nodes and invalidates replaced nodes and cha
   expect(capture("third").elements[firstIndex]?.signature).not.toBe(first?.signature);
   context["innerText"] = "合成岗位 合成雇主 20-25K";
   expect(capture("fourth").elements[secondIndex]?.signature).not.toBe(second?.signature);
+});
+
+test("decodes known platform glyphs in visible text while preserving unknown glyphs", () => {
+  const element = fakeElement({ innerText: "合成岗位 -K -年 \uE099", tagName: "BUTTON" });
+  const capture = syntheticSnapshot(
+    [element],
+    recruitingPlatformAdapters.boss.textReplacements,
+    "-K -年 \uE099",
+  );
+  const snapshot = capture("first");
+  expect(snapshot.text).toBe("20-30K 3-5年 \uE099");
+  expect(snapshot.elements[firstIndex]?.name).toBe("合成岗位 20-30K 3-5年 \uE099");
+  expect(syntheticSnapshot([element])("other").elements[firstIndex]?.name).toContain("-K");
 });

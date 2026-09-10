@@ -55,6 +55,7 @@ export interface PageInteractionDefinition {
 }
 
 export interface PlatformPageDefinition {
+  readonly textReplacements?: Readonly<Record<string, string>>;
   readonly collectionPageInteractions?: readonly PageInteractionDefinition[];
   readonly jobLink: JobLinkConfig;
   readonly jobCardExtractionConfig: JobCardExtractionConfig;

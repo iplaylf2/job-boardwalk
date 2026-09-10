@@ -1,4 +1,3 @@
-import { BrowserSessionPresence } from "./browser-session.ts";
 import { contract } from "./internal/contract.ts";
 import { platformId, trimmedNonEmptyString } from "./internal/contract-fields.ts";
 import { ProfileFact } from "./profile.ts";
@@ -17,7 +16,6 @@ export const PlatformAccessSummary = contract({
 export type PlatformAccessSummary = typeof PlatformAccessSummary.infer;
 
 export const WorkspaceOverview = contract({
-  browserSessionPresence: BrowserSessionPresence,
   jobSearchIntents: JobSearchIntent.array(),
   platformAccessSummaries: PlatformAccessSummary.array(),
   profileFacts: ProfileFact.array(),

@@ -7,17 +7,14 @@ import { reportUnexpectedRoutineFailure, useDashboardRuntime } from "./dashboard
 const initialRefreshCount = 0;
 const refreshIncrement = 1;
 
-function* pollWorkspaceRead(
-  refresh: () => void,
-  refreshIntervalMilliseconds: number,
-): RiteCoroutine<never> {
+function* pollRead(refresh: () => void, refreshIntervalMilliseconds: number): RiteCoroutine<never> {
   while (true) {
     yield* sleep(refreshIntervalMilliseconds);
     refresh();
   }
 }
 
-export function createWorkspaceRead<Result>(
+export function createPolledRead<Result>(
   read: RiteRoutine<Result>,
   refreshIntervalMilliseconds: number,
 ): {
@@ -40,7 +37,7 @@ export function createWorkspaceRead<Result>(
   onSettled(() => {
     const pollingController = new AbortController();
     runtime
-      .run(pollWorkspaceRead(refresh, refreshIntervalMilliseconds), {
+      .run(pollRead(refresh, refreshIntervalMilliseconds), {
         signal: pollingController.signal,
       })
       .catch(reportUnexpectedRoutineFailure);

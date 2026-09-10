@@ -1,5 +1,5 @@
 // oxlint-disable oxc/no-barrel-file -- The package root is the declared public contract surface.
-export * from "./browser-session.ts";
+export * from "./browser-session-health.ts";
 export * from "./job-engagement.ts";
 export * from "./job-card-snapshot.ts";
 export * from "./job-observation.ts";

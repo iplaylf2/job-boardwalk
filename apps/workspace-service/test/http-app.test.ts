@@ -15,7 +15,6 @@ import { expect, test } from "vitest";
 
 import { createWorkspaceServiceHttpApp } from "#/http/app.js";
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
@@ -33,10 +32,8 @@ const mcpRequestHeaders = {
 function createTestHttpApp(
   repository: WorkspaceRepository,
   serviceScope: ReturnType<typeof createScope>,
-  presenceTracker: BrowserSessionPresenceTracker = new BrowserSessionPresenceTracker(),
 ) {
   return createWorkspaceServiceHttpApp({
-    browserSessionPresenceTracker: presenceTracker,
     repository,
     serviceScope,
   });
@@ -207,16 +204,6 @@ test("keeps request errors inside the long-lived service scope", async () => {
       method: "POST",
     });
     expect(credentialedIntentSourceResponse.status).toBe(badRequestStatus);
-
-    const unknownNestedFieldResponse = await httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true, tabCount: 1, unexpected: true },
-        platformAccessObservations: [],
-      }),
-      headers: { "content-type": "application/json" },
-      method: "PUT",
-    });
-    expect(unknownNestedFieldResponse.status).toBe(badRequestStatus);
 
     const followingResponse = await httpApp.request("/api/workspace/overview");
     expect(followingResponse.status).toBe(successfulStatus);
@@ -531,54 +518,6 @@ test("stores and reads collected page facts through the public HTTP boundary", a
       `/api/jobs?pageSize=${String(maximumPageSizePlusOne)}`,
     );
     expect(invalidPageSize.status).toBe(badRequestStatus);
-  } finally {
-    repository.close();
-    await rm(directory, { recursive: true });
-  }
-});
-
-test("accepts leased Browser Session presence for dashboard reads", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = createTestRepository(directory);
-  await using serviceScope = createScope();
-  const presenceTracker = new BrowserSessionPresenceTracker(() =>
-    Date.parse("2026-07-15T01:00:00.000Z"),
-  );
-  const httpApp = createTestHttpApp(repository, serviceScope, presenceTracker);
-
-  try {
-    const reportResponse = await httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
-        platformAccessObservations: [],
-      }),
-      headers: { "content-type": "application/json" },
-      method: "PUT",
-    });
-    expect(reportResponse.status).toBe(successfulStatus);
-    expect(await reportResponse.json()).toMatchObject({
-      browserStatus: { available: true, tabCount: 1 },
-      state: "online",
-    });
-
-    const overviewResponse = await httpApp.request("/api/workspace/overview");
-    expect(await overviewResponse.json()).toMatchObject({
-      browserSessionPresence: {
-        browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
-        receivedAt: "2026-07-15T01:00:00.000Z",
-        state: "online",
-      },
-    });
-
-    const invalidResponse = await httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true },
-        platformAccessObservations: [],
-      }),
-      headers: { "content-type": "application/json" },
-      method: "PUT",
-    });
-    expect(invalidResponse.status).toBe(badRequestStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

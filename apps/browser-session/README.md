@@ -6,11 +6,10 @@ browser process, coordinates tabs and page actions, and derives authentication o
 top-level navigation responses and bounded snapshots when a platform adapter has a conclusive
 rule. Page meaning not covered by an adapter remains with the agent.
 
-Browser Session is a host companion by design. It runs in the same graphical session the user
-can observe and take over; it is not part of the Compose deployment. Workspace Service and
-Dashboard run in containers, while Workspace Service's loopback-published port preserves the
-existing local HTTP relationship without giving either container access to the browser profile
-or desktop.
+Browser Session is a host companion by design. It runs in the graphical session the user can
+observe and take over. In the Compose deployment, Workspace Service and Dashboard run in containers
+while Browser Session runs on the host. Workspace Service's loopback-published port lets Browser
+Session submit evidence without giving either container access to the browser profile or desktop.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
@@ -174,13 +173,33 @@ The Streamable HTTP MCP endpoint is <http://127.0.0.1:54312/mcp>; health is avai
 <http://127.0.0.1:54312/health>. The service binds to loopback and rejects non-local browser origins,
 but this is not authentication: local processes are inside the service trust boundary.
 
-Every five seconds, Browser Session sends Workspace Service a bounded status report containing
-browser availability, version, tab count, a generic failure summary when unavailable, and the
-latest authentication observation, if any, derived by an adapter from browser navigation or a
-bounded page read. Detailed browser errors remain in the local process log. Set
-`JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is not available at
-<http://127.0.0.1:54310>. Reporting is best-effort: failures are retried and never stop browser
-control.
+### Health and runtime diagnostics
+
+Browser runtime status is exposed directly through `browser_status` and `/health`. Desktop Manager
+uses the health endpoint for its product-level availability display. Dashboard may read the same
+endpoint as an optional client. Workspace Service receives no browser runtime reports.
+
+Health responses are uncached. Local HTTP(S) page origins may read `GET /health` through CORS,
+without credentials; this permission does not extend to MCP or browser actions.
+[Dashboard configuration](../dashboard/README.md#service-origin-configuration) supplies the service
+origin and the client-side connection policy.
+
+An unavailable runtime reports `lifecycle.phase` (`starting`, `closing`, `retry-wait`, or
+`stopped`) and the phase's `phaseStartedAt` timestamp. `retry-wait` includes `nextAttemptAt`, the
+scheduled attempt time. `lastFailure`, when present, records a category (`launch-failed`,
+`window-closed`, or `runtime-failed`) and `occurredAt`. These fields describe browser lifecycle;
+platform-access assessments come from the page evidence described below. Lifecycle transitions and
+detailed local errors carry UTC timestamps. A long-running phase can identify where investigation
+should begin without asserting its cause.
+
+### Evidence submission
+
+Browser Session checks for new platform-access observations every five seconds and submits each to
+Workspace Service's
+[`PUT /api/platform-access/observations`](../workspace-service/README.md#platform-access-observations).
+It sends nothing when there is no new evidence or the same observation was already accepted. Failed
+submissions remain eligible for a later attempt without stopping browser control. Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when
+Workspace Service is not available at <http://127.0.0.1:54310>.
 
 Job-observation submission uses the same Workspace Service URL. A rejected explicit description
 write or a `stale` outcome fails the tool call. A failed passive write is reported locally and stops
@@ -198,7 +217,7 @@ agent or a bounded page read already performed by passive job collection or an e
 sync. Assessment stays within those existing reads.
 
 `browser_snapshot` returns `platformAccessObservation`; when it is non-null, the same observation is
-already queued for the periodic Workspace Service report. A platform page loaded before monitoring
+already eligible for submission to Workspace Service. A platform page loaded before monitoring
 begins is also reassessed by its owning collection cycle. The Dashboard presents each observation
 with its observation time.
 
@@ -207,7 +226,7 @@ with its observation time.
 ### Browser lifecycle
 
 One top-level shajara scope owns the HTTP server, visible browser process, persistent context,
-Workspace Service status reporter, recovery loops, and shutdown. If the browser window is closed
+platform-access observation reporter, recovery loops, and shutdown. If the browser window is closed
 unexpectedly, Browser Session reports the interruption and launches it again with bounded
 exponential backoff. A failed page action remains contained to its request; Browser Session does not
 replay it.
@@ -233,7 +252,10 @@ their own observation when they matter to the workflow.
 
 Navigation waits 30 seconds for `DOMContentLoaded`. A timeout returns
 `navigation.outcome=timed-out`, `waitUntil=domcontentloaded`, and the independently collected page
-inspection as a structured result. Navigation and inspection remain independent outcomes. Snapshot
+inspection as a structured result. Navigation and inspection remain independent outcomes. A final
+URL outside supported platform scope is still returned with the navigation outcome; `platformId=null`
+and `pageInspection=null` mean the document was not inspected. A completed navigation does not imply the requested platform
+remained open. Further page controls retain the platform scope boundary. Snapshot
 DOM evaluation waits up to five seconds. A read timeout reports a closed tab, a page-inspection
 timeout, or the observed document lifecycle state. Other errors retain their original failure.
 
@@ -277,8 +299,11 @@ signature; it does not detect every change elsewhere in the page or beyond the t
 Reference numbers are not reused within an executor. A new `browser_snapshot`, navigation, or
 page action expires previous references.
 
-An explicit link outside the current tab's platform scope is rejected before clicking. Clicking,
-filling, and selecting otherwise operate on the captured element without classifying its
+An explicit link outside the current tab's platform scope is rejected before clicking. Empty
+`javascript:` links, `javascript:;`, and `javascript:void(0)` (with optional whitespace and trailing
+semicolon) are treated as page controls without a navigation destination; other script URLs are
+rejected. These forms do not establish a control's business purpose or authorize account actions.
+Clicking, filling, and selecting otherwise operate on the captured element without classifying its
 business purpose. The agent applies the user-handoff rules before login, verification,
 application, message, or account actions.
 
@@ -388,10 +413,10 @@ Patchright owns its other default command-line switches, including
 `--disable-blink-features=AutomationControlled`, which Patchright uses to avoid detection through
 `navigator.webdriver`. Edge may warn that this exact switch is unsupported. This is an expected
 browser response to the Patchright launch policy, not by itself a launch failure. Do not hide it
-with another switch or host policy, and do not filter a Patchright default in isolation. A warning
-that identifies another switch still requires investigation. A change to driver defaults requires
-representative compatibility evidence for Patchright's installed Chromium and for Chrome, Edge,
-and Chromium launched through the supported channel and executable-path inputs.
+with another switch or host policy merely to suppress the warning. Assess changes to driver defaults
+against the behavior they affect, and validate representative affected browser and launch paths.
+Expand that coverage when a change alters behavior shared across browser families; record the
+tested versions and paths so the evidence does not imply untested compatibility.
 
 ### Runtime dependency packaging
 

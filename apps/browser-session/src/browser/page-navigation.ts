@@ -15,8 +15,8 @@ const navigationTimeoutMilliseconds = 30_000;
 const navigationWaitUntil = "domcontentloaded" as const;
 
 interface PageNavigationSummary {
-  readonly pageInspection: PageInspection;
-  readonly platformId: PlatformId;
+  readonly pageInspection: PageInspection | null;
+  readonly platformId: PlatformId | null;
   readonly title?: string;
   readonly url: string;
 }
@@ -26,8 +26,8 @@ interface TimedOutNavigationResult {
     readonly outcome: "timed-out";
     readonly waitUntil: typeof navigationWaitUntil;
   };
-  readonly pageInspection: PageInspection;
-  readonly platformId: PlatformId;
+  readonly pageInspection: PageInspection | null;
+  readonly platformId: PlatformId | null;
   readonly requestedUrl: string;
   readonly url: string;
 }
@@ -46,7 +46,11 @@ export type NavigationResult =
 
 export function* readNavigationPageSummary(page: Page): RiteCoroutine<PageNavigationSummary> {
   const url = page.url();
-  const { platformId } = requireRecruitingPlatformAdapter(url);
+  const adapter = findRecruitingPlatformAdapter(url);
+  if (!adapter) {
+    return { pageInspection: null, platformId: null, url };
+  }
+  const { platformId } = adapter;
   const pageInspection = yield* inspectPageDocument(page);
   return {
     pageInspection,
@@ -57,6 +61,7 @@ export function* readNavigationPageSummary(page: Page): RiteCoroutine<PageNaviga
 }
 
 export function* navigatePage(page: Page, requestedUrl: string): RiteCoroutine<NavigationResult> {
+  requireRecruitingPlatformAdapter(requestedUrl);
   try {
     yield* until(() =>
       page.goto(requestedUrl, {
@@ -68,18 +73,13 @@ export function* navigatePage(page: Page, requestedUrl: string): RiteCoroutine<N
     if (!isPatchrightTimeout(error)) {
       throw error;
     }
-    const url = page.url();
-    const adapter = findRecruitingPlatformAdapter(url);
-    const requestedAdapter = requireRecruitingPlatformAdapter(requestedUrl);
     return {
+      ...(yield* readNavigationPageSummary(page)),
       navigation: {
         outcome: "timed-out",
         waitUntil: navigationWaitUntil,
       },
-      pageInspection: yield* inspectPageDocument(page),
-      platformId: adapter?.platformId ?? requestedAdapter.platformId,
       requestedUrl,
-      url,
     };
   }
   return {

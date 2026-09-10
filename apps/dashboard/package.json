@@ -1,7 +1,7 @@
 {
   "name": "@job-boardwalk/dashboard",
   "private": true,
-  "description": "Local view and user editor for Job Boardwalk workspace data and Browser Session presence.",
+  "description": "Local view and user editor for Job Boardwalk workspace data and research evidence.",
   "type": "module",
   "imports": {
     "#/*": "./src/*"

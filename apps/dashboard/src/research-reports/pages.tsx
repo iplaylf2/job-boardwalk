@@ -8,7 +8,7 @@ import type {
 
 import { AppShell } from "#/app-shell.js";
 import { WorkspaceDataBoundary } from "#/workspace-data-boundary.js";
-import { createWorkspaceRead } from "#/workspace-read.js";
+import { createPolledRead } from "#/polled-read.js";
 import { listResearchReports, readResearchReport } from "#/workspace-service-client.js";
 
 import { ResearchReportMarkdownView } from "./markdown-view.js";
@@ -53,7 +53,7 @@ function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
 }
 
 export function ResearchReportListPage(): JSX.Element {
-  const reportList = createWorkspaceRead(listResearchReports, refreshIntervalMilliseconds);
+  const reportList = createPolledRead(listResearchReports, refreshIntervalMilliseconds);
 
   return (
     <AppShell
@@ -101,7 +101,7 @@ function ResearchReportDocument(props: { report: ResearchReport }): JSX.Element 
 }
 
 export function ResearchReportDetailPage(props: { reportId: number }): JSX.Element {
-  const report = createWorkspaceRead(
+  const report = createPolledRead(
     () => readResearchReport(props.reportId),
     refreshIntervalMilliseconds,
   );

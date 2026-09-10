@@ -24,14 +24,13 @@ import {
   SaveResearchReportInput,
 } from "#/mcp/tool-input.js";
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
 const jobLibraryUri = "job-boardwalk://jobs";
 const researchReportsUri = "job-boardwalk://reports";
 const workspaceOverviewDescription =
-  "读取本机工作区概览：由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人条件，以及带平台推荐页关联和当前选择状态的求职方向。";
+  "读取本机工作区概览：各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人条件，以及带平台推荐页关联和当前选择状态的求职方向。";
 const jobLibraryResourceDescription =
   "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
 const jobLibraryToolDescription =
@@ -73,13 +72,9 @@ function toolErrorResult(error: unknown): CallToolResult {
   };
 }
 
-function readResourceValue(
-  uri: string,
-  repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
-): object | null {
+function readResourceValue(uri: string, repository: WorkspaceRepository): object | null {
   if (uri === workspaceOverviewUri) {
-    return readWorkspaceOverview(repository, presenceTracker);
+    return readWorkspaceOverview(repository);
   }
   if (uri === jobLibraryUri) {
     return repository.listJobPostingPage({
@@ -93,17 +88,12 @@ function readResourceValue(
   return null;
 }
 
-function readWorkspaceResource(
-  uri: string,
-  repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
-  serviceScope: Scope,
-) {
+function readWorkspaceResource(uri: string, repository: WorkspaceRepository, serviceScope: Scope) {
   return serviceScope
     .run(function* readWorkspaceResourceInScope() {
       try {
         yield* [];
-        const value = readResourceValue(uri, repository, presenceTracker);
+        const value = readResourceValue(uri, repository);
         if (!value) {
           return {
             kind: "error" as const,
@@ -141,7 +131,6 @@ function readWorkspaceResource(
 function registerResourceHandlers(
   mcpServer: McpServer,
   repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): void {
   mcpServer.server.setRequestHandler(ListResourcesRequestSchema, () =>
@@ -172,7 +161,7 @@ function registerResourceHandlers(
     }),
   );
   mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request) =>
-    readWorkspaceResource(request.params.uri, repository, presenceTracker, serviceScope),
+    readWorkspaceResource(request.params.uri, repository, serviceScope),
   );
 }
 
@@ -222,7 +211,6 @@ function createToolListResult() {
 function registerToolHandlers(
   mcpServer: McpServer,
   repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): void {
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
@@ -235,7 +223,7 @@ function registerToolHandlers(
         try {
           yield* [];
           parseWorkspaceOverviewInput(request.params.arguments ?? {});
-          const overview = readWorkspaceOverview(repository, presenceTracker);
+          const overview = readWorkspaceOverview(repository);
           return structuredToolResult(overview);
         } catch (error) {
           return toolErrorResult(error);
@@ -301,14 +289,13 @@ function registerToolHandlers(
 
 export function createWorkspaceMcpServer(
   repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): McpServer {
   const mcpServer = new McpServer(
     { name: "job-boardwalk", version: "0.1.0" },
     { capabilities: { resources: {}, tools: {} } },
   );
-  registerResourceHandlers(mcpServer, repository, presenceTracker, serviceScope);
-  registerToolHandlers(mcpServer, repository, presenceTracker, serviceScope);
+  registerResourceHandlers(mcpServer, repository, serviceScope);
+  registerToolHandlers(mcpServer, repository, serviceScope);
   return mcpServer;
 }

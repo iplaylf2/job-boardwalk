@@ -29,10 +29,10 @@ test("observes the BOSS main description without surrounding recruiter or recomm
       innerText: "工作职责\n1. 建设合成测试平台。\n任职资格\n1. 熟悉 TypeScript。",
       textContent: "工作职责 1. 建设合成测试平台。任职资格 1. 熟悉 TypeScript。",
     },
-    ".salary": { textContent: "20-30K" },
+    ".salary": { textContent: "-K" },
   };
   vi.stubGlobal("document", {
-    body: { innerText: "职位描述\n正文\n合成招聘者\nBOSS 安全提示\n推荐岗位" },
+    body: { innerText: "职位描述\n-年\n正文\n合成招聘者\nBOSS 安全提示\n推荐岗位" },
     querySelector: (selector: string) => fields[selector] ?? null,
     querySelectorAll(selector: string) {
       if (selector === companySelector) {
@@ -48,6 +48,7 @@ test("observes the BOSS main description without surrounding recruiter or recomm
   expect(metadata).toMatchObject({
     company: "合成雇主甲",
     description: "工作职责\n1. 建设合成测试平台。\n任职资格\n1. 熟悉 TypeScript。",
+    experienceRequirement: "3-5年",
     salaryText: "20-30K",
     title: "平台工程师",
     truncated: false,

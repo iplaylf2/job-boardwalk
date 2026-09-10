@@ -17,7 +17,10 @@ const unavailableBrowserControl: BrowserControl = {
     yield* [];
     throw new Error("browser call was not expected");
   },
-  status: { available: false },
+  status: {
+    available: false,
+    lifecycle: { phase: "starting", phaseStartedAt: "2026-01-01T00:00:00.000Z" },
+  },
 };
 
 function listTools(app: ReturnType<typeof createBrowserSessionHttpApp>) {
@@ -56,7 +59,10 @@ test("exposes a loopback health endpoint independently of browser readiness", as
   const response = await app.request("/health");
   expect(response.status).toBe(successfulStatus);
   expect(await response.json()).toEqual({
-    browser: { available: false },
+    browser: {
+      available: false,
+      lifecycle: { phase: "starting", phaseStartedAt: "2026-01-01T00:00:00.000Z" },
+    },
     status: "ok",
   });
 });
@@ -83,4 +89,40 @@ test.each([
   });
 
   expect(response.status).toBe(expectedStatus);
+});
+
+test.each([
+  { allowed: true, origin: "http://127.0.0.1:55311" },
+  { allowed: true, origin: "http://localhost:54311" },
+  { allowed: false, origin: "https://external.invalid" },
+  { allowed: false, origin: "http://localhost.external.invalid" },
+  { allowed: false, origin: "http://user:secret@localhost:54311" },
+])("permits health reads only for local page origins: $origin", async ({ allowed, origin }) => {
+  await using serviceScope = createScope();
+  const app = createBrowserSessionHttpApp({
+    browserControl: unavailableBrowserControl,
+    serviceScope,
+  });
+  const response = await app.request("/health", { headers: { origin } });
+  expect(response.status).toBe(allowed ? successfulStatus : forbiddenStatus);
+  expect(response.headers.get("Access-Control-Allow-Origin")).toBe(allowed ? origin : null);
+  if (allowed) {
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+  }
+});
+
+test("does not extend health CORS permissions to MCP", async () => {
+  await using serviceScope = createScope();
+  const app = createBrowserSessionHttpApp({
+    browserControl: unavailableBrowserControl,
+    serviceScope,
+  });
+  const response = await app.request("/mcp", {
+    body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/list" }),
+    headers: { ...mcpRequestHeaders, origin: "http://localhost:54311" },
+    method: "POST",
+  });
+  expect(response.status).toBe(successfulStatus);
+  expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
 });

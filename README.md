@@ -19,11 +19,10 @@ integration to separate applications:
   and exposes project-owned browser tools to the agent. It is a host companion, not a container
   workload.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
-  operations over HTTP and MCP from an isolated container. It also tracks leased Browser Session
-  presence for readers.
+  operations over HTTP and MCP.
 - [Dashboard](apps/dashboard/) presents workspace data and research reports, and lets the user
   maintain personal context and select the job-search intent that guides recruiting research. It
-  never controls the browser.
+  independently checks Browser Session health when configured, without managing its process.
 - [Desktop Service Host](apps/desktop-service-host/) is the private, application-specific Node.js
   executable bundled with the desktop product. Each invocation loads one finalized service
   payload and exits when that service ends; it does not coordinate the product topology.
@@ -34,8 +33,8 @@ integration to separate applications:
 
 Browser Session adapters derive structured authentication observations from qualifying top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
-evidence outside those rules and coordinates user handoff. Workspace Service derives leased
-presence and deduplicates durable observations for Dashboard and MCP readers. See
+evidence outside those rules and coordinates user handoff. Workspace Service deduplicates durable
+observations for Dashboard and MCP readers. See
 [Product design](docs/product-design.md) for the authoritative collaboration model and ownership
 boundaries.
 
@@ -56,8 +55,8 @@ Available now:
   context, job-search intents, normalized job facts, platform-observed engagement records for job
   sources, source-specific descriptions, and Markdown research reports. It merges confident
   cross-platform matches while preserving each platform source and its collected evidence.
-- Dashboard displays that durable workspace data alongside leased Browser Session presence and
-  lets the user maintain and select job-search intents. Its paginated job library supports search,
+- Dashboard displays that durable workspace data and lets the user maintain and select job-search
+  intents. Its paginated job library supports search,
   platform filtering, a combined view of all tracked jobs, and category views for interested,
   contacted, applied, and interviewed records while preserving the original recruiting-platform
   sources. It reports description coverage and can show jobs with a description, all jobs without
@@ -104,7 +103,7 @@ pnpm exec moon run browser-session:dev
 ```
 
 Browser Session launches a visible browser with a dedicated profile in the operating system's user
-data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
+data directory and owns it for the service lifetime. Dashboard can check its health directly,
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
 
 ### Portable desktop prerelease
