@@ -97,7 +97,7 @@ Open <http://127.0.0.1:54311>. Workspace Service remains reachable from the host
 Install dependencies and Patchright's Chromium on the graphical host, then start Browser Session:
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
 pnpm exec moon run browser-session:dev
 ```

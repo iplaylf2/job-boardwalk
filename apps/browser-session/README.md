@@ -128,9 +128,10 @@ Browser Session requires a graphical desktop session and Patchright's Chromium b
 require a particular operating system, shell, VM, or editor, but it must not run in the headless
 service containers because the visible host window is the user-handoff boundary.
 
-Install the browser once:
+From the repository root, install the locked dependencies and Patchright's browser:
 
 ```sh
+pnpm install --frozen-lockfile
 pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
 ```
 

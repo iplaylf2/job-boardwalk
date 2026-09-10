@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# This image only bootstraps the toolchain selected by package.json and pnpm-lock.yaml.
+# Bootstrap pnpm; the frozen install below supplies the project's locked Node.js runtime.
 FROM ghcr.io/pnpm/pnpm:latest AS build
 
 WORKDIR /workspace
@@ -12,22 +12,22 @@ COPY internal/presets/package.json internal/presets/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/platform-catalog/package.json packages/platform-catalog/package.json
 
-RUN pnpm runtime set node \
-    "$(pnpm --silent pkg get devEngines.runtime.version)" \
-    --global && \
-    install -D -m 0755 "$(command -v node)" /opt/job-boardwalk/node && \
-    ln -s /opt/job-boardwalk/node /usr/local/bin/node
-
 RUN --mount=type=cache,id=job-boardwalk-pnpm-store,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && \
-    pnpm install --filter @job-boardwalk/workspace-service... --frozen-lockfile --no-runtime
+    pnpm install --filter @job-boardwalk/workspace-service... --frozen-lockfile
+
+# process.execPath locates the Node.js binary, even when the command is a pnpm launcher.
+# The frozen install already validated the application closure; keep exec from expanding it.
+RUN install -D -m 0755 \
+    "$(pnpm --config.verify-deps-before-run=false exec node -p process.execPath)" \
+    /opt/job-boardwalk/node
 
 COPY apps/workspace-service/ apps/workspace-service/
 COPY internal/presets/ internal/presets/
 COPY packages/contracts/ packages/contracts/
 COPY packages/platform-catalog/ packages/platform-catalog/
 
-# The filtered frozen install validates this closure; pnpm's full-workspace pre-run check does not.
+# Keep the pre-run dependency check from expanding the filtered install to the full workspace.
 RUN pnpm --config.verify-deps-before-run=false \
     --filter @job-boardwalk/workspace-service build
 
