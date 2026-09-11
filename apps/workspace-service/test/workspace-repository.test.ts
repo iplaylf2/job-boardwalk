@@ -697,11 +697,13 @@ test("creates, updates, expires, and deletes research reports", async () => {
 
   try {
     const created = repository.saveResearchReport({
+      entries: [],
       expiresAt: "2999-07-20T00:00:00.000Z",
       initiatedBy: "agent",
       markdown: "## 初步判断",
       reason: "test",
       state: "draft",
+      targets: [],
       title: "岗位推荐",
     });
     expect(created).toMatchObject({ id: expect.any(Number), state: "draft" });
@@ -714,11 +716,13 @@ test("creates, updates, expires, and deletes research reports", async () => {
     ]);
     expect(
       repository.saveResearchReport({
+        entries: [],
         id: created.id,
         initiatedBy: "agent",
         markdown: "## 最终判断",
         reason: "test",
         state: "complete",
+        targets: [],
         title: "岗位推荐",
       }),
     ).toMatchObject({ markdown: "## 最终判断", state: "complete" });
@@ -729,11 +733,13 @@ test("creates, updates, expires, and deletes research reports", async () => {
     expect(repository.readResearchReport(created.id)).toBeNull();
 
     const expired = repository.saveResearchReport({
+      entries: [],
       expiresAt: "2000-07-18T00:00:00.000Z",
       initiatedBy: "system",
       markdown: "已过期",
       reason: "test",
       state: "complete",
+      targets: [],
       title: "旧报告",
     });
     expect(expired).toMatchObject({ id: expect.any(Number) });

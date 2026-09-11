@@ -1,3 +1,4 @@
+// oxlint-disable import/max-dependencies -- This workspace facade composes the separate report persistence owner.
 import { DatabaseSync } from "node:sqlite";
 import { existsSync } from "node:fs";
 
@@ -8,7 +9,6 @@ import {
   count,
   desc,
   eq,
-  gt,
   inArray,
   isNotNull,
   isNull,
@@ -35,6 +35,9 @@ import type {
   PlatformAccessObservation,
   ProfileFact,
   ResearchReport,
+  ResearchReportFilter,
+  SaveResearchReportCommand,
+  WorkspaceChangeAttribution,
   ResearchReportSummary,
   RecordedPlatformAccessObservation,
   SaveJobObservationResult,
@@ -57,6 +60,8 @@ import {
   normalizedIdentityPart,
 } from "#/job-library/identity.js";
 
+import { ResearchReportRepository } from "./research-report-repository.js";
+
 import {
   jobPostings,
   jobPostingSourceIdentities,
@@ -66,7 +71,6 @@ import {
   jobSearchIntentRecommendationPages,
   platformAccessObservations,
   profileFacts,
-  researchReports,
   workspaceChanges,
 } from "./schema.js";
 
@@ -74,7 +78,6 @@ type PlatformAccessObservationRow = typeof platformAccessObservations.$inferSele
 type JobPostingRow = typeof jobPostings.$inferSelect;
 type JobPostingSourceRow = typeof jobPostingSources.$inferSelect;
 type JobSourceEngagementRow = typeof jobSourceEngagements.$inferSelect;
-type ResearchReportRow = typeof researchReports.$inferSelect;
 const firstParameterIndex = 0;
 type WorkspaceDatabase = ReturnType<typeof drizzle>;
 type WorkspaceTransactionCallback = Parameters<
@@ -345,27 +348,6 @@ function toJobPosting(
   };
 }
 
-function toResearchReport(row: ResearchReportRow): ResearchReport {
-  return {
-    createdAt: row.createdAt,
-    ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
-    id: row.id,
-    markdown: row.markdown,
-    state: row.state,
-    title: row.title,
-    updatedAt: row.updatedAt,
-  };
-}
-
-function toResearchReportSummary(row: ResearchReportRow): ResearchReportSummary {
-  const { markdown: _markdown, ...summary } = toResearchReport(row);
-  return summary;
-}
-
-function unexpiredResearchReportCondition(now: string) {
-  return or(isNull(researchReports.expiresAt), gt(researchReports.expiresAt, now));
-}
-
 function samePlatformAccessState(
   left: RecordedPlatformAccessObservation,
   right: PlatformAccessObservation,
@@ -440,6 +422,7 @@ function toRecordedPlatformAccessObservation(
 export class WorkspaceRepository {
   readonly #client: DatabaseSync;
   readonly #database;
+  readonly #reports: ResearchReportRepository;
 
   public constructor({
     databasePath,
@@ -456,6 +439,7 @@ export class WorkspaceRepository {
       "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 3000;",
     );
     this.#database = drizzle({ client: this.#client });
+    this.#reports = new ResearchReportRepository(this.#database);
     migrate(this.#database, {
       migrationsFolder: migrationsDirectory,
     });
@@ -469,108 +453,22 @@ export class WorkspaceRepository {
     return this.#database.select().from(profileFacts).orderBy(asc(profileFacts.key)).all();
   }
 
-  public listResearchReports(): ResearchReportSummary[] {
-    return this.#database
-      .select()
-      .from(researchReports)
-      .where(unexpiredResearchReportCondition(new Date().toISOString()))
-      .orderBy(desc(researchReports.updatedAt), desc(researchReports.id))
-      .all()
-      .map(toResearchReportSummary);
+  public listResearchReports(filter: ResearchReportFilter = {}): ResearchReportSummary[] {
+    return this.#reports.listResearchReports(filter);
   }
 
-  public readResearchReport(id: number): ResearchReport | null {
-    const unexpired = unexpiredResearchReportCondition(new Date().toISOString());
-    const row = this.#database
-      .select()
-      .from(researchReports)
-      .where(and(eq(researchReports.id, id), unexpired))
-      .get();
-    return row ? toResearchReport(row) : null;
+  public readResearchReport(id: number, includeExpired = false): ResearchReport | null {
+    return this.#reports.readResearchReport(id, includeExpired);
   }
 
-  // eslint-disable-next-line max-lines-per-function -- One transaction owns report persistence and attribution.
-  public saveResearchReport(input: {
-    expiresAt?: string;
-    id?: number;
-    initiatedBy: "agent" | "system" | "user";
-    markdown: string;
-    reason: string;
-    state: "complete" | "draft";
-    title: string;
-  }): ResearchReport | null {
-    const now = new Date().toISOString();
-    return this.#database.transaction((transaction) => {
-      const row = input.id
-        ? transaction
-            .update(researchReports)
-            .set({
-              expiresAt: input.expiresAt ?? null,
-              markdown: input.markdown,
-              state: input.state,
-              title: input.title,
-              updatedAt: now,
-            })
-            .where(eq(researchReports.id, input.id))
-            .returning()
-            .get()
-        : transaction
-            .insert(researchReports)
-            .values({
-              createdAt: now,
-              expiresAt: input.expiresAt ?? null,
-              markdown: input.markdown,
-              state: input.state,
-              title: input.title,
-              updatedAt: now,
-            })
-            .returning()
-            .get();
-      if (!row) {
-        return null;
-      }
-      transaction
-        .insert(workspaceChanges)
-        .values({
-          initiatedBy: input.initiatedBy,
-          occurredAt: now,
-          operation: input.id ? "update-research-report" : "create-research-report",
-          reason: input.reason,
-          subject: input.title,
-        })
-        .run();
-      return toResearchReport(row);
-    });
+  public saveResearchReport(
+    input: SaveResearchReportCommand & { id?: number },
+  ): ResearchReport | null {
+    return this.#reports.saveResearchReport(input);
   }
 
-  public deleteResearchReport(input: {
-    id: number;
-    initiatedBy: "agent" | "system" | "user";
-    reason: string;
-  }): boolean {
-    const existing = this.#database
-      .select({ title: researchReports.title })
-      .from(researchReports)
-      .where(eq(researchReports.id, input.id))
-      .get();
-    if (!existing) {
-      return false;
-    }
-    const now = new Date().toISOString();
-    this.#database.transaction((transaction) => {
-      transaction.delete(researchReports).where(eq(researchReports.id, input.id)).run();
-      transaction
-        .insert(workspaceChanges)
-        .values({
-          initiatedBy: input.initiatedBy,
-          occurredAt: now,
-          operation: "delete-research-report",
-          reason: input.reason,
-          subject: existing.title,
-        })
-        .run();
-    });
-    return true;
+  public deleteResearchReport(input: WorkspaceChangeAttribution & { id: number }): boolean {
+    return this.#reports.deleteResearchReport(input);
   }
 
   public recordPlatformAccessObservation(

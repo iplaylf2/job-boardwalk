@@ -9,7 +9,6 @@ import {
   platformJobEngagementKinds,
 } from "@job-boardwalk/platform-catalog";
 
-import { maximumJobsPerEngagementScan } from "#/browser/job-engagement/scan-limit.js";
 import type { BrowserControl } from "#/browser/browser-control.js";
 import {
   browserToolInputContracts,
@@ -95,8 +94,8 @@ const browserTools = [
       readOnlyHint: false,
     },
     description: [
-      "读取当前招聘平台标签页中已加载的岗位卡片。仅按可靠详情身份去重，无链接的独立卡片分别保留。truncated 表示卡片集合被数量上限裁剪；空集合不能证明零结果，truncated=false 不能证明已遍历全部结果。个人中心岗位跟进页不属于此工具的读取范围。",
-      "本次读取不导航、滚动、点击或持久化岗位，但可能刷新平台访问观察。被动采集流程会另行提交合格页面中的岗位证据；工作区按自身身份规则归并来源，快照中分开的卡片不一定对应不同的持久化来源。需要详情入口的操作引用时，调用 browser_snapshot。",
+      "读取当前招聘平台集合页中的岗位卡片，个人中心跟进页不在读取范围。waitFor=none 立即读取；waitFor=cards-present 在服务预算内等待可识别卡片，出现即返回。cards-observed 表示已读到卡片；no-cards-observed 表示本次未读到，加载中、空结果与未知布局仍需另行判断。读取失败或观察到 URL 改变时停止。truncated 只说明已加载卡片是否被响应上限裁剪，不表示搜索覆盖范围。",
+      "仅按可靠详情身份去重，无链接卡片分别保留。本次读取可能刷新访问观察，但不写入岗位库；被动采集另行观察并提交岗位，Workspace Service 负责来源归并。操作详情入口时使用 browser_snapshot 提供的 ref。",
     ].join("\n\n"),
     name: "browser_job_card_snapshot",
   }),
@@ -119,7 +118,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description: [
-      `仅在用户发起的岗位跟进同步任务中调用。每次打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。不支持的类别在导航前被拒绝。一次扫描最多累计 ${maximumJobsPerEngagementScan} 个不同岗位。`,
+      "仅在用户发起的岗位跟进同步任务中调用。每次打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。不支持的类别在导航前被拒绝。一次扫描受服务资源预算约束，达到预算时保留部分证据并结束扫描。",
       "complete=true 表示证据覆盖平台可见的类别总数及历史窗口，不代表全部历史；完整的 interested（感兴趣）快照可能移除平台列表中已不存在的本地关系。complete=false 仅表示证据不完整，不保证有下一批。",
       "续读前检查下方能力和可见页面；平台支持续读且扫描未结束时，以相同 platformId 和 engagement 再次调用。扫描在完成、达到上限、当前批次没有可识别岗位、没有续读目标或服务重启时结束；结束后再次调用会从分类入口开始。",
       `当前同步能力：\n${engagementCapabilities}`,
@@ -129,7 +128,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
     description:
-      "点击最近一次 browser_snapshot 返回的有效 ref；显式链接必须属于当前招聘平台的 HTTPS 导航范围。点击期间及完成后一秒内收到的弹窗会成为选中标签页，并返回该页摘要；否则返回原页摘要。此等待不保证页面数据就绪，更晚出现的标签页需通过 browser_tabs 检查。操作后引用失效。",
+      "点击最近一次 browser_snapshot 返回的有效 ref；显式链接必须属于当前招聘平台的 HTTPS 导航范围。点击期间及后续有界观察窗口内收到的弹窗会成为选中标签页，并返回该页摘要；否则返回原页摘要。此等待不保证页面数据就绪，更晚出现的标签页需通过 browser_tabs 检查。操作后引用失效。",
     name: "browser_click",
   }),
   defineBrowserTool({
@@ -145,13 +144,15 @@ const browserTools = [
   }),
   defineBrowserTool({
     annotations: { idempotentHint: false, openWorldHint: true, readOnlyHint: true },
-    description: "在受支持招聘平台的标签页滚动最多 5000 像素，或滚动到指定元素。",
+    description:
+      "滚动一屏以继续阅读：direction=down 向下，direction=up 向上。提供 ref 时滚动该元素最近的可滚动祖先；否则滚动所选标签页的文档。ref 决定所属页面；同时提供 tabId 时必须指向同一页。距离取窗口高度或滚动容器与窗口的相交高度。返回 moved/unchanged 及动作前后位置；unchanged 只表示该滚动区域未移动，不代表岗位结果已穷尽。操作后引用失效。",
     name: "browser_scroll",
   }),
   defineBrowserTool({
-    annotations: { idempotentHint: true, openWorldHint: false, readOnlyHint: true },
-    description: "在下一次观察或操作前等待指定时间，最长 10 秒。",
-    name: "browser_wait",
+    annotations: { idempotentHint: false, openWorldHint: true, readOnlyHint: true },
+    description:
+      "将 browser_snapshot 中有效 ref 对应的元素显示到可见区域，返回目标、内层滚动祖先及窗口的前后位置。操作后引用失效。此动作不保证加载新岗位；需要继续阅读时使用 browser_scroll，需要观察岗位出现时使用 browser_job_card_snapshot 的 waitFor=cards-present。",
+    name: "browser_reveal",
   }),
 ] as const satisfies readonly Tool[];
 

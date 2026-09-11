@@ -85,6 +85,28 @@ CREATE TABLE `profile_facts` (
 	`value` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `research_report_entries` (
+	`assessed_at` text NOT NULL,
+	`basis` text NOT NULL,
+	`disposition` text NOT NULL,
+	`report_id` integer NOT NULL,
+	`source_id` integer NOT NULL,
+	CONSTRAINT `research_report_entries_pk` PRIMARY KEY(`report_id`, `source_id`),
+	CONSTRAINT `fk_research_report_entries_report_id_research_reports_id_fk` FOREIGN KEY (`report_id`) REFERENCES `research_reports`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_research_report_entries_source_id_job_posting_sources_id_fk` FOREIGN KEY (`source_id`) REFERENCES `job_posting_sources`(`id`),
+	CONSTRAINT "research_report_entries_disposition" CHECK("disposition" in ('recommended', 'pending', 'excluded'))
+);
+--> statement-breakpoint
+CREATE TABLE `research_report_targets` (
+	`count` integer NOT NULL,
+	`next_step` text,
+	`platform_id` text NOT NULL,
+	`report_id` integer NOT NULL,
+	CONSTRAINT `research_report_targets_pk` PRIMARY KEY(`report_id`, `platform_id`),
+	CONSTRAINT `fk_research_report_targets_report_id_research_reports_id_fk` FOREIGN KEY (`report_id`) REFERENCES `research_reports`(`id`) ON DELETE CASCADE,
+	CONSTRAINT "research_report_targets_count" CHECK("count" > 0)
+);
+--> statement-breakpoint
 CREATE TABLE `research_reports` (
 	`created_at` text NOT NULL,
 	`expires_at` text,
@@ -107,4 +129,5 @@ CREATE TABLE `workspace_changes` (
 --> statement-breakpoint
 CREATE INDEX `job_posting_source_identities_source` ON `job_posting_source_identities` (`source_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `job_search_intent_recommendation_pages_intent_platform` ON `job_search_intent_recommendation_pages` (`intent_id`,`platform_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `job_search_intents_single_selected` ON `job_search_intents` (`selected`) WHERE "job_search_intents"."selected" = 1;
+CREATE UNIQUE INDEX `job_search_intents_single_selected` ON `job_search_intents` (`selected`) WHERE "job_search_intents"."selected" = 1;--> statement-breakpoint
+CREATE INDEX `research_report_entries_source` ON `research_report_entries` (`source_id`,`disposition`);

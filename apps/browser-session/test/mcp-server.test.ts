@@ -14,7 +14,6 @@ import { BackgroundCollectionControl } from "#/browser/background-collection-con
 import { createBrowserSessionMcpServer } from "#/mcp-server.js";
 
 const firstContentIndex = 0;
-const outOfRangeWaitMilliseconds = 10_001;
 
 function fakeBrowserControl(): BrowserControl & {
   executions: { input: Record<string, unknown>; toolName: string }[];
@@ -96,7 +95,7 @@ test("always exposes the project-owned browser tools", async () => {
       "browser_fill",
       "browser_select",
       "browser_scroll",
-      "browser_wait",
+      "browser_reveal",
     ]),
   );
   const tabsTool = listedTools.tools.find(({ name }) => name === "browser_tabs");
@@ -225,22 +224,28 @@ test("contains an unavailable browser as a tool error", async () => {
 
 const invalidBrowserToolCalls = [
   {
-    arguments: { milliseconds: outOfRangeWaitMilliseconds },
-    expectedField: /milliseconds/u,
-    name: "browser_wait",
-    title: "a wait beyond the public limit",
+    arguments: { direction: "sideways" },
+    expectedField: /direction/u,
+    name: "browser_scroll",
+    title: "an unknown reading direction",
+  },
+  {
+    arguments: {},
+    expectedField: /ref/u,
+    name: "browser_reveal",
+    title: "revealing without an observed element",
+  },
+  {
+    arguments: { waitFor: "loaded" },
+    expectedField: /waitFor/u,
+    name: "browser_job_card_snapshot",
+    title: "unsupported page readiness inference",
   },
   {
     arguments: {},
     expectedField: /platformId/u,
     name: "browser_prepare_login",
     title: "a missing required platform",
-  },
-  {
-    arguments: { maximumCards: 101 },
-    expectedField: /maximumCards/u,
-    name: "browser_job_card_snapshot",
-    title: "a job-card limit above the public maximum",
   },
   {
     arguments: { engagement: "contacted" },
@@ -300,4 +305,32 @@ test("contains contextual browser tool rejections", async () => {
   });
 
   await close();
+});
+
+test("forwards semantic reading intents without driver tuning parameters", async () => {
+  await using serviceScope = createScope();
+  const control = fakeBrowserControl();
+  const { client, close } = await connectedClient(
+    createBrowserSessionMcpServer(control, serviceScope),
+  );
+  try {
+    await client.callTool({
+      arguments: { direction: "down", ref: "e1" },
+      name: "browser_scroll",
+    });
+    await client.callTool({ arguments: { ref: "e2" }, name: "browser_reveal" });
+    await client.callTool({
+      arguments: { waitFor: "cards-present" },
+      name: "browser_job_card_snapshot",
+    });
+    await client.callTool({ arguments: {}, name: "browser_snapshot" });
+    expect(control.executions).toEqual([
+      { input: { direction: "down", ref: "e1" }, toolName: "browser_scroll" },
+      { input: { ref: "e2" }, toolName: "browser_reveal" },
+      { input: { waitFor: "cards-present" }, toolName: "browser_job_card_snapshot" },
+      { input: {}, toolName: "browser_snapshot" },
+    ]);
+  } finally {
+    await close();
+  }
 });

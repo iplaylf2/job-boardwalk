@@ -36,17 +36,29 @@ Shared browser behavior is defined in this README.
 ### Job cards
 
 `browser_job_card_snapshot` reads recognizable cards already loaded on an eligible collection
-page. It returns each card's title, company, salary, location, tags, bounded text, and
-same-platform detail link when available. It returns up to 50 cards by default, with a maximum
-of 100. `truncated` reports clipping at the requested card limit; it does not describe coverage
-beyond the current document. An empty collection does not establish that the platform has no
-results. Personal-center engagement pages are outside this tool's collection scope.
+page. Personal-center engagement pages are outside its scope. Each card includes its title,
+company, salary, location, tags, bounded text, and same-platform detail link when available.
+Deduplication requires a reliable detail identity; independent linkless cards remain separate
+even when their visible facts are identical.
 
-Deduplication requires a reliable detail identity. Independent linkless cards remain separate
-even when their visible facts are identical. This read does not navigate, scroll, click, open
-details, or persist jobs. It may refresh conclusive platform-access evidence from the same
-document. To open a card through a page control, use the references returned by
-`browser_snapshot`, as described in [Tabs and page evidence](#tabs-and-page-evidence).
+Choose `waitFor=none` to read the current document immediately, or `waitFor=cards-present` to
+observe until recognizable cards are read or the service's response budget expires. The result
+describes the observation:
+
+- `outcome=cards-observed` means cards were read; the page may still be loading.
+- `outcome=no-cards-observed` preserves the last successful empty read and its capture time.
+  Loading, empty results, and an unrecognized layout remain indistinguishable.
+- `truncated` reports clipping of the loaded card set at the service's response limit.
+  It does not describe search coverage beyond the current document.
+
+A read failure or an observed URL change ends the operation. If no read completes within the
+budget, the tool fails without claiming an empty result.
+
+This read may refresh conclusive platform-access evidence from the same document. It does not
+navigate, scroll, click, open details, or persist jobs; [passive collection](#passive-collection-and-persistence)
+handles separate background observations and writes. To open a card through a page control, use
+the references returned by `browser_snapshot`, as described in
+[Tabs and page evidence](#tabs-and-page-evidence).
 
 ### Job descriptions and source binding
 
@@ -300,6 +312,20 @@ signature; it does not detect every change elsewhere in the page or beyond the t
 Reference numbers are not reused within an executor. A new `browser_snapshot`, navigation, or
 page action expires previous references.
 
+`browser_reveal` brings an observed `ref` into view and returns before/after evidence for the
+element, its scrollable ancestors, and the window. Ancestors are identified by depth and tag name
+in each observation, not as durable identities.
+
+`browser_scroll` expresses one vertical reading step: `direction=down` reveals content below and
+`up` returns toward content above. With a `ref`, it selects that element's nearest scrollable
+ancestor; otherwise it targets the selected tab's document. An explicit `tabId` must agree with
+the reference's owning tab. The distance comes from the window height or the intersection of the
+container's rectangle with the window; it does not account for occlusion by other elements. The
+service scrolls that target directly. An inner container at its boundary stays the target; the
+action does not continue by scrolling its parent. The result identifies the target, measured
+viewport height, before/after offsets, and `moved` or `unchanged`. Neither outcome establishes
+result exhaustion or newly loaded jobs. Reobserve the cards to assess research progress.
+
 An explicit link outside the current tab's platform scope is rejected before clicking. Empty
 `javascript:` links, `javascript:;`, and `javascript:void(0)` (with optional whitespace and trailing
 semicolon) are treated as page controls without a navigation destination; other script URLs are
@@ -339,6 +365,13 @@ sync to reuse the observed platform tab. It records returned control; subsequent
 determines authentication status.
 
 ## Maintenance constraints
+
+Tool inputs describe targets and observable intentions. Resource bounds for text, card count,
+observation duration, and polling frequency belong to the service implementation. They bound work
+and response size rather than define platform readiness. Observation conditions belong to the
+read that can establish them. Add platform-level operations such as search submission or next
+result page only when the adapter can identify the real control and report evidence for the
+requested outcome.
 
 The [platform catalog](../../packages/platform-catalog/src/index.ts) owns cross-application
 navigation scope, entry and login URLs, engagement destinations, and pagination. A null

@@ -26,14 +26,13 @@ const BrowserNavigateInput = toolInput({
 });
 
 const BrowserSnapshotInput = toolInput({
-  maxTextCharacters: "1000 <= number <= 40000 = 40000",
   "tabId?": OptionalTabId,
   "userReturnedControl?": "boolean",
 });
 
 const BrowserJobCardSnapshotInput = toolInput({
-  maximumCards: "1 <= number.integer <= 100 = 50",
   "tabId?": OptionalTabId,
+  waitFor: "'none' | 'cards-present' = 'none'",
 });
 
 const BrowserJobDescriptionSnapshotInput = toolInput({
@@ -60,14 +59,14 @@ const BrowserSelectInput = toolInput({
   value: "string > 0",
 });
 
-const BrowserScrollInput = toolInput({
-  deltaY: "-5000 <= number <= 5000 = 600",
-  "ref?": "string",
-  "tabId?": OptionalTabId,
+const BrowserRevealInput = toolInput({
+  ref: ElementReference,
 });
 
-const BrowserWaitInput = toolInput({
-  milliseconds: "0 <= number <= 10000",
+const BrowserScrollInput = toolInput({
+  direction: "'down' | 'up'",
+  "ref?": ElementReference,
+  "tabId?": OptionalTabId,
 });
 
 export const browserToolInputContracts = {
@@ -77,13 +76,13 @@ export const browserToolInputContracts = {
   browser_job_description_snapshot: BrowserJobDescriptionSnapshotInput,
   browser_navigate: BrowserNavigateInput,
   browser_prepare_login: BrowserPrepareLoginInput,
+  browser_reveal: BrowserRevealInput,
   browser_scroll: BrowserScrollInput,
   browser_select: BrowserSelectInput,
   browser_snapshot: BrowserSnapshotInput,
   browser_status: BrowserStatusInput,
   browser_sync_job_engagement: BrowserSyncJobEngagementInput,
   browser_tabs: BrowserTabsInput,
-  browser_wait: BrowserWaitInput,
 } as const;
 
 export type BrowserToolName = keyof typeof browserToolInputContracts;

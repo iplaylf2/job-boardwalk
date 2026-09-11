@@ -280,15 +280,40 @@ engagement and snapshot semantics.
 
 ### Research reports
 
-A report contains a title, Markdown body, `draft` or `complete` state, creation and update times,
-and an optional expiration time. List and detail reads omit expired reports. Creating, replacing,
-and deleting a report records a workspace change with its user, agent, or system attribution.
+A report contains a title, Markdown body, `draft` or `complete` state, timestamps, optional
+expiration, and explicit `entries` and `targets` arrays. Use empty arrays for reports without
+source judgments or platform targets. Creating, fully replacing, and deleting a report records a
+workspace change with its user, agent, or system attribution. Replacement changes the Markdown,
+entries, and targets in one transaction; this is a retained-report model, not an immutable history
+of earlier revisions.
 
-Markdown is stored as authored. Workspace Service validates the report contract but does not turn
-the document into HTML; each presentation boundary owns its rendering policy. See
-[Research reports](../../docs/product-design.md#research-reports) for the cross-application
-boundary. Report authors should keep supporting evidence and uncertainty beside their conclusions
-and link back to durable workspace facts or original sources when available.
+Each entry associates one workspace `sourceId` with a `recommended`, `pending`, or `excluded`
+judgment, a nonempty `basis`, and the judgment time `assessedAt`. The caller owns the judgment and the
+evidence behind it. The service rejects missing sources and repeated source IDs within a report.
+A mention or link in Markdown creates no entry. Same-platform alternate links use the workspace's
+existing source-identity rules; no additional company-name or text-similarity exclusion is inferred.
+
+Each target supplies a `platformId`, positive integer `count`, and optional `nextStep`. A platform
+can have only one target per report.
+Report summaries and details return `progress` for those targets, with `recommended`, `pending`,
+and `excluded` source counts. The `remaining` shortfall is the target minus recommended entries,
+with a minimum of zero. Cross-platform sources count independently even when they belong to one
+normalized job. Pending and excluded entries do not satisfy a target.
+`complete` describes the report's authoring state and may coexist with a remaining shortfall.
+
+`GET /api/reports` and MCP `list_research_reports` accept `sourceId` and `disposition` filters.
+Both filters must match the same entry. Reads exclude expired reports by default; set
+`sourceId`, `disposition=recommended`, and `includeExpired=true` to find retained recommendations
+for a source, including expired reports. Use `includeExpired=true` on `GET /api/reports/:id`
+or MCP `read_research_report` to inspect an expired report's retained basis. Deleting a report
+removes its entries and targets.
+
+HTTP and MCP validate and normalize report commands before passing them to the typed repository.
+The [report repository](src/persistence/research-report-repository.ts) owns persistence, source
+existence and uniqueness checks, query semantics, and derived progress. Markdown is stored as
+authored; [Dashboard](../dashboard/README.md#report-rendering) owns rendering.
+[Product design](../../docs/product-design.md#research-reports) defines the cross-application
+report lifecycle.
 
 ## Persistence
 

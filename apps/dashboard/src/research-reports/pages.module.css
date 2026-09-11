@@ -104,3 +104,15 @@
     padding: 24px 20px;
   }
 }
+
+.progress {
+  padding-inline-start: 1.25rem;
+  margin-block: 1rem;
+  color: var(--ink-subtle);
+  font-size: var(--text-meta);
+  line-height: 1.6;
+}
+
+.progress p {
+  margin-block: 0.25rem;
+}

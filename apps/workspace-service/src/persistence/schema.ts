@@ -10,6 +10,7 @@ import {
 import { sql } from "drizzle-orm";
 import type {
   JobCardObservation,
+  ResearchReportPlatformTarget,
   JobDescriptionObservation,
   JobPostingDescription,
 } from "@job-boardwalk/contracts";
@@ -200,5 +201,44 @@ export const workspaceChanges = sqliteTable(
       "workspace_changes_initiated_by",
       sql`${table.initiatedBy} in ('agent', 'user', 'system')`,
     ),
+  ],
+);
+
+export const researchReportEntries = sqliteTable(
+  "research_report_entries",
+  {
+    assessedAt: text("assessed_at").notNull(),
+    basis: text().notNull(),
+    disposition: text({ enum: ["recommended", "pending", "excluded"] }).notNull(),
+    reportId: integer("report_id")
+      .notNull()
+      .references(() => researchReports.id, { onDelete: "cascade" }),
+    sourceId: integer("source_id")
+      .notNull()
+      .references(() => jobPostingSources.id),
+  },
+  (table) => [
+    primaryKey({ columns: [table.reportId, table.sourceId] }),
+    index("research_report_entries_source").on(table.sourceId, table.disposition),
+    check(
+      "research_report_entries_disposition",
+      sql`${table.disposition} in ('recommended', 'pending', 'excluded')`,
+    ),
+  ],
+);
+
+export const researchReportTargets = sqliteTable(
+  "research_report_targets",
+  {
+    count: integer().notNull(),
+    nextStep: text("next_step"),
+    platformId: text("platform_id").$type<ResearchReportPlatformTarget["platformId"]>().notNull(),
+    reportId: integer("report_id")
+      .notNull()
+      .references(() => researchReports.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.reportId, table.platformId] }),
+    check("research_report_targets_count", sql`${table.count} > 0`),
   ],
 );

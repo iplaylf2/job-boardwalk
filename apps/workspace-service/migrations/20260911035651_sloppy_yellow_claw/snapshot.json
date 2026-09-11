@@ -1,8 +1,10 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "4395b7e6-8a78-4da9-8ebb-a71ef8381dd6",
-  "prevIds": ["00000000-0000-0000-0000-000000000000"],
+  "id": "0c526394-13e7-42e9-9520-237f7a1412e7",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
   "ddl": [
     {
       "name": "job_posting_source_identities",
@@ -34,6 +36,14 @@
     },
     {
       "name": "profile_facts",
+      "entityType": "tables"
+    },
+    {
+      "name": "research_report_entries",
+      "entityType": "tables"
+    },
+    {
+      "name": "research_report_targets",
       "entityType": "tables"
     },
     {
@@ -550,6 +560,96 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
+      "name": "assessed_at",
+      "entityType": "columns",
+      "table": "research_report_entries"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "basis",
+      "entityType": "columns",
+      "table": "research_report_entries"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "disposition",
+      "entityType": "columns",
+      "table": "research_report_entries"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "report_id",
+      "entityType": "columns",
+      "table": "research_report_entries"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_id",
+      "entityType": "columns",
+      "table": "research_report_entries"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "count",
+      "entityType": "columns",
+      "table": "research_report_targets"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "next_step",
+      "entityType": "columns",
+      "table": "research_report_targets"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "platform_id",
+      "entityType": "columns",
+      "table": "research_report_targets"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "report_id",
+      "entityType": "columns",
+      "table": "research_report_targets"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
       "name": "created_at",
       "entityType": "columns",
       "table": "research_reports"
@@ -675,9 +775,13 @@
       "table": "workspace_changes"
     },
     {
-      "columns": ["source_id"],
+      "columns": [
+        "source_id"
+      ],
       "tableTo": "job_posting_sources",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -686,9 +790,13 @@
       "table": "job_posting_source_identities"
     },
     {
-      "columns": ["job_id"],
+      "columns": [
+        "job_id"
+      ],
       "tableTo": "job_postings",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -697,9 +805,13 @@
       "table": "job_posting_sources"
     },
     {
-      "columns": ["intent_id"],
+      "columns": [
+        "intent_id"
+      ],
       "tableTo": "job_search_intents",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -708,9 +820,13 @@
       "table": "job_search_intent_recommendation_pages"
     },
     {
-      "columns": ["source_id"],
+      "columns": [
+        "source_id"
+      ],
       "tableTo": "job_posting_sources",
-      "columnsTo": ["id"],
+      "columnsTo": [
+        "id"
+      ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -719,70 +835,157 @@
       "table": "job_source_engagements"
     },
     {
-      "columns": ["platform_id", "identity_key"],
+      "columns": [
+        "report_id"
+      ],
+      "tableTo": "research_reports",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_research_report_entries_report_id_research_reports_id_fk",
+      "entityType": "fks",
+      "table": "research_report_entries"
+    },
+    {
+      "columns": [
+        "source_id"
+      ],
+      "tableTo": "job_posting_sources",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_research_report_entries_source_id_job_posting_sources_id_fk",
+      "entityType": "fks",
+      "table": "research_report_entries"
+    },
+    {
+      "columns": [
+        "report_id"
+      ],
+      "tableTo": "research_reports",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_research_report_targets_report_id_research_reports_id_fk",
+      "entityType": "fks",
+      "table": "research_report_targets"
+    },
+    {
+      "columns": [
+        "platform_id",
+        "identity_key"
+      ],
       "nameExplicit": false,
       "name": "job_posting_source_identities_pk",
       "entityType": "pks",
       "table": "job_posting_source_identities"
     },
     {
-      "columns": ["source_id", "kind"],
+      "columns": [
+        "source_id",
+        "kind"
+      ],
       "nameExplicit": false,
       "name": "job_source_engagements_pk",
       "entityType": "pks",
       "table": "job_source_engagements"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "report_id",
+        "source_id"
+      ],
+      "nameExplicit": false,
+      "name": "research_report_entries_pk",
+      "entityType": "pks",
+      "table": "research_report_entries"
+    },
+    {
+      "columns": [
+        "report_id",
+        "platform_id"
+      ],
+      "nameExplicit": false,
+      "name": "research_report_targets_pk",
+      "entityType": "pks",
+      "table": "research_report_targets"
+    },
+    {
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "job_posting_sources_pk",
       "table": "job_posting_sources",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "job_postings_pk",
       "table": "job_postings",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "job_search_intent_recommendation_pages_pk",
       "table": "job_search_intent_recommendation_pages",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "job_search_intents_pk",
       "table": "job_search_intents",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "platform_access_observations_pk",
       "table": "platform_access_observations",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "profile_facts_pk",
       "table": "profile_facts",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "research_reports_pk",
       "table": "research_reports",
       "entityType": "pks"
     },
     {
-      "columns": ["id"],
+      "columns": [
+        "id"
+      ],
       "nameExplicit": false,
       "name": "workspace_changes_pk",
       "table": "workspace_changes",
@@ -835,21 +1038,45 @@
       "table": "job_search_intents"
     },
     {
-      "columns": ["identity_key"],
+      "columns": [
+        {
+          "value": "source_id",
+          "isExpression": false
+        },
+        {
+          "value": "disposition",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "research_report_entries_source",
+      "entityType": "indexes",
+      "table": "research_report_entries"
+    },
+    {
+      "columns": [
+        "identity_key"
+      ],
       "nameExplicit": false,
       "name": "job_postings_identity_key_unique",
       "entityType": "uniques",
       "table": "job_postings"
     },
     {
-      "columns": ["name"],
+      "columns": [
+        "name"
+      ],
       "nameExplicit": false,
       "name": "job_search_intents_name_unique",
       "entityType": "uniques",
       "table": "job_search_intents"
     },
     {
-      "columns": ["key"],
+      "columns": [
+        "key"
+      ],
       "nameExplicit": false,
       "name": "profile_facts_key_unique",
       "entityType": "uniques",
@@ -896,6 +1123,18 @@
       "name": "platform_access_observations_assessment",
       "entityType": "checks",
       "table": "platform_access_observations"
+    },
+    {
+      "value": "\"disposition\" in ('recommended', 'pending', 'excluded')",
+      "name": "research_report_entries_disposition",
+      "entityType": "checks",
+      "table": "research_report_entries"
+    },
+    {
+      "value": "\"count\" > 0",
+      "name": "research_report_targets_count",
+      "entityType": "checks",
+      "table": "research_report_targets"
     },
     {
       "value": "\"initiated_by\" in ('agent', 'user', 'system')",

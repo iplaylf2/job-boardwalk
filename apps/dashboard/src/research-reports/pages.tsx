@@ -1,8 +1,10 @@
+import { platformCatalog } from "@job-boardwalk/platform-catalog";
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type {
   ResearchReport,
   ResearchReportState,
+  ResearchReportPlatformProgress,
   ResearchReportSummary,
 } from "@job-boardwalk/contracts";
 
@@ -33,6 +35,25 @@ function ReportStateBadge(props: { state: ResearchReportState }): JSX.Element {
   );
 }
 
+function ReportProgress(props: { progress: ResearchReportPlatformProgress[] }): JSX.Element {
+  return (
+    <Show when={props.progress.length > emptyCollectionLength}>
+      <ul class={styles["progress"]} aria-label="推荐目标进度">
+        <For each={props.progress}>
+          {(item) => (
+            <li>
+              <strong>{platformCatalog[item.platformId].label}</strong>
+              {" · "}推荐 {item.recommended} / {item.count}，还差 {item.remaining}
+              {" · "}待确认 {item.pending}，排除 {item.excluded}
+              <Show when={item.nextStep}>{(nextStep) => <p>下一步：{nextStep()}</p>}</Show>
+            </li>
+          )}
+        </For>
+      </ul>
+    </Show>
+  );
+}
+
 function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
   return (
     <article class={styles["listItem"]}>
@@ -41,6 +62,7 @@ function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
         <h2>
           <a href={`/reports/${String(props.report.id)}`}>{props.report.title}</a>
         </h2>
+        <ReportProgress progress={props.report.progress} />
       </div>
       <div class={styles["listMeta"]}>
         <span>更新于 {formatTimestamp(props.report.updatedAt)}</span>
@@ -95,6 +117,7 @@ function ResearchReportDocument(props: { report: ResearchReport }): JSX.Element 
           </Show>
         </p>
       </header>
+      <ReportProgress progress={props.report.progress} />
       <ResearchReportMarkdownView markdown={props.report.markdown} />
     </article>
   );

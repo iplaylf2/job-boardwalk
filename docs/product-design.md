@@ -348,20 +348,29 @@ the agent stops browser input, records the interruption, and waits for the user.
 
 ## Research reports
 
-Workspace Service stores research reports as Markdown plus structured title, state, timestamps, and
-an optional expiration time. A report is a reader-facing interpretation of workspace evidence, not
-a replacement for normalized job facts or the underlying platform links. Users, agents, and system
-workflows use the same report command and attribution model.
+Workspace Service stores research reports as Markdown plus structured title, state, timestamps,
+optional expiration, source judgments, and platform targets. A report is a reader-facing
+interpretation of workspace evidence, not a replacement for normalized job facts or the underlying
+platform links. Users, agents, and system workflows use the same report command and attribution model.
 
-Dashboard owns the browser presentation of that Markdown. Its deliberately bounded document
-surface supports headings, prose, lists, tables, block quotes, code, section anchors,
-Dashboard-local links, and HTTPS source links. Raw HTML remains text, Markdown images are not
-rendered, and report content cannot embed pages or expose browser or agent controls.
+Each source judgment records recommendation, pending confirmation, or exclusion with its basis and
+assessment time. Source identity remains platform-specific even when normalized jobs merge across
+platforms. Report progress counts explicit recommendations toward each platform target; neither
+observed-card counts nor pending judgments establish qualification. Report completion can retain a
+shortfall and a next research step. These judgments do not create recruiting engagements.
 
-Report navigation preserves reading context. Section anchors and Dashboard-local links stay in the
-current tab; marked HTTPS source links open in a new tab. An expired report is no longer returned to
-readers. A completed report may remain available without requiring the conversation or producer
-that created it.
+Historical recommendation checks query retained report entries, including expired reports when
+explicitly requested. Report replacement and deletion replace or remove those entries as well;
+they are not an immutable action log. Markdown mentions never become recommendations implicitly.
+
+Dashboard presents report conclusions and platform progress as a readable document, available
+independently of the conversation or producer that created it. Report content cannot embed pages
+or expose browser or agent controls. Ordinary navigation omits expired reports; explicit history
+reads can still retrieve their retained judgments.
+
+[Workspace Service](../apps/workspace-service/README.md#research-reports) owns the report command,
+query, and progress contracts.
+[Dashboard](../apps/dashboard/README.md#report-rendering) owns Markdown rendering and link behavior.
 
 ## Dashboard surface
 

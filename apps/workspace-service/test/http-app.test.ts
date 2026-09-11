@@ -588,10 +588,12 @@ test("writes and lists research reports through MCP", async () => {
       method: "tools/call",
       params: {
         arguments: {
+          entries: [],
           initiatedBy: "agent",
           markdown: "## 推荐\n\n优先核验示例科技甲。",
           reason: "test",
           state: "complete",
+          targets: [],
           title: "岗位推荐",
         },
         name: "save_research_report",
@@ -632,11 +634,13 @@ test("rejects an invalid report expiration through MCP", async () => {
       method: "tools/call",
       params: {
         arguments: {
+          entries: [],
           expiresAt: "not-a-time",
           initiatedBy: "agent",
           markdown: "## 推荐",
           reason: "test",
           state: "complete",
+          targets: [],
           title: "无效报告",
         },
         name: "save_research_report",
@@ -660,10 +664,12 @@ test("creates and reads research reports through HTTP", async () => {
   try {
     const createResponse = await httpApp.request("/api/reports", {
       body: JSON.stringify({
+        entries: [],
         initiatedBy: "agent",
         markdown: "## 首选\n\n优先核验 Node.js 岗位。",
         reason: "test",
         state: "complete",
+        targets: [],
         title: "阶段推荐",
       }),
       headers: { "content-type": "application/json" },
@@ -682,10 +688,12 @@ test("creates and reads research reports through HTTP", async () => {
     });
     const invalidResponse = await httpApp.request("/api/reports", {
       body: JSON.stringify({
+        entries: [],
         initiatedBy: "agent",
         markdown: " ",
         reason: "test",
         state: "complete",
+        targets: [],
         title: "无效报告",
       }),
       headers: { "content-type": "application/json" },

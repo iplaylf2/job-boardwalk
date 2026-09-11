@@ -21,11 +21,14 @@ import {
 } from "./recruiting-platform-adapters.js";
 import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
+import { captureElementScrollContext, scrollOneViewport } from "./page-scroll.js";
 import { capturePageSnapshot } from "./page-snapshot.js";
-import { captureJobCardSnapshot } from "./job-observation/card-snapshot.js";
+import { readJobCards } from "./job-observation/card-read.js";
 import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
 
 const zero = 0;
+const snapshotTextLimit = 40_000;
+const scrollTimeoutMs = 5000;
 const firstElementReference = 1;
 const explicitDescriptionAttribution = {
   initiatedBy: "agent",
@@ -88,11 +91,6 @@ export class BrowserToolExecutor {
 
   public *execute(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
     switch (toolName) {
-      case "browser_wait": {
-        const milliseconds = input["milliseconds"] as number;
-        yield* sleep(milliseconds);
-        return { waitedMilliseconds: milliseconds };
-      }
       case "browser_tabs": {
         return yield* this.#tabs.executeAction(input);
       }
@@ -125,6 +123,9 @@ export class BrowserToolExecutor {
       }
       case "browser_select": {
         return yield* this.#select(input);
+      }
+      case "browser_reveal": {
+        return yield* this.#reveal(input);
       }
       case "browser_scroll": {
         return yield* this.#scroll(input);
@@ -222,24 +223,38 @@ export class BrowserToolExecutor {
   }
 
   *#scroll(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    if (typeof params["ref"] === "string") {
-      return yield* this.#scrollToReference(params);
+    const reference =
+      typeof params["ref"] === "string" ? yield* this.#verifiedReference(params) : null;
+    const requestedTabId = parseOptionalTabId(params);
+    if (reference && requestedTabId && reference.tabId !== requestedTabId) {
+      throw new Error("ref 与 tabId 指向不同的标签页。");
     }
-    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
-    const deltaY = params["deltaY"] as number;
+    const [tabId, page] = this.#tabs.resolveNavigationPage(reference?.tabId ?? requestedTabId);
     this.#tabs.markSelected(tabId);
-    yield* until(() => page.mouse.wheel(zero, deltaY));
-    this.#clearElementReferences();
-    const summary = yield* readNavigationPageSummary(page);
-    const scrollY = yield* until(() => page.evaluate(() => globalThis.scrollY));
-    return { ...summary, scrollY };
+    const locator = reference?.locator ?? page.locator("body");
+    try {
+      const scroll = yield* until(() =>
+        locator.evaluate(
+          scrollOneViewport,
+          {
+            direction: params["direction"] as "down" | "up",
+            target: reference ? "scrollable-ancestor" : "document",
+          } as const,
+          { timeout: scrollTimeoutMs },
+        ),
+      );
+      const summary = yield* readNavigationPageSummary(page);
+      return { ...summary, scroll };
+    } finally {
+      this.#clearElementReferences();
+    }
   }
 
   *#jobCardSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    const maximumCards = params["maximumCards"] as number;
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const snapshot = yield* captureJobCardSnapshot(page, maximumCards, this.#observePageAccess);
+    const waitFor = params["waitFor"] === "cards-present" ? "cards-present" : "none";
+    const snapshot = yield* readJobCards(page, waitFor, this.#observePageAccess);
     return { ...snapshot, tabId };
   }
 
@@ -260,11 +275,16 @@ export class BrowserToolExecutor {
     return { ...observation, tabId };
   }
 
-  *#scrollToReference(params: Record<string, unknown>): RiteCoroutine<unknown> {
+  *#reveal(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     try {
+      const before = yield* until(() => reference.locator.evaluate(captureElementScrollContext));
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
-      return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
+      const after = yield* until(() => reference.locator.evaluate(captureElementScrollContext));
+      const summary = yield* readNavigationPageSummary(
+        this.#tabs.requireNavigationPage(reference.tabId),
+      );
+      return { ...summary, scroll: { after, before, mode: "reveal" } };
     } finally {
       this.#clearElementReferences();
     }
@@ -283,7 +303,7 @@ export class BrowserToolExecutor {
   *#snapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const textLimit = params["maxTextCharacters"] as number;
+    const textLimit = snapshotTextLimit;
     this.#clearElementReferences();
     const settleMilliseconds =
       findRecruitingPlatformAdapter(page.url())?.snapshotSettleMilliseconds ?? zero;

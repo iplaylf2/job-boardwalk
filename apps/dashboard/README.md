@@ -26,6 +26,7 @@ The interface has three primary reader paths:
   description is available. The dialog reports when Browser Session reached its local text limit
   and the displayed description may be incomplete.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
+  Both show the report's state and platform progress.
 
 The header owns only cross-resource navigation. Engagement filters belong to the job library and do
 not appear as primary destinations.
@@ -80,6 +81,11 @@ semantics and CORS permissions. Dashboard's current browser integration reads he
 future browser features share page coordination and user handoff.
 
 ## Report rendering
+
+The report list and detail page show each platform's recommendation count against its target,
+remaining shortfall, pending and excluded counts, and next research step when present.
+Workspace Service supplies these counts from structured source judgments. A completed report
+may still have unmet targets; completion describes the report's authoring state.
 
 Dashboard renders each report as a document. It supports headings, prose, lists, tables, block
 quotes, code, section anchors, Dashboard-local links, and HTTPS source links. Raw HTML remains text,

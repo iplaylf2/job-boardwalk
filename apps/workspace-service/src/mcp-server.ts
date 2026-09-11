@@ -36,11 +36,11 @@ const jobLibraryResourceDescription =
 const jobLibraryToolDescription =
   "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，也可读取全部跟进岗位。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 进一步限定为缺少平台岗位 ID 和详情页链接的暂无描述岗位。结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
 const researchReportListDescription =
-  "读取未过期的研究报告目录。报告可由用户、agent 或系统写入，以 Markdown 保存，并包含草稿或完成状态与更新时间。";
+  "读取研究报告目录和平台目标进度，默认排除过期报告。可按 sourceId 或 disposition 筛选；同时提供时，两者必须匹配同一条来源结论。查询某来源的留存推荐记录时，传 sourceId、disposition=recommended 和 includeExpired=true，以包含过期报告。报告被替换或删除后，旧结论不再保留。";
 const researchReportDetailDescription =
-  "按 ID 读取一份未过期的研究报告，包括标题、Markdown 正文、状态、创建和更新时间，以及可选的过期时间。";
+  "按 ID 读取研究报告，包括正文、来源结论及其依据和判断时间、平台目标与进度。默认排除过期报告；历史核验可传 includeExpired=true。";
 const saveResearchReportDescription =
-  "保存一份 Markdown 研究报告。省略 id 时创建；提供 id 时完整更新对应报告。可设置过期时间。";
+  "保存一份 Markdown 研究报告。省略 id 时创建；提供 id 时完整替换对应报告，包括正文、entries 和 targets。可设置过期时间。entries 必须记录 sourceId、recommended/pending/excluded 结论、basis 与 assessedAt；没有结构化结论时传空数组。targets 记录各平台目标数量与可选 nextStep，没有目标时传空数组。每个平台的进度分别统计 recommended、pending 和 excluded 来源，只有 recommended 计入目标完成数量。complete 表示报告撰写完成，仍可有目标缺口。";
 const toolNames = {
   listResearchReports: "list_research_reports",
   readJobLibrary: "read_job_library",
@@ -246,8 +246,8 @@ function registerToolHandlers(
       return serviceScope.run(function* listResearchReports() {
         try {
           yield* [];
-          parseListResearchReportsInput(request.params.arguments ?? {});
-          return structuredToolResult({ reports: repository.listResearchReports() });
+          const filter = parseListResearchReportsInput(request.params.arguments ?? {});
+          return structuredToolResult({ reports: repository.listResearchReports(filter) });
         } catch (error) {
           return toolErrorResult(error);
         }
@@ -257,8 +257,10 @@ function registerToolHandlers(
       return serviceScope.run(function* readResearchReport() {
         try {
           yield* [];
-          const { id } = parseReadResearchReportInput(request.params.arguments ?? {});
-          const report = repository.readResearchReport(id);
+          const { id, includeExpired } = parseReadResearchReportInput(
+            request.params.arguments ?? {},
+          );
+          const report = repository.readResearchReport(id, includeExpired);
           if (!report) {
             throw new TypeError(`找不到研究报告：${String(id)}`);
           }

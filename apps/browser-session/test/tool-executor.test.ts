@@ -329,3 +329,64 @@ test.each([
   await expect(run(() => executor.execute("browser_click", { ref: "e1" }))).rejects.toThrow();
   expect(fake.state.clickCount).toBe(firstLocatorIndex);
 });
+
+test("reveals an observed element and expires the reference after the action", async () => {
+  const { page } = fakeActionPage({ name: "合成岗位末尾卡片", role: "link" });
+  const locator = page.locator("a").nth(firstLocatorIndex);
+  let position = 0;
+  const afterPosition = 600;
+  Object.assign(locator, {
+    evaluate: () =>
+      Promise.resolve({ scrollableAncestors: [{ scrollTop: position }], viewport: { scrollY: 0 } }),
+    scrollIntoViewIfNeeded: () => {
+      position = afterPosition;
+      return Promise.resolve();
+    },
+  });
+  const executor = browserToolExecutor(fakeContext(page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  const result = await scope.run(() => executor.execute("browser_reveal", { ref: "e1" }));
+  expect(result).toMatchObject({
+    scroll: {
+      after: { scrollableAncestors: [{ scrollTop: afterPosition }], viewport: { scrollY: 0 } },
+      before: { scrollableAncestors: [{ scrollTop: 0 }], viewport: { scrollY: 0 } },
+      mode: "reveal",
+    },
+  });
+  await expect(run(() => executor.execute("browser_reveal", { ref: "e1" }))).rejects.toThrow();
+});
+
+test("scrolls the observed element's region and expires its reference", async () => {
+  const { page } = fakeActionPage({ name: "合成岗位卡片", role: "link" });
+  const locator = page.locator("a").nth(firstLocatorIndex);
+  const actions: unknown[] = [];
+  Object.assign(locator, {
+    evaluate: (_callback: unknown, input: unknown) => {
+      actions.push(input);
+      return Promise.resolve({ outcome: "moved", target: "container" });
+    },
+  });
+  const executor = browserToolExecutor(fakeContext(page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  const differentTabId = 2;
+  await expect(
+    run(() =>
+      executor.execute("browser_scroll", {
+        direction: "down",
+        ref: "e1",
+        tabId: differentTabId,
+      }),
+    ),
+  ).rejects.toThrow();
+  expect(actions).toEqual([]);
+  const result = await scope.run(() =>
+    executor.execute("browser_scroll", { direction: "down", ref: "e1", tabId: 1 }),
+  );
+  expect(result).toMatchObject({ scroll: { outcome: "moved", target: "container" } });
+  expect(actions).toEqual([{ direction: "down", target: "scrollable-ancestor" }]);
+  await expect(
+    run(() => executor.execute("browser_scroll", { direction: "up", ref: "e1" })),
+  ).rejects.toThrow();
+});
