@@ -86,6 +86,13 @@ const bossJobCardExtraction = {
 export const bossPageDefinition = {
   assessNavigation: assessBossNavigation,
   assessPage: assessBossPage,
+  hasLoginControl: (page) =>
+    page.elements.some(
+      (element) =>
+        element.disabled !== true &&
+        element.role === "link" &&
+        element.name?.trim() === "验证码登录/注册",
+    ),
   isJobCardCollectionPage: isBossJobCardCollectionPage,
   jobCardExtractionConfig: bossJobCardExtraction,
   jobDescriptionExtractionConfig: {

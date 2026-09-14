@@ -11,7 +11,7 @@ browser-collaboration model. The current service preserves platform-access obser
 facts, job-search intents, normalized jobs and their platform sources, and research reports. Each
 intent owns a target position, city, selection state, and per-platform recommendation-page
 references. The service does not store recruiting pages or historical page snapshots. It stores
-research reports as Markdown with structured lifecycle metadata and optional expiration.
+research reports as Markdown with source judgments, platform targets, and lifecycle metadata.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent browser. The agent coordinates that live browser work with the
@@ -99,10 +99,14 @@ Shared request and response types live in
 ### Platform-access observations
 
 Browser Session submits adapter-derived authentication evidence to
-`PUT /api/platform-access/observations`. The endpoint reconciles one observation: a changed
-assessment appends a transition, a newer repeated assessment advances its latest observation time,
-and stale evidence leaves the history unchanged. It returns the retained observation, or `null`
-when no newer evidence is applied.
+`PUT /api/platform-access/observations`. Reconciliation compares the input with the latest
+observation for the same `platformId` and source `url`:
+
+| Input                                            | Stored result            | Response body       |
+| ------------------------------------------------ | ------------------------ | ------------------- |
+| First observation, or a newer changed assessment | Append a record          | The appended record |
+| Newer observation of the same assessment         | Advance `lastObservedAt` | `null`              |
+| Observation at or before `lastObservedAt`        | No change                | `null`              |
 
 An agent may post independently interpreted evidence to `POST /api/platform-access/observations`
 when no adapter classified it. This appends a separate record. Both operations accept the same
@@ -113,15 +117,15 @@ observation contract; neither accepts browser runtime status:
   "platformId": "boss",
   "authenticationState": "authenticated",
   "evidence": "protected-resource",
-  "observedAt": "2026-07-13T01:00:00.000Z"
+  "observedAt": "2026-07-13T01:00:00.000Z",
+  "url": "https://www.zhipin.com/web/geek/jobs"
 }
 ```
 
-Every record retains its first and latest observation times. Current conclusions are ordered by
-the latest observation time, so delayed historical evidence cannot supersede newer evidence.
-`platformId` accepts identifiers from the
-[platform catalog](../../packages/platform-catalog/src/index.ts). Authentication evidence
-distinguishes how the conclusion was established:
+The observation contract requires a source HTTPS `url` and a `platformId` from the
+[platform catalog](../../packages/platform-catalog/src/index.ts). Each record retains its first
+capture time in `observedAt` and its latest capture time in `lastObservedAt`.
+Authentication evidence identifies how the conclusion was established:
 
 - `protected-resource` records `authenticated` from a successful navigation known to require
   authentication;
@@ -130,7 +134,10 @@ distinguishes how the conclusion was established:
 - `login-redirect` records `unauthenticated` when a protected navigation redirects to login.
 
 Verification and access denial use the separate `interruption` field. The workspace overview
-projects the latest definite authentication result and only an interruption newer than that result.
+projects the latest definite authentication result, ordered by `lastObservedAt`. It includes the
+latest interruption when that interruption is more recent, or when no authentication observation
+exists. Both retain their source URL. Dashboard owns
+[presentation of these summaries](../dashboard/README.md#data-ownership-and-freshness).
 
 ### Personal context and search intent
 

@@ -240,15 +240,9 @@ session used for research:
 1. When the user requests login, or visible page evidence shows that the requested workflow
    requires authentication and the current session is unauthenticated, the agent asks Browser
    Session to prepare login for that platform.
-2. Browser Session pauses passive page reads and observes the existing platform tabs. Conclusive
-   authenticated-page evidence completes preparation without navigation or user handoff. Otherwise,
-   Browser Session retains every readable tab that remains on the platform's configured login route,
-   checks all candidates for a usable login interface, and activates the first candidate that becomes
-   ready. It preserves unreadable tabs and readable pages whose meaning remains unclassified,
-   including pages that may be showing verification or another access decision. If no reusable login
-   tab remains, it uses an available blank tab or a new tab for the configured login destination,
-   then waits for a usable login interface. If neither result can be established, preparation fails
-   and passive reads resume.
+2. Browser Session pauses passive page reads and checks the platform session. Observed
+   authentication completes preparation without a handoff. Otherwise it prepares a usable login interface while preserving
+   unclassified pages and visible access decisions. Failed preparation resumes passive reads.
 3. Only a ready login interface starts user handoff. The agent stops browser actions and asks the
    user to take over the visible window; readiness does not authorize the agent to enter or submit
    credentials or verification input.
@@ -261,17 +255,12 @@ session used for research:
 6. A later verification request or user-controlled action pauses research and returns control to the
    user again.
 
-Only one actor drives a browser session at a time. Human takeover pauses agent input. Agent control
-resumes only after the user explicitly returns control. On that first post-handoff snapshot,
-`userReturnedControl` resumes passive page reads across the browser context and allows a later
-explicit sync to reuse the observed platform's personal-center tab. It neither asserts
-authentication nor grants authority for account actions. The handoff governs browser activity;
-Workspace Service writes already started from previously captured evidence may finish while the
-user has browser control.
+The handoff governs browser activity. Workspace Service may finish writes from evidence captured
+before the user took control. Browser Session owns the
+[login preparation and control-return protocol](../apps/browser-session/README.md#browser-handoff).
 
-Browser Session keeps a dedicated persistent browser profile, stored by default in its
-operating-system user-data directory, so cookies and ordinary client state survive between service
-runs. Credentials and verification input stay inside the platform window. Job Boardwalk does not
+Browser Session keeps a dedicated persistent profile so ordinary browser session state survives
+service restarts. Credentials and verification input stay inside the platform window. Job Boardwalk does not
 query cookies or browser storage. Browser snapshots omit form-control values and password controls,
 and HTTP and MCP responses do not expose authentication cookies or browser profile contents. Browser
 Session exposes generic interactions with elements from a recent snapshot and validates the
@@ -281,46 +270,22 @@ applies the delegation boundary before acting.
 
 ## Access observations
 
-Workspace Service reconciles submitted platform-access observations into a per-platform transition
-history. A newer changed assessment appends a transition; a newer repeated assessment advances that
-transition's latest observation time. A delayed observation cannot alter a newer platform
-conclusion. An agent may separately record evidence that no adapter classified, and all current
-conclusions are ordered by their latest observation time.
+Platform-access observations are historical evidence about authentication or an access
+interruption. Each observation carries its source page URL and capture time. Authentication
+is recorded separately from verification requests and access denial.
 
-Browser Session passively observes navigation responses the visible browser already receives and
-applies deterministic adapter rules to bounded page reads initiated by explicit snapshots, passive
-job collection, or an explicit job-engagement synchronization task. Assessment stays within those
-existing reads. An adapter with a conclusive navigation rule may use response success, the final
-URL, and the server redirect chain to produce one of two authentication results:
+Browser Session derives authentication observations from platform rules applied to top-level
+navigation responses and existing page reads. The agent can record independently interpreted
+evidence when no adapter classifies it. Unclassified evidence leaves existing observations
+unchanged. [Platform coverage](../apps/browser-session/README.md#platform-coverage) defines the
+recognized pages and evidence for each adapter.
 
-- `protected-resource` records `authenticated` when a known protected navigation succeeds;
-- `login-redirect` records `unauthenticated` when that navigation redirects to the platform login
-  destination.
-
-An adapter may also produce `authenticated-page` when a bounded snapshot contains a complete,
-platform-specific set of account controls that establishes an authenticated session. The snapshot
-returns the same structured observation so the agent can answer without submitting it again.
-This rule requires the complete platform-specific control set; other page and session signals remain
-unclassified.
-
-Explicit job-card and job-description snapshots derive their evidence from the current eligible
-page rather than durable Workspace Service content. Unlike the job-card snapshot, the
-job-description snapshot then submits its live observation through the persistence boundary above.
-A job-card snapshot rejects a personal-center engagement page, which belongs to the explicit
-synchronization boundary. Evidence from a successful read may also refresh a conclusive access
-observation. The passive collector only reads eligible pages already open in the managed browser.
-Recommendation-page navigation and personal-center job-engagement synchronization are explicit
-agent actions within a user-requested task; neither is scheduled as background browser activity.
-
-Verification requests and access denial are separate interruptions rather than additional
-authentication states. The agent derives those conclusions from visible controls or semantic page
-content. Navigation and document-lifecycle diagnostics remain unclassified until such evidence is
-available. When an adapter returns `null`, Browser Session records no access observation for that
-page evidence. Access observations contain only structured assessment metadata; credentials,
-browser session data, and page content stay within their owning boundaries.
-
-The Dashboard displays the definite authentication assessment with its latest observation time and
-any interruption observed later. Browser Session owns live browser inspection.
+Workspace Service retains observations by platform and source URL, reconciling repeated evidence
+by observation time. It owns the
+[observation API and overview projection](../apps/workspace-service/README.md#platform-access-observations).
+Browser Session owns [submission](../apps/browser-session/README.md#evidence-submission), and
+Dashboard presents the resulting summaries with their source URLs and observation times.
+Live browser inspection remains with Browser Session.
 
 ## Reliable browser research
 

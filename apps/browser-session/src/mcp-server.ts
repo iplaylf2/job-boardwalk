@@ -145,7 +145,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { idempotentHint: false, openWorldHint: true, readOnlyHint: true },
     description:
-      "滚动一屏以继续阅读：direction=down 向下，direction=up 向上。提供 ref 时滚动该元素最近的可滚动祖先；否则滚动所选标签页的文档。ref 决定所属页面；同时提供 tabId 时必须指向同一页。距离取窗口高度或滚动容器与窗口的相交高度。返回 moved/unchanged 及动作前后位置；unchanged 只表示该滚动区域未移动，不代表岗位结果已穷尽。操作后引用失效。",
+      "滚动一屏以继续阅读：direction=down 向下，direction=up 向上。提供 ref 时滚动该元素最近的可滚动祖先；否则滚动所选标签页的文档。ref 决定所属页面；同时提供 tabId 时必须指向同一页。距离取窗口高度或滚动容器与窗口的相交高度。返回目标 scrollTop、窗口 scrollY 的前后值及 moved/unchanged；任一位置变化即为 moved。结果不表示岗位列表是否已穷尽。操作后引用失效。",
     name: "browser_scroll",
   }),
   defineBrowserTool({

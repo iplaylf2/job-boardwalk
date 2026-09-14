@@ -42,10 +42,9 @@ When Workspace Service data cannot be loaded, Dashboard keeps the page header an
 navigation visible. The affected data region reports the failure instead of presenting it as an
 empty result; retryable failures offer a retry action.
 
-Saved platform observations are historical evidence rather than a guarantee of current access.
-Dashboard therefore presents definite authentication in the past tense and shows when the displayed
-authentication or interruption assessment was most recently observed. Dashboard gives visual
-priority to an unresolved platform interruption without opening or checking a recruiting page.
+The platform-access panel presents Workspace Service's summaries with the source page URL and
+latest observation time. Authentication labels use the past tense. An unresolved interruption
+takes precedence in the panel; Dashboard does not open or inspect recruiting pages.
 
 Dashboard rereads the workspace overview every five seconds and refreshes it after a user change.
 The job-library page requests at most 24 jobs at a time and refreshes the selected view every 30

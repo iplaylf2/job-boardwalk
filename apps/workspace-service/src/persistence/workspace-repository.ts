@@ -371,6 +371,7 @@ function toRecordedPlatformAccessObservationMetadata(row: PlatformAccessObservat
     lastObservedAt: row.lastObservedAt,
     observedAt: row.observedAt,
     platformId: row.platformId,
+    url: row.url,
   };
 }
 
@@ -488,7 +489,12 @@ export class WorkspaceRepository {
     const latestRow = this.#database
       .select()
       .from(platformAccessObservations)
-      .where(eq(platformAccessObservations.platformId, observation.platformId))
+      .where(
+        and(
+          eq(platformAccessObservations.platformId, observation.platformId),
+          eq(platformAccessObservations.url, observation.url),
+        ),
+      )
       .orderBy(desc(platformAccessObservations.lastObservedAt), desc(platformAccessObservations.id))
       .get();
     const latest = latestRow ? toRecordedPlatformAccessObservation(latestRow) : null;

@@ -78,6 +78,7 @@ function connectShutdownSignal(
   return () => signal?.removeEventListener("abort", requestShutdown);
 }
 
+// eslint-disable-next-line max-lines-per-function -- Keep service resource wiring and its shutdown ownership in one composition routine.
 function* runBrowserSession(
   serviceScope: Scope,
   options: BrowserSessionProcessOptions,
@@ -95,6 +96,7 @@ function* runBrowserSession(
   const platformAccessReporter = new PlatformAccessObservationReporter(
     workspaceServiceUrl,
     () => browserControl.platformAccessObservations,
+    (observation) => browserControl.acknowledgePlatformAccessObservation(observation),
   );
   const httpApp = createBrowserSessionHttpApp({
     browserControl,

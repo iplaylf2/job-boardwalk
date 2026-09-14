@@ -113,3 +113,41 @@ test("extracts a Yupao detail page whose visible body starts the description at 
     url,
   });
 });
+
+test.each(["职位描述：", "岗位要求："])(
+  "extracts Yupao's salary header and %s section",
+  (heading) => {
+    const url = "https://www.yupao.com/zhaogong/100000001.html";
+    const input = inputFor(url);
+    const result = runInNewContext(`(${captureJobDescriptionMetadata.toString()})(input)`, {
+      document: {
+        body: {
+          innerText: `合成测试导航
+合成系统工程师
+1.2-1.8万元/月
+职位详情
+3-5年 本科
+${heading}
+维护合成任务系统。
+岗位要求：
+任职要求：
+熟悉合成测试流程。
+职位总结
+推荐岗位
+其他工程师
+2-3万元/月`,
+        },
+        querySelector: () => null,
+        querySelectorAll: () => [],
+      },
+      input,
+      location: { href: url },
+    }) as ReturnType<typeof captureJobDescriptionMetadata>;
+    expect(result.title).toBe("合成系统工程师");
+    expect(result.description).toBe(
+      `${
+        heading === "岗位要求：" ? "岗位要求：\n" : ""
+      }维护合成任务系统。\n岗位要求：\n任职要求：\n熟悉合成测试流程。`,
+    );
+  },
+);

@@ -70,6 +70,7 @@ CREATE TABLE `platform_access_observations` (
 	`last_observed_at` text NOT NULL,
 	`observed_at` text NOT NULL,
 	`platform_id` text NOT NULL,
+	`url` text NOT NULL,
 	CONSTRAINT "platform_access_observations_authentication_state" CHECK("authentication_state" is null or "authentication_state" in ('authenticated', 'unauthenticated')),
 	CONSTRAINT "platform_access_observations_interruption" CHECK("interruption" is null or "interruption" in ('verification-required', 'access-denied')),
 	CONSTRAINT "platform_access_observations_evidence" CHECK("evidence" in ('protected-resource', 'authenticated-page', 'login-redirect', 'verification-page', 'access-denied-page')),

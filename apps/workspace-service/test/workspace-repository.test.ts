@@ -86,18 +86,21 @@ test("keeps authentication and interruption observations as separate history", a
       evidence: "protected-resource",
       observedAt: "2026-07-13T01:01:00.000Z",
       platformId: "boss",
+      url: "https://www.yupao.com/synthetic-access/",
     });
     repository.recordPlatformAccessObservation({
       authenticationState: "unauthenticated",
       evidence: "login-redirect",
       observedAt: "2026-07-13T01:02:00.000Z",
       platformId: "yupao",
+      url: "https://www.yupao.com/synthetic-access/",
     });
     repository.recordPlatformAccessObservation({
       evidence: "verification-page",
       interruption: "verification-required",
       observedAt: "2026-07-13T01:03:00.000Z",
       platformId: "yupao",
+      url: "https://www.yupao.com/synthetic-access/",
     });
     expect(repository.listPlatformAccessObservations()).toEqual([
       expect.objectContaining({

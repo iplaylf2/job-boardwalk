@@ -55,6 +55,7 @@ export interface PageInteractionDefinition {
 }
 
 export interface PlatformPageDefinition {
+  readonly hasLoginControl?: (page: PageAccessFacts) => boolean;
   readonly textReplacements?: Readonly<Record<string, string>>;
   readonly collectionPageInteractions?: readonly PageInteractionDefinition[];
   readonly jobLink: JobLinkConfig;
@@ -82,4 +83,5 @@ export interface JobDescriptionExtractionConfig {
     readonly startMarker: string;
   }[];
   readonly titleLineBeforeMarker?: string;
+  readonly titleTextPattern?: string;
 }

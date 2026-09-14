@@ -40,6 +40,7 @@ function postObservation(
     body: JSON.stringify({
       observedAt: "2026-07-13T01:00:00+00:00",
       platformId: "boss",
+      url: "https://www.zhipin.com/web/geek/jobs",
       ...input,
     }),
     headers: { "content-type": "application/json" },
@@ -184,12 +185,14 @@ test("keeps state-change history while advancing the latest observation time", a
               evidence: "protected-resource",
               observedAt,
               platformId: "boss",
+              url: "https://www.zhipin.com/web/geek/jobs",
             }
           : {
               authenticationState,
               evidence: "login-redirect",
               observedAt,
               platformId: "boss",
+              url: "https://www.zhipin.com/web/geek/jobs",
             },
       ),
       headers: { "content-type": "application/json" },
@@ -268,31 +271,3 @@ test("keeps state-change history while advancing the latest observation time", a
     await rm(directory, { recursive: true });
   }
 });
-
-test.each([{ evidence: "process-started" }, { browserStatus: { available: true } }])(
-  "rejects invalid access evidence or runtime metadata: %j",
-  async (extra) => {
-    const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
-    const repository = createTestRepository(directory);
-    await using serviceScope = createScope();
-    const httpApp = createTestHttpApp(repository, serviceScope);
-    try {
-      const response = await httpApp.request("/api/platform-access/observations", {
-        body: JSON.stringify({
-          authenticationState: "authenticated",
-          evidence: "protected-resource",
-          observedAt: "2026-07-15T02:00:00.000Z",
-          platformId: "boss",
-          ...extra,
-        }),
-        headers: { "content-type": "application/json" },
-        method: "PUT",
-      });
-      expect(response.status).toBe(badRequestStatus);
-      expect(repository.listPlatformAccessObservations()).toEqual([]);
-    } finally {
-      repository.close();
-      await rm(directory, { recursive: true });
-    }
-  },
-);

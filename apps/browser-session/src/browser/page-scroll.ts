@@ -57,8 +57,8 @@ interface ScrollInput {
 }
 
 interface ScrollResult {
-  after: { scrollTop: number };
-  before: { scrollTop: number };
+  after: { scrollTop: number; scrollY: number };
+  before: { scrollTop: number; scrollY: number };
   direction: "down" | "up";
   outcome: "moved" | "unchanged";
   target: "document" | "container";
@@ -103,17 +103,20 @@ export function scrollOneViewport(element: HTMLElement, input: ScrollInput): Scr
   if (viewportHeight <= zero) {
     throw new Error("目标滚动区域当前不可见；请先用 browser_reveal 显示该元素。");
   }
-  const before = target.scrollTop;
+  const before = { scrollTop: target.scrollTop, scrollY: view.scrollY };
   target.scrollBy({
     behavior: "instant",
     top: viewportHeight * (input.direction === "down" ? downwardSign : upwardSign),
   });
-  const after = target.scrollTop;
+  const after = { scrollTop: target.scrollTop, scrollY: view.scrollY };
   return {
-    after: { scrollTop: after },
-    before: { scrollTop: before },
+    after,
+    before,
     direction: input.direction,
-    outcome: after === before ? "unchanged" : "moved",
+    outcome:
+      after.scrollTop === before.scrollTop && after.scrollY === before.scrollY
+        ? "unchanged"
+        : "moved",
     target: target === document.scrollingElement ? "document" : "container",
     url: document.location.href,
     viewportHeight,

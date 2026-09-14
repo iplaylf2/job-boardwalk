@@ -107,7 +107,13 @@ function readingPage(containerHeight: number, windowHeight: number, listTop = no
   const list = viewportPage(containerHeight, listScrollHeight, listTop);
   list.parentElement = root;
   const document = {
-    defaultView: { getComputedStyle: () => ({ overflowY: "auto" }), innerHeight: windowHeight },
+    defaultView: {
+      getComputedStyle: () => ({ overflowY: "auto" }),
+      innerHeight: windowHeight,
+      get scrollY() {
+        return root.scrollTop;
+      },
+    },
     location: { href: "https://www.yupao.com/zhaogong/" },
     scrollingElement: root,
   };
@@ -124,8 +130,8 @@ test.each([compactViewportHeight, expandedViewportHeight])(
       target: "scrollable-ancestor",
     });
     expect(downward).toMatchObject({
-      after: { scrollTop: height },
-      before: { scrollTop: 0 },
+      after: { scrollTop: height, scrollY: 0 },
+      before: { scrollTop: 0, scrollY: 0 },
       outcome: "moved",
       target: "container",
       viewportHeight: height,
@@ -167,7 +173,13 @@ test("scrolls the document explicitly and runs without host-side callback depend
     element,
     input: { direction: "down", target: "document" },
   });
-  expect(result).toMatchObject({ outcome: "moved", target: "document", viewportHeight });
+  expect(result).toMatchObject({
+    after: { scrollTop: viewportHeight, scrollY: viewportHeight },
+    before: { scrollTop: 0, scrollY: 0 },
+    outcome: "moved",
+    target: "document",
+    viewportHeight,
+  });
   expect(root.scrollTop).toBe(viewportHeight);
   expect(list.scrollTop).toBe(noScroll);
 });

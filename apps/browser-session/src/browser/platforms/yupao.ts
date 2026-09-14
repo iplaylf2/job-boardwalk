@@ -132,9 +132,12 @@ export const yupaoPageDefinition = {
     ],
     descriptionTextRanges: [
       { endMarker: "职位总结", startMarker: "职位说明：" },
+      { endMarker: "职位总结", startMarker: "职位描述：" },
+      { endMarker: "职位总结", includeStartMarker: true, startMarker: "岗位要求：" },
       { endMarker: "职位总结", includeStartMarker: true, startMarker: "岗位职责：" },
     ],
     titleLineBeforeMarker: "岗位职责：",
+    titleTextPattern: String.raw`^(?:(?!职位详情)[\s\S])*?(?:^|\n)(?<title>[^\n]+)\n(?:${yupaoJobCardExtraction.salaryTextPattern})\n(?:(?!职位详情)[\s\S])*?职位详情`,
   },
   jobLink: yupaoJobLink,
   snapshotSettleMilliseconds: yupaoSnapshotSettleMilliseconds,

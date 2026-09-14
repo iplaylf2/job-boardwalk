@@ -16,6 +16,7 @@ test("dates authentication evidence by its latest confirmation", () => {
             lastObservedAt: "2026-08-17T02:05:00.000Z",
             observedAt: "2026-08-17T01:30:00.000Z",
             platformId: "boss",
+            url: "https://www.zhipin.com/web/geek/jobs",
           },
           platformId: "boss",
         },
@@ -24,6 +25,7 @@ test("dates authentication evidence by its latest confirmation", () => {
   ));
 
   expect(html).toContain('datetime="2026-08-17T02:05:00.000Z"');
+  expect(html).toContain("https://www.zhipin.com/web/geek/jobs");
 });
 
 test("presents the latest recurrence of an unresolved interruption", () => {
@@ -40,6 +42,7 @@ test("presents the latest recurrence of an unresolved interruption", () => {
             lastObservedAt: "2026-08-17T02:10:00.000Z",
             observedAt: "2026-08-17T01:45:00.000Z",
             platformId: "yupao",
+            url: "https://www.yupao.com/web/job-manage/",
           },
         },
       ]}

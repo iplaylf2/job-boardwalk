@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "0c526394-13e7-42e9-9520-237f7a1412e7",
+  "id": "9961d9bc-bde0-4a1e-bb71-552f580a07ac",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -491,6 +491,16 @@
       "default": null,
       "generated": null,
       "name": "platform_id",
+      "entityType": "columns",
+      "table": "platform_access_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "url",
       "entityType": "columns",
       "table": "platform_access_observations"
     },

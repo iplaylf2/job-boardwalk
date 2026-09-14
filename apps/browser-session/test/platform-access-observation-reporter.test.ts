@@ -2,6 +2,9 @@ import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
 
+import { PlatformAccessObserver } from "#/browser/platform-access-observer.js";
+import { syntheticBrowserContext } from "./synthetic-login-handoff.js";
+
 import { PlatformAccessObservationReporter } from "#/workspace-service/platform-access-observation-reporter.js";
 
 const successfulStatus = 200;
@@ -23,8 +26,10 @@ test("submits platform evidence independently of browser runtime state", async (
         evidence: "protected-resource" as const,
         observedAt: "2026-07-15T02:00:00.000Z",
         platformId: "boss" as const,
+        url: "https://www.zhipin.com/web/geek/jobs",
       },
     ],
+    () => null,
     fetchImplementation,
   );
   await using scope = createScope();
@@ -41,6 +46,7 @@ test("submits platform evidence independently of browser runtime state", async (
     evidence: "protected-resource",
     observedAt: "2026-07-15T02:00:00.000Z",
     platformId: "boss",
+    url: "https://www.zhipin.com/web/geek/jobs",
   });
 });
 
@@ -50,6 +56,9 @@ test("sends no heartbeat and only resubmits evidence after a new observation", a
   const reporter = new PlatformAccessObservationReporter(
     new URL("http://workspace.test"),
     () => observations,
+    (accepted) => {
+      observations = observations.filter((observation) => observation !== accepted);
+    },
     (_url, init) => {
       requests.push(String(init?.body));
       return Promise.resolve(new Response(null, { status: 200 }));
@@ -63,12 +72,15 @@ test("sends no heartbeat and only resubmits evidence after a new observation", a
       evidence: "protected-resource",
       observedAt: "2026-07-15T02:00:00.000Z",
       platformId: "boss",
+      url: "https://www.zhipin.com/web/geek/jobs",
     },
   ];
+  const initial = observations[firstRequestIndex]!;
   await run(() => reporter.report());
   await run(() => reporter.report());
   expect(requests).toHaveLength(expectedRequestCount);
-  observations = [{ ...observations[firstRequestIndex]!, observedAt: "2026-07-15T02:05:00.000Z" }];
+  expect(observations).toEqual([]);
+  observations = [{ ...initial, observedAt: "2026-07-15T02:05:00.000Z" }];
   await run(() => reporter.report());
   expect(
     requests.map((body) => (JSON.parse(body) as PlatformAccessObservation).observedAt),
@@ -76,18 +88,20 @@ test("sends no heartbeat and only resubmits evidence after a new observation", a
 });
 
 test("retries rejected evidence without replaying already accepted platforms", async () => {
-  const observations: PlatformAccessObservation[] = [
+  let observations: PlatformAccessObservation[] = [
     {
       authenticationState: "authenticated",
       evidence: "protected-resource",
       observedAt: "2026-07-15T02:00:00.000Z",
       platformId: "boss",
+      url: "https://www.zhipin.com/web/geek/jobs",
     },
     {
       authenticationState: "authenticated",
       evidence: "authenticated-page",
       observedAt: "2026-07-15T02:00:00.000Z",
       platformId: "yupao",
+      url: "https://www.yupao.com/web/job-manage/",
     },
   ];
   let rejectYupao = true;
@@ -95,6 +109,9 @@ test("retries rejected evidence without replaying already accepted platforms", a
   const reporter = new PlatformAccessObservationReporter(
     new URL("http://workspace.test"),
     () => observations,
+    (accepted) => {
+      observations = observations.filter((observation) => observation !== accepted);
+    },
     (_url, init) => {
       const observation = JSON.parse(String(init?.body)) as PlatformAccessObservation;
       requests.push(observation.platformId);
@@ -113,4 +130,43 @@ test("retries rejected evidence without replaying already accepted platforms", a
   await run(() => reporter.report());
   await run(() => reporter.report());
   expect(requests).toEqual(["boss", "yupao", "yupao"]);
+});
+
+test("acknowledges captured observations without removing a newer observation of the same page", async () => {
+  const observer = new PlatformAccessObserver(syntheticBrowserContext());
+  const urls = ["https://www.zhipin.com/web/geek/jobs", "https://www.zhipin.com/web/geek/chat"];
+  function observe(url: string) {
+    return observer.observePage({
+      elements: ["/web/geek/chat", "/web/geek/resume", "/web/geek/recommend"].map((pathname) => ({
+        href: `https://www.zhipin.com${pathname}`,
+      })),
+      text: "合成账户导航",
+      url,
+    });
+  }
+  for (const url of urls) {
+    observe(url);
+  }
+  let refreshed = false;
+  const requests: string[] = [];
+  const reporter = new PlatformAccessObservationReporter(
+    new URL("http://workspace.test"),
+    () => observer.observations,
+    (accepted) => observer.acknowledge(accepted),
+    (_url, init) => {
+      const { url } = JSON.parse(String(init?.body)) as PlatformAccessObservation;
+      requests.push(url);
+      if (!refreshed) {
+        refreshed = true;
+        observe(url);
+      }
+      return Promise.resolve(new Response(null, { status: successfulStatus }));
+    },
+  );
+  await run(() => reporter.report());
+  expect(observer.observations.map(({ url }) => url)).toEqual([urls[firstRequestIndex]]);
+  await run(() => reporter.report());
+  await run(() => reporter.report());
+  expect(observer.observations).toEqual([]);
+  expect(requests).toEqual([...urls, urls[firstRequestIndex]]);
 });

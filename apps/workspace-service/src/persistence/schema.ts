@@ -35,6 +35,7 @@ export const platformAccessObservations = sqliteTable(
     lastObservedAt: text("last_observed_at").notNull(),
     observedAt: text("observed_at").notNull(),
     platformId: text("platform_id").notNull(),
+    url: text().notNull(),
   },
   (table) => [
     check(

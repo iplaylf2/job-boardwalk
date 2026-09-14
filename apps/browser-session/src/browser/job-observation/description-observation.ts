@@ -99,15 +99,31 @@ export function captureJobDescriptionMetadata(input: {
           }[]
         | undefined,
     ): string {
+      let earliestStart = Number.POSITIVE_INFINITY;
+      let description = "";
       for (const range of ranges ?? []) {
         const start = bodyText.indexOf(range.startMarker);
         const contentStart = start + range.startMarker.length;
         const end = bodyText.indexOf(range.endMarker, contentStart);
-        if (start >= firstIndex && end >= contentStart) {
-          return bodyText.slice(range.includeStartMarker ? start : contentStart, end);
+        if (
+          start >= firstIndex &&
+          start < earliestStart &&
+          end >= contentStart &&
+          helpers.normalized(bodyText.slice(contentStart, end))
+        ) {
+          earliestStart = start;
+          description = bodyText.slice(range.includeStartMarker ? start : contentStart, end);
         }
       }
-      return "";
+      return description;
+    },
+    titleFromText(): string | null {
+      const pattern = input.descriptionConfig.titleTextPattern;
+      return pattern
+        ? (new RegExp(pattern, "u")
+            .exec(helpers.normalized(bodyText))
+            ?.groups?.["title"]?.slice(firstIndex, input.maximumFieldCharacters) ?? null)
+        : null;
     },
   };
   let unboundedDescription = "";
@@ -162,6 +178,7 @@ export function captureJobDescriptionMetadata(input: {
         input.descriptionConfig.titleSelectors ?? input.cardConfig.titleSelectors,
       ) ??
       helpers.firstText(["h1"]) ??
+      helpers.titleFromText() ??
       helpers.lineBefore(input.descriptionConfig.titleLineBeforeMarker) ??
       "",
     truncated: normalizedDescription.length > input.maximumDescriptionCharacters,
@@ -191,7 +208,13 @@ export function* captureJobDescriptionObservation(
     throw new Error("当前岗位详情页在读取期间发生了导航；请等待页面稳定后重试。");
   }
   if (!metadata.title || !metadata.description) {
-    throw new Error("当前岗位详情页没有展示可识别的岗位标题和职位描述。");
+    const missing = [
+      ...(metadata.title ? [] : ["岗位标题"]),
+      ...(metadata.description ? [] : ["职位描述"]),
+    ].join("、");
+    throw new Error(
+      `岗位详情提取未匹配：${missing}；页面正文${metadata.accessText.trim() ? "可读" : "为空"}。请用 browser_snapshot 查看页面。URL：${metadata.url}`,
+    );
   }
   observePageAccess?.({
     elements: metadata.accessElements,

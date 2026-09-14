@@ -11,6 +11,10 @@ from `/zhaogong/<numeric-job-id>.html` or `/zhaogong/<numeric-job-id>/<slug>.htm
 Card extraction uses rendered line boundaries when locating the title. “查看更多” and “查看更多信息” links
 are excluded as job titles.
 
+Detail extraction reads the main posting through recognized containers or text sections ending
+at “职位总结”. The page definition owns section-heading variants and title matching for the
+salary header and inline duties layout.
+
 ## Access assessment
 
 A bounded snapshot containing a complete job-seeker or recruiter account header records

@@ -120,6 +120,10 @@ export class ManagedBrowser implements BrowserControl {
     return this.#platformAccessObserver?.observations ?? [];
   }
 
+  public acknowledgePlatformAccessObservation(observation: PlatformAccessObservation): void {
+    this.#platformAccessObserver?.acknowledge(observation);
+  }
+
   public *supervise(
     reportError: (error: Error) => void,
     reportLifecycle: (status: BrowserRuntimeStatus) => void = () => null,

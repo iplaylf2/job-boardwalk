@@ -205,20 +205,6 @@ platform-access assessments come from the page evidence described below. Lifecyc
 detailed local errors carry UTC timestamps. A long-running phase can identify where investigation
 should begin without asserting its cause.
 
-### Evidence submission
-
-Browser Session checks for new platform-access observations every five seconds and submits each to
-Workspace Service's
-[`PUT /api/platform-access/observations`](../workspace-service/README.md#platform-access-observations).
-It sends nothing when there is no new evidence or the same observation was already accepted. Failed
-submissions remain eligible for a later attempt without stopping browser control. Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when
-Workspace Service is not available at <http://127.0.0.1:54310>.
-
-Job-observation submission uses the same Workspace Service URL. A rejected explicit description
-write or a `stale` outcome fails the tool call. A failed passive write is reported locally and stops
-the current collection pass without stopping browser control; a later pass may submit fresh
-evidence if the page remains eligible.
-
 ### Access assessment
 
 Adapters classify only the authentication evidence their page definitions recognize. Their
@@ -230,9 +216,23 @@ agent or a bounded page read already performed by passive job collection or an e
 sync. Assessment stays within those existing reads.
 
 `browser_snapshot` returns `platformAccessObservation`; when it is non-null, the same observation is
-already eligible for submission to Workspace Service. A platform page loaded before monitoring
-begins is also reassessed by its owning collection cycle. The Dashboard presents each observation
-with its observation time.
+already eligible for submission to Workspace Service. Pages open before monitoring begins are
+also assessed by passive collection when eligible.
+
+### Evidence submission
+
+Browser Session checks for new platform-access observations every five seconds and submits each to
+Workspace Service's
+[`PUT /api/platform-access/observations`](../workspace-service/README.md#platform-access-observations).
+Pending observations are coalesced by platform and page URL. A successful submission removes the
+submitted capture; a newer capture of the same page remains pending. Failed submissions remain
+eligible for a later attempt. Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Workspace Service is
+not available at <http://127.0.0.1:54310>.
+
+Job-observation submission uses the same Workspace Service URL. A rejected explicit description
+write or a `stale` outcome fails the tool call. A failed passive write is reported locally and stops
+the current collection pass without stopping browser control; a later pass may submit fresh
+evidence if the page remains eligible.
 
 ## Runtime behavior
 
@@ -323,7 +323,8 @@ the reference's owning tab. The distance comes from the window height or the int
 container's rectangle with the window; it does not account for occlusion by other elements. The
 service scrolls that target directly. An inner container at its boundary stays the target; the
 action does not continue by scrolling its parent. The result identifies the target, measured
-viewport height, before/after offsets, and `moved` or `unchanged`. Neither outcome establishes
+viewport height, before/after target offsets (`scrollTop`) and window positions (`scrollY`), and
+`moved` or `unchanged`. Movement in either measurement produces `moved`. Neither outcome establishes
 result exhaustion or newly loaded jobs. Reobserve the cards to assess research progress.
 
 An explicit link outside the current tab's platform scope is rejected before clicking. Empty
@@ -353,10 +354,11 @@ of them for a usable login interface, and activates the first one that becomes r
 unreadable tabs and readable pages whose meaning remains unclassified, including pages that may be
 showing verification or another access decision. When no reusable login page remains, it uses an
 available blank tab or a new tab and performs bounded observations on the login destination. It
-returns `outcome=handoff-ready` only when that page exposes an enabled user control. This outcome
-starts user handoff. If neither outcome can be established, preparation fails and passive
-collection resumes. Workspace Service writes already started from previously captured evidence may
-finish during a handoff because they do not drive the browser.
+returns `outcome=handoff-ready` when that page exposes an enabled user control or a login-mode link
+recognized by its platform definition. This outcome starts user handoff. If neither outcome can
+be established, preparation fails and passive collection resumes. Failure diagnostics identify
+the checked tabs, URLs, and unmet readiness conditions. Workspace Service writes already started from previously captured evidence may finish
+during a handoff because they do not drive the browser.
 
 After the user explicitly returns control, the agent calls `browser_snapshot` with
 `userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit

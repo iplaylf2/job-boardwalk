@@ -20,6 +20,7 @@ interface SyntheticLoginPageOptions {
 }
 
 interface SyntheticSnapshotElement {
+  readonly disabled?: boolean;
   readonly href?: string;
   readonly name: string;
   readonly role: string;
@@ -50,7 +51,7 @@ export function syntheticLoginPage(
     const captured = {
       documentReadyState: "complete",
       elements: snapshotElements.map((element, sourceIndex) => ({
-        disabled: false,
+        disabled: element.disabled ?? false,
         href: element.href,
         name: element.name,
         role: element.role,

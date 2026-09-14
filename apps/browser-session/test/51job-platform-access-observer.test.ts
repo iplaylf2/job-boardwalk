@@ -27,6 +27,7 @@ test.each([profileHeader, applicationHeader])(
       evidence: "authenticated-page",
       observedAt,
       platformId: "51job",
+      url: "https://www.51job.com/",
     });
   },
 );

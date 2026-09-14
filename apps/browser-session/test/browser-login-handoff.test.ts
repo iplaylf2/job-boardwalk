@@ -272,6 +272,9 @@ test("rejects a blank login route instead of handing off an unusable page", asyn
     tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
   ).catch((error: unknown) => error);
   expect(deepestFailureMessage(failure)).toMatch(/鱼泡直聘登录交接尚未就绪/u);
+  expect(deepestFailureMessage(failure)).toContain("tabId=1");
+  expect(deepestFailureMessage(failure)).toContain("no-enabled-login-control");
+  expect(deepestFailureMessage(failure)).toContain("documentReadyState=complete");
 });
 
 test("rejects a login handoff when the platform leaves its login page after navigation", async () => {

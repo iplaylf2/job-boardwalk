@@ -45,6 +45,7 @@ test("observes a successful BOSS protected-page navigation as authenticated", ()
     evidence: "protected-resource",
     observedAt,
     platformId: "boss",
+    url: "https://www.zhipin.com/web/geek/jobs",
   });
 });
 
@@ -62,6 +63,7 @@ test("observes a protected BOSS navigation redirected to login as unauthenticate
     evidence: "login-redirect",
     observedAt,
     platformId: "boss",
+    url: "https://www.zhipin.com/web/user/?ka=header-login",
   });
 });
 
@@ -125,6 +127,7 @@ test("observes authenticated BOSS account navigation in a bounded page snapshot"
     evidence: "authenticated-page",
     observedAt,
     platformId: "boss",
+    url: "https://www.zhipin.com/beijing/",
   });
 });
 
@@ -207,6 +210,7 @@ test.each(["搜索", "推荐", "添加求职期望"])(
       evidence: "authenticated-page",
       observedAt,
       platformId: "yupao",
+      url: "https://www.yupao.com/topic/a2c1488/",
     });
   },
 );
@@ -237,6 +241,7 @@ test("observes an authenticated Yupao identity when a job title follows the acco
     evidence: "authenticated-page",
     observedAt,
     platformId: "yupao",
+    url: "https://www.yupao.com/zhaogong/123456789.html",
   });
 });
 
@@ -266,6 +271,7 @@ test("observes an authenticated Yupao identity on its personal-center page", () 
     evidence: "authenticated-page",
     observedAt,
     platformId: "yupao",
+    url: "https://www.yupao.com/user/resume-info/?tab=2&subTab=1&mode=1",
   });
 });
 

@@ -47,6 +47,7 @@ export function deriveNavigationAccessObservation(
   return {
     observedAt: new Date(now()).toISOString(),
     platformId: adapter.platformId,
+    url: response.url(),
     ...assessment,
   };
 }
@@ -63,6 +64,7 @@ export function derivePageAccessObservation(
   return {
     observedAt: new Date(now()).toISOString(),
     platformId: adapter.platformId,
+    url: page.url,
     ...assessment,
   };
 }
@@ -77,6 +79,10 @@ export class PlatformAccessObserver {
 
   public get observations(): PlatformAccessObservation[] {
     return [...this.#observations];
+  }
+
+  public acknowledge(observation: PlatformAccessObservation): void {
+    this.#observations = this.#observations.filter((pending) => pending !== observation);
   }
 
   public observePage(page: PageAccessFacts): PlatformAccessObservation | null {
@@ -101,7 +107,9 @@ export class PlatformAccessObserver {
 
   #record(observation: PlatformAccessObservation): void {
     this.#observations = [
-      ...this.#observations.filter(({ platformId }) => platformId !== observation.platformId),
+      ...this.#observations.filter(
+        ({ platformId, url }) => platformId !== observation.platformId || url !== observation.url,
+      ),
       observation,
     ];
   }

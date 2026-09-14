@@ -147,6 +147,7 @@ export class BrowserTabs {
       existingPlatformPages.map(([_id, page]) => page),
       adapter,
       observePageAccess,
+      (page) => this.#pageIds.get(page),
     );
     if (existing) {
       const id = this.#pageIds.get(existing.page);
@@ -162,7 +163,9 @@ export class BrowserTabs {
     if (!page || page.isClosed()) {
       throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
     }
-    const handoff = yield* observeLoginHandoffPage(page, adapter, observePageAccess);
+    const handoff = yield* observeLoginHandoffPage(page, adapter, observePageAccess, (candidate) =>
+      this.#pageIds.get(candidate),
+    );
     return {
       id: navigation.id,
       platformId,
