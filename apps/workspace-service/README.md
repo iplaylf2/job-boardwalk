@@ -50,8 +50,7 @@ The development process listens on <http://127.0.0.1:54310> by default.
 ## Connect an MCP host
 
 Configure the MCP host to use the Streamable HTTP endpoint at
-<http://127.0.0.1:54310/mcp>. MCP requests share the service process, persistence layer, and
-top-level shajara scope with the HTTP API.
+<http://127.0.0.1:54310/mcp>. MCP and HTTP clients read and update the same workspace.
 
 The MCP surface provides:
 
@@ -64,8 +63,17 @@ The MCP surface provides:
   `platformId`, `engagement`, and `descriptionStatus` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
   research reports;
-- `read_research_report`, which reads one unexpired research report by ID;
+- `read_research_report`, which reads a report by ID, excluding expired reports by default;
 - `save_research_report`, which creates a report or replaces one identified by ID.
+
+Successful tools return their domain response in `structuredContent` and JSON text. Resources
+return JSON in `contents[].text`. `list_research_reports` and `read_research_report` accept
+`includeExpired=true` for historical reads; the reports resource lists unexpired reports.
+
+Tool execution failures set `isError=true` and return
+[`OperationErrorResponse`](../../packages/contracts/src/operation-error.ts) in `structuredContent`
+and JSON text. Unknown tools use protocol error `-32602` with `data.tool`; unknown resources
+use `-32002` with `data.uri`. Resource read failures return their structured error in `data`.
 
 ## HTTP API
 
@@ -95,6 +103,14 @@ The HTTP surface currently exposes:
 
 Shared request and response types live in
 [`@job-boardwalk/contracts`](../../packages/contracts/).
+
+HTTP failures use [`OperationErrorResponse`](../../packages/contracts/src/operation-error.ts):
+`error.code` identifies the failure, `error.details` carries context, and `error.message` is for
+display. Schema validation errors include `details.issues` with field paths and rule codes;
+manually validated fields use `details.field` when available. Missing resources include their
+identity, and conflicts include a `reason`.
+HTTP statuses are 400 for `invalid-input`, 404 for `not-found`, 409 for `conflict`, 403 for
+`forbidden`, and 500 for unclassified internal failures.
 
 ### Platform-access observations
 
@@ -198,12 +214,26 @@ Browser Session to open them. Personal-center engagement pages do not contribute
 path; they arrive through the explicit
 [job engagement synchronization](#job-engagement-synchronization) boundary.
 
+#### Observation writes
+
 `POST /api/job-card-observations` and `POST /api/job-description-observations` are the
 service-to-service write boundaries. Their request contracts describe what was actually observed;
 the service does not infer a missing description from a card submission. Both endpoints return
 `SaveJobObservationResult`. Its `outcome` reports an applied `created`, `source-added`, or
 `source-updated` change; an accepted `unchanged` refresh; or a `stale` observation that the service
 left unapplied.
+
+Matching facts with a later `observedAt` refresh that kind's retained observation. The outcome
+remains `unchanged` unless advancing that source changes the normalized job's derived facts; such a
+change is recorded with attribution and returned as `source-updated`. Different facts replace
+retained evidence only when their `observedAt` is later. An older observation, or a conflicting
+observation at the same timestamp, is left unapplied with a `stale` outcome because it cannot be
+established as newer. `lastCheckedAt` never moves backward. Description capture time and Browser
+Session's local truncation state remain part of the stored observation. See
+[Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
+evidence lifecycle.
+
+#### Source identity
 
 Within one platform, Workspace Service identifies a source by its external job ID when available,
 then by the pathname of its job URL, and finally by normalized company, title, and location when no
@@ -219,6 +249,27 @@ source's latest card and description observations, not HTML, page snapshots, or 
 The two observation types are updated independently, so submitting a card never clears a stored
 description.
 
+#### Source binding
+
+An explicit description write may include `sourceId` after the caller confirms that the current
+detail page belongs to that tracked workspace source. The selected source must still lack both an
+external job ID and job URL, and it must not already have a retained description. Workspace Service
+requires the same platform and equal normalized titles, compares normalized companies when both
+observations provide one, and rejects an identity already owned by another source. A successful
+bind preserves the source ID, its engagement relations, and its provisional identity while adding
+the stable detail-page identity. Workspace Service then reconciles the owning normalized job from
+the retained source evidence. If complete normalized company, title, and location evidence matches
+another job, their sources are merged atomically instead of leaving duplicate normalized jobs.
+Later engagement cards may still omit the stable identity; their retained card evidence resolves
+them to the same source without clearing its description.
+
+#### Library queries and description coverage
+
+Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
+`engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and
+returns the current page, total result count, page count, and description coverage. `pageSize` is
+capped at 48.
+
 Job-library reads derive `descriptionCaptureStatus` for each source from that retained evidence.
 `captured` means a main description is stored. `uncaptured` means the source has an external job ID
 or job URL but no retained description. `identity-unresolved` means neither an external job ID nor
@@ -233,32 +284,7 @@ scope before an optional `descriptionStatus` filter is applied. That filter sele
 description (`captured`), all jobs without one (`missing`), or the missing-description subset with
 unresolved source identity (`identity-unresolved`).
 
-An explicit description write may include `sourceId` after the caller confirms that the current
-detail page belongs to that tracked workspace source. The selected source must still lack both an
-external job ID and job URL, and it must not already have a retained description. Workspace Service
-requires the same platform and equal normalized titles, compares normalized companies when both
-observations provide one, and rejects an identity already owned by another source. A successful
-bind preserves the source ID, its engagement relations, and its provisional identity while adding
-the stable detail-page identity. Workspace Service then reconciles the owning normalized job from
-the retained source evidence. If complete normalized company, title, and location evidence matches
-another job, their sources are merged atomically instead of leaving duplicate normalized jobs.
-Later engagement cards may still omit the stable identity; their retained card evidence resolves
-them to the same source without clearing its description.
-
-Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
-`engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and
-returns the current page, total result count, page count, and description coverage. `pageSize` is
-capped at 48.
-
-Matching facts with a later `observedAt` refresh that kind's retained observation. The outcome
-remains `unchanged` unless advancing that source changes the normalized job's derived facts; such a
-change is recorded with attribution and returned as `source-updated`. Different facts replace
-retained evidence only when their `observedAt` is later. An older observation, or a conflicting
-observation at the same timestamp, is left unapplied with a `stale` outcome because it cannot be
-established as newer. `lastCheckedAt` never moves backward. Description capture time and Browser
-Session's local truncation state remain part of the stored observation. See
-[Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
-evidence lifecycle.
+#### Salary normalization
 
 Salary normalization preserves the platform's original `salaryText` and adds a CNY amount in K
 with its source period. Monthly salary carries a month count only when the source explicitly says

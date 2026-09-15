@@ -1,3 +1,4 @@
+import { OperationError, operationErrorResponse } from "@job-boardwalk/contracts";
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
 
@@ -26,14 +27,20 @@ function localOriginGuard(context: Context, next: Next) {
   if (origin) {
     const originUrl = parseOrigin(origin);
     if (!originUrl) {
-      return Promise.resolve(context.json({ error: "Origin 必须是有效 URL" }, badRequestStatus));
+      const failure = operationErrorResponse(
+        new OperationError("invalid-input", "Origin 必须是有效 URL", { field: "origin" }),
+      );
+      return Promise.resolve(context.json(failure, badRequestStatus));
     }
     if (
       (originUrl.hostname !== "127.0.0.1" && originUrl.hostname !== "localhost") ||
       (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") ||
       originUrl.origin !== origin
     ) {
-      return Promise.resolve(context.json({ error: "拒绝来自非本地页面的请求" }, forbiddenStatus));
+      const failure = operationErrorResponse(
+        new OperationError("forbidden", "拒绝来自非本地页面的请求", { field: "origin" }),
+      );
+      return Promise.resolve(context.json(failure, forbiddenStatus));
     }
   }
   return next();

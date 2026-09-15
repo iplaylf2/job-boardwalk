@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { Page } from "patchright";
 import type { JobCardSnapshot } from "@job-boardwalk/contracts";
 import { sleep } from "@shajara/host";
@@ -23,7 +24,11 @@ export function* readJobCards(
   const initialUrl = page.url();
   function requireOriginalUrl(): void {
     if (page.url() !== initialUrl) {
-      throw new Error("等待岗位卡片期间页面发生导航；请重新观察当前页面。");
+      throw new OperationError(
+        "page-changed",
+        "等待岗位卡片期间页面发生导航；请重新观察当前页面。",
+        {},
+      );
     }
   }
   return yield* race([
@@ -44,7 +49,11 @@ export function* readJobCards(
       yield* sleep(readBudgetMs);
       requireOriginalUrl();
       if (!latest) {
-        throw new Error("岗位卡片读取超时；本次未能取得页面证据。");
+        throw new OperationError(
+          "page-read-timed-out",
+          "岗位卡片读取超时；本次未能取得页面证据。",
+          {},
+        );
       }
       return { ...latest, outcome: "no-cards-observed" };
     },

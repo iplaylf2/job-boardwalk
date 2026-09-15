@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, exists, sql } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/node-sqlite";
@@ -19,16 +20,6 @@ import {
 } from "./schema.js";
 
 const emptyCount = 0;
-
-function createValidationError(message: string): Error {
-  const error = new Error(message);
-  error.name = "ResearchReportValidationError";
-  return error;
-}
-
-export function isResearchReportValidationError(error: unknown): error is Error {
-  return error instanceof Error && error.name === "ResearchReportValidationError";
-}
 
 type ReportRow = typeof researchReports.$inferSelect;
 function unexpiredResearchReportCondition(now: string) {
@@ -111,10 +102,16 @@ export class ResearchReportRepository {
     input: SaveResearchReportCommand & { id?: number },
   ): ResearchReport | null {
     if (new Set(input.entries.map(({ sourceId }) => sourceId)).size !== input.entries.length) {
-      throw createValidationError("报告中同一平台来源只能有一个结论");
+      throw new OperationError("conflict", "报告中同一平台来源只能有一个结论", {
+        field: "entries",
+        reason: "duplicate-source",
+      });
     }
     if (new Set(input.targets.map(({ platformId }) => platformId)).size !== input.targets.length) {
-      throw createValidationError("报告中同一平台只能有一个目标");
+      throw new OperationError("conflict", "报告中同一平台只能有一个目标", {
+        field: "targets",
+        reason: "duplicate-platform",
+      });
     }
     const now = new Date().toISOString();
     // eslint-disable-next-line max-lines-per-function -- The transaction replaces report content, source judgments, targets, and attribution atomically.
@@ -127,7 +124,10 @@ export class ResearchReportRepository {
             .where(eq(jobPostingSources.id, entry.sourceId))
             .get()
         ) {
-          throw createValidationError(`找不到岗位来源 ${String(entry.sourceId)}`);
+          throw new OperationError("not-found", "找不到岗位来源", {
+            resource: "job-source",
+            sourceId: entry.sourceId,
+          });
         }
       }
       const row = input.id

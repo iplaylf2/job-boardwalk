@@ -65,6 +65,10 @@ interface ScrollInput {
   target: "document" | "scrollable-ancestor";
 }
 
+interface ScrollFailure {
+  error: { code: "evidence-unavailable" | "scroll-target-not-visible"; message: string };
+}
+
 interface ScrollResult {
   after: { scrollTop: number; scrollY: number };
   before: { scrollTop: number; scrollY: number };
@@ -78,11 +82,14 @@ interface ScrollResult {
 
 // Self-contained: select the scroll owner, measure its viewport, and perform one action.
 // eslint-disable-next-line max-statements, max-lines-per-function -- The serialized callback keeps target selection, geometry and the single action in one page-realm operation.
-export function scrollOneViewport(element: HTMLElement, input: ScrollInput): ScrollResult {
+export function scrollOneViewport(
+  element: HTMLElement,
+  input: ScrollInput,
+): ScrollResult | ScrollFailure {
   const document = element.ownerDocument;
   const view = document.defaultView;
   if (!view || !document.scrollingElement) {
-    throw new Error("当前文档没有可用的滚动区域。");
+    return { error: { code: "evidence-unavailable", message: "当前文档没有可用的滚动区域。" } };
   }
   const zero = 0;
   const downwardSign = 1;
@@ -120,7 +127,12 @@ export function scrollOneViewport(element: HTMLElement, input: ScrollInput): Scr
           Math.max(zero, Math.min(bounds.bottom, view.innerHeight) - Math.max(bounds.top, zero)),
         );
   if (viewportHeight <= zero) {
-    throw new Error("目标滚动区域当前不可见；请先用 browser_reveal 显示该元素。");
+    return {
+      error: {
+        code: "scroll-target-not-visible",
+        message: "目标滚动区域当前不可见；请先用 browser_reveal 显示该元素。",
+      },
+    };
   }
   const before = { scrollTop: target.scrollTop, scrollY: view.scrollY };
   target.scrollBy({

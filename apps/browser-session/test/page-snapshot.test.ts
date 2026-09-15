@@ -147,11 +147,20 @@ test("inspects the page after a snapshot timeout without retrying the snapshot",
     url: () => "https://www.zhipin.com/",
   } as unknown as Page;
 
-  const observedFailure = await run(() => capturePageSnapshot(page, snapshotTextLimit)).catch(
-    (error: unknown) => error,
-  );
+  const observedFailure = await run(function* snapshotFailure() {
+    try {
+      return yield* capturePageSnapshot(page, snapshotTextLimit);
+    } catch (error) {
+      return error;
+    }
+  });
 
-  expect(observedFailure).toBeDefined();
+  expect(observedFailure).toMatchObject({
+    failure: {
+      code: "page-read-timed-out",
+      details: { pageInspection: { documentReadyState: "loading", outcome: "observed" } },
+    },
+  });
   expect(evaluations).toEqual(["body", "html"]);
 });
 

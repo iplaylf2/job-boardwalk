@@ -31,120 +31,6 @@ Shared browser behavior is defined in this README.
 - [鱼泡直聘](docs/platforms/yupao.md)
 - [前程无忧51job](docs/platforms/51job.md)
 
-## Job evidence reads and passive collection
-
-### Job cards
-
-`browser_job_card_snapshot` reads recognizable cards already loaded on an eligible collection
-page. Personal-center engagement pages are outside its scope. Each card includes its title,
-company, salary, location, tags, bounded text, and same-platform detail link when available.
-Deduplication requires a reliable detail identity; independent linkless cards remain separate
-even when their visible facts are identical.
-
-Choose `waitFor=none` to read the current document immediately, or `waitFor=cards-present` to
-observe until recognizable cards are read or the service's response budget expires. The result
-describes the observation:
-
-- `outcome=cards-observed` means cards were read; the page may still be loading.
-- `outcome=no-cards-observed` preserves the last successful empty read and its capture time.
-  Loading, empty results, and an unrecognized layout remain indistinguishable.
-- `truncated` reports clipping of the loaded card set at the service's response limit.
-  It does not describe search coverage beyond the current document.
-
-A read failure or an observed URL change ends the operation. If no read completes within the
-budget, the tool fails without claiming an empty result.
-
-This read may refresh conclusive platform-access evidence from the same document. It does not
-navigate, scroll, click, open details, or persist jobs; [passive collection](#passive-collection-and-persistence)
-handles separate background observations and writes. To open a card through a page control, use
-the references returned by `browser_snapshot`, as described in
-[Tabs and page evidence](#tabs-and-page-evidence).
-
-### Job descriptions and source binding
-
-`browser_job_description_snapshot` reads the main posting description and recognizable job facts
-from a supported detail page, excluding surrounding recommendations. It submits the observation
-to Workspace Service with agent attribution and returns only after the service accepts and
-retains it. A rejected write or a `stale` outcome fails the call. `description.capturedAt` records
-the capture time, and `description.truncated` reports clipping at the local description-text limit.
-
-To bind a previously tracked source without a detail identity, first confirm that the current
-page belongs to that source. Pass its workspace `sourceId` only when the source has no retained
-description, external job ID, or job URL. Workspace Service validates the source before attaching
-the detail-page identity; its [source-binding rules](../workspace-service/README.md#job-library)
-define the required matches.
-
-The result includes `sourceBinding`:
-
-- `outcome=bound` includes the explicitly bound `sourceId`.
-- `outcome=not-requested` means no `sourceId` was supplied. The description is retained, but this
-  call does not establish its association with a previously tracked linkless card.
-
-Description capture establishes posting content. Account engagement requires separate
-[platform evidence](../../docs/product-design.md#engagement-tracking); a generic apply control
-alone does not establish whether the current account has applied.
-
-### Passive collection and persistence
-
-The passive collector observes eligible open supported-platform tabs when it starts and every 30
-seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their
-main posting description. The collector submits observations with system attribution. It never
-navigates, scrolls, clicks, or opens tabs, and excludes personal-center pages.
-
-Workspace Service reconciles submitted observations into durable sources. A card without a
-detail link is submitted without an external ID or job URL. Keeping those cards separate in a
-snapshot does not establish separate durable identities for otherwise indistinguishable
-observations. The agent can use the explicit source-binding workflow after confirming a tracked
-source's identity.
-
-Explicit and passive workflows can submit observations in a different order from their page
-reads. Each submission carries its capture time, and Workspace Service preserves a captured
-description when later card evidence arrives. A page that closes or navigates during its bounded
-read is reported and skipped while evidence from other tabs is retained. The same DOM pass
-refreshes any conclusive platform-access evidence.
-
-Workspace Service owns the selected intent and its platform recommendation pages. The agent
-compares that context with page evidence and explicitly navigates within the user's research
-task. [Product design](../../docs/product-design.md#job-discovery-and-evidence) defines the
-cross-application evidence lifecycle.
-
-## Explicit job-engagement synchronization
-
-`browser_sync_job_engagement` reads a supported platform-maintained category only within a
-user-requested agent task. A scan is scoped to one platform and category. Each call opens or
-reuses the platform tab, brings it to the foreground, reads one bounded batch from the category,
-and immediately writes that evidence to Workspace Service with agent attribution. An observation
-records the platform category in which a job appeared, independent of which actor performed the
-represented action.
-
-When a platform adapter provides a continuation, another call with the same platform and
-category resumes the bounded in-memory scan. The scan accumulates at most 60 distinct jobs and
-is discarded when it completes, reaches the bound, has no continuation, the current batch
-contains no recognized jobs, or Browser Session restarts. `complete=true` requires the
-accumulated evidence to match the platform-visible category total without exceeding the scan
-bound. `complete=false` identifies partial evidence; it does not promise that the scan can
-continue. Platform cards may omit job links. When a recognized link is present, Browser Session
-preserves it and derives the stable external job ID; otherwise the snapshot retains the visible
-job facts.
-
-A complete `interested` snapshot may remove relations no longer present. The `contacted`,
-`applied`, and `interviewed` relations preserve historical observations even when a later
-platform list omits them. [Product design](../../docs/product-design.md#engagement-tracking)
-defines the cross-application meaning of engagements and complete or partial snapshots.
-
-### Supported categories and continuation
-
-Supported categories and pagination come from the [platform
-catalog](../../packages/platform-catalog/src/index.ts). The `browser_sync_job_engagement` MCP
-description derives its capability summary from that same configuration. Unsupported categories
-fail before browser navigation or workspace writes.
-
-Check the capability summary and visible page before requesting another batch. Once a scan ends,
-another call starts from the category entry page. Completeness covers the platform-visible
-category and history window, not all-time activity. Platform-specific category meanings,
-evidence limits, and validation coverage are documented under [Platform
-coverage](#platform-coverage).
-
 ## Run Browser Session from source
 
 Browser Session requires a graphical desktop session and Patchright's Chromium binary. It does not
@@ -197,6 +83,12 @@ The Streamable HTTP MCP endpoint is <http://127.0.0.1:54312/mcp>; health is avai
 <http://127.0.0.1:54312/health>. The service binds to loopback and rejects non-local browser origins,
 but this is not authentication: local processes are inside the service trust boundary.
 
+MCP tools return `{ result: ... }` on success. Execution failures set `isError=true` and
+return [`OperationErrorResponse`](../../packages/contracts/src/operation-error.ts) with
+`error.code`, `error.details`, and a display `error.message`. Both outcomes appear in
+`structuredContent` and JSON text. Unknown tool names use the MCP protocol error `-32602`
+with `data.tool`.
+
 ### Health and runtime diagnostics
 
 Browser runtime status is exposed directly through `browser_status` and `/health`. Desktop Manager
@@ -247,7 +139,8 @@ eligible for a later attempt. Set `JOB_BOARDWALK_WORKSPACE_SERVICE_URL` when Wor
 not available at <http://127.0.0.1:54310>.
 
 Job-observation submission uses the same Workspace Service URL. A rejected explicit description
-write or a `stale` outcome fails the tool call. A failed passive write is reported locally and stops
+write or a `stale` outcome fails the tool call. Structured Workspace Service rejections retain
+their code and details, with `httpStatus` added. A failed passive write is reported locally and stops
 the current collection pass without stopping browser control; a later pass may submit fresh
 evidence if the page remains eligible.
 
@@ -255,11 +148,11 @@ evidence if the page remains eligible.
 
 ### Browser lifecycle
 
-One top-level shajara scope owns the HTTP server, visible browser process, persistent context,
-platform-access observation reporter, recovery loops, and shutdown. If the browser window is closed
-unexpectedly, Browser Session reports the interruption and launches it again with bounded
-exponential backoff. A failed page action remains contained to its request; Browser Session does not
-replay it.
+One top-level shajara scope coordinates the service's HTTP handling, browser lifecycle routines,
+observation reporting, and shutdown. Browser Session manages the browser process through
+Patchright. If the browser window closes unexpectedly, the service reports the interruption and
+launches it again with bounded exponential backoff. A failed page action remains contained to
+its request; Browser Session does not replay it.
 
 MCP actions, tab coordination, and snapshots run as `RiteCoroutine` routines. Patchright and Node
 Promises are adapted with `until(...)` at the leaf SDK call; application-owned waits use shajara
@@ -280,14 +173,14 @@ that the bounded DOM inspection did not finish; cause analysis requires separate
 `complete` describes the document load lifecycle. Lazy and application-triggered resources require
 their own observation when they matter to the workflow.
 
-Navigation waits 30 seconds for `DOMContentLoaded`. A timeout returns
-`navigation.outcome=timed-out`, `waitUntil=domcontentloaded`, and the independently collected page
-inspection as a structured result. Navigation and inspection remain independent outcomes. A final
-URL outside supported platform scope is still returned with the navigation outcome; `platformId=null`
-and `pageInspection=null` mean the document was not inspected. A completed navigation does not imply the requested platform
-remained open. Further page controls retain the platform scope boundary. Snapshot
-DOM evaluation waits up to five seconds. A read timeout reports a closed tab, a page-inspection
-timeout, or the observed document lifecycle state. Other errors retain their original failure.
+Navigation waits up to 30 seconds for `DOMContentLoaded`. A timeout returns
+`navigation.outcome=timed-out` and `navigation.waitUntil=domcontentloaded`, together with an
+independent `pageInspection`. If the final URL leaves supported platform scope, the result still
+includes that URL and the navigation outcome; `platformId=null` and `pageInspection=null` indicate
+that the destination document was not inspected. Further page controls require a supported target.
+
+Snapshot DOM evaluation waits up to five seconds. On timeout, `error.details.pageInspection`
+reports a closed tab, an inspection timeout, or the observed document lifecycle state.
 
 [Access observations](../../docs/product-design.md#access-observations) defines what these signals
 can establish. Verification and access-denial conclusions require visible controls or semantic page
@@ -328,8 +221,9 @@ References expire across the whole session: a new `browser_snapshot`, `browser_n
 page-control action in one tab expires references from the previous snapshot, even if it belongs
 to another tab. Login preparation and engagement synchronization also expire references. Reference
 numbers are not reused within an executor. When a reference expires, take a new snapshot of its
-owning `tabId` before acting. Diagnostics for the most recently expired snapshot identify that tab
-and the invalidating operation; older or unknown references receive the general expiry rule.
+owning `tabId` before acting. For the most recently expired snapshot, `error.details` includes
+`ref`, `tabId`, `invalidatedBy`, and any known `invalidatedByTabId`. Older or unknown references
+identify only the requested `ref`.
 
 Before acting on a valid reference, Browser Session repeats the bounded snapshot and matches the
 original DOM node, URL, captured attributes, and bounded element text and card context. Replaced
@@ -390,15 +284,132 @@ showing verification or another access decision. When no reusable login page rem
 available blank tab or a new tab and performs bounded observations on the login destination. It
 returns `outcome=handoff-ready` when that page exposes an enabled user control or a login-mode link
 recognized by its platform definition. This outcome starts user handoff. If neither outcome can
-be established, preparation fails and passive collection resumes. Failure diagnostics identify
-the checked tabs, URLs, and unmet readiness conditions. Workspace Service writes already started from previously captured evidence may finish
-during a handoff because they do not drive the browser.
+be established, preparation fails and passive collection resumes. Candidate checks report their
+tabs, URLs, and unmet readiness conditions in `error.details.candidates`.
+
+Workspace Service writes from previously captured evidence may finish during a handoff because
+they do not drive the browser.
 
 After the user explicitly returns control, the agent calls `browser_snapshot` with
 `userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit
 the flag. The flag resumes passive page reads and authorizes a later explicit job-engagement
 sync to reuse the observed platform tab. It records returned control; subsequent page evidence
 determines authentication status.
+
+## Job evidence reads and passive collection
+
+### Job cards
+
+`browser_job_card_snapshot` reads recognizable cards already loaded on an eligible collection
+page. Personal-center engagement pages are outside its scope. Each card includes its title,
+company, salary, location, tags, bounded text, and same-platform detail link when available.
+Deduplication requires a reliable detail identity; independent linkless cards remain separate
+even when their visible facts are identical.
+
+Choose `waitFor=none` to read the current document immediately, or `waitFor=cards-present` to
+observe until recognizable cards are read or the service's response budget expires. The result
+describes the observation:
+
+- `outcome=cards-observed` means cards were read; the page may still be loading.
+- `outcome=no-cards-observed` preserves the last successful empty read and its capture time.
+  Loading, empty results, and an unrecognized layout remain indistinguishable.
+- `truncated` reports clipping of the loaded card set at the service's response limit.
+  It does not describe search coverage beyond the current document.
+
+A read failure or an observed URL change ends the operation. If no read completes within the
+budget, the tool fails without claiming an empty result.
+
+This read may refresh conclusive platform-access evidence from the same document. It does not
+navigate, scroll, click, open details, or persist jobs; [passive collection](#passive-collection-and-persistence)
+handles separate background observations and writes. To open a card through a page control, use
+the references returned by `browser_snapshot`, as described in
+[Tabs and page evidence](#tabs-and-page-evidence).
+
+### Job descriptions and source binding
+
+`browser_job_description_snapshot` reads the main posting description and recognizable job facts
+from a supported detail page, excluding surrounding recommendations. It submits the observation
+to Workspace Service with agent attribution and returns only after the service accepts and
+retains it. A rejected write or a `stale` outcome fails the call. `description.capturedAt` records
+the capture time, and `description.truncated` reports clipping at the local description-text limit.
+
+To bind a previously tracked source without a detail identity, first confirm that the current
+page belongs to that source. Pass its workspace `sourceId` only when the source has no retained
+description, external job ID, or job URL. Workspace Service validates the source before attaching
+the detail-page identity; its [source-binding rules](../workspace-service/README.md#source-binding)
+define the required matches.
+
+`persistence.outcome` reports the accepted [workspace write outcome](../workspace-service/README.md#observation-writes).
+`sourceBinding` separately describes association with a caller-specified source:
+
+- `sourceBinding.outcome=bound` includes the explicitly bound `sourceId`.
+- `sourceBinding.outcome=not-requested` means no `sourceId` was supplied; the call does not
+  establish an association with a previously tracked linkless card.
+
+Description capture establishes posting content. Account engagement requires separate
+[platform evidence](../../docs/product-design.md#engagement-tracking); a generic apply control
+alone does not establish whether the current account has applied.
+
+### Passive collection and persistence
+
+The passive collector observes eligible open supported-platform tabs when it starts and every 30
+seconds afterward. Collection pages contribute recognizable cards; detail pages contribute their
+main posting description. The collector submits observations with system attribution. It never
+navigates, scrolls, clicks, or opens tabs, and excludes personal-center pages.
+
+Workspace Service reconciles submitted observations into durable sources. A card without a
+detail link is submitted without an external ID or job URL. Keeping those cards separate in a
+snapshot does not establish separate durable identities for otherwise indistinguishable
+observations. The agent can use the explicit source-binding workflow after confirming a tracked
+source's identity.
+
+Explicit and passive workflows can submit observations in a different order from their page
+reads. Each submission carries its capture time, and Workspace Service preserves a captured
+description when later card evidence arrives. A page that closes or navigates during its bounded
+read is reported and skipped while evidence from other tabs is retained. The same DOM pass
+refreshes any conclusive platform-access evidence.
+
+Workspace Service owns the selected intent and its platform recommendation pages. The agent
+compares that context with page evidence and explicitly navigates within the user's research
+task. [Product design](../../docs/product-design.md#job-discovery-and-evidence) defines the
+cross-application evidence lifecycle.
+
+## Explicit job-engagement synchronization
+
+`browser_sync_job_engagement` reads a supported platform-maintained category only within a
+user-requested agent task. A scan is scoped to one platform and category. Each call opens or
+reuses the platform tab, brings it to the foreground, reads one bounded batch from the category,
+and immediately writes that evidence to Workspace Service with agent attribution. An observation
+records the platform category in which a job appeared, independent of which actor performed the
+represented action.
+
+A scan accumulates at most 60 distinct jobs in memory. `complete=true` requires the accumulated
+evidence to match the platform-visible category total without exceeding that bound;
+`complete=false` describes partial evidence. Continuation is reported separately:
+
+- `scan.state=continuable`: the next call with the same platform and category resumes the scan.
+- `scan.state=ended`: the next call starts at the category entry. `scan.reason` is `complete`,
+  `scan-limit`, `no-cards`, or `no-continuation`.
+
+Service restart discards in-memory scans. Platform cards may omit job links. When a recognized
+link is present, Browser Session preserves it and derives the stable external job ID; otherwise
+the snapshot retains the visible job facts.
+
+A complete `interested` snapshot may remove relations no longer present. The `contacted`,
+`applied`, and `interviewed` relations preserve historical observations even when a later
+platform list omits them. [Product design](../../docs/product-design.md#engagement-tracking)
+defines the cross-application meaning of engagements and complete or partial snapshots.
+
+### Supported categories and continuation
+
+Supported categories and pagination come from the [platform
+catalog](../../packages/platform-catalog/src/index.ts). The `browser_sync_job_engagement` MCP
+description derives its capability summary from that same configuration. Unsupported categories
+fail before browser navigation or workspace writes.
+
+Completeness covers the platform-visible category and history window, not all-time activity.
+Platform-specific category meanings, evidence limits, and validation coverage are documented under
+[Platform coverage](#platform-coverage).
 
 ## Maintenance constraints
 

@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { BrowserContext, Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -49,11 +50,9 @@ export class BrowserTabs {
   public get tabCount(): number {
     return this.#pages.size;
   }
-
   public markSelected(tabId: number): void {
     this.#selectedPageId = tabId;
   }
-
   public *selectPage(page: Page): RiteCoroutine<void> {
     this.markSelected(this.#register(page));
     yield* until(() => page.bringToFront());
@@ -62,10 +61,14 @@ export class BrowserTabs {
   public requireNavigationPage(tabId: number): Page {
     const page = this.#pages.get(tabId);
     if (!page || page.isClosed()) {
-      throw new Error("指定标签页不存在或已经关闭。");
+      throw new OperationError("tab-unavailable", "指定标签页不存在或已经关闭。", { tabId });
     }
     if (!findRecruitingPlatformAdapter(page.url())) {
-      throw new Error("指定标签页已离开受支持招聘平台的 HTTPS 导航范围。");
+      throw new OperationError(
+        "outside-platform-scope",
+        "指定标签页已离开受支持招聘平台的 HTTPS 导航范围。",
+        { tabId, url: page.url() },
+      );
     }
     return page;
   }
@@ -85,7 +88,11 @@ export class BrowserTabs {
         return [id, page];
       }
     }
-    throw new Error("没有可用的招聘平台标签页；请先调用 browser_tabs ensure 准备页面。");
+    throw new OperationError(
+      "no-platform-tab",
+      "没有可用的招聘平台标签页；请先调用 browser_tabs ensure 准备页面。",
+      {},
+    );
   }
 
   public resolvePlatformPage(platformId: PlatformId, requestedId: number | null): [number, Page] {
@@ -112,8 +119,10 @@ export class BrowserTabs {
         return [id, page];
       }
     }
-    throw new Error(
+    throw new OperationError(
+      "no-platform-tab",
       `没有可用的${recruitingPlatformAdapters[platformId].label}标签页；请先调用 browser_tabs ensure 准备页面。`,
+      { platformId },
     );
   }
 
@@ -131,7 +140,7 @@ export class BrowserTabs {
       yield* until(() => page.bringToFront());
       return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
     }
-    throw new Error(`不支持的标签页动作：${action}`);
+    throw new OperationError("invalid-input", `不支持的标签页动作：${action}`, { field: "action" });
   }
 
   public *prepareLogin(
@@ -152,7 +161,11 @@ export class BrowserTabs {
     if (existing) {
       const id = this.#pageIds.get(existing.page);
       if (!id) {
-        throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
+        throw new OperationError(
+          "login-not-ready",
+          `${adapter.label}登录交接尚未就绪：标签页已经关闭。`,
+          { platformId, reason: "page-closed" },
+        );
       }
       yield* this.selectPage(existing.page);
       return { id, platformId, ...existing.handoff };
@@ -161,7 +174,11 @@ export class BrowserTabs {
     const navigation = yield* this.#openLoginPage(adapter);
     const page = this.#pages.get(navigation.id);
     if (!page || page.isClosed()) {
-      throw new Error(`${adapter.label}登录交接尚未就绪：标签页已经关闭。`);
+      throw new OperationError(
+        "login-not-ready",
+        `${adapter.label}登录交接尚未就绪：标签页已经关闭。`,
+        { platformId, reason: "page-closed" },
+      );
     }
     const handoff = yield* observeLoginHandoffPage(page, adapter, observePageAccess, (candidate) =>
       this.#pageIds.get(candidate),

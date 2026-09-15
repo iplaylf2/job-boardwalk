@@ -1,7 +1,13 @@
+import {
+  McpError,
+  ErrorCode,
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { operationErrorResponse } from "@job-boardwalk/contracts";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolRequest, CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { CanceledError, ScopeError } from "@shajara/host";
+import { CanceledError, InterruptedError, ScopeError } from "@shajara/host";
 import type { RiteCoroutine, Scope } from "@shajara/host";
 import {
   platformCatalog,
@@ -40,6 +46,7 @@ const browserServerInstructions = [
   "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
   "用户交接：需要登录时，使用 browser_prepare_login 检查现有会话并按需准备登录界面。只有 outcome=handoff-ready 才开始交接；此后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
   "可见结果：判断以用户看到的当前窗口和重新观察结果为准；工具返回冲突时先重新观察。",
+  "工具响应：成功时读取 structuredContent.result；isError=true 时读取 structuredContent.error 的 code、details 和展示用 message。",
   "故障分类：browser_status 的 available=false 表示浏览器运行时整体不可用。navigation.outcome=timed-out 只表示目标页未在时限内达到 DOMContentLoaded；pageInspection 分别报告页面关闭、检查超时或观察到的文档生命周期。验证和拒绝访问仍须由可见控件或页面语义确定。",
   "恢复边界：重复超时仍不能确定原因；超时本身不会触发自动重试、刷新、换页或重启。先重新观察；仍无法读取时，询问用户可见窗口显示了什么，再决定有界的下一步。",
 ].join("\n\n");
@@ -67,8 +74,11 @@ const browserTools = [
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description:
-      "当用户明确要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，不导航或交出控制权。否则保留所有已成功读取且仍位于平台登录路由的标签页作为候选，逐一进行有界检查，并只激活已出现可用登录控件的候选。无法读取或尚未分类的其他平台页保持不变，以免覆盖可能的验证或访问决定；没有可复用登录页时，改用空白页或新标签页打开登录入口并有界观察。登录页出现启用的用户控件时返回 outcome=handoff-ready，开始用户交接；无法建立任一结果时准备失败并恢复被动读取。",
+    description: [
+      "当用户要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，无需导航或用户交接。",
+      "对可复用登录页逐一进行有界检查，激活已出现可用登录控件的候选。无法读取或尚未分类的其他平台页保持不变；没有可复用登录页时，使用空白页或新标签页打开登录入口。",
+      "登录界面就绪时返回 outcome=handoff-ready，开始用户交接。无法确认认证或登录界面就绪时，准备失败并恢复被动读取；候选检查结果记录在 error.details.candidates。",
+    ].join("\n\n"),
     name: "browser_prepare_login",
   }),
   defineBrowserTool({
@@ -107,7 +117,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description: [
-      "读取当前详情页的主要职位描述和可识别的岗位字段，以 agent 归因写入 Workspace Service。观察被接受并保留后才返回；写入失败或 outcome=stale 时调用失败。description.capturedAt 是采集时间，description.truncated 表示描述被本地长度上限裁剪。本次读取不导航、滚动或点击，排除周边推荐岗位，并可能刷新平台访问观察。",
+      "读取当前详情页的主要职位描述和可识别的岗位字段，以 agent 归因写入 Workspace Service。成功响应的 persistence.outcome 表示观察已被接受并保留；写入失败或工作区返回 stale 时调用失败。description.capturedAt 是采集时间，description.truncated 表示描述被本地长度上限裁剪。本次读取不导航、滚动或点击，排除周边推荐岗位，并可能刷新平台访问观察。",
       "若已独立确认当前页面属于某个工作区来源，且该来源尚无描述、外部岗位 ID 和详情链接，可传其 sourceId 请求显式绑定。sourceBinding.outcome=bound 时返回绑定的 sourceId；not-requested 表示未传 sourceId，本次未建立与指定无链接卡片的关联。",
       "描述采集证明岗位内容；本账户是否已投递需另行核实跟进证据，通用投递按钮不能证明尚未投递。",
     ].join("\n\n"),
@@ -123,7 +133,7 @@ const browserTools = [
     description: [
       "仅在用户发起的岗位跟进同步任务中调用。每次打开或复用指定平台标签页，将其前置，读取当前类别的一批岗位证据并写入 Workspace Service。不支持的类别在导航前被拒绝。一次扫描受服务资源预算约束，达到预算时保留部分证据并结束扫描。",
       "complete=true 表示证据覆盖平台可见的类别总数及历史窗口，不代表全部历史；完整的 interested（感兴趣）快照可能移除平台列表中已不存在的本地关系。complete=false 仅表示证据不完整，不保证有下一批。",
-      "续读前检查下方能力和可见页面；平台支持续读且扫描未结束时，以相同 platformId 和 engagement 再次调用。扫描在完成、达到上限、当前批次没有可识别岗位、没有续读目标或服务重启时结束；结束后再次调用会从分类入口开始。",
+      "scan.state=continuable 时，以相同 platformId 和 engagement 再次调用可续读；ended 时，下次从分类入口开始，scan.reason 为 complete、scan-limit、no-cards 或 no-continuation。服务重启会丢弃扫描进度。",
       `当前同步能力：\n${engagementCapabilities}`,
     ].join("\n\n"),
     name: "browser_sync_job_engagement",
@@ -163,31 +173,35 @@ const browserTools = [
 ] as const satisfies readonly Tool[];
 
 function toolErrorResult(error: unknown): CallToolResult {
+  const failure = operationErrorResponse(error);
   return {
-    content: [{ text: error instanceof Error ? error.message : String(error), type: "text" }],
+    content: [{ text: JSON.stringify(failure), type: "text" }],
     isError: true,
+    structuredContent: { ...failure },
   };
 }
 
 function* forwardBrowserTool(
   request: CallToolRequest,
   browserControl: BrowserControl,
+  toolName: BrowserToolName,
 ): RiteCoroutine<CallToolResult> {
   try {
-    if (!isBrowserToolName(request.params.name)) {
-      throw new Error(`不支持的浏览器工具：${request.params.name}`);
-    }
-    const input = parseBrowserToolInput(request.params.name, request.params.arguments ?? {});
+    const input = parseBrowserToolInput(toolName, request.params.arguments ?? {});
     const result =
-      request.params.name === "browser_status"
+      toolName === "browser_status"
         ? browserControl.status
-        : yield* browserControl.executeTool(request.params.name, input);
+        : yield* browserControl.executeTool(toolName, input);
     return {
-      content: [{ text: JSON.stringify(result, null, jsonIndentationSpaces), type: "text" }],
+      content: [{ text: JSON.stringify({ result }, null, jsonIndentationSpaces), type: "text" }],
       structuredContent: { result },
     };
   } catch (error) {
-    if (error instanceof CanceledError || error instanceof ScopeError) {
+    if (
+      error instanceof CanceledError ||
+      error instanceof InterruptedError ||
+      error instanceof ScopeError
+    ) {
       throw error;
     }
     return toolErrorResult(error);
@@ -211,8 +225,14 @@ export function createBrowserSessionMcpServer(
       return { tools: [...browserTools] };
     }),
   );
-  mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
-    serviceScope.run(() => forwardBrowserTool(request, browserControl)),
-  );
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => {
+    const toolName = request.params.name;
+    if (!isBrowserToolName(toolName)) {
+      return Promise.reject(
+        new McpError(ErrorCode.InvalidParams, "未知 MCP 工具", { tool: toolName }),
+      );
+    }
+    return serviceScope.run(() => forwardBrowserTool(request, browserControl, toolName));
+  });
   return mcpServer;
 }

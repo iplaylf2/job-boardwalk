@@ -18,6 +18,7 @@ function normalizedPlatformUrl(value: string, platformId: PlatformId, field: str
   if (!url) {
     throw new InvalidRequestError(
       `${field} 必须属于${platformCatalog[platformId].label}的 HTTPS 范围`,
+      { field, platformId },
     );
   }
   url.hash = "";
@@ -31,6 +32,7 @@ function normalizedJobEngagementSnapshot(
   if (parsePlatformJobEngagementUrl(input.platformId, sourceUrl) !== input.engagement) {
     throw new InvalidRequestError(
       "sourceUrl 必须是 platformId 所指定平台中与 engagement 对应的岗位跟进分类页。",
+      { field: "sourceUrl", platformId: input.platformId },
     );
   }
   return {

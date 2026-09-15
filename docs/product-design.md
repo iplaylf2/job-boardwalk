@@ -211,12 +211,12 @@ Each explicit call brings the selected tab to the foreground, reads one bounded 
 category, and writes the observed evidence. When the platform supports continuation, another call
 for the same platform and category continues the current scan.
 
-A scan accumulates at most 60 distinct jobs. `complete` is true only when the platform-maintained
-total and the captured evidence establish the full category within that bound; otherwise the
-snapshot remains partial. The quantity bound limits collected evidence, not the age of an
-interaction: platform cards carry category membership without an event time. A redirected category
-tab remains associated with the platform. During user handoff it remains untouched; after control
-returns, a later explicit call may reuse it.
+A scan is complete only when the platform-maintained total and captured evidence establish the
+full visible category within the service's collection budget. Otherwise it remains partial.
+Browser Session owns the [scan budget and continuation contract](../apps/browser-session/README.md#explicit-job-engagement-synchronization).
+That budget limits evidence volume; platform cards provide category membership without an event
+time. A redirected category tab remains associated with the platform. During user handoff it
+remains untouched; after control returns, a later explicit call may reuse it.
 
 `interested` represents a reversible current classification, so a complete snapshot may remove
 relations absent from the platform list. The other engagement kinds preserve historical evidence

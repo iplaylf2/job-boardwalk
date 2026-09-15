@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 // oxlint-disable import/max-dependencies -- This workspace facade composes the separate report persistence owner.
 import { DatabaseSync } from "node:sqlite";
 import { existsSync } from "node:fs";
@@ -104,16 +105,6 @@ type SourceObservations = Pick<JobPostingSourceRow, "cardObservation" | "descrip
 const emptyCollectionLength = 0;
 const emptyCount = 0;
 const firstPage = 1;
-
-function jobDescriptionSourceBindingError(message: string): Error {
-  const error = new Error(message);
-  error.name = "JobDescriptionSourceBindingError";
-  return error;
-}
-
-export function isJobDescriptionSourceBindingError(error: unknown): error is Error {
-  return error instanceof Error && error.name === "JobDescriptionSourceBindingError";
-}
 
 function projectDescriptionAsCardObservation(
   observation: JobDescriptionObservation,
@@ -997,6 +988,7 @@ export class WorkspaceRepository {
       .get()?.source;
   }
 
+  // eslint-disable-next-line max-lines-per-function -- Keep the complete source-binding validation and its failure details together.
   #requireDescriptionSource(
     sourceId: number,
     observation: JobCardObservation,
@@ -1008,33 +1000,47 @@ export class WorkspaceRepository {
       .where(eq(jobPostingSources.id, sourceId))
       .get();
     if (!source) {
-      throw jobDescriptionSourceBindingError(`找不到岗位来源：${String(sourceId)}`);
+      throw new OperationError("not-found", "找不到岗位来源", { resource: "job-source", sourceId });
     }
     const evidence = jobSourceEvidence(source.cardObservation, source.descriptionObservation);
     if (source.platformId !== observation.platformId) {
-      throw jobDescriptionSourceBindingError("指定岗位来源与当前详情页不属于同一招聘平台。");
+      throw new OperationError("conflict", "指定岗位来源与当前详情页不属于同一招聘平台。", {
+        reason: "platform-mismatch",
+        sourceId,
+      });
     }
     if (source.descriptionObservation || evidence.externalJobId || evidence.jobUrl) {
-      throw jobDescriptionSourceBindingError(
+      throw new OperationError(
+        "conflict",
         "指定来源必须同时缺少已采集详情、外部岗位 ID 和详情链接，才能显式绑定当前详情页。",
+        { reason: "source-already-resolved", sourceId },
       );
     }
     if (normalizedIdentityPart(evidence.title) !== normalizedIdentityPart(observation.title)) {
-      throw jobDescriptionSourceBindingError("当前详情页标题与指定岗位来源不一致。");
+      throw new OperationError("conflict", "当前详情页标题与指定岗位来源不一致。", {
+        reason: "title-mismatch",
+        sourceId,
+      });
     }
     if (
       evidence.company &&
       observation.company &&
       normalizedIdentityPart(evidence.company) !== normalizedIdentityPart(observation.company)
     ) {
-      throw jobDescriptionSourceBindingError("当前详情页公司与指定岗位来源不一致。");
+      throw new OperationError("conflict", "当前详情页公司与指定岗位来源不一致。", {
+        reason: "company-mismatch",
+        sourceId,
+      });
     }
     const conflict = this.#findJobPostingSourceByObservedIdentity(
       observation.platformId,
       sourceIdentityKey,
     );
     if (conflict && conflict.id !== source.id) {
-      throw jobDescriptionSourceBindingError("当前详情页已经对应另一个工作区岗位来源。");
+      throw new OperationError("conflict", "当前详情页已经对应另一个工作区岗位来源。", {
+        reason: "identity-owned",
+        sourceId,
+      });
     }
     return source;
   }
@@ -1359,7 +1365,10 @@ export class WorkspaceRepository {
           .returning({ id: jobSearchIntents.id })
           .get();
         if (!updated) {
-          throw new Error(`找不到求职方向：${String(existingId)}`);
+          throw new OperationError("not-found", "找不到求职方向", {
+            id: existingId,
+            resource: "search-intent",
+          });
         }
         transaction
           .delete(jobSearchIntentRecommendationPages)
@@ -1440,7 +1449,10 @@ export class WorkspaceRepository {
         .returning({ name: jobSearchIntents.name })
         .get();
       if (!selected) {
-        throw new Error(`找不到求职方向：${String(input.id)}`);
+        throw new OperationError("not-found", "找不到求职方向", {
+          id: input.id,
+          resource: "search-intent",
+        });
       }
       transaction
         .insert(workspaceChanges)

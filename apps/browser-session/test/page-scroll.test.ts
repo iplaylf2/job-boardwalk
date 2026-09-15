@@ -150,8 +150,7 @@ test("keeps a container boundary local instead of scrolling the document", () =>
   const { element, list, root } = readingPage(listHeight, viewportHeight);
   list.scrollTop = list.scrollHeight - list.clientHeight;
   const result = scrollOneViewport(element, { direction: "down", target: "scrollable-ancestor" });
-  expect(result.outcome).toBe("unchanged");
-  expect(result.target).toBe("container");
+  expect(result).toMatchObject({ outcome: "unchanged", target: "container" });
   expect(root.scrollTop).toBe(noScroll);
 });
 
@@ -159,12 +158,14 @@ test("uses the visible part of a container and rejects a fully hidden region", (
   const top = 600;
   const { element } = readingPage(listHeight, viewportHeight, top);
   expect(
-    scrollOneViewport(element, { direction: "down", target: "scrollable-ancestor" }).viewportHeight,
-  ).toBe(viewportHeight - top);
+    scrollOneViewport(element, { direction: "down", target: "scrollable-ancestor" }),
+  ).toMatchObject({ viewportHeight: viewportHeight - top });
   const hidden = readingPage(listHeight, viewportHeight, viewportHeight);
-  expect(() =>
+  expect(
     scrollOneViewport(hidden.element, { direction: "down", target: "scrollable-ancestor" }),
-  ).toThrow();
+  ).toMatchObject({ error: { code: "scroll-target-not-visible" } });
+  expect(hidden.list.scrollTop).toBe(noScroll);
+  expect(hidden.root.scrollTop).toBe(noScroll);
 });
 
 test("scrolls the document explicitly and runs without host-side callback dependencies", () => {

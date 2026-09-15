@@ -1,3 +1,5 @@
+import { OperationError } from "@job-boardwalk/contracts";
+// oxlint-disable import/max-dependencies -- The lifecycle composes its browser collaborators and the shared failure contract.
 import process from "node:process";
 import type { BrowserContext, Page } from "patchright";
 import type { BrowserRuntimeStatus, PlatformAccessObservation } from "@job-boardwalk/contracts";
@@ -111,7 +113,7 @@ export class ManagedBrowser implements BrowserControl {
   public *executeTool(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
     if (!this.#toolExecutor) {
       const detail = this.#lifecycle.lastFailure ? publicBrowserFailureMessage : "浏览器尚未就绪。";
-      throw new Error(`浏览器暂不可用。${detail}`);
+      throw new OperationError("browser-unavailable", `浏览器暂不可用。${detail}`, {});
     }
     return yield* this.#toolExecutor.execute(toolName, input);
   }

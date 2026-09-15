@@ -69,10 +69,12 @@ test("submits the explicit job-description observation before returning it", asy
   const result = (await scope.run(() =>
     executor.execute("browser_job_description_snapshot", { sourceId: 71 }),
   )) as JobDescriptionObservation & {
+    persistence: { outcome: string };
     sourceBinding: { outcome: string; sourceId: number };
     tabId: number;
   };
-  const { sourceBinding, tabId: _tabId, ...returnedObservation } = result;
+  const { persistence, sourceBinding, tabId: _tabId, ...returnedObservation } = result;
+  expect(persistence).toEqual({ outcome: "source-updated" });
   expect(sourceBinding).toEqual({ outcome: "bound", sourceId: 71 });
 
   expect(submitted).toEqual([

@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -205,14 +206,19 @@ export function* captureJobDescriptionObservation(
     }),
   );
   if (metadata.url !== initialUrl) {
-    throw new Error("当前岗位详情页在读取期间发生了导航；请等待页面稳定后重试。");
+    throw new OperationError(
+      "page-changed",
+      "当前岗位详情页在读取期间发生了导航；请等待页面稳定后重试。",
+      {},
+    );
   }
   if (!metadata.title || !metadata.description) {
     const missing = [
       ...(metadata.title ? [] : ["岗位标题"]),
       ...(metadata.description ? [] : ["职位描述"]),
     ].join("、");
-    throw new Error(
+    throw new OperationError(
+      "evidence-unavailable",
       `岗位详情提取未匹配：${missing}；页面正文${metadata.accessText.trim() ? "可读" : "为空"}。请用 browser_snapshot 查看页面。URL：${metadata.url}`,
     );
   }

@@ -1,3 +1,4 @@
+import { requireWorkspaceSuccess } from "./response.js";
 import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { CanceledError, ScopeError, sleep, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -34,9 +35,7 @@ export class PlatformAccessObservationReporter {
           method: "PUT",
         }),
       );
-      if (!response.ok) {
-        throw new Error(`Workspace Service 拒绝平台访问观察：HTTP ${String(response.status)}`);
-      }
+      yield* requireWorkspaceSuccess(response);
       this.#acknowledge(observation);
     }
   }

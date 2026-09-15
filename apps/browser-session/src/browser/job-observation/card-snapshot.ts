@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -248,7 +249,11 @@ export function* captureJobCardSnapshot(
     }),
   );
   if (metadata.url !== initialUrl) {
-    throw new Error("当前页面在读取期间发生了导航；请等待页面稳定后重试。");
+    throw new OperationError(
+      "page-changed",
+      "当前页面在读取期间发生了导航；请等待页面稳定后重试。",
+      {},
+    );
   }
   observePageAccess?.({
     elements: metadata.accessElements,

@@ -10,6 +10,7 @@ const ok = 200;
 const created = 201;
 const badRequest = 400;
 const missing = 404;
+const conflict = 409;
 const firstIndex = 0;
 const missingSourceId = 999_999;
 const assessedAt = "2026-08-01T00:00:00.000Z";
@@ -168,24 +169,38 @@ test("rejects duplicate judgments, missing sources and invalid targets without c
     if (!original) {
       throw new Error("合成报告未保存");
     }
-    for (const patch of [
-      { entries: [reportEntry(boss.id, "recommended"), reportEntry(boss.id, "excluded")] },
-      { entries: [reportEntry(missingSourceId, "recommended")] },
-      { entries: [{ ...reportEntry(boss.id, "recommended"), assessedAt: "invalid" }] },
-      {
-        targets: [
-          { count: 1, platformId: "boss" },
-          { count: 2, platformId: "boss" },
-        ],
-      },
-      { targets: [{ count: 0, platformId: "boss" }] },
-    ]) {
+    for (const [patch, expectedStatus, expectedCode] of [
+      [
+        { entries: [reportEntry(boss.id, "recommended"), reportEntry(boss.id, "excluded")] },
+        conflict,
+        "conflict",
+      ],
+      [{ entries: [reportEntry(missingSourceId, "recommended")] }, missing, "not-found"],
+      [
+        { entries: [{ ...reportEntry(boss.id, "recommended"), assessedAt: "invalid" }] },
+        badRequest,
+        "invalid-input",
+      ],
+      [
+        {
+          targets: [
+            { count: 1, platformId: "boss" },
+            { count: 2, platformId: "boss" },
+          ],
+        },
+        conflict,
+        "conflict",
+      ],
+      [{ targets: [{ count: 0, platformId: "boss" }] }, badRequest, "invalid-input"],
+    ] as const) {
       // eslint-disable-next-line no-await-in-loop -- Each rejected replacement must leave the same stored report intact before the next attempt.
       const rejected = await app.request(
         `/api/reports/${String(original.id)}`,
         jsonRequest({ ...command, ...patch }, "PUT"),
       );
-      expect(rejected.status).toBe(badRequest);
+      expect(rejected.status).toBe(expectedStatus);
+      // eslint-disable-next-line no-await-in-loop -- Inspect each rejected mutation before checking its unchanged report.
+      expect(await rejected.json()).toMatchObject({ error: { code: expectedCode } });
       expect(repository.readResearchReport(original.id)).toEqual(original);
     }
     for (const query of ["sourceId=0", "disposition=mentioned", "includeExpired=maybe"]) {

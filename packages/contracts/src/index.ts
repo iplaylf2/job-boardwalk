@@ -10,3 +10,4 @@ export * from "./research-report.ts";
 export * from "./search-intent.ts";
 export * from "./workspace-command.ts";
 export * from "./workspace-overview.ts";
+export * from "./operation-error.ts";

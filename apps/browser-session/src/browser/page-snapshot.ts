@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "patchright";
 import { until } from "@shajara/host";
@@ -60,23 +61,12 @@ interface PageSnapshot extends Omit<SnapshotMetadata, "elements"> {
   elements: CapturedElement[];
 }
 
-function createSnapshotTimeoutError(inspection: PageInspection, cause: unknown): Error {
-  if (inspection.outcome === "page-closed") {
-    return new Error("页面快照不可用：标签页已经关闭。", { cause });
-  }
-  if (inspection.outcome === "timed-out") {
-    return new Error("页面快照读取超时；页面检查也在有界等待内超时。", {
-      cause,
-    });
-  }
-  if (inspection.documentReadyState === "loading") {
-    return new Error("页面快照读取超时；观察到文档生命周期为 loading。", {
-      cause,
-    });
-  }
-  return new Error(`页面快照读取超时；观察到文档生命周期为 ${inspection.documentReadyState}。`, {
-    cause,
-  });
+function createSnapshotTimeoutError(inspection: PageInspection): Error {
+  return new OperationError(
+    inspection.outcome === "page-closed" ? "tab-unavailable" : "page-read-timed-out",
+    "页面快照不可用。",
+    { pageInspection: inspection },
+  );
 }
 
 // The callback stays self-contained because Patchright serializes it into the page realm.
@@ -266,6 +256,6 @@ export function* capturePageSnapshot(page: Page, textLimit: number): RiteCorouti
     if (!isPatchrightTimeout(error)) {
       throw error;
     }
-    throw createSnapshotTimeoutError(yield* inspectPageDocument(page), error);
+    throw createSnapshotTimeoutError(yield* inspectPageDocument(page));
   }
 }

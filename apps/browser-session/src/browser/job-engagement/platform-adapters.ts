@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { Page } from "patchright";
 import { until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -51,6 +52,12 @@ function initialTarget(
   platformId: PlatformId,
   engagement: PlatformJobEngagementKind,
 ): JobEngagementTarget {
+  if (platformCatalog[platformId].web.jobEngagement.destinations[engagement] === null) {
+    throw new OperationError("unsupported-operation", "平台不支持该跟进类别。", {
+      field: "engagement",
+      platformId,
+    });
+  }
   return {
     engagement,
     url: resolvePlatformJobEngagementUrl(platformId, engagement),

@@ -402,9 +402,19 @@ test("identifies the owning tab and a snapshot in another tab that expired its r
   await using scope = createScope();
   await scope.run(() => executor.execute("browser_snapshot", { tabId: 1 }));
   await scope.run(() => executor.execute("browser_snapshot", { tabId: 2 }));
-  expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(
-    /所属 tabId=1，失效原因：browser_snapshot（tabId=2）/u,
-  );
+  const failure = await scope.run(function* expiredReference() {
+    try {
+      return yield* executor.execute("browser_click", { ref: "e1" });
+    } catch (error) {
+      return error;
+    }
+  });
+  expect(failure).toMatchObject({
+    failure: {
+      code: "reference-expired",
+      details: { invalidatedBy: "browser_snapshot", invalidatedByTabId: 2, ref: "e1", tabId: 1 },
+    },
+  });
   expect(original.state.clickCount).toBe(firstLocatorIndex);
 });
 
@@ -422,6 +432,8 @@ test("reports changed page evidence with the reference's tab instead of a generi
     }
   });
   expect(failure).toBeInstanceOf(Error);
-  expect((failure as Error).message).toMatch(/节点、URL 或有界内容已经变化（tabId=1）/u);
+  expect(failure).toMatchObject({
+    failure: { code: "reference-changed", details: { ref: "e1", tabId: 1 } },
+  });
   expect(original.state.clickCount).toBe(firstLocatorIndex);
 });

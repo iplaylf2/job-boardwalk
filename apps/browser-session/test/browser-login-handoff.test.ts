@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- Login preparation outcomes and diagnostic evidence share this boundary suite.
 import { errors } from "patchright";
 import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
@@ -28,17 +29,6 @@ const syntheticYupaoAuthenticatedText = [
 ].join("\n");
 function observePageAccess(page: PageAccessFacts) {
   return derivePageAccessObservation(page);
-}
-
-function deepestFailureMessage(value: unknown): string | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-  const failure = value as { cause?: unknown; message?: unknown };
-  if (failure.cause) {
-    return deepestFailureMessage(failure.cause);
-  }
-  return typeof failure.message === "string" ? failure.message : null;
 }
 
 test.each([
@@ -268,13 +258,24 @@ test("rejects a blank login route instead of handing off an unusable page", asyn
   });
   const tabs = new BrowserTabs(syntheticBrowserContext(fake.page));
 
-  const failure = await run(() =>
-    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
-  ).catch((error: unknown) => error);
-  expect(deepestFailureMessage(failure)).toMatch(/鱼泡直聘登录交接尚未就绪/u);
-  expect(deepestFailureMessage(failure)).toContain("tabId=1");
-  expect(deepestFailureMessage(failure)).toContain("no-enabled-login-control");
-  expect(deepestFailureMessage(failure)).toContain("documentReadyState=complete");
+  const failure = await run(function* prepareLoginFailure() {
+    try {
+      return yield* tabs.prepareLogin({ platformId: "yupao" }, observePageAccess);
+    } catch (error) {
+      return error;
+    }
+  });
+  expect(failure).toMatchObject({
+    failure: {
+      code: "login-not-ready",
+      details: {
+        candidates: [
+          { documentReadyState: "complete", reason: "no-enabled-login-control", tabId: 1 },
+        ],
+        platformId: "yupao",
+      },
+    },
+  });
 });
 
 test("rejects a login handoff when the platform leaves its login page after navigation", async () => {
@@ -287,10 +288,18 @@ test("rejects a login handoff when the platform leaves its login page after navi
   });
   const tabs = new BrowserTabs(syntheticBrowserContext(fake.page));
 
-  const failure = await run(() =>
-    tabs.prepareLogin({ platformId: "yupao" }, observePageAccess),
-  ).catch((error: unknown) => error);
-  const failureMessage = deepestFailureMessage(failure);
-  expect(failureMessage).toContain("https://www.yupao.com/a2/");
-  expect(failureMessage).not.toContain("ignored=sensitive");
+  const failure = await run(function* prepareLoginFailure() {
+    try {
+      return yield* tabs.prepareLogin({ platformId: "yupao" }, observePageAccess);
+    } catch (error) {
+      return error;
+    }
+  });
+  expect(failure).toMatchObject({
+    failure: {
+      code: "login-not-ready",
+      details: { candidates: [{ reason: "left-login-route", url: "https://www.yupao.com/a2/" }] },
+    },
+  });
+  expect(JSON.stringify(failure)).not.toContain("ignored=sensitive");
 });

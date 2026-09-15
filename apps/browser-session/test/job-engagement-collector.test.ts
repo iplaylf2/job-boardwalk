@@ -272,8 +272,10 @@ test("continues an explicitly requested paginated scan before another category",
   const collector = jobEngagementCollector(context, writer, () => initialRecoveryRevision);
   await using scope = createScope();
 
-  await scope.run(() => collector.synchronize("boss", "contacted"));
-  await scope.run(() => collector.synchronize("boss", "contacted"));
+  const first = await scope.run(() => collector.synchronize("boss", "contacted"));
+  const last = await scope.run(() => collector.synchronize("boss", "contacted"));
+  expect(first.scan).toEqual({ state: "continuable" });
+  expect(last.scan).toEqual({ reason: "complete", state: "ended" });
 
   expect(snapshots).toEqual([
     { complete: false, engagement: "contacted" },

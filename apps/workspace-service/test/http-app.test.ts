@@ -906,8 +906,8 @@ test("contains unexpected MCP read failures without exposing repository details"
     });
     expect(await response.json()).toMatchObject({
       result: {
-        content: [{ text: "Workspace Service 无法完成工作区请求。", type: "text" }],
         isError: true,
+        structuredContent: { error: { code: "internal-error", details: {} } },
       },
     });
   } finally {
@@ -928,7 +928,7 @@ test("rejects an unknown MCP resource without failing the service scope", async 
       params: { uri: "job-boardwalk://unknown" },
     });
     expect(await response.json()).toMatchObject({
-      error: { message: expect.stringMatching(/未知的 Job Boardwalk 资源/u) },
+      error: { code: -32_002, data: { uri: "job-boardwalk://unknown" } },
     });
     const followingOverviewResponse = await httpApp.request("/api/workspace/overview");
     expect(followingOverviewResponse.status).toBe(successfulStatus);

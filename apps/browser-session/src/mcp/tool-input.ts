@@ -1,3 +1,4 @@
+import { inputValidationError } from "@job-boardwalk/contracts";
 import { platformIds, platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
 
 import { toolInput } from "#/mcp/contract.js";
@@ -97,7 +98,7 @@ export function parseBrowserToolInput(
 ): Record<string, unknown> {
   const parsed = browserToolInputContracts[toolName](input);
   if (parsed instanceof toolInput.errors) {
-    throw new TypeError(parsed.summary);
+    throw inputValidationError(parsed);
   }
   return parsed as Record<string, unknown>;
 }

@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import {
   isPlatformId,
   parsePlatformWebUrl,
@@ -58,7 +59,11 @@ export const recruitingPlatformAdapters = Object.fromEntries(
 export function readPlatformId(params: Record<string, unknown>): PlatformId {
   const value = params["platformId"];
   if (typeof value !== "string" || !isPlatformId(value)) {
-    throw new TypeError(`platformId 必须是受支持的招聘平台：${platformIds.join("、")}。`);
+    throw new OperationError(
+      "invalid-input",
+      `platformId 必须是受支持的招聘平台：${platformIds.join("、")}。`,
+      { field: "platformId" },
+    );
   }
   return value;
 }
@@ -76,7 +81,11 @@ export function findRecruitingPlatformAdapter(url: string): RecruitingPlatformAd
 export function requireRecruitingPlatformAdapter(url: string): RecruitingPlatformAdapter {
   const adapter = findRecruitingPlatformAdapter(url);
   if (!adapter) {
-    throw new Error("URL 必须属于受支持招聘平台的 HTTPS 导航范围。");
+    throw new OperationError(
+      "outside-platform-scope",
+      "URL 必须属于受支持招聘平台的 HTTPS 导航范围。",
+      { url },
+    );
   }
   return adapter;
 }
@@ -87,7 +96,7 @@ export function requireJobCardExtractionConfig(url: string): {
 } {
   const adapter = requireRecruitingPlatformAdapter(url);
   if (!adapter.isJobCardCollectionPage(url)) {
-    throw new Error("当前页面不属于岗位卡片采集范围。");
+    throw new OperationError("unsupported-page", "当前页面不属于岗位卡片采集范围。", { url });
   }
   return {
     config: adapter.jobCardExtractionConfig,
@@ -102,7 +111,9 @@ export function requireJobDetailExtractionConfigs(url: string): {
 } {
   const adapter = requireRecruitingPlatformAdapter(url);
   if (!adapter.isJobDetailPage(url)) {
-    throw new Error("当前页面不是受支持招聘平台的岗位详情页。");
+    throw new OperationError("unsupported-page", "当前页面不是受支持招聘平台的岗位详情页。", {
+      url,
+    });
   }
   return {
     cardConfig: adapter.jobCardExtractionConfig,
@@ -122,7 +133,11 @@ export function isJobDetailPage(url: string): boolean {
 export function assertPlatformNavigationUrl(platformId: PlatformId, url: string): void {
   const adapter = recruitingPlatformAdapters[platformId];
   if (!adapter.isInNavigationScope(url)) {
-    throw new Error(`URL 必须属于${adapter.label}的 HTTPS 导航范围。`);
+    throw new OperationError(
+      "outside-platform-scope",
+      `URL 必须属于${adapter.label}的 HTTPS 导航范围。`,
+      { platformId, url },
+    );
   }
 }
 

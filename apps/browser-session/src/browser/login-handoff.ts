@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { Page } from "patchright";
 import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { CanceledError, ScopeError, sleep } from "@shajara/host";
@@ -125,8 +126,8 @@ function* tryCaptureCurrentAuthenticationSnapshot(
 }
 
 type LoginCandidateObservation =
-  | { readonly outcome: "preserve"; readonly reason: string }
-  | { readonly outcome: "retry"; readonly reason: string }
+  | { readonly outcome: "preserve"; readonly reason: string; readonly documentReadyState?: string }
+  | { readonly outcome: "retry"; readonly reason: string; readonly documentReadyState?: string }
   | ({ readonly outcome: "ready" } & ObservedLoginHandoffPage);
 
 function* observeLoginCandidate(
@@ -160,8 +161,9 @@ function* observeLoginCandidate(
         page,
       }
     : {
+        documentReadyState: snapshot.documentReadyState,
         outcome: "retry",
-        reason: `no-enabled-login-control (documentReadyState=${snapshot.documentReadyState})`,
+        reason: "no-enabled-login-control",
       };
 }
 
@@ -171,7 +173,10 @@ function* observeLoginHandoffCandidates(
   observePageAccess: ObservePageAccess,
   tabIdFor: (page: Page) => number | undefined,
 ): RiteCoroutine<ObservedLoginHandoffPage> {
-  const diagnostics = new Map<Page, string>();
+  const diagnostics = new Map<
+    Page,
+    { tabId?: number; url: string; reason: string; documentReadyState?: string }
+  >();
   const candidates = new Set(pages);
   for (
     let observation = firstObservation;
@@ -181,10 +186,15 @@ function* observeLoginHandoffCandidates(
     for (const page of candidates) {
       const candidate = yield* observeLoginCandidate(page, adapter, observePageAccess);
       if (candidate.outcome !== "ready") {
-        diagnostics.set(
-          page,
-          `tabId=${String(tabIdFor(page))} ${describePageLocation(page.url())}: ${candidate.reason}`,
-        );
+        const tabId = tabIdFor(page);
+        diagnostics.set(page, {
+          ...(tabId ? { tabId } : {}),
+          reason: candidate.reason,
+          url: describePageLocation(page.url()),
+          ...(candidate.documentReadyState
+            ? { documentReadyState: candidate.documentReadyState }
+            : {}),
+        });
       }
       if (candidate.outcome === "preserve") {
         candidates.delete(page);
@@ -201,9 +211,10 @@ function* observeLoginHandoffCandidates(
       yield* sleep(loginHandoffObservationIntervalMilliseconds);
     }
   }
-  throw new Error(
-    `${adapter.label}登录交接尚未就绪：检查结果：${[...diagnostics.values()].join("；")}。`,
-  );
+  throw new OperationError("login-not-ready", `${adapter.label}登录交接尚未就绪。`, {
+    candidates: [...diagnostics.values()],
+    platformId: adapter.platformId,
+  });
 }
 
 export function* observeLoginHandoffPage(

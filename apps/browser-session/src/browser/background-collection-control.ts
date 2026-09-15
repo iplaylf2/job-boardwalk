@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import { completer } from "@shajara/host";
 import type { RiteCoroutine, RiteRoutine } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
@@ -16,7 +17,11 @@ export class BackgroundCollectionControl {
 
   public *pauseForUserHandoff(): RiteCoroutine<void> {
     if (this.#state !== "active") {
-      throw new Error("浏览器交接已经开始，不能重复准备登录界面。");
+      throw new OperationError(
+        "user-control-active",
+        "浏览器交接已经开始，不能重复准备登录界面。",
+        {},
+      );
     }
     this.#state = "quiescing";
     const quiescence = yield* completer<true>();

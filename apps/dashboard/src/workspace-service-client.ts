@@ -1,4 +1,6 @@
 import {
+  OperationErrorResponse,
+  OperationError,
   JobPostingPage,
   ResearchReport,
   ResearchReportList,
@@ -103,7 +105,10 @@ function* requestWorkspaceChange(path: string, init: RequestInit): RiteCoroutine
       () => null,
     ),
   )) as { error?: unknown } | null;
-  throw new Error(typeof result?.error === "string" ? result.error : "无法提交更改，请稍后再试。");
+  if (OperationErrorResponse.allows(result)) {
+    throw new OperationError(result.error.code, result.error.message, result.error.details);
+  }
+  throw new Error("无法提交更改，请稍后再试。");
 }
 
 export function* readWorkspaceOverview(): RiteCoroutine<WorkspaceOverview> {

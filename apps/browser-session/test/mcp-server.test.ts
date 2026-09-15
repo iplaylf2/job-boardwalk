@@ -1,3 +1,4 @@
+import { OperationError, OperationErrorResponse } from "@job-boardwalk/contracts";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -36,7 +37,12 @@ function fakeBrowserControl(): BrowserControl & {
 
 function* unavailableBrowserCall() {
   yield* [];
-  throw new Error("浏览器尚未就绪。");
+  throw new OperationError("browser-unavailable", "浏览器尚未就绪。");
+}
+
+function* unexpectedBrowserFailure() {
+  yield* [];
+  throw new TypeError("synthetic private driver detail");
 }
 
 function browserToolExecutorControl(): BrowserControl {
@@ -216,8 +222,12 @@ test("contains an unavailable browser as a tool error", async () => {
     await client.callTool({ arguments: {}, name: "browser_snapshot" }),
   );
   expect(result.isError).toBe(true);
-  expect(result.content[firstContentIndex]).toMatchObject({
-    text: "浏览器尚未就绪。",
+  expect(OperationErrorResponse.assert(result.structuredContent)).toMatchObject({
+    error: { code: "browser-unavailable", details: {} },
+  });
+  expect(result.content[firstContentIndex]).toEqual({
+    text: JSON.stringify(result.structuredContent),
+    type: "text",
   });
   await close();
 });
@@ -276,6 +286,12 @@ test.each(invalidBrowserToolCalls)(
 
     const result = CallToolResultSchema.parse(await client.callTool({ arguments: input, name }));
     expect(result.isError).toBe(true);
+    const failure = OperationErrorResponse.assert(result.structuredContent);
+    expect(failure.error.code).toBe("invalid-input");
+    expect(failure.error.details.issues?.[firstContentIndex]).toMatchObject({
+      code: expect.any(String),
+      path: expect.any(Array),
+    });
     expect(result.content[firstContentIndex]).toMatchObject({
       text: expect.stringMatching(expectedField),
     });
@@ -300,8 +316,8 @@ test("contains contextual browser tool rejections", async () => {
     await client.callTool({ arguments: { ref: "e1" }, name: "browser_click" }),
   );
   expect(expiredReferenceResult.isError).toBe(true);
-  expect(expiredReferenceResult.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/不存在或已过期/u),
+  expect(OperationErrorResponse.assert(expiredReferenceResult.structuredContent)).toMatchObject({
+    error: { code: "reference-expired", details: { ref: "e1" } },
   });
 
   await close();
@@ -333,4 +349,36 @@ test("forwards semantic reading intents without driver tuning parameters", async
   } finally {
     await close();
   }
+});
+
+test("distinguishes unknown tools from tool execution failures", async () => {
+  await using serviceScope = createScope();
+  const browserControl = fakeBrowserControl();
+  const { client, close } = await connectedClient(
+    createBrowserSessionMcpServer(browserControl, serviceScope),
+  );
+  await expect(client.callTool({ name: "synthetic_unknown_tool" })).rejects.toMatchObject({
+    code: -32_602,
+    data: { tool: "synthetic_unknown_tool" },
+  });
+  const status = CallToolResultSchema.parse(await client.callTool({ name: "browser_status" }));
+  expect(status.structuredContent).toMatchObject({ result: { available: true } });
+  expect(browserControl.executions).toEqual([]);
+  await close();
+});
+
+test("does not classify an unexpected TypeError as invalid caller input", async () => {
+  await using serviceScope = createScope();
+  const browserControl = fakeBrowserControl();
+  browserControl.executeTool = unexpectedBrowserFailure;
+  const { client, close } = await connectedClient(
+    createBrowserSessionMcpServer(browserControl, serviceScope),
+  );
+  const result = CallToolResultSchema.parse(await client.callTool({ name: "browser_snapshot" }));
+  expect(result.isError).toBe(true);
+  expect(result.structuredContent).toMatchObject({
+    error: { code: "internal-error", details: {} },
+  });
+  expect(JSON.stringify(result)).not.toContain("synthetic private driver detail");
+  await close();
 });
