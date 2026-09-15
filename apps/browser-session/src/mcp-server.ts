@@ -80,7 +80,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description: [
-      "在有界等待内读取可见文本、通用交互元素及适配器补充的详情入口，返回 documentReadyState 和短期有效的 ref。入口可附带 context，提供所属卡片的可见文字，帮助区分同名岗位；将 ref 传给 browser_click 可操作该入口。新快照会使旧引用失效，动作前会重新核对节点及有界内容。",
+      "在有界等待内读取可见文本、通用交互元素及适配器补充的详情入口，返回 documentReadyState 和短期有效的 ref。入口可附带 context，提供所属卡片的可见文字，帮助区分同名岗位；将 ref 传给 browser_click 可操作该入口。引用在全会话范围内失效：任意标签页的新快照、导航或页面控件操作，以及登录准备和跟进同步，都会使旧引用失效。失效后对引用所属的 tabId 重新取快照；动作前会重新核对节点及有界内容。",
       "快照不包含表单当前值和密码框。truncated 表示正文或元素集合被裁剪，或超长链接被省略；名称和 context 另有长度上限，其缩短不设置该标志。读取超时会报告标签页关闭、页面检查超时或已观察到的文档生命周期。platformAccessObservation 非 null 时，结论已加入状态上报；null 表示访问证据尚未分类。",
       "仅在用户明确交还控制权后的第一次快照中设置 userReturnedControl=true，以恢复后台读取并允许后续同步复用该平台标签页。该字段不表示认证成功；普通快照省略它。",
     ].join("\n\n"),
@@ -106,8 +106,11 @@ const browserTools = [
       openWorldHint: true,
       readOnlyHint: false,
     },
-    description:
-      "读取当前岗位详情页的职位描述正文和可识别的标题、公司、地点、薪资等字段，并将观察写入 Workspace Service。若已确认某个工作区来源尚无已采集详情、外部岗位 ID 和详情链接，且当前页面属于该来源，可传入其 sourceId；服务会校验后显式绑定，未传入时不会猜测合并。仅在观察被接受并保留后返回；写入失败或结果为 `stale` 时调用失败。不会导航、滚动或点击，也不会把周边推荐岗位当作当前岗位；同一次读取可能刷新平台访问观察。",
+    description: [
+      "读取当前详情页的主要职位描述和可识别的岗位字段，以 agent 归因写入 Workspace Service。观察被接受并保留后才返回；写入失败或 outcome=stale 时调用失败。description.capturedAt 是采集时间，description.truncated 表示描述被本地长度上限裁剪。本次读取不导航、滚动或点击，排除周边推荐岗位，并可能刷新平台访问观察。",
+      "若已独立确认当前页面属于某个工作区来源，且该来源尚无描述、外部岗位 ID 和详情链接，可传其 sourceId 请求显式绑定。sourceBinding.outcome=bound 时返回绑定的 sourceId；not-requested 表示未传 sourceId，本次未建立与指定无链接卡片的关联。",
+      "描述采集证明岗位内容；本账户是否已投递需另行核实跟进证据，通用投递按钮不能证明尚未投递。",
+    ].join("\n\n"),
     name: "browser_job_description_snapshot",
   }),
   defineBrowserTool({
@@ -128,30 +131,33 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
     description:
-      "点击最近一次 browser_snapshot 返回的有效 ref；显式链接必须属于当前招聘平台的 HTTPS 导航范围。点击期间及后续有界观察窗口内收到的弹窗会成为选中标签页，并返回该页摘要；否则返回原页摘要。此等待不保证页面数据就绪，更晚出现的标签页需通过 browser_tabs 检查。操作后引用失效。",
+      "点击最近一次 browser_snapshot 返回的有效 ref；显式链接必须属于当前招聘平台的 HTTPS 导航范围。点击期间及后续有界观察窗口内收到的弹窗会成为选中标签页，并返回该页摘要；否则返回原页摘要。此等待不保证页面数据就绪，更晚出现的标签页需通过 browser_tabs 检查。操作后全会话引用失效。",
     name: "browser_click",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "使用最近一次 browser_snapshot 的有效 ref 填写文本控件；密码框不进入快照。操作后引用失效。",
+      "使用最近一次 browser_snapshot 的有效 ref 填写文本控件；密码框不进入快照。操作后全会话引用失效。",
     name: "browser_fill",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
-    description: "使用最近一次 browser_snapshot 的有效 ref 在选择控件中选择选项。操作后引用失效。",
+    description:
+      "使用最近一次 browser_snapshot 的有效 ref 在选择控件中选择选项。操作后全会话引用失效。",
     name: "browser_select",
   }),
   defineBrowserTool({
     annotations: { idempotentHint: false, openWorldHint: true, readOnlyHint: true },
-    description:
-      "滚动一屏以继续阅读：direction=down 向下，direction=up 向上。提供 ref 时滚动该元素最近的可滚动祖先；否则滚动所选标签页的文档。ref 决定所属页面；同时提供 tabId 时必须指向同一页。距离取窗口高度或滚动容器与窗口的相交高度。返回目标 scrollTop、窗口 scrollY 的前后值及 moved/unchanged；任一位置变化即为 moved。结果不表示岗位列表是否已穷尽。操作后引用失效。",
+    description: [
+      "滚动一个可见区域以继续阅读：direction=down 向下，up 向上。提供 ref 时选择其最近的可滚动祖先，否则滚动所选标签页的文档；同时提供 tabId 时必须与 ref 属于同一页。文档滚动距离为窗口高度，容器滚动距离为其与窗口相交的高度，且不超过容器自身高度。内层容器到达边界时不会继续滚动父层。",
+      "返回目标类型、targetTagName、目标 scrollTop 和窗口 scrollY 的前后值；任一位置变化即为 outcome=moved，否则为 unchanged。两者均不表示列表已穷尽或新岗位已加载，请重新观察卡片。目标区域不可见时，先用 browser_reveal 显示元素，再取新快照继续滚动。操作后全会话引用失效。",
+    ].join("\n\n"),
     name: "browser_scroll",
   }),
   defineBrowserTool({
     annotations: { idempotentHint: false, openWorldHint: true, readOnlyHint: true },
     description:
-      "将 browser_snapshot 中有效 ref 对应的元素显示到可见区域，返回目标、内层滚动祖先及窗口的前后位置。操作后引用失效。此动作不保证加载新岗位；需要继续阅读时使用 browser_scroll，需要观察岗位出现时使用 browser_job_card_snapshot 的 waitFor=cards-present。",
+      "将 browser_snapshot 中有效 ref 对应的元素显示到可见区域，返回目标、内层滚动祖先及窗口的前后位置。操作后全会话引用失效。此动作不保证加载新岗位；需要继续阅读时使用 browser_scroll，需要观察岗位出现时使用 browser_job_card_snapshot 的 waitFor=cards-present。",
     name: "browser_reveal",
   }),
 ] as const satisfies readonly Tool[];

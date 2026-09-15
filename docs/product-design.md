@@ -324,9 +324,12 @@ platforms. Report progress counts explicit recommendations toward each platform 
 observed-card counts nor pending judgments establish qualification. Report completion can retain a
 shortfall and a next research step. These judgments do not create recruiting engagements.
 
-Historical recommendation checks query retained report entries, including expired reports when
-explicitly requested. Report replacement and deletion replace or remove those entries as well;
-they are not an immutable action log. Markdown mentions never become recommendations implicitly.
+Historical recommendation checks use retained source judgments and relevant report bodies,
+including expired reports when explicitly requested. Reports may contain recommendations that have
+not been organized into structured entries, so an entry query alone cannot establish that a source
+was never recommended. The author explicitly records judgments after confirming their sources and
+basis; Markdown mentions never become recommendations implicitly. Replacement and deletion replace
+or remove the report's entries as well, so reports are not an immutable action log.
 
 Dashboard presents report conclusions and platform progress as a readable document, available
 independently of the conversation or producer that created it. Report content cannot embed pages

@@ -35,12 +35,17 @@ const jobLibraryResourceDescription =
   "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
 const jobLibraryToolDescription =
   "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，也可读取全部跟进岗位。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 进一步限定为缺少平台岗位 ID 和详情页链接的暂无描述岗位。结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
-const researchReportListDescription =
-  "读取研究报告目录和平台目标进度，默认排除过期报告。可按 sourceId 或 disposition 筛选；同时提供时，两者必须匹配同一条来源结论。查询某来源的留存推荐记录时，传 sourceId、disposition=recommended 和 includeExpired=true，以包含过期报告。报告被替换或删除后，旧结论不再保留。";
+const researchReportListDescription = [
+  "读取报告目录、entryCount（来源结论条数）和平台目标进度，默认排除过期报告。sourceId 和 disposition 只筛选结构化结论，同时提供时须匹配同一条结论。查询某来源的留存推荐时，传 sourceId、disposition=recommended、includeExpired=true。",
+  "筛选不搜索正文。entryCount=0 的报告仍可能在正文中推荐岗位；历史核查还需列出 includeExpired=true 且不带来源或结论筛选的目录，读取相关报告正文。条数大于零也不表示正文已全部整理。",
+].join("\n\n");
 const researchReportDetailDescription =
-  "按 ID 读取研究报告，包括正文、来源结论及其依据和判断时间、平台目标与进度。默认排除过期报告；历史核验可传 includeExpired=true。";
-const saveResearchReportDescription =
-  "保存一份 Markdown 研究报告。省略 id 时创建；提供 id 时完整替换对应报告，包括正文、entries 和 targets。可设置过期时间。entries 必须记录 sourceId、recommended/pending/excluded 结论、basis 与 assessedAt；没有结构化结论时传空数组。targets 记录各平台目标数量与可选 nextStep，没有目标时传空数组。每个平台的进度分别统计 recommended、pending 和 excluded 来源，只有 recommended 计入目标完成数量。complete 表示报告撰写完成，仍可有目标缺口。";
+  "按 ID 读取报告正文、来源结论及其依据和判断时间、平台目标与进度。默认排除过期报告；历史核查可传 includeExpired=true。核实正文中的推荐及对应 sourceId 后，可通过 save_research_report 补录来源结论。";
+const saveResearchReportDescription = [
+  "保存 Markdown 研究报告：省略 id 时创建，提供 id 时完整替换正文、entries、targets 及其他报告字段。可设置 expiresAt。替换会覆盖旧结论，报告不保留修订历史；补录时也须提供完整报告。",
+  "entries 每项包含 sourceId、disposition（recommended/pending/excluded）、basis 和 assessedAt；没有结构化结论时传空数组。正文提及或链接不会自动生成结论。targets 每项包含 platformId、目标 count 和可选 nextStep；没有目标时传空数组。",
+  "进度按平台分别统计来源结论，只有 recommended 计入目标完成数量。state=complete 表示撰写完成，可与目标缺口并存。",
+].join("\n\n");
 const toolNames = {
   listResearchReports: "list_research_reports",
   readJobLibrary: "read_job_library",

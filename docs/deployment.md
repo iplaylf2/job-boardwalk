@@ -100,6 +100,26 @@ and the browser-service panel reports a ready browser. Browser Session's HTTP re
 while its browser is unavailable; its [health documentation](../apps/browser-session/README.md#health-and-runtime-diagnostics)
 explains runtime status.
 
+### Browser Session exit diagnosis
+
+If Browser Session's health endpoint is unreachable, inspect the host launcher and its logs.
+`browser-session:dev` runs a file watcher; the watcher can survive after its service child exits.
+For a run without the watcher, use `pnpm exec moon run browser-session:start` and redirect standard
+output and standard error to a chosen local log file. Browser Session's
+[diagnostics contract](../apps/browser-session/README.md#health-and-runtime-diagnostics) describes
+its output. Forced termination also requires the launcher's exit status and operating-system logs.
+
+For desktop runs, [Desktop Manager](../apps/desktop-manager/README.md#product-behavior) displays
+service availability and the service log path. Dashboard's independent health check remains
+separate from its access to saved reports. A failed health request establishes neither an exit
+nor its cause.
+
+Resolve the host failure and restore Browser Session through its launcher. Follow the
+[browser handoff](product-design.md#browser-handoff) and
+[research recovery](product-design.md#reliable-browser-research) rules before resuming page input.
+
+### Update and stop
+
 Rebuild after a source or dependency change:
 
 ```sh

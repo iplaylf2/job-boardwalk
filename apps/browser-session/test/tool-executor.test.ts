@@ -110,6 +110,7 @@ function fakeActionPage(element: { href?: string; name: string; role: string }) 
     clickCount: 0,
     filledValues: [] as string[],
     selectedValues: [] as string[],
+    signature,
     url: "https://www.zhipin.com/",
   };
   const locator = {
@@ -135,7 +136,7 @@ function fakeActionPage(element: { href?: string; name: string; role: string }) 
         {
           ...element,
           disabled: false,
-          signature,
+          signature: state.signature,
           sourceIndex: firstLocatorIndex,
         },
       ],
@@ -245,7 +246,7 @@ test("forwards explicit job-engagement synchronization and expires page referenc
     }),
   );
   expect(requests).toEqual([{ engagement: "interested", platformId: "boss" }]);
-  expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(/不存在/u);
+  expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(/已过期/u);
 });
 
 test("clicks a same-platform link through its captured element", async () => {
@@ -389,4 +390,38 @@ test("scrolls the observed element's region and expires its reference", async ()
   await expect(
     run(() => executor.execute("browser_scroll", { direction: "up", ref: "e1" })),
   ).rejects.toThrow();
+});
+
+test("identifies the owning tab and a snapshot in another tab that expired its refs", async () => {
+  const original = fakeActionPage({ name: "合成岗位甲", role: "link" });
+  const other = fakeActionPage({ name: "合成岗位乙", role: "link" });
+  other.state.url = "https://www.yupao.com/zhaogong/";
+  const context = fakeContext(original.page);
+  Object.assign(context, { pages: () => [original.page, other.page] });
+  const executor = browserToolExecutor(context);
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", { tabId: 1 }));
+  await scope.run(() => executor.execute("browser_snapshot", { tabId: 2 }));
+  expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(
+    /所属 tabId=1，失效原因：browser_snapshot（tabId=2）/u,
+  );
+  expect(original.state.clickCount).toBe(firstLocatorIndex);
+});
+
+test("reports changed page evidence with the reference's tab instead of a generic expiry", async () => {
+  const original = fakeActionPage({ name: "合成岗位甲", role: "link" });
+  const executor = browserToolExecutor(fakeContext(original.page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  original.state.signature = "replacement-node:合成岗位甲";
+  const failure = await scope.run(function* captureActionFailure() {
+    try {
+      return yield* executor.execute("browser_click", { ref: "e1" });
+    } catch (error) {
+      return error;
+    }
+  });
+  expect(failure).toBeInstanceOf(Error);
+  expect((failure as Error).message).toMatch(/节点、URL 或有界内容已经变化（tabId=1）/u);
+  expect(original.state.clickCount).toBe(firstLocatorIndex);
 });

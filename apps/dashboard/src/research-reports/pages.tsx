@@ -30,7 +30,7 @@ function ReportStateBadge(props: { state: ResearchReportState }): JSX.Element {
   const stateClass = props.state === "complete" ? styles["complete"] : styles["draft"];
   return (
     <span class={`${styles["state"]} ${stateClass}`}>
-      {props.state === "complete" ? "已完成" : "整理中"}
+      {props.state === "complete" ? "撰写完成" : "草稿"}
     </span>
   );
 }
@@ -54,6 +54,16 @@ function ReportProgress(props: { progress: ResearchReportPlatformProgress[] }): 
   );
 }
 
+function ReportJudgments(props: { entryCount: number }): JSX.Element {
+  return (
+    <p>
+      {props.entryCount === emptyCollectionLength
+        ? "尚未记录逐项岗位结论；请查阅正文中的推荐与依据。"
+        : `已记录 ${props.entryCount} 条岗位结论。`}
+    </p>
+  );
+}
+
 function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
   return (
     <article class={styles["listItem"]}>
@@ -62,12 +72,13 @@ function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
         <h2>
           <a href={`/reports/${String(props.report.id)}`}>{props.report.title}</a>
         </h2>
+        <ReportJudgments entryCount={props.report.entryCount} />
         <ReportProgress progress={props.report.progress} />
       </div>
       <div class={styles["listMeta"]}>
         <span>更新于 {formatTimestamp(props.report.updatedAt)}</span>
         <Show when={props.report.expiresAt}>
-          {(expiresAt) => <span>可见至 {formatTimestamp(expiresAt())}</span>}
+          {(expiresAt) => <span>到期于 {formatTimestamp(expiresAt())}</span>}
         </Show>
       </div>
     </article>
@@ -113,10 +124,11 @@ function ResearchReportDocument(props: { report: ResearchReport }): JSX.Element 
         <p>
           更新于 {formatTimestamp(props.report.updatedAt)}
           <Show when={props.report.expiresAt}>
-            {(expiresAt) => <> · 可见至 {formatTimestamp(expiresAt())}</>}
+            {(expiresAt) => <> · 到期于 {formatTimestamp(expiresAt())}</>}
           </Show>
         </p>
       </header>
+      <ReportJudgments entryCount={props.report.entryCount} />
       <ReportProgress progress={props.report.progress} />
       <ResearchReportMarkdownView markdown={props.report.markdown} />
     </article>

@@ -249,6 +249,7 @@ export class ResearchReportRepository {
       createdAt: row.createdAt,
       ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
       entries: rows.map(({ platformId: _platformId, ...entry }) => entry),
+      entryCount: rows.length,
       id: row.id,
       markdown: row.markdown,
       progress: derivePlatformProgress(targets, rows),

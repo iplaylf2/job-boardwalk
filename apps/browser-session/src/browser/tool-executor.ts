@@ -57,6 +57,7 @@ export interface BrowserToolExecutorCoordination {
 export class BrowserToolExecutor {
   #nextElementReference = firstElementReference;
   readonly #elementReferences = new Map<string, ElementReference>();
+  readonly #expiredReferenceDiagnostics = new Map<string, string>();
   readonly #collectionControl: BackgroundCollectionControl;
   readonly #observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null;
   readonly #recordReturnedControl: (platformId: PlatformId) => void;
@@ -110,7 +111,7 @@ export class BrowserToolExecutor {
         return yield* this.#jobDescriptionSnapshot(input);
       }
       case "browser_sync_job_engagement": {
-        this.#clearElementReferences();
+        this.#clearElementReferences("browser_sync_job_engagement");
         const platformId = input["platformId"] as PlatformId;
         const engagement = input["engagement"] as PlatformJobEngagementKind;
         return yield* this.#synchronizeJobEngagement(platformId, engagement);
@@ -154,7 +155,7 @@ export class BrowserToolExecutor {
       }
       return yield* readNavigationPageSummary(popupPage ?? sourcePage);
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences(`browser_click（tabId=${reference.tabId}）`);
     }
   }
 
@@ -172,7 +173,7 @@ export class BrowserToolExecutor {
       this.#collectionControl.cancelUserHandoff();
       throw error;
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences("browser_prepare_login");
     }
   }
 
@@ -182,7 +183,7 @@ export class BrowserToolExecutor {
       yield* until(() => reference.locator.fill(params["value"] as string));
       return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences(`browser_fill（tabId=${reference.tabId}）`);
     }
   }
 
@@ -192,7 +193,7 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolvePlatformPage(platformId, parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     yield* until(() => page.bringToFront());
-    this.#clearElementReferences();
+    this.#clearElementReferences(`browser_navigate（tabId=${tabId}）`);
     return yield* navigatePage(page, url);
   }
 
@@ -200,7 +201,10 @@ export class BrowserToolExecutor {
     const ref = params["ref"] as string;
     const reference = this.#elementReferences.get(ref);
     if (!reference) {
-      throw new Error("元素引用不存在或已过期；请重新调用 browser_snapshot。");
+      throw new Error(
+        this.#expiredReferenceDiagnostics.get(ref) ??
+          "元素引用不存在或已过期；任意标签页的新快照、导航或页面动作均会使全会话引用失效。请在目标 tabId 重新调用 browser_snapshot。",
+      );
     }
     return reference;
   }
@@ -216,8 +220,10 @@ export class BrowserToolExecutor {
       (candidate) => candidate.signature === reference.signature,
     );
     if (!element) {
-      this.#clearElementReferences();
-      throw new Error("元素引用对应的页面内容已经变化；请重新调用 browser_snapshot 后再操作。");
+      this.#clearElementReferences(`节点或有界内容变化（tabId=${reference.tabId}）`);
+      throw new Error(
+        `元素引用对应的节点、URL 或有界内容已经变化（tabId=${reference.tabId}）；请对该 tabId 重新调用 browser_snapshot 后再操作。`,
+      );
     }
     return { ...reference, locator: element.locator };
   }
@@ -246,7 +252,7 @@ export class BrowserToolExecutor {
       const summary = yield* readNavigationPageSummary(page);
       return { ...summary, scroll };
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences(`browser_scroll（tabId=${tabId}）`);
     }
   }
 
@@ -262,17 +268,22 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
+    const sourceId = params["sourceId"] as number | undefined;
     const writeResult = yield* this.#writeJobDescriptionObservation(
       observation,
       explicitDescriptionAttribution,
-      params["sourceId"] as number | undefined,
+      sourceId,
     );
     if (writeResult.outcome === "stale") {
       throw new Error(
         "Workspace Service 未保留本次岗位详情观察：已有更新的同类观察，或同一时刻已保留不同观察。",
       );
     }
-    return { ...observation, tabId };
+    return {
+      ...observation,
+      sourceBinding: sourceId ? { outcome: "bound", sourceId } : { outcome: "not-requested" },
+      tabId,
+    };
   }
 
   *#reveal(params: Record<string, unknown>): RiteCoroutine<unknown> {
@@ -286,7 +297,7 @@ export class BrowserToolExecutor {
       );
       return { ...summary, scroll: { after, before, mode: "reveal" } };
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences(`browser_reveal（tabId=${reference.tabId}）`);
     }
   }
 
@@ -296,7 +307,7 @@ export class BrowserToolExecutor {
       yield* until(() => reference.locator.selectOption(params["value"] as string));
       return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences(`browser_select（tabId=${reference.tabId}）`);
     }
   }
 
@@ -304,7 +315,7 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const textLimit = snapshotTextLimit;
-    this.#clearElementReferences();
+    this.#clearElementReferences(`browser_snapshot（tabId=${tabId}）`);
     const settleMilliseconds =
       findRecruitingPlatformAdapter(page.url())?.snapshotSettleMilliseconds ?? zero;
     if (settleMilliseconds > zero) {
@@ -340,7 +351,17 @@ export class BrowserToolExecutor {
     };
   }
 
-  #clearElementReferences(): void {
-    this.#elementReferences.clear();
+  #clearElementReferences(reason: string): void {
+    if (this.#elementReferences.size > zero) {
+      // Keep diagnostics for only the last expired snapshot; never retain actionable signatures.
+      this.#expiredReferenceDiagnostics.clear();
+      for (const [ref, { tabId }] of this.#elementReferences) {
+        this.#expiredReferenceDiagnostics.set(
+          ref,
+          `元素引用已过期：所属 tabId=${tabId}，失效原因：${reason}。引用在全会话失效；请对 tabId=${tabId} 重新调用 browser_snapshot。`,
+        );
+      }
+      this.#elementReferences.clear();
+    }
   }
 }

@@ -50,6 +50,7 @@ export const ResearchReportFilter = contract({
 export type ResearchReportFilter = typeof ResearchReportFilter.infer;
 
 export const ResearchReportSummary = contract({
+  entryCount: nonNegativeInteger,
   createdAt: normalizedTimestamp,
   "expiresAt?": normalizedTimestamp,
   id: positiveInteger,

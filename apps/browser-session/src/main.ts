@@ -1,4 +1,5 @@
 import process from "node:process";
+import { inspect } from "node:util";
 
 import { parseBrowserSessionArguments } from "./process-arguments.js";
 import { runBrowserSessionProcess } from "./runtime.js";
@@ -6,14 +7,23 @@ import { runBrowserSessionProcess } from "./runtime.js";
 const userArgumentStartIndex = 2;
 
 function installTerminationSignalHandlers(controller: AbortController): () => void {
-  function requestShutdown(): void {
+  function requestShutdown(signal: string): void {
+    process.stderr.write(
+      `[${new Date().toISOString()}] [Browser Session] Shutdown requested: ${signal}\n`,
+    );
     controller.abort();
   }
-  process.once("SIGINT", requestShutdown);
-  process.once("SIGTERM", requestShutdown);
+  function onInterrupt(): void {
+    requestShutdown("SIGINT");
+  }
+  function onTerminate(): void {
+    requestShutdown("SIGTERM");
+  }
+  process.once("SIGINT", onInterrupt);
+  process.once("SIGTERM", onTerminate);
   return () => {
-    process.removeListener("SIGINT", requestShutdown);
-    process.removeListener("SIGTERM", requestShutdown);
+    process.removeListener("SIGINT", onInterrupt);
+    process.removeListener("SIGTERM", onTerminate);
   };
 }
 
@@ -28,6 +38,10 @@ export const serviceCompletion = runBrowserSessionProcess({
 
 // oxlint-disable-next-line unicorn/prefer-top-level-await -- Preserve source-run error reporting without replacing the exported promise.
 serviceCompletion.catch((error: unknown) => {
-  process.stderr.write(`[Browser Session] ${String(error)}\n`);
+  // Disposal may wrap the original failure in non-enumerable SuppressedError fields.
+  const detail = inspect(error, { colors: false, depth: null, showHidden: true });
+  process.stderr.write(
+    `[${new Date().toISOString()}] [Browser Session] Service failed: ${detail}\n`,
+  );
   process.exitCode = 1;
 });

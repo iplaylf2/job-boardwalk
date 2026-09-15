@@ -68,8 +68,12 @@ test("submits the explicit job-description observation before returning it", asy
 
   const result = (await scope.run(() =>
     executor.execute("browser_job_description_snapshot", { sourceId: 71 }),
-  )) as JobDescriptionObservation & { tabId: number };
-  const { tabId: _tabId, ...returnedObservation } = result;
+  )) as JobDescriptionObservation & {
+    sourceBinding: { outcome: string; sourceId: number };
+    tabId: number;
+  };
+  const { sourceBinding, tabId: _tabId, ...returnedObservation } = result;
+  expect(sourceBinding).toEqual({ outcome: "bound", sourceId: 71 });
 
   expect(submitted).toEqual([
     {
@@ -107,4 +111,13 @@ test("fails when Workspace Service accepts but does not apply a stale observatio
   await expect(
     run(() => executor.execute("browser_job_description_snapshot", {})),
   ).rejects.toThrow();
+});
+
+test("makes an unrequested list-source binding explicit after a retained detail read", async () => {
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation() {
+    yield* [];
+    return { outcome: "created" };
+  });
+  const result = await run(() => executor.execute("browser_job_description_snapshot", {}));
+  expect(result).toMatchObject({ sourceBinding: { outcome: "not-requested" } });
 });

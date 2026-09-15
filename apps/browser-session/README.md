@@ -65,13 +65,24 @@ the references returned by `browser_snapshot`, as described in
 `browser_job_description_snapshot` reads the main posting description and recognizable job facts
 from a supported detail page, excluding surrounding recommendations. It submits the observation
 to Workspace Service with agent attribution and returns only after the service accepts and
-retains it. A rejected write or a `stale` outcome fails the call. Its `truncated` flag describes
-clipping at the local description-text limit.
+retains it. A rejected write or a `stale` outcome fails the call. `description.capturedAt` records
+the capture time, and `description.truncated` reports clipping at the local description-text limit.
 
-When the agent has independently confirmed that the current page belongs to a tracked source
-with no retained description, external job ID, or job URL, it may pass that workspace `sourceId`
-for an explicit bind. Workspace Service validates the source before attaching the stable
-detail-page identity. Source binding requires this explicit input.
+To bind a previously tracked source without a detail identity, first confirm that the current
+page belongs to that source. Pass its workspace `sourceId` only when the source has no retained
+description, external job ID, or job URL. Workspace Service validates the source before attaching
+the detail-page identity; its [source-binding rules](../workspace-service/README.md#job-library)
+define the required matches.
+
+The result includes `sourceBinding`:
+
+- `outcome=bound` includes the explicitly bound `sourceId`.
+- `outcome=not-requested` means no `sourceId` was supplied. The description is retained, but this
+  call does not establish its association with a previously tracked linkless card.
+
+Description capture establishes posting content. Account engagement requires separate
+[platform evidence](../../docs/product-design.md#engagement-tracking); a generic apply control
+alone does not establish whether the current account has applied.
 
 ### Passive collection and persistence
 
@@ -205,6 +216,12 @@ platform-access assessments come from the page evidence described below. Lifecyc
 detailed local errors carry UTC timestamps. A long-running phase can identify where investigation
 should begin without asserting its cause.
 
+The process writes operational output to standard streams. Shutdown requests record the signal and
+UTC time; fatal service errors include nested failures and available stacks, including errors wrapped
+during resource cleanup. The launcher owns log retention and process exit status. See
+[exit diagnosis](../../docs/deployment.md#browser-session-exit-diagnosis) for host-side checks when
+HTTP health is unavailable.
+
 ### Access assessment
 
 Adapters classify only the authentication evidence their page definitions recognize. Their
@@ -293,6 +310,8 @@ canonical origin, navigation domain, and absolute entry and login URLs. Adapters
 destinations and the HTTPS navigation boundary from that one contract. Page actions remain
 platform-independent.
 
+#### Snapshots and references
+
 `browser_snapshot` returns rendered page text and references to visible interactive elements.
 Names use explicit labels when present and otherwise rendered text, excluding hidden child
 content. Snapshots omit form-control values and password controls. Names are limited to 300
@@ -305,27 +324,42 @@ from the owning card. Use that context to distinguish same-name postings and pas
 `ref` to `browser_click`. References belong to page control and are never persisted job
 identities.
 
-Before using a reference, Browser Session repeats the bounded snapshot and matches the original
-DOM node, URL, captured attributes, and bounded element text and card context. Replaced nodes
-fail validation even when their names are identical. This comparison covers the captured
+References expire across the whole session: a new `browser_snapshot`, `browser_navigate`, or
+page-control action in one tab expires references from the previous snapshot, even if it belongs
+to another tab. Login preparation and engagement synchronization also expire references. Reference
+numbers are not reused within an executor. When a reference expires, take a new snapshot of its
+owning `tabId` before acting. Diagnostics for the most recently expired snapshot identify that tab
+and the invalidating operation; older or unknown references receive the general expiry rule.
+
+Before acting on a valid reference, Browser Session repeats the bounded snapshot and matches the
+original DOM node, URL, captured attributes, and bounded element text and card context. Replaced
+nodes fail validation even when their names are identical. This comparison covers the captured
 signature; it does not detect every change elsewhere in the page or beyond the text limits.
-Reference numbers are not reused within an executor. A new `browser_snapshot`, navigation, or
-page action expires previous references.
+
+#### Reading with scroll and reveal
 
 `browser_reveal` brings an observed `ref` into view and returns before/after evidence for the
 element, its scrollable ancestors, and the window. Ancestors are identified by depth and tag name
 in each observation, not as durable identities.
 
-`browser_scroll` expresses one vertical reading step: `direction=down` reveals content below and
-`up` returns toward content above. With a `ref`, it selects that element's nearest scrollable
-ancestor; otherwise it targets the selected tab's document. An explicit `tabId` must agree with
-the reference's owning tab. The distance comes from the window height or the intersection of the
-container's rectangle with the window; it does not account for occlusion by other elements. The
-service scrolls that target directly. An inner container at its boundary stays the target; the
-action does not continue by scrolling its parent. The result identifies the target, measured
-viewport height, before/after target offsets (`scrollTop`) and window positions (`scrollY`), and
-`moved` or `unchanged`. Movement in either measurement produces `moved`. Neither outcome establishes
-result exhaustion or newly loaded jobs. Reobserve the cards to assess research progress.
+`browser_scroll` moves one measured viewport vertically: `direction=down` reads below and `up`
+returns above. With a `ref`, it selects the element's nearest scrollable ancestor; otherwise it
+scrolls the selected tab's document. An explicit `tabId` must agree with the reference's owning tab.
+Body overflow propagated to the viewport is treated as document scrolling. An independent body
+scroll container remains a container; reveal evidence uses the same distinction.
+
+For document scrolling, the distance is the window height. For a container, it is the visible
+intersection with the window, capped at the container's client height. This measurement does not
+account for occlusion by other elements. An inner container at its boundary stays the target; the
+action does not continue by scrolling its parent. If the region is outside the window, use
+`browser_reveal` to bring the observed element into view before taking a fresh snapshot and scrolling.
+
+The result reports the target type and `targetTagName`, measured viewport height, and before/after
+target offsets (`scrollTop`) and window positions (`scrollY`). Movement in either measurement yields
+`outcome=moved`; otherwise the outcome is `unchanged`. Reobserve the cards to assess research
+progress: neither outcome establishes result exhaustion or newly loaded jobs.
+
+#### Clicking and editing controls
 
 An explicit link outside the current tab's platform scope is rejected before clicking. Empty
 `javascript:` links, `javascript:;`, and `javascript:void(0)` (with optional whitespace and trailing

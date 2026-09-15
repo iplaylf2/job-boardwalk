@@ -203,7 +203,11 @@ test("retains expired recommendation evidence for explicit history checks withou
   await using serviceScope = createScope();
   const app = createWorkspaceServiceHttpApp({ repository, serviceScope });
   try {
-    repository.saveResearchReport({ ...command, markdown: `仅提及来源 ${String(boss.id)}` });
+    const unstructured = repository.saveResearchReport({
+      ...command,
+      markdown: `仅提及来源 ${String(boss.id)}`,
+    });
+    expect(unstructured).toMatchObject({ entries: [], entryCount: 0 });
     const expired = repository.saveResearchReport({
       ...command,
       entries: [reportEntry(boss.id, "recommended")],
@@ -212,6 +216,14 @@ test("retains expired recommendation evidence for explicit history checks withou
     if (!expired) {
       throw new Error("合成报告未保存");
     }
+    const directoryResponse = await app.request("/api/reports?includeExpired=true");
+    const directory = ResearchReportList.assert(await directoryResponse.json());
+    expect(directory.reports).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ entryCount: 0, id: unstructured?.id }),
+        expect.objectContaining({ entryCount: 1, id: expired.id }),
+      ]),
+    );
     expect(
       repository.listResearchReports({ disposition: "recommended", sourceId: boss.id }),
     ).toEqual([]);

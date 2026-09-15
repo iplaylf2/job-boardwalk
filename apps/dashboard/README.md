@@ -84,7 +84,13 @@ future browser features share page coordination and user handoff.
 The report list and detail page show each platform's recommendation count against its target,
 remaining shortfall, pending and excluded counts, and next research step when present.
 Workspace Service supplies these counts from structured source judgments. A completed report
-may still have unmet targets; completion describes the report's authoring state.
+may still have unmet targets: the state badge describes authoring as draft or finished, while the
+progress display shows the target shortfall.
+
+List and detail views also show the number of explicit source judgments. Reports with none direct
+readers to the body's recommendations and supporting evidence. These counts describe the recorded
+entries; [Workspace Service](../workspace-service/README.md#historical-recommendation-checks) owns
+historical query and report-replacement semantics.
 
 Dashboard renders each report as a document. It supports headings, prose, lists, tables, block
 quotes, code, section anchors, Dashboard-local links, and HTTPS source links. Raw HTML remains text,

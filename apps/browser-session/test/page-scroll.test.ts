@@ -183,3 +183,63 @@ test("scrolls the document explicitly and runs without host-side callback depend
   expect(root.scrollTop).toBe(viewportHeight);
   expect(list.scrollTop).toBe(noScroll);
 });
+
+function bodyReadingPage(rootOverflow: string, contain = "none") {
+  const { element, list: body, root } = readingPage(listHeight, viewportHeight);
+  root.tagName = "HTML";
+  body.tagName = "BODY";
+  Object.assign(element.ownerDocument, {
+    body,
+    documentElement: root,
+  });
+  const view = element.ownerDocument.defaultView;
+  if (!view) {
+    throw new Error("合成页面缺少窗口");
+  }
+  Object.assign(view, {
+    getComputedStyle: (node: unknown) => ({
+      contain: node === body ? contain : "none",
+      overflowX: node === root ? rootOverflow : "auto",
+      overflowY: node === root ? rootOverflow : "auto",
+    }),
+  });
+  Object.assign(element, {
+    getBoundingClientRect: () => ({ bottom: targetBottom, top: targetTop }),
+  });
+  return { body, element, root };
+}
+
+test("scrolls the document when body overflow belongs to the viewport", () => {
+  const { body, element } = bodyReadingPage("visible");
+  // The propagated body has overflow dimensions but no independent scrolling box.
+  body.scrollBy = () => {
+    // Propagated body overflow does not expose a scrolling box.
+  };
+  const result = scrollOneViewport(element, { direction: "down", target: "scrollable-ancestor" });
+  expect(result).toMatchObject({
+    after: { scrollTop: viewportHeight, scrollY: viewportHeight },
+    outcome: "moved",
+    target: "document",
+    targetTagName: "html",
+  });
+  expect(body.scrollTop).toBe(noScroll);
+  expect(captureElementScrollContext(element).scrollableAncestors).toEqual([]);
+});
+
+test.each([
+  { contain: "none", rootOverflow: "auto" },
+  { contain: "layout", rootOverflow: "visible" },
+])("preserves an independent body scroll container: %j", ({ contain, rootOverflow }) => {
+  const { element, root } = bodyReadingPage(rootOverflow, contain);
+  const result = scrollOneViewport(element, { direction: "down", target: "scrollable-ancestor" });
+  expect(result).toMatchObject({
+    after: { scrollTop: listHeight, scrollY: 0 },
+    outcome: "moved",
+    target: "container",
+    targetTagName: "body",
+  });
+  expect(root.scrollTop).toBe(noScroll);
+  expect(captureElementScrollContext(element).scrollableAncestors).toMatchObject([
+    { scrollTop: listHeight, tagName: "body" },
+  ]);
+});

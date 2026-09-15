@@ -294,33 +294,49 @@ workspace change with its user, agent, or system attribution. Replacement change
 entries, and targets in one transaction; this is a retained-report model, not an immutable history
 of earlier revisions.
 
-Each entry associates one workspace `sourceId` with a `recommended`, `pending`, or `excluded`
-judgment, a nonempty `basis`, and the judgment time `assessedAt`. The caller owns the judgment and the
-evidence behind it. The service rejects missing sources and repeated source IDs within a report.
-A mention or link in Markdown creates no entry. Same-platform alternate links use the workspace's
-existing source-identity rules; no additional company-name or text-similarity exclusion is inferred.
-
-Each target supplies a `platformId`, positive integer `count`, and optional `nextStep`. A platform
-can have only one target per report.
-Report summaries and details return `progress` for those targets, with `recommended`, `pending`,
-and `excluded` source counts. The `remaining` shortfall is the target minus recommended entries,
-with a minimum of zero. Cross-platform sources count independently even when they belong to one
-normalized job. Pending and excluded entries do not satisfy a target.
-`complete` describes the report's authoring state and may coexist with a remaining shortfall.
-
-`GET /api/reports` and MCP `list_research_reports` accept `sourceId` and `disposition` filters.
-Both filters must match the same entry. Reads exclude expired reports by default; set
-`sourceId`, `disposition=recommended`, and `includeExpired=true` to find retained recommendations
-for a source, including expired reports. Use `includeExpired=true` on `GET /api/reports/:id`
-or MCP `read_research_report` to inspect an expired report's retained basis. Deleting a report
-removes its entries and targets.
-
 HTTP and MCP validate and normalize report commands before passing them to the typed repository.
 The [report repository](src/persistence/research-report-repository.ts) owns persistence, source
 existence and uniqueness checks, query semantics, and derived progress. Markdown is stored as
 authored; [Dashboard](../dashboard/README.md#report-rendering) owns rendering.
 [Product design](../../docs/product-design.md#research-reports) defines the cross-application
 report lifecycle.
+
+#### Source judgments
+
+Each entry associates one workspace `sourceId` with a `recommended`, `pending`, or `excluded`
+judgment, a nonempty `basis`, and the judgment time `assessedAt`. The caller owns the judgment and the
+evidence behind it. The service rejects missing sources and repeated source IDs within a report.
+A mention or link in Markdown creates no entry. Same-platform alternate links use the workspace's
+existing source-identity rules; no additional company-name or text-similarity exclusion is inferred.
+
+#### Platform targets and progress
+
+Each target supplies a `platformId`, positive integer `count`, and optional `nextStep`. A platform
+can have only one target per report.
+
+Report summaries and details return `progress` for those targets, with `recommended`, `pending`,
+and `excluded` source counts. The `remaining` shortfall is the target minus recommended entries,
+with a minimum of zero. Cross-platform sources count independently even when they belong to one
+normalized job. Pending and excluded entries do not satisfy a target.
+`complete` describes the report's authoring state and may coexist with a remaining shortfall.
+
+#### Historical recommendation checks
+
+`GET /api/reports` and MCP `list_research_reports` filter structured entries by `sourceId` and
+`disposition`. When both are supplied, they must match the same entry. To find a source's retained
+recommendations, use `sourceId`, `disposition=recommended`, and `includeExpired=true`. Report reads
+otherwise exclude expired reports. To inspect an expired report's body and basis, also pass
+`includeExpired=true` to `GET /api/reports/:id` or MCP `read_research_report`.
+
+These filters do not search Markdown. Report summaries and details expose `entryCount`, the number
+of retained source judgments. Zero means that recommendations, if present in the body, have no
+structured entries. A positive count does not establish that every body judgment has been recorded.
+For a historical check, also list reports with `includeExpired=true` and no source or disposition
+filter, then read relevant bodies.
+
+After confirming a body's judgments and their workspace sources, use the existing report command
+to replace the report with explicit entries. Replacement supplies the complete body, entries, and
+targets together. It replaces earlier judgments; deletion removes them.
 
 ## Persistence
 
