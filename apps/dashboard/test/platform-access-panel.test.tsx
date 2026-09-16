@@ -25,7 +25,7 @@ test("dates authentication evidence by its latest confirmation", () => {
   ));
 
   expect(html).toContain('datetime="2026-08-17T02:05:00.000Z"');
-  expect(html).toContain("https://www.zhipin.com/web/geek/jobs");
+  expect(html).not.toContain("https://www.zhipin.com/web/geek/jobs");
 });
 
 test("presents the latest recurrence of an unresolved interruption", () => {
