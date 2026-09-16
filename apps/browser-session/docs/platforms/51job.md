@@ -18,6 +18,11 @@ Detail reads select the main posting description, title, and benefits independen
 surrounding recommendations. Salary, experience, and education patterns read only the posting
 header, description, and tags; absent facts remain absent.
 
+Location extraction reads a line labeled “工作地址” or “上班地址” within `.job-detail` and retains
+its text in the description observation alongside the detail URL and capture time. It does not
+use search-city parameters or URL path segments. Text outside that region and unrecognized
+address layouts do not supply a location.
+
 ## Engagement interpretation and evidence
 
 | Engagement    | Platform category |
@@ -45,12 +50,20 @@ resume-center control set. Either yields `authenticated`. A URL alone or unnamed
 passive collection remain unclassified. Login and account controls remain subject to the shared
 user-handoff workflow.
 
+A standalone “Access Verification” heading together with “Please slide to verify” or “please
+slide to complete the verification process” records `verification-required`, without changing
+authentication state. The interruption takes precedence over account-header evidence and pauses
+the browser through the shared handoff control. A title or incidental mention of verification
+alone remains unclassified.
+
 ## Validation coverage
 
 Nonempty application extraction and empty favorites and invitation states have been checked
 live. Linked favorites and invitation cards are covered by synthetic extraction tests; their
 nonempty layouts have not been verified live. The detail-entry workflow has been validated on
-synthetic pages, including same-name cards, popup handling, and stale references.
+synthetic pages, including same-name cards, popup handling, and stale references. Labeled-address
+extraction and the English verification-page rules have synthetic accepted and rejected cases;
+their extraction and classification have not been validated against live pages.
 
 ## Implementation
 

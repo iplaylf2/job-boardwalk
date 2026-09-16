@@ -108,7 +108,7 @@ test("always exposes the project-owned browser tools", async () => {
   const actionSchema = tabsTool?.inputSchema.properties?.["action"] as
     | { enum?: string[] }
     | undefined;
-  expect(new Set(actionSchema?.enum)).toEqual(new Set(["list", "ensure", "activate"]));
+  expect(new Set(actionSchema?.enum)).toEqual(new Set(["list", "ensure", "activate", "close"]));
   expect(tabsTool?.inputSchema.properties?.["platformId"]).toMatchObject({
     enum: ["51job", "boss", "yupao"],
   });

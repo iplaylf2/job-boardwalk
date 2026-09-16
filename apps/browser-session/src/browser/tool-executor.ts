@@ -95,9 +95,10 @@ export class BrowserToolExecutor {
   }
 
   public *execute(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
+    this.#assertToolControl(toolName, input);
     switch (toolName) {
       case "browser_tabs": {
-        return yield* this.#tabs.executeAction(input);
+        return yield* this.#tabAction(input);
       }
       case "browser_prepare_login": {
         return yield* this.#prepareLogin(input);
@@ -141,6 +142,25 @@ export class BrowserToolExecutor {
     }
   }
 
+  #assertToolControl(toolName: string, input: Record<string, unknown>): void {
+    if (
+      !(
+        toolName === "browser_snapshot" &&
+        input["userReturnedControl"] === true &&
+        this.#collectionControl.state === "user-handoff"
+      )
+    ) {
+      this.#collectionControl.assertAgentControl();
+    }
+  }
+
+  *#tabAction(input: Record<string, unknown>): RiteCoroutine<unknown> {
+    if (input["action"] !== "list") {
+      this.#clearElementReferences("browser_tabs");
+    }
+    return yield* this.#tabs.executeAction(input);
+  }
+
   *#click(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     const sourcePage = this.#tabs.requireNavigationPage(reference.tabId);
@@ -170,7 +190,13 @@ export class BrowserToolExecutor {
   *#prepareLogin(params: Record<string, unknown>): RiteCoroutine<unknown> {
     yield* this.#collectionControl.pauseForUserHandoff();
     try {
-      const result = yield* this.#tabs.prepareLogin(params, this.#observePageAccess);
+      const result = yield* this.#tabs.prepareLogin(params, (facts) => {
+        const observation = this.#observePageAccess(facts);
+        if (observation && "interruption" in observation) {
+          this.#collectionControl.assertAgentControl();
+        }
+        return observation;
+      });
       if (result.outcome === "handoff-ready") {
         this.#collectionControl.completeUserHandoff();
       } else {
@@ -281,14 +307,20 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     const waitFor = params["waitFor"] === "cards-present" ? "cards-present" : "none";
-    const snapshot = yield* readJobCards(page, waitFor, this.#observePageAccess);
+    const snapshot = yield* readJobCards(page, waitFor, (facts) => {
+      this.#observePageAccess(facts);
+      this.#collectionControl.assertAgentControl();
+    });
     return { ...snapshot, tabId };
   }
 
   *#jobDescriptionSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
+    const observation = yield* captureJobDescriptionObservation(page, (facts) => {
+      this.#observePageAccess(facts);
+      this.#collectionControl.assertAgentControl();
+    });
     const sourceId = params["sourceId"] as number | undefined;
     const writeResult = yield* this.#writeJobDescriptionObservation(
       observation,
@@ -367,6 +399,7 @@ export class BrowserToolExecutor {
     }
     return {
       ...snapshot,
+      controlState: this.#collectionControl.state,
       elements: snapshot.elements.map(
         ({ locator: _locator, signature: _signature, ...element }) => element,
       ),

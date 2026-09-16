@@ -588,13 +588,11 @@ test("writes and lists research reports through MCP", async () => {
       method: "tools/call",
       params: {
         arguments: {
-          entries: [],
           initiatedBy: "agent",
-          markdown: "## 推荐\n\n优先核验示例科技甲。",
+          markdown: "## 行业观察\n\n合成行业甲的工具采用情况。",
           reason: "test",
           state: "complete",
-          targets: [],
-          title: "岗位推荐",
+          title: "合成行业研究",
         },
         name: "save_research_report",
       },
@@ -603,8 +601,8 @@ test("writes and lists research reports through MCP", async () => {
       result: {
         structuredContent: {
           id: expect.any(Number),
-          markdown: expect.stringContaining("示例科技甲"),
-          title: "岗位推荐",
+          markdown: expect.stringContaining("合成行业甲"),
+          title: "合成行业研究",
         },
       },
     });
@@ -614,7 +612,7 @@ test("writes and lists research reports through MCP", async () => {
       params: { arguments: {}, name: "list_research_reports" },
     });
     expect(await listResponse.json()).toMatchObject({
-      result: { structuredContent: { reports: [{ title: "岗位推荐" }] } },
+      result: { structuredContent: { reports: [{ title: "合成行业研究" }] } },
     });
   } finally {
     repository.close();
@@ -634,13 +632,11 @@ test("rejects an invalid report expiration through MCP", async () => {
       method: "tools/call",
       params: {
         arguments: {
-          entries: [],
           expiresAt: "not-a-time",
           initiatedBy: "agent",
-          markdown: "## 推荐",
+          markdown: "## 合成研究",
           reason: "test",
           state: "complete",
-          targets: [],
           title: "无效报告",
         },
         name: "save_research_report",
@@ -664,13 +660,11 @@ test("creates and reads research reports through HTTP", async () => {
   try {
     const createResponse = await httpApp.request("/api/reports", {
       body: JSON.stringify({
-        entries: [],
         initiatedBy: "agent",
-        markdown: "## 首选\n\n优先核验 Node.js 岗位。",
+        markdown: "## 技术路线\n\nNode.js 合成学习方案。",
         reason: "test",
         state: "complete",
-        targets: [],
-        title: "阶段推荐",
+        title: "合成学习研究",
       }),
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -680,7 +674,7 @@ test("creates and reads research reports through HTTP", async () => {
 
     const listResponse = await httpApp.request("/api/reports");
     expect(ResearchReportList.assert(await listResponse.json())).toMatchObject({
-      reports: [{ id: created.id, title: "阶段推荐" }],
+      reports: [{ id: created.id, title: "合成学习研究" }],
     });
     const detailResponse = await httpApp.request(`/api/reports/${String(created.id)}`);
     expect(ResearchReport.assert(await detailResponse.json())).toMatchObject({
@@ -688,12 +682,10 @@ test("creates and reads research reports through HTTP", async () => {
     });
     const invalidResponse = await httpApp.request("/api/reports", {
       body: JSON.stringify({
-        entries: [],
         initiatedBy: "agent",
         markdown: " ",
         reason: "test",
         state: "complete",
-        targets: [],
         title: "无效报告",
       }),
       headers: { "content-type": "application/json" },

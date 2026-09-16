@@ -73,7 +73,10 @@ export class PlatformAccessObserver {
   readonly #context: BrowserContext;
   #observations: PlatformAccessObservation[] = [];
 
-  public constructor(context: BrowserContext) {
+  public constructor(
+    context: BrowserContext,
+    private readonly onObservation: (observation: PlatformAccessObservation) => void = () => null,
+  ) {
     this.#context = context;
   }
 
@@ -106,6 +109,7 @@ export class PlatformAccessObserver {
   }
 
   #record(observation: PlatformAccessObservation): void {
+    this.onObservation(observation);
     this.#observations = [
       ...this.#observations.filter(
         ({ platformId, url }) => platformId !== observation.platformId || url !== observation.url,

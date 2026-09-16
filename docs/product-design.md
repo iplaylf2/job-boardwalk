@@ -49,8 +49,8 @@ browser profiles, authentication cookies, or desktop windows.
 The **Dashboard** is an independent view of durable workspace data. It also lets the user maintain
 personal context and a collection of job-search intents. At most one intent is selected as the
 current research direction; it supplies platform recommendation pages that the agent may visit
-during user-requested research. Each intent associates a target position and city with those pages. Dashboard also presents unexpired research
-reports as workspace documents. It can consume Browser Session as an optional capability service;
+during user-requested research. Each intent associates a target position and city with those pages. Dashboard also presents
+unexpired research reports as workspace documents. It can consume Browser Session as an optional capability service;
 its current browser integration checks service health. Workspace reading does not require an
 active browser or agent conversation.
 
@@ -68,12 +68,12 @@ completion of its application-owned lifecycle, so the host exits after normal co
 failure. The host adapts Manager's shutdown channel to the service's ordinary signal handlers; it
 does not derive the installed layout, coordinate sibling processes, or own application behavior.
 
-The **agent** coordinates the browser and workspace service boundaries and owns the human-handoff
-state in its conversation with the user. Browser tools produce live evidence; workspace tools
-preserve the durable facts and conclusions derived from that evidence. A Browser Session adapter
-may derive an authentication assessment from a real top-level navigation response or a bounded
-page snapshot when it has a conclusive platform-specific rule. The agent interprets evidence not
-covered by an adapter.
+The **agent** coordinates browser research, workspace writes, and the conversation through which
+the user takes and returns control. Browser Session enforces its own pause state during a
+recognized handoff. Its adapters classify authentication or access interruptions from existing
+navigation and page evidence when a platform rule is conclusive. The agent interprets unclassified
+evidence and authors research conclusions; Workspace Service retains the submitted observations
+and conclusions.
 
 The Compose deployment and directory-contained desktop distribution preserve these application boundaries.
 [Deployment](deployment.md) owns the supported Compose topology; [Desktop
@@ -146,7 +146,8 @@ Every recognizable card on an eligible page contributes an observation regardles
 search path, or other research action led to it. A page with no recognizable cards contributes no
 job observations. The ownership exclusion is structural and platform-specific; the collector does
 not otherwise make semantic relevance judgments. A failure to read one tab is reported for that
-tab and does not discard observations from other tabs.
+tab without discarding evidence already captured. A recognized access interruption pauses further
+page reads under the [handoff protocol](#browser-handoff).
 
 Browser Session recognizes job-detail links through one platform-specific path contract and uses
 the same match to derive a stable external job ID when the platform exposes one. Identifier
@@ -174,27 +175,11 @@ identify the same job. Normalization standardizes Unicode, case, and separators;
 company aliases or discard phrases from job titles. Partial cards without that identity remain
 separate.
 
-Job-library reads derive a description capture status from the evidence retained for each source.
-`captured` means a main description is stored. `uncaptured` means an external job ID or job URL is
-available but no description is stored. `identity-unresolved` means neither an external job ID nor a
-job URL is available. These source states describe current evidence, not whether Browser Session
-attempted a detail read.
-
-Page-level description coverage classifies normalized jobs into three mutually exclusive groups:
-jobs with a retained description, jobs without one whose source identity is available, and jobs
-without one whose source identity remains unresolved. Coverage is calculated for the current
-search, platform, and engagement scope before the description filter narrows the results. The
-filter selects jobs with a description, all jobs without one, or only the missing-description
-subset whose source identity remains unresolved.
-
-For an explicit binding, Workspace Service confirms the platform and equal normalized titles,
-compares normalized companies when both observations include one, and rejects an identity already
-owned by another source. A successful bind preserves the source and its engagement relations,
-retains the provisional identity used by earlier cards, and adds the stable detail-page identity.
-Workspace Service then reconciles the normalized job from the retained source evidence. Complete
-company, title, and location evidence that matches another normalized job merges their sources
-atomically. A later engagement card that still lacks an external job ID or job URL therefore
-refreshes the bound source without clearing its description or stable identity.
+Job-library reads expose description coverage and distinguish missing descriptions with a known
+detail identity from those without one. Workspace Service owns the
+[coverage query](../apps/workspace-service/README.md#library-queries-and-description-coverage)
+and [source-binding validation](../apps/workspace-service/README.md#source-binding). Dashboard owns
+how the library presents those results.
 
 ## Engagement tracking
 
@@ -234,34 +219,26 @@ those relations without turning them into a single workflow state.
 
 ## Browser handoff
 
-The login-handoff workflow keeps identity actions under user control while preserving the browser
-session used for research:
+Login, verification, applications, messages, and account changes require the user to take control
+of the visible browser. The agent stops browser activity during that handoff and waits for the
+user to explicitly return control. Workspace Service may finish writes from previously captured
+evidence because those writes do not drive the browser.
 
-1. When the user requests login, or visible page evidence shows that the requested workflow
-   requires authentication and the current session is unauthenticated, the agent asks Browser
-   Session to prepare login for that platform.
-2. Browser Session pauses passive page reads and checks the platform session. Observed
-   authentication completes preparation without a handoff. Otherwise it prepares a usable login interface while preserving
-   unclassified pages and visible access decisions. Failed preparation resumes passive reads.
-3. Only a ready login interface starts user handoff. The agent stops browser actions and asks the
-   user to take over the visible window; readiness does not authorize the agent to enter or submit
-   credentials or verification input.
-4. The user completes or stops the login or verification attempt and explicitly returns control to
-   the agent.
-5. The agent re-observes the live page with `browser_snapshot` and `userReturnedControl=true`, then
-   resumes read-only research in the same browser profile and records results through Workspace
-   Service. The flag records returned control; subsequent page evidence determines authentication
-   status.
-6. A later verification request or user-controlled action pauses research and returns control to the
-   user again.
+For login, Browser Session can inspect existing platform pages and prepare a usable login
+interface. If it observes authentication, research can continue without a handoff. Otherwise,
+a ready login interface starts the pause. An adapter-recognized verification request or access
+denial also pauses the session, including during login preparation or passive collection.
+The agent handles interruptions that adapters do not recognize and coordinates other
+user-controlled actions through the conversation.
 
-The handoff governs browser activity. Workspace Service may finish writes from evidence captured
-before the user took control. Browser Session owns the
-[login preparation and control-return protocol](../apps/browser-session/README.md#browser-handoff).
+After the user returns control, the agent re-observes the relevant page before resuming research.
+Returned control establishes permission to observe; the new evidence determines whether the page
+still requires user action. Browser Session owns the [login preparation, pause, and control-return
+protocol](../apps/browser-session/README.md#browser-handoff).
 
 Browser Session keeps a dedicated persistent profile so ordinary browser session state survives
-service restarts. Credentials and verification input stay inside the platform window. Job Boardwalk does not
-query cookies or browser storage. Browser snapshots omit form-control values and password controls,
+service restarts. Credentials and verification input stay inside the platform window. Job Boardwalk
+does not query cookies or browser storage. Browser snapshots omit form-control values and password controls,
 and HTTP and MCP responses do not expose authentication cookies or browser profile contents. Browser
 Session exposes generic interactions with elements from a recent snapshot and validates the
 explicit destination of captured links against the current platform. It does not infer whether a
@@ -274,7 +251,7 @@ Platform-access observations are historical evidence about authentication or an 
 interruption. Each observation carries its source page URL and capture time. Authentication
 is recorded separately from verification requests and access denial.
 
-Browser Session derives authentication observations from platform rules applied to top-level
+Browser Session derives access observations from platform rules applied to top-level
 navigation responses and existing page reads. The agent can record independently interpreted
 evidence when no adapter classifies it. Unclassified evidence leaves existing observations
 unchanged. [Platform coverage](../apps/browser-session/README.md#platform-coverage) defines the
@@ -313,32 +290,19 @@ the agent stops browser input, records the interruption, and waits for the user.
 
 ## Research reports
 
-Workspace Service stores research reports as Markdown plus structured title, state, timestamps,
-optional expiration, source judgments, and platform targets. A report is a reader-facing
-interpretation of workspace evidence, not a replacement for normalized job facts or the underlying
-platform links. Users, agents, and system workflows use the same report command and attribution model.
+Research reports preserve authored findings for later reading, independently of the conversation
+that produced them. The author chooses the subject, conclusions, supporting material, and document
+structure. Workspace Service stores the title, Markdown body, authoring state, timestamps, and
+optional expiration; Dashboard presents the saved document.
 
-Each source judgment records recommendation, pending confirmation, or exclusion with its basis and
-assessment time. Source identity remains platform-specific even when normalized jobs merge across
-platforms. Report progress counts explicit recommendations toward each platform target; neither
-observed-card counts nor pending judgments establish qualification. Report completion can retain a
-shortfall and a next research step. These judgments do not create recruiting engagements.
+The completion state describes authoring. Replacement overwrites the previous version, and
+deletion removes the report. Expiration hides a report from ordinary reading without deleting it;
+explicit reads can include expired reports.
 
-Historical recommendation checks use retained source judgments and relevant report bodies,
-including expired reports when explicitly requested. Reports may contain recommendations that have
-not been organized into structured entries, so an entry query alone cannot establish that a source
-was never recommended. The author explicitly records judgments after confirming their sources and
-basis; Markdown mentions never become recommendations implicitly. Replacement and deletion replace
-or remove the report's entries as well, so reports are not an immutable action log.
-
-Dashboard presents report conclusions and platform progress as a readable document, available
-independently of the conversation or producer that created it. Report content cannot embed pages
-or expose browser or agent controls. Ordinary navigation omits expired reports; explicit history
-reads can still retrieve their retained judgments.
-
-[Workspace Service](../apps/workspace-service/README.md#research-reports) owns the report command,
-query, and progress contracts.
-[Dashboard](../apps/dashboard/README.md#report-rendering) owns Markdown rendering and link behavior.
+[Workspace Service](../apps/workspace-service/README.md#research-reports) owns report validation,
+persistence, replacement, and query semantics. [Dashboard](../apps/dashboard/README.md#report-rendering)
+owns document rendering and link behavior. Report content cannot embed pages or expose browser
+or agent controls.
 
 ## Dashboard surface
 
@@ -348,8 +312,7 @@ Dashboard has three reader paths:
   observations;
 - a paginated job library for normalized job facts and merged platform sources, including a combined
   tracked view, engagement-category filters, and filters for description availability;
-- a report library and Markdown reader for conclusions, comparisons, uncertainty, and recommended
-  next steps.
+- a report library and Markdown reader for saved research documents.
 
 ### Workspace overview
 

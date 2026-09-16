@@ -27,6 +27,15 @@ function matchesLink(href: string | undefined, origin: string, pathname: string)
 }
 
 function assess51jobPage(page: PageAccessFacts): PlatformAccessAssessment | null {
+  const lines = page.text.split(/\r?\n/u).map((line) => line.trim());
+  if (
+    lines.some((line) => /^Access Verification$/iu.test(line)) &&
+    lines.some((line) =>
+      /^please slide to (?:verify|complete the verification process)[.!]?$/iu.test(line),
+    )
+  ) {
+    return { evidence: "verification-page", interruption: "verification-required" };
+  }
   const profileHeader =
     page.elements.some(
       (element) =>
@@ -71,6 +80,10 @@ export const job51PageDefinition = {
     detailsSelectors: [".job-detail .tags .tag"],
     factTextSelectors: [".jTitle", ".job-detail .job_msg", ".job-detail .tags"],
     locationSelectors: [],
+    locationText: {
+      pattern: String.raw`(?:^|\n)(?:工作地址|上班地址)(?:[：:][ \t]*\n?|[ \t]*\n)(?!(?:查看地图|公司信息|职位推荐|推荐职位|相关推荐)(?:\n|$))(?<location>[^\n]+)`,
+      selectors: [".job-detail"],
+    },
     salarySelectors: [],
     titleSelectors: [".jTitle h1"],
   },

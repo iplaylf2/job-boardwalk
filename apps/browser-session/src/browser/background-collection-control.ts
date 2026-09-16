@@ -1,3 +1,4 @@
+import type { PlatformAccessObservation } from "@job-boardwalk/contracts";
 import { OperationError } from "@job-boardwalk/contracts";
 import { completer } from "@shajara/host";
 import type { RiteCoroutine, RiteRoutine } from "@shajara/host";
@@ -14,6 +15,34 @@ export class BackgroundCollectionControl {
   #activeCollectionCount = noActiveCollections;
   #resolveQuiescence: (() => unknown) | null = null;
   #state: CollectionControlState = "active";
+
+  #interruption: PlatformAccessObservation | null = null;
+
+  public get state(): CollectionControlState {
+    return this.#state;
+  }
+
+  public observeAccess(observation: PlatformAccessObservation | null): void {
+    if (observation && "interruption" in observation) {
+      this.#interruption = observation;
+      this.#state = "user-handoff";
+    }
+  }
+
+  public assertAgentControl(): void {
+    if (this.#state !== "active") {
+      throw new OperationError(
+        "user-control-active",
+        "浏览器正在准备交接或由用户控制，当前操作不可用。",
+        {
+          reason: this.#state,
+          ...(this.#interruption
+            ? { platformId: this.#interruption.platformId, url: this.#interruption.url }
+            : {}),
+        },
+      );
+    }
+  }
 
   public *pauseForUserHandoff(): RiteCoroutine<void> {
     if (this.#state !== "active") {
@@ -32,6 +61,9 @@ export class BackgroundCollectionControl {
     }
     try {
       yield* wait(quiescence.future);
+      if (this.#state !== "quiescing") {
+        this.assertAgentControl();
+      }
       this.#state = "preparing-handoff";
     } catch (error) {
       this.cancelUserHandoff();
@@ -59,6 +91,7 @@ export class BackgroundCollectionControl {
       return false;
     }
     this.#state = "active";
+    this.#interruption = null;
     return true;
   }
 

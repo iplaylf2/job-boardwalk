@@ -1,46 +1,28 @@
-import { OperationError } from "@job-boardwalk/contracts";
-import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, exists, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/node-sqlite";
 import type {
   ResearchReport,
-  ResearchReportPlatformTarget,
   SaveResearchReportCommand,
   ResearchReportSummary,
   ResearchReportFilter,
-  ResearchReportEntry,
-  ResearchReportPlatformProgress,
 } from "@job-boardwalk/contracts";
-import {
-  researchReports,
-  researchReportEntries,
-  researchReportTargets,
-  jobPostingSources,
-  workspaceChanges,
-} from "./schema.js";
-
-const emptyCount = 0;
+import { researchReports, workspaceChanges } from "./schema.js";
 
 type ReportRow = typeof researchReports.$inferSelect;
 function unexpiredResearchReportCondition(now: string) {
   return sql`(${researchReports.expiresAt} is null or ${researchReports.expiresAt} > ${now})`;
 }
 
-function derivePlatformProgress(
-  targets: readonly ResearchReportPlatformTarget[],
-  sourceEntries: readonly (ResearchReportEntry & { platformId: string })[],
-): ResearchReportPlatformProgress[] {
-  return targets.map((target) => {
-    const entries = sourceEntries.filter(({ platformId }) => platformId === target.platformId);
-    const recommended = entries.filter(({ disposition }) => disposition === "recommended").length;
-    return {
-      ...target,
-      excluded: entries.filter(({ disposition }) => disposition === "excluded").length,
-      pending: entries.filter(({ disposition }) => disposition === "pending").length,
-      recommended,
-      remaining: Math.max(emptyCount, target.count - recommended),
-    };
-  });
+function reportFromRow(row: ReportRow): ResearchReport {
+  return {
+    createdAt: row.createdAt,
+    ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
+    id: row.id,
+    markdown: row.markdown,
+    state: row.state,
+    title: row.title,
+    updatedAt: row.updatedAt,
+  };
 }
 
 export class ResearchReportRepository {
@@ -49,24 +31,9 @@ export class ResearchReportRepository {
     this.#database = database;
   }
   public listResearchReports(filter: ResearchReportFilter = {}): ResearchReportSummary[] {
-    const conditions: SQL[] = [];
-    if (!filter.includeExpired) {
-      conditions.push(unexpiredResearchReportCondition(new Date().toISOString()));
-    }
-    if (filter.sourceId || filter.disposition) {
-      const entryConditions = [eq(researchReportEntries.reportId, researchReports.id)];
-      if (filter.sourceId) {
-        entryConditions.push(eq(researchReportEntries.sourceId, filter.sourceId));
-      }
-      if (filter.disposition) {
-        entryConditions.push(eq(researchReportEntries.disposition, filter.disposition));
-      }
-      const matchingEntries = this.#database
-        .select()
-        .from(researchReportEntries)
-        .where(and(...entryConditions));
-      conditions.push(exists(matchingEntries));
-    }
+    const conditions = filter.includeExpired
+      ? []
+      : [unexpiredResearchReportCondition(new Date().toISOString())];
     return this.#database
       .select()
       .from(researchReports)
@@ -74,12 +41,7 @@ export class ResearchReportRepository {
       .orderBy(desc(researchReports.updatedAt), desc(researchReports.id))
       .all()
       .map((row) => {
-        const {
-          markdown: _markdown,
-          entries: _entries,
-          targets: _targets,
-          ...summary
-        } = this.#read(row);
+        const { markdown: _markdown, ...summary } = reportFromRow(row);
         return summary;
       });
   }
@@ -94,42 +56,14 @@ export class ResearchReportRepository {
       .from(researchReports)
       .where(and(...conditions))
       .get();
-    return row ? this.#read(row) : null;
+    return row ? reportFromRow(row) : null;
   }
 
-  // eslint-disable-next-line max-lines-per-function -- One transaction owns report persistence and attribution.
   public saveResearchReport(
     input: SaveResearchReportCommand & { id?: number },
   ): ResearchReport | null {
-    if (new Set(input.entries.map(({ sourceId }) => sourceId)).size !== input.entries.length) {
-      throw new OperationError("conflict", "报告中同一平台来源只能有一个结论", {
-        field: "entries",
-        reason: "duplicate-source",
-      });
-    }
-    if (new Set(input.targets.map(({ platformId }) => platformId)).size !== input.targets.length) {
-      throw new OperationError("conflict", "报告中同一平台只能有一个目标", {
-        field: "targets",
-        reason: "duplicate-platform",
-      });
-    }
     const now = new Date().toISOString();
-    // eslint-disable-next-line max-lines-per-function -- The transaction replaces report content, source judgments, targets, and attribution atomically.
     return this.#database.transaction((transaction) => {
-      for (const entry of input.entries) {
-        if (
-          !transaction
-            .select({ id: jobPostingSources.id })
-            .from(jobPostingSources)
-            .where(eq(jobPostingSources.id, entry.sourceId))
-            .get()
-        ) {
-          throw new OperationError("not-found", "找不到岗位来源", {
-            resource: "job-source",
-            sourceId: entry.sourceId,
-          });
-        }
-      }
       const row = input.id
         ? transaction
             .update(researchReports)
@@ -159,26 +93,6 @@ export class ResearchReportRepository {
         return null;
       }
       transaction
-        .delete(researchReportEntries)
-        .where(eq(researchReportEntries.reportId, row.id))
-        .run();
-      transaction
-        .delete(researchReportTargets)
-        .where(eq(researchReportTargets.reportId, row.id))
-        .run();
-      if (input.entries.length > emptyCount) {
-        transaction
-          .insert(researchReportEntries)
-          .values(input.entries.map((entry) => ({ ...entry, reportId: row.id })))
-          .run();
-      }
-      if (input.targets.length > emptyCount) {
-        transaction
-          .insert(researchReportTargets)
-          .values(input.targets.map((target) => ({ ...target, reportId: row.id })))
-          .run();
-      }
-      transaction
         .insert(workspaceChanges)
         .values({
           initiatedBy: input.initiatedBy,
@@ -188,7 +102,7 @@ export class ResearchReportRepository {
           subject: input.title,
         })
         .run();
-      return this.#read(row);
+      return reportFromRow(row);
     });
   }
 
@@ -220,43 +134,5 @@ export class ResearchReportRepository {
         .run();
     });
     return true;
-  }
-
-  #read(row: ReportRow): ResearchReport {
-    const rows = this.#database
-      .select({
-        assessedAt: researchReportEntries.assessedAt,
-        basis: researchReportEntries.basis,
-        disposition: researchReportEntries.disposition,
-        platformId: jobPostingSources.platformId,
-        sourceId: researchReportEntries.sourceId,
-      })
-      .from(researchReportEntries)
-      .innerJoin(jobPostingSources, eq(researchReportEntries.sourceId, jobPostingSources.id))
-      .where(eq(researchReportEntries.reportId, row.id))
-      .orderBy(asc(researchReportEntries.sourceId))
-      .all();
-    const targets = this.#database
-      .select()
-      .from(researchReportTargets)
-      .where(eq(researchReportTargets.reportId, row.id))
-      .orderBy(asc(researchReportTargets.platformId))
-      .all()
-      .map(({ count, nextStep, platformId }) =>
-        nextStep ? { count, nextStep, platformId } : { count, platformId },
-      );
-    return {
-      createdAt: row.createdAt,
-      ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
-      entries: rows.map(({ platformId: _platformId, ...entry }) => entry),
-      entryCount: rows.length,
-      id: row.id,
-      markdown: row.markdown,
-      progress: derivePlatformProgress(targets, rows),
-      state: row.state,
-      targets,
-      title: row.title,
-      updatedAt: row.updatedAt,
-    };
   }
 }

@@ -49,7 +49,11 @@ function coordinateCollection(
     browserTabs,
     collectionControl,
     observePageAccess(page: PageAccessFacts) {
-      return platformAccessObserver.observePage(page);
+      const observation = platformAccessObserver.observePage(page);
+      if (observation && "interruption" in observation) {
+        collectionControl.assertAgentControl();
+      }
+      return observation;
     },
     selectPage: (page: Page) => browserTabs.selectPage(page),
   };
@@ -208,8 +212,10 @@ export class ManagedBrowser implements BrowserControl {
       closed.resolve(new Error("浏览器窗口已经关闭。"));
     });
     this.#context = context;
-    const platformAccessObserver = new PlatformAccessObserver(context);
     const collectionControl = new BackgroundCollectionControl();
+    const platformAccessObserver = new PlatformAccessObserver(context, (observation) =>
+      collectionControl.observeAccess(observation),
+    );
     const coordination = coordinateCollection(context, collectionControl, platformAccessObserver);
     const jobObservationCollector = new PassiveJobObservationCollector(
       context,
@@ -226,7 +232,7 @@ export class ManagedBrowser implements BrowserControl {
     this.#platformAccessObserver = platformAccessObserver;
     this.#toolExecutor = new BrowserToolExecutor(
       coordination.browserTabs,
-      coordination.observePageAccess,
+      (page) => platformAccessObserver.observePage(page),
       collectionControl,
       {
         recordReturnedControl: (platformId) => this.#recordReturnedControl(platformId),

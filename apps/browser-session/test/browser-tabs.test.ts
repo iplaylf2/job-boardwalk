@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- Exercise tab lifecycle and navigation through the same synthetic context.
 import type { BrowserContext, Page } from "patchright";
 import { errors } from "patchright";
 import { createScope } from "@shajara/host";
@@ -33,9 +34,16 @@ function fakePage(initialUrl: string, title = "Jobs"): FakePage {
     page: null as unknown as Page,
     url: initialUrl,
   };
+  let closed = false;
+  let onClose: (() => void) | null = null;
   state.page = {
     bringToFront: () => {
       state.activationCount += 1;
+      return Promise.resolve();
+    },
+    close: () => {
+      closed = true;
+      onClose?.();
       return Promise.resolve();
     },
     goto: (url: string) => {
@@ -43,12 +51,15 @@ function fakePage(initialUrl: string, title = "Jobs"): FakePage {
       state.url = url;
       return Promise.resolve(null);
     },
-    isClosed: () => false,
+    isClosed: () => closed,
     locator: () => ({
       evaluate: () =>
         Promise.resolve({ documentReadyState: "complete", outcome: "observed", title }),
     }),
-    once: () => state.page,
+    once: (_event: string, callback: () => void) => {
+      onClose = callback;
+      return state.page;
+    },
     title: () => Promise.resolve(title),
     url: () => state.url,
   } as unknown as Page;
@@ -298,3 +309,44 @@ test.each([false, true])(
     expect(fake.navigationCount).toBe(firstNavigationCount);
   },
 );
+
+test("closes the explicit platform tab and selects a remaining supported tab", async () => {
+  const first = fakePage("https://www.51job.com/");
+  const second = fakePage("https://www.yupao.com/");
+  const outside = fakePage("https://example.invalid/");
+  const context = {
+    on: () => null,
+    pages: () => [first.page, second.page, outside.page],
+  } as unknown as BrowserContext;
+  const tabs = new BrowserTabs(context);
+  await using scope = createScope();
+  const result = await scope.run(() => tabs.executeAction({ action: "close", tabId: 2 }));
+  expect(second.page.isClosed()).toBe(true);
+  expect(first.activationCount).toBe(firstActivationCount);
+  expect(outside.page.isClosed()).toBe(false);
+  expect(result).toMatchObject({ tabs: [{ active: true, id: 1 }] });
+  expect(await scope.run(() => tabs.executeAction({ action: "close", tabId: 1 }))).toEqual({
+    tabs: [],
+  });
+  expect(tabs.tabCount).toBe(firstNavigationCount);
+});
+
+test.each([
+  { code: "invalid-input", input: { action: "close" } },
+  { code: "tab-unavailable", input: { action: "close", tabId: 2 } },
+  { code: "outside-platform-scope", input: { action: "close", tabId: 1 } },
+])("rejects unsafe close targets: $code", async ({ input, code }) => {
+  const fake = fakePage("https://example.invalid/");
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+  await using scope = createScope();
+  const failure = await scope.run(function* rejectedClose() {
+    try {
+      yield* tabs.executeAction(input);
+    } catch (error) {
+      return error;
+    }
+    return null;
+  });
+  expect(failure).toMatchObject({ failure: { code } });
+  expect(fake.page.isClosed()).toBe(false);
+});

@@ -79,6 +79,23 @@ export function captureJobDescriptionMetadata(input: {
       }
       return helpers.normalized(bodyText.slice(firstIndex, end)).split("\n").at(lastIndex) ?? null;
     },
+    locationFromText(): string | null {
+      const config = input.descriptionConfig.locationText;
+      if (!config) {
+        return null;
+      }
+      for (const selector of config.selectors) {
+        for (const element of document.querySelectorAll<HTMLElement>(selector)) {
+          // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Address evidence must be rendered.
+          const text = helpers.normalized(element.innerText || "");
+          const location = new RegExp(config.pattern, "u").exec(text)?.groups?.["location"]?.trim();
+          if (location) {
+            return helpers.bounded(location, input.maximumFieldCharacters);
+          }
+        }
+      }
+      return null;
+    },
     normalized(value: string): string {
       let decodedValue = value;
       for (const [encoded, decoded] of Object.entries(input.cardConfig.textReplacements ?? {})) {
@@ -167,9 +184,11 @@ export function captureJobDescriptionMetadata(input: {
     details,
     educationRequirement: helpers.firstPattern(pageText, input.cardConfig.educationTextPattern),
     experienceRequirement: helpers.firstPattern(pageText, input.cardConfig.experienceTextPattern),
-    location: helpers.firstText(
-      input.descriptionConfig.locationSelectors ?? input.cardConfig.locationSelectors,
-    ),
+    location:
+      helpers.locationFromText() ??
+      helpers.firstText(
+        input.descriptionConfig.locationSelectors ?? input.cardConfig.locationSelectors,
+      ),
     salaryText:
       helpers.firstText(
         input.descriptionConfig.salarySelectors ?? input.cardConfig.salarySelectors,
@@ -212,6 +231,11 @@ export function* captureJobDescriptionObservation(
       {},
     );
   }
+  observePageAccess?.({
+    elements: metadata.accessElements,
+    text: metadata.accessText,
+    url: metadata.url,
+  });
   if (!metadata.title || !metadata.description) {
     const missing = [
       ...(metadata.title ? [] : ["岗位标题"]),
@@ -222,11 +246,6 @@ export function* captureJobDescriptionObservation(
       `岗位详情提取未匹配：${missing}；页面正文${metadata.accessText.trim() ? "可读" : "为空"}。请用 browser_snapshot 查看页面。URL：${metadata.url}`,
     );
   }
-  observePageAccess?.({
-    elements: metadata.accessElements,
-    text: metadata.accessText,
-    url: metadata.url,
-  });
   const capturedAt = new Date().toISOString();
   const externalJobId = extractExternalJobId(platformId, metadata.url);
   return {

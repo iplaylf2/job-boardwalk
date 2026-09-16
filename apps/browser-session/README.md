@@ -2,7 +2,7 @@
 
 Browser Session is Job Boardwalk's long-lived loopback HTTP MCP service for a visible persistent
 browser. It drives a Chromium-based browser through Patchright, owns the dedicated profile and
-browser process, coordinates tabs and page actions, and derives authentication observations from
+browser process, coordinates tabs and page actions, and derives platform-access observations from
 top-level navigation responses and bounded snapshots when a platform adapter has a conclusive
 rule. Page meaning not covered by an adapter remains with the agent.
 
@@ -116,9 +116,9 @@ HTTP health is unavailable.
 
 ### Access assessment
 
-Adapters classify only the authentication evidence their page definitions recognize. Their
-specific rules are documented under [Platform coverage](#platform-coverage); unclassified evidence
-returns `platformAccessObservation=null`.
+Adapters classify authentication and access interruptions using the rules documented under
+[Platform coverage](#platform-coverage). Unclassified evidence returns
+`platformAccessObservation=null`.
 
 Navigation assessment is passive, and page assessment reuses either a snapshot requested by the
 agent or a bounded page read already performed by passive job collection or an explicit engagement
@@ -194,14 +194,19 @@ user's observation before deciding the next action.
 
 ### Tabs and page evidence
 
-Tabs for supported platforms are discovered, selected, validated, and controlled through the
-same adapter-driven workflow. `browser_tabs ensure` requires a catalog `platformId`, then reuses
-a tab for that platform before creating one at its catalog entry URL. The service can list and
-activate all in-scope tabs, but does not expose unconditional tab creation or a tab-close
-action. The platform catalog owns each platform's label and web navigation metadata: its
-canonical origin, navigation domain, and absolute entry and login URLs. Adapters derive
-destinations and the HTTPS navigation boundary from that one contract. Page actions remain
-platform-independent.
+`browser_tabs` manages tabs within supported platforms' HTTPS scopes:
+
+- `list` returns supported tabs and their bounded `pageInspection` results.
+- `activate` selects a supported tab and brings it to the foreground.
+- `ensure` requires a `platformId` and reuses a tab for that platform when possible. An explicit
+  `url` selects the destination; otherwise a newly prepared tab uses the platform's entry URL.
+- `close` requires an explicit `tabId` and returns the remaining supported tabs with their `active`
+  selection. Closing the selected tab selects a remaining supported tab when available. Closing
+  the last supported tab returns an empty list.
+
+The platform catalog owns labels, navigation domains, and entry and login URLs. Adapters derive
+navigation scope from that contract. Tab operations follow the shared [handoff state](#browser-handoff);
+the service does not expose unconditional tab creation.
 
 #### Snapshots and references
 
@@ -219,11 +224,11 @@ identities.
 
 References expire across the whole session: a new `browser_snapshot`, `browser_navigate`, or
 page-control action in one tab expires references from the previous snapshot, even if it belongs
-to another tab. Login preparation and engagement synchronization also expire references. Reference
-numbers are not reused within an executor. When a reference expires, take a new snapshot of its
-owning `tabId` before acting. For the most recently expired snapshot, `error.details` includes
-`ref`, `tabId`, `invalidatedBy`, and any known `invalidatedByTabId`. Older or unknown references
-identify only the requested `ref`.
+to another tab. Tab activation, ensuring, closing, login preparation, and engagement synchronization
+also expire references. Reference numbers are not reused within an executor. When a reference
+expires, take a new snapshot of its owning `tabId` before acting. For the most recently expired
+snapshot, `error.details` includes `ref`, `tabId`, `invalidatedBy`, and any known
+`invalidatedByTabId`. Older or unknown references identify only the requested `ref`.
 
 Before acting on a valid reference, Browser Session repeats the bounded snapshot and matches the
 original DOM node, URL, captured attributes, and bounded element text and card context. Replaced
@@ -270,31 +275,51 @@ observation. This event window does not establish that job results have loaded.
 
 ### Browser handoff
 
-[Product design](../../docs/product-design.md#browser-handoff) owns the delegation boundary: login,
-verification, applications, messages, and account changes remain under user control. Browser
-Session implements the browser side of that handoff.
+[Product design](../../docs/product-design.md#browser-handoff) defines which actions require user
+control. Browser Session implements login preparation and the session-wide pause described here.
 
-`browser_prepare_login` first blocks new background page work and waits for in-flight page work to
-finish. It then observes the existing platform tabs. Authenticated-page evidence returns
-`outcome=already-authenticated` without navigation or user handoff. Otherwise the tool retains every
-readable platform tab that is still on the catalog-defined login route as a candidate, checks all
-of them for a usable login interface, and activates the first one that becomes ready. It preserves
-unreadable tabs and readable pages whose meaning remains unclassified, including pages that may be
-showing verification or another access decision. When no reusable login page remains, it uses an
-available blank tab or a new tab and performs bounded observations on the login destination. It
-returns `outcome=handoff-ready` when that page exposes an enabled user control or a login-mode link
-recognized by its platform definition. This outcome starts user handoff. If neither outcome can
-be established, preparation fails and passive collection resumes. Candidate checks report their
-tabs, URLs, and unmet readiness conditions in `error.details.candidates`.
+#### Preparing login
 
-Workspace Service writes from previously captured evidence may finish during a handoff because
-they do not drive the browser.
+`browser_prepare_login` blocks new tool requests and background collections, waits for in-flight
+collection work to finish, then observes existing platform tabs. It returns one of two outcomes:
 
-After the user explicitly returns control, the agent calls `browser_snapshot` with
-`userReturnedControl=true` for its first live-page observation; earlier and ordinary snapshots omit
-the flag. The flag resumes passive page reads and authorizes a later explicit job-engagement
-sync to reuse the observed platform tab. It records returned control; subsequent page evidence
-determines authentication status.
+- `already-authenticated`: a page provides authentication evidence. The tool selects that page
+  without navigating and resumes background collection.
+- `handoff-ready`: a login page exposes an enabled user control or a recognized login-mode link.
+  The tool selects that page and leaves the session paused for the user.
+
+Preparation reuses readable tabs on the catalog-defined login route. Unreadable tabs and pages
+whose meaning remains unclassified are preserved. If no reusable login page remains, it uses an
+available blank tab or a new tab to open the login destination. Candidate checks are bounded;
+a `login-not-ready` error includes available candidate diagnostics in `error.details.candidates`.
+A preparation failure resumes collection unless an adapter has recognized an access interruption.
+
+#### While control is paused
+
+A recognized verification request or access denial pauses the session even when discovered during
+login preparation or a detail read that cannot extract a job description. The observation remains
+eligible for submission to Workspace Service.
+
+New browser tool calls fail with `user-control-active`, including tab listing and ordinary
+snapshots. The error identifies the interruption's platform and URL when known. Background
+collections do not start, and a passive collection already in progress stops before the next tab.
+Already-started work is not canceled by this gate; writes from captured evidence may finish.
+`browser_status` and `/health` remain available and report runtime availability.
+
+The agent must still interpret unclassified pages and stop research for user-controlled actions
+that the service cannot identify.
+
+#### Returning control
+
+After the user explicitly returns control, call `browser_snapshot` with
+`userReturnedControl=true` for the first observation of the relevant `tabId`. This snapshot is
+allowed during the handoff pause; ordinary snapshots omit the flag. After a successful read, it
+releases the pause and lets a later engagement sync reuse the observed platform tab. If the new
+snapshot identifies another interruption, the session pauses again.
+
+The snapshot returns `controlState` alongside `platformAccessObservation`: `active` permits
+research, while `user-handoff` means the session is paused. Returned control does not establish
+authentication; the page evidence supplies that assessment.
 
 ## Job evidence reads and passive collection
 

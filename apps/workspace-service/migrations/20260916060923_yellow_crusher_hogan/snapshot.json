@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "9961d9bc-bde0-4a1e-bb71-552f580a07ac",
+  "id": "d370441b-50fe-4d28-bff1-c37ba623cfad",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -36,14 +36,6 @@
     },
     {
       "name": "profile_facts",
-      "entityType": "tables"
-    },
-    {
-      "name": "research_report_entries",
-      "entityType": "tables"
-    },
-    {
-      "name": "research_report_targets",
       "entityType": "tables"
     },
     {
@@ -570,96 +562,6 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "assessed_at",
-      "entityType": "columns",
-      "table": "research_report_entries"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "basis",
-      "entityType": "columns",
-      "table": "research_report_entries"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "disposition",
-      "entityType": "columns",
-      "table": "research_report_entries"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "report_id",
-      "entityType": "columns",
-      "table": "research_report_entries"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "source_id",
-      "entityType": "columns",
-      "table": "research_report_entries"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "count",
-      "entityType": "columns",
-      "table": "research_report_targets"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "next_step",
-      "entityType": "columns",
-      "table": "research_report_targets"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "platform_id",
-      "entityType": "columns",
-      "table": "research_report_targets"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "report_id",
-      "entityType": "columns",
-      "table": "research_report_targets"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
       "name": "created_at",
       "entityType": "columns",
       "table": "research_reports"
@@ -846,51 +748,6 @@
     },
     {
       "columns": [
-        "report_id"
-      ],
-      "tableTo": "research_reports",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_research_report_entries_report_id_research_reports_id_fk",
-      "entityType": "fks",
-      "table": "research_report_entries"
-    },
-    {
-      "columns": [
-        "source_id"
-      ],
-      "tableTo": "job_posting_sources",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "name": "fk_research_report_entries_source_id_job_posting_sources_id_fk",
-      "entityType": "fks",
-      "table": "research_report_entries"
-    },
-    {
-      "columns": [
-        "report_id"
-      ],
-      "tableTo": "research_reports",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_research_report_targets_report_id_research_reports_id_fk",
-      "entityType": "fks",
-      "table": "research_report_targets"
-    },
-    {
-      "columns": [
         "platform_id",
         "identity_key"
       ],
@@ -908,26 +765,6 @@
       "name": "job_source_engagements_pk",
       "entityType": "pks",
       "table": "job_source_engagements"
-    },
-    {
-      "columns": [
-        "report_id",
-        "source_id"
-      ],
-      "nameExplicit": false,
-      "name": "research_report_entries_pk",
-      "entityType": "pks",
-      "table": "research_report_entries"
-    },
-    {
-      "columns": [
-        "report_id",
-        "platform_id"
-      ],
-      "nameExplicit": false,
-      "name": "research_report_targets_pk",
-      "entityType": "pks",
-      "table": "research_report_targets"
     },
     {
       "columns": [
@@ -1049,24 +886,6 @@
     },
     {
       "columns": [
-        {
-          "value": "source_id",
-          "isExpression": false
-        },
-        {
-          "value": "disposition",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "research_report_entries_source",
-      "entityType": "indexes",
-      "table": "research_report_entries"
-    },
-    {
-      "columns": [
         "identity_key"
       ],
       "nameExplicit": false,
@@ -1133,18 +952,6 @@
       "name": "platform_access_observations_assessment",
       "entityType": "checks",
       "table": "platform_access_observations"
-    },
-    {
-      "value": "\"disposition\" in ('recommended', 'pending', 'excluded')",
-      "name": "research_report_entries_disposition",
-      "entityType": "checks",
-      "table": "research_report_entries"
-    },
-    {
-      "value": "\"count\" > 0",
-      "name": "research_report_targets_count",
-      "entityType": "checks",
-      "table": "research_report_targets"
     },
     {
       "value": "\"initiated_by\" in ('agent', 'user', 'system')",

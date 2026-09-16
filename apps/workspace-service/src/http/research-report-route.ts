@@ -1,11 +1,8 @@
 import {
   OperationError,
-  inputValidationError,
-  ResearchReportFilter,
   SaveResearchReportCommand,
   WorkspaceChangeAttribution,
 } from "@job-boardwalk/contracts";
-import { type } from "arktype";
 import type { Hono } from "hono";
 import type { Scope } from "@shajara/host";
 
@@ -29,23 +26,6 @@ function readIncludeExpired(value: string | undefined): boolean {
   return value === "true";
 }
 
-function readReportFilter(query: Record<string, string>): ResearchReportFilter {
-  const { sourceId } = query;
-  const { disposition } = query;
-  const parseFilter = ResearchReportFilter;
-  const filter = parseFilter({
-    ...(typeof sourceId === "string"
-      ? { sourceId: readPositiveInteger(sourceId, "sourceId") }
-      : {}),
-    ...(typeof disposition === "string" ? { disposition } : {}),
-    includeExpired: readIncludeExpired(query["includeExpired"]),
-  });
-  if (filter instanceof type.errors) {
-    throw inputValidationError(filter);
-  }
-  return filter;
-}
-
 function registerResearchReportReadRoutes(
   app: Hono,
   repository: WorkspaceRepository,
@@ -55,7 +35,7 @@ function registerResearchReportReadRoutes(
     serviceScope.run(function* listResearchReports() {
       try {
         yield* [];
-        const filter = readReportFilter(context.req.query());
+        const filter = { includeExpired: readIncludeExpired(context.req.query("includeExpired")) };
         return context.json({ reports: repository.listResearchReports(filter) });
       } catch (error) {
         return requestErrorResponse(error, context);

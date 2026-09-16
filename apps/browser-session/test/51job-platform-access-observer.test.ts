@@ -70,3 +70,31 @@ test("keeps a bare personal-center URL and unnamed passive links unclassified", 
   expect(observe(profileHeader.map(({ href }) => ({ href })))).toBeNull();
   expect(observe(profileHeader, "https://example.invalid/")).toBeNull();
 });
+
+test.each(["Please slide to verify", "please slide to complete the verification process."])(
+  "recognizes the visible access challenge: %s",
+  (instruction) => {
+    const observation = derivePageAccessObservation({
+      elements: profileHeader,
+      text: `Access Verification\n${instruction}`,
+      url: "https://jobs.51job.com/synthetic-city/900000001.html",
+    });
+    expect(observation).toMatchObject({
+      evidence: "verification-page",
+      interruption: "verification-required",
+      platformId: "51job",
+    });
+    expect(observation).not.toHaveProperty("authenticationState");
+  },
+);
+
+test.each([
+  "合成工程师\nDevelop access verification and please slide to verify examples.",
+  "Access Verification",
+  "Please slide to verify",
+  "Verification\n合成岗位正文",
+])("does not classify incomplete or incidental verification text: %s", (text) => {
+  expect(
+    derivePageAccessObservation({ elements: [], text, url: "https://www.51job.com/" }),
+  ).toBeNull();
+});

@@ -11,7 +11,7 @@ const ElementReference = toolInput("string > 0");
 const BrowserStatusInput = toolInput({});
 
 const BrowserTabsInput = toolInput({
-  action: "'list' | 'ensure' | 'activate'",
+  action: "'list' | 'ensure' | 'activate' | 'close'",
   "platformId?": PlatformId,
   "tabId?": OptionalTabId,
   "url?": "string",

@@ -93,6 +93,9 @@ export class PassiveJobObservationCollector {
   ): RiteCoroutine<CapturedJobEvidence[]> {
     const evidenceItems: CapturedJobEvidence[] = [];
     for (const page of this.#context.pages()) {
+      if (this.#collectionControl.state !== "active") {
+        break;
+      }
       if (!isJobCardCollectionPage(page.url()) && !isJobDetailPage(page.url())) {
         continue;
       }

@@ -7,117 +7,126 @@ import { createWorkspaceServiceHttpApp } from "#/http/app.js";
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
 const ok = 200;
-const created = 201;
 const badRequest = 400;
 const missing = 404;
-const conflict = 409;
-const firstIndex = 0;
-const missingSourceId = 999_999;
-const assessedAt = "2026-08-01T00:00:00.000Z";
 const command: SaveResearchReportCommand = {
-  entries: [],
   initiatedBy: "agent",
-  markdown: "合成报告：正文提及不代表推荐。",
+  markdown: "# 合成行业研究\n\n## 方法\n\n对比合成样本甲与乙。\n\n## 观察\n\n尚需补充访谈。\n",
   reason: "合成研究测试",
-  state: "complete",
-  targets: [],
-  title: "合成岗位研究",
+  state: "draft",
+  title: "合成行业观察",
 };
 
 function setup() {
-  const repository = new WorkspaceRepository({
+  return new WorkspaceRepository({
     databasePath: ":memory:",
     migrationsDirectory: path.resolve(import.meta.dirname, "../migrations"),
   });
-  for (const platformId of ["boss", "yupao"] as const) {
-    repository.saveJobCardObservation({
-      initiatedBy: "agent",
-      observation: {
-        company: "合成雇主甲",
-        details: [],
-        discoveryUrl:
-          platformId === "boss"
-            ? "https://www.zhipin.com/web/geek/jobs"
-            : "https://www.yupao.com/zhaogong/",
-        externalJobId: "synthetic-job",
-        location: "合成城市",
-        observedAt: assessedAt,
-        platformId,
-        summary: "合成工作内容",
-        title: "合成后端岗位",
-      },
-      reason: "合成研究测试",
-    });
-  }
-  const [job] = repository.listJobPostings();
-  if (!job) {
-    throw new Error("合成岗位未保存");
-  }
-  const boss = job.sources.find(({ platformId }) => platformId === "boss");
-  const yupao = job.sources.find(({ platformId }) => platformId === "yupao");
-  if (!boss || !yupao) {
-    throw new Error("合成平台来源未归并");
-  }
-  return { boss, repository, yupao };
-}
-
-function reportEntry(sourceId: number, disposition: "recommended" | "pending" | "excluded") {
-  return { assessedAt, basis: "合成证据已逐项核验", disposition, sourceId };
 }
 
 function jsonRequest(body: unknown, method = "POST") {
   return { body: JSON.stringify(body), headers: { "content-type": "application/json" }, method };
 }
 
-test("keeps platform recommendations independent and exposes searchable, time-stamped progress", async () => {
-  const { repository, boss, yupao } = setup();
+test("replaces a research document without job data and preserves authored Markdown", async () => {
+  const repository = setup();
   await using serviceScope = createScope();
   const app = createWorkspaceServiceHttpApp({ repository, serviceScope });
   try {
+    const original = repository.saveResearchReport(command);
+    if (!original) {
+      throw new Error("合成报告未保存");
+    }
+    expect(repository.listJobPostings()).toEqual([]);
+    const replacement = {
+      ...command,
+      markdown: "# 合成学习计划\n\n- 研读资料\n- 验证假设\n",
+      state: "complete",
+      title: "合成学习计划",
+    };
     const response = await app.request(
-      "/api/reports",
-      jsonRequest({
-        ...command,
-        entries: [reportEntry(boss.id, "recommended"), reportEntry(yupao.id, "pending")],
-        targets: [
-          { count: 2, platformId: "boss" },
-          { count: 1, nextStep: "核对合成详情", platformId: "yupao" },
-        ],
-      }),
+      `/api/reports/${String(original.id)}`,
+      jsonRequest(replacement, "PUT"),
     );
-    expect(response.status).toBe(created);
+    expect(response.status).toBe(ok);
     const report = ResearchReport.assert(await response.json());
-    expect(report.progress).toEqual([
-      { count: 2, excluded: 0, pending: 0, platformId: "boss", recommended: 1, remaining: 1 },
-      {
-        count: 1,
-        excluded: 0,
-        nextStep: "核对合成详情",
-        pending: 1,
-        platformId: "yupao",
-        recommended: 0,
-        remaining: 1,
-      },
-    ]);
-    expect(report.entries[firstIndex]).toEqual(reportEntry(boss.id, "recommended"));
-    const unrelated = await app.request(
-      `/api/reports?sourceId=${String(yupao.id)}&disposition=recommended`,
+    expect(report).toEqual({
+      createdAt: original.createdAt,
+      id: original.id,
+      markdown: replacement.markdown,
+      state: "complete",
+      title: replacement.title,
+      updatedAt: expect.any(String),
+    });
+    expect(repository.readResearchReport(original.id)).toEqual(report);
+    const removed = await app.request(
+      `/api/reports/${String(original.id)}`,
+      jsonRequest({ initiatedBy: "user", reason: "合成清理" }, "DELETE"),
     );
-    expect(ResearchReportList.assert(await unrelated.json()).reports).toEqual([]);
-    const matched = await app.request(
-      `/api/reports?sourceId=${String(boss.id)}&disposition=recommended`,
+    expect(removed.status).toBe(ok);
+    expect(repository.listResearchReports({ includeExpired: true })).toEqual([]);
+  } finally {
+    repository.close();
+  }
+});
+
+test.each([
+  { title: " " },
+  { markdown: "\n\t" },
+  { state: "unknown" },
+  { expiresAt: "not-a-time" },
+])("rejects invalid report replacement without losing saved content: %j", async (patch) => {
+  const repository = setup();
+  await using serviceScope = createScope();
+  const app = createWorkspaceServiceHttpApp({ repository, serviceScope });
+  try {
+    const original = repository.saveResearchReport(command);
+    if (!original) {
+      throw new Error("合成报告未保存");
+    }
+    const response = await app.request(
+      `/api/reports/${String(original.id)}`,
+      jsonRequest({ ...command, ...patch }, "PUT"),
     );
-    expect(ResearchReportList.assert(await matched.json()).reports.map(({ id }) => id)).toEqual([
-      report.id,
-    ]);
+    expect(response.status).toBe(badRequest);
+    expect(await response.json()).toMatchObject({ error: { code: "invalid-input" } });
+    expect(repository.readResearchReport(original.id)).toEqual(original);
+  } finally {
+    repository.close();
+  }
+});
+
+test("reads expired documents explicitly through HTTP and MCP", async () => {
+  const repository = setup();
+  await using serviceScope = createScope();
+  const app = createWorkspaceServiceHttpApp({ repository, serviceScope });
+  try {
+    const expired = repository.saveResearchReport({
+      ...command,
+      expiresAt: "2000-01-01T00:00:00.000Z",
+    });
+    if (!expired) {
+      throw new Error("合成报告未保存");
+    }
+    const hiddenList = await app.request("/api/reports");
+    expect(ResearchReportList.assert(await hiddenList.json()).reports).toEqual([]);
+    const hidden = await app.request(`/api/reports/${String(expired.id)}`);
+    expect(hidden.status).toBe(missing);
+    const list = await app.request("/api/reports?includeExpired=true");
+    const { markdown: _markdown, ...summary } = expired;
+    expect(ResearchReportList.assert(await list.json()).reports).toEqual([summary]);
+    const detail = await app.request(`/api/reports/${String(expired.id)}?includeExpired=true`);
+    expect(ResearchReport.assert(await detail.json())).toEqual(expired);
+    const invalidQuery = await app.request("/api/reports?includeExpired=maybe");
+    expect(invalidQuery.status).toBe(badRequest);
     const mcp = await app.request("/mcp", {
       ...jsonRequest({
         id: 1,
         jsonrpc: "2.0",
         method: "tools/call",
         params: {
-          arguments: { disposition: "recommended", sourceId: boss.id },
-          name: "list_research_reports",
+          arguments: { id: expired.id, includeExpired: true },
+          name: "read_research_report",
         },
       }),
       headers: {
@@ -125,135 +134,7 @@ test("keeps platform recommendations independent and exposes searchable, time-st
         "content-type": "application/json",
       },
     });
-    expect(await mcp.json()).toMatchObject({
-      result: { structuredContent: { reports: [{ id: report.id, progress: report.progress }] } },
-    });
-    const replacement = await app.request(
-      `/api/reports/${String(report.id)}`,
-      jsonRequest(
-        {
-          ...command,
-          entries: [reportEntry(yupao.id, "excluded")],
-          targets: [{ count: 1, platformId: "yupao" }],
-        },
-        "PUT",
-      ),
-    );
-    expect(replacement.status).toBe(ok);
-    expect(ResearchReport.assert(await replacement.json()).progress).toEqual([
-      { count: 1, excluded: 1, pending: 0, platformId: "yupao", recommended: 0, remaining: 1 },
-    ]);
-    expect(repository.listResearchReports({ sourceId: boss.id })).toEqual([]);
-    const removed = await app.request(
-      `/api/reports/${String(report.id)}`,
-      jsonRequest({ initiatedBy: "agent", reason: "合成清理" }, "DELETE"),
-    );
-    expect(removed.status).toBe(ok);
-    expect(repository.listResearchReports({ includeExpired: true, sourceId: yupao.id })).toEqual(
-      [],
-    );
-  } finally {
-    repository.close();
-  }
-});
-
-test("rejects duplicate judgments, missing sources and invalid targets without changing the report", async () => {
-  const { repository, boss } = setup();
-  await using serviceScope = createScope();
-  const app = createWorkspaceServiceHttpApp({ repository, serviceScope });
-  try {
-    const original = repository.saveResearchReport({
-      ...command,
-      entries: [reportEntry(boss.id, "recommended")],
-    });
-    if (!original) {
-      throw new Error("合成报告未保存");
-    }
-    for (const [patch, expectedStatus, expectedCode] of [
-      [
-        { entries: [reportEntry(boss.id, "recommended"), reportEntry(boss.id, "excluded")] },
-        conflict,
-        "conflict",
-      ],
-      [{ entries: [reportEntry(missingSourceId, "recommended")] }, missing, "not-found"],
-      [
-        { entries: [{ ...reportEntry(boss.id, "recommended"), assessedAt: "invalid" }] },
-        badRequest,
-        "invalid-input",
-      ],
-      [
-        {
-          targets: [
-            { count: 1, platformId: "boss" },
-            { count: 2, platformId: "boss" },
-          ],
-        },
-        conflict,
-        "conflict",
-      ],
-      [{ targets: [{ count: 0, platformId: "boss" }] }, badRequest, "invalid-input"],
-    ] as const) {
-      // eslint-disable-next-line no-await-in-loop -- Each rejected replacement must leave the same stored report intact before the next attempt.
-      const rejected = await app.request(
-        `/api/reports/${String(original.id)}`,
-        jsonRequest({ ...command, ...patch }, "PUT"),
-      );
-      expect(rejected.status).toBe(expectedStatus);
-      // eslint-disable-next-line no-await-in-loop -- Inspect each rejected mutation before checking its unchanged report.
-      expect(await rejected.json()).toMatchObject({ error: { code: expectedCode } });
-      expect(repository.readResearchReport(original.id)).toEqual(original);
-    }
-    for (const query of ["sourceId=0", "disposition=mentioned", "includeExpired=maybe"]) {
-      // eslint-disable-next-line no-await-in-loop -- Exercise each public query rejection independently.
-      const response = await app.request(`/api/reports?${query}`);
-      expect(response.status).toBe(badRequest);
-    }
-  } finally {
-    repository.close();
-  }
-});
-
-test("retains expired recommendation evidence for explicit history checks without parsing Markdown", async () => {
-  const { repository, boss } = setup();
-  await using serviceScope = createScope();
-  const app = createWorkspaceServiceHttpApp({ repository, serviceScope });
-  try {
-    const unstructured = repository.saveResearchReport({
-      ...command,
-      markdown: `仅提及来源 ${String(boss.id)}`,
-    });
-    expect(unstructured).toMatchObject({ entries: [], entryCount: 0 });
-    const expired = repository.saveResearchReport({
-      ...command,
-      entries: [reportEntry(boss.id, "recommended")],
-      expiresAt: "2000-01-01T00:00:00.000Z",
-    });
-    if (!expired) {
-      throw new Error("合成报告未保存");
-    }
-    const directoryResponse = await app.request("/api/reports?includeExpired=true");
-    const directory = ResearchReportList.assert(await directoryResponse.json());
-    expect(directory.reports).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ entryCount: 0, id: unstructured?.id }),
-        expect.objectContaining({ entryCount: 1, id: expired.id }),
-      ]),
-    );
-    expect(
-      repository.listResearchReports({ disposition: "recommended", sourceId: boss.id }),
-    ).toEqual([]);
-    const history = await app.request(
-      `/api/reports?includeExpired=true&sourceId=${String(boss.id)}&disposition=recommended`,
-    );
-    expect(ResearchReportList.assert(await history.json()).reports.map(({ id }) => id)).toEqual([
-      expired.id,
-    ]);
-    const hidden = await app.request(`/api/reports/${String(expired.id)}`);
-    expect(hidden.status).toBe(missing);
-    const detail = await app.request(`/api/reports/${String(expired.id)}?includeExpired=true`);
-    expect(ResearchReport.assert(await detail.json()).entries).toEqual([
-      reportEntry(boss.id, "recommended"),
-    ]);
+    expect(await mcp.json()).toMatchObject({ result: { structuredContent: expired } });
   } finally {
     repository.close();
   }

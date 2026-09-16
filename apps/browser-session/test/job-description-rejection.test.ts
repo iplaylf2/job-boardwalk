@@ -1,6 +1,6 @@
 import type { Page } from "patchright";
 import { run } from "@shajara/host";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { runInNewContext } from "node:vm";
 import { captureJobDescriptionObservation } from "#/browser/job-observation/description-observation.js";
 
@@ -46,3 +46,15 @@ test.each([
     expect(failure.message).toContain("页面正文可读");
   },
 );
+
+test("reports access evidence even when the challenge has no job description", async () => {
+  const observe = vi.fn();
+  const text = "Access Verification\nPlease slide to verify";
+  const page = {
+    evaluate: () =>
+      Promise.resolve({ accessElements: [], accessText: text, description: "", title: "", url }),
+    url: () => url,
+  } as unknown as Page;
+  await expect(run(() => captureJobDescriptionObservation(page, observe))).rejects.toThrow();
+  expect(observe).toHaveBeenCalledWith({ elements: [], text, url });
+});

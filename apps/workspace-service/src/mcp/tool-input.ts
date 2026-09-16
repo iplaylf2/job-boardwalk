@@ -16,9 +16,7 @@ const JobDescriptionStatusFilter = toolInput.enumerated(
 
 export const ReadWorkspaceOverviewInput = toolInput({});
 export const ListResearchReportsInput = toolInput({
-  "disposition?": "'recommended' | 'pending' | 'excluded'",
   "includeExpired?": "boolean",
-  "sourceId?": "number.integer >= 1",
 });
 
 export const ReadResearchReportInput = toolInput({
@@ -36,23 +34,12 @@ export const ReadJobLibraryInput = toolInput({
 });
 
 export const SaveResearchReportInput = toolInput({
-  entries: toolInput({
-    assessedAt: "string",
-    basis: "string.trim.preformatted > 0",
-    disposition: "'recommended' | 'pending' | 'excluded'",
-    sourceId: "number.integer >= 1",
-  }).array(),
   "expiresAt?": "string",
   "id?": "number.integer >= 1",
   initiatedBy: "'agent' | 'system' | 'user'",
   markdown: "string > 0",
   reason: "string.trim.preformatted > 0",
   state: "'complete' | 'draft'",
-  targets: toolInput({
-    count: "number.integer >= 1",
-    "nextStep?": "string.trim.preformatted > 0",
-    platformId: PlatformId,
-  }).array(),
   title: "string.trim.preformatted > 0",
 });
 

@@ -26,7 +26,7 @@ The interface has three primary reader paths:
   description is available. The dialog reports when Browser Session reached its local text limit
   and the displayed description may be incomplete.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
-  Both show the report's state and platform progress.
+  Both show the report's authoring state, update time, and expiration when present.
 
 The header owns only cross-resource navigation. Engagement filters belong to the job library and do
 not appear as primary destinations.
@@ -81,24 +81,18 @@ future browser features share page coordination and user handoff.
 
 ## Report rendering
 
-The report list and detail page show each platform's recommendation count against its target,
-remaining shortfall, pending and excluded counts, and next research step when present.
-Workspace Service supplies these counts from structured source judgments. A completed report
-may still have unmet targets: the state badge describes authoring as draft or finished, while the
-progress display shows the target shortfall.
-
-List and detail views also show the number of explicit source judgments. Reports with none direct
-readers to the body's recommendations and supporting evidence. These counts describe the recorded
-entries; [Workspace Service](../workspace-service/README.md#historical-recommendation-checks) owns
-historical query and report-replacement semantics.
+The report list shows titles, authoring states, update times, and optional expiration times. The
+detail page presents that metadata with the saved Markdown body. `complete` appears as “撰写完成”.
+[Workspace Service](../workspace-service/README.md#research-reports) owns report storage and
+expiration filtering.
 
 Dashboard renders each report as a document. It supports headings, prose, lists, tables, block
-quotes, code, section anchors, Dashboard-local links, and HTTPS source links. Raw HTML remains text,
-and Markdown images are not rendered.
+quotes, and code. Raw HTML remains text, and Markdown images are not rendered.
 
-Section anchors and Dashboard-local links stay in the current tab. HTTPS source links carry a `↗`
-marker and open in a new tab, so readers can consult a source without losing their place in the
-report. Report content cannot embed pages or expose browser or agent controls.
+Links beginning with `#` or a single `/` stay in the current tab; headings do not receive automatic
+anchor IDs. HTTPS links carry a `↗` marker and open in a new tab, so readers can consult a source
+without losing their place in the report. Other link destinations are not rendered as links.
+Report content cannot embed pages or expose browser or agent controls.
 
 ## Concurrency model
 

@@ -7,12 +7,7 @@ import {
 } from "./internal/contract-fields.ts";
 import { JobCardObservation, JobDescriptionObservation } from "./job-observation.ts";
 import { JobEngagementSnapshot } from "./job-engagement.ts";
-import {
-  ResearchReportEntry,
-  ResearchReportPlatformTarget,
-  ResearchReportMarkdown,
-  ResearchReportState,
-} from "./research-report.ts";
+import { ResearchReportMarkdown, ResearchReportState } from "./research-report.ts";
 import { RecommendationPageReference } from "./search-intent.ts";
 
 export const WorkspaceChangeAttribution = contract({
@@ -60,11 +55,9 @@ export const SynchronizeJobEngagementCommand = JobEngagementSnapshot.merge(
 export type SynchronizeJobEngagementCommand = typeof SynchronizeJobEngagementCommand.infer;
 
 export const SaveResearchReportCommand = WorkspaceChangeAttribution.merge({
-  entries: ResearchReportEntry.array(),
   "expiresAt?": normalizedTimestamp,
   markdown: ResearchReportMarkdown,
   state: ResearchReportState,
-  targets: ResearchReportPlatformTarget.array(),
   title: trimmedNonEmptyString,
 });
 export type SaveResearchReportCommand = typeof SaveResearchReportCommand.infer;

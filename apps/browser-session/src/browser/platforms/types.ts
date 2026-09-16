@@ -70,6 +70,10 @@ export interface PlatformPageDefinition {
 }
 
 export interface JobDescriptionExtractionConfig {
+  readonly locationText?: {
+    readonly selectors: readonly string[];
+    readonly pattern: string;
+  };
   readonly factTextSelectors?: readonly string[];
   readonly salarySelectors?: readonly string[];
   readonly locationSelectors?: readonly string[];

@@ -1,10 +1,8 @@
-import { platformCatalog } from "@job-boardwalk/platform-catalog";
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type {
   ResearchReport,
   ResearchReportState,
-  ResearchReportPlatformProgress,
   ResearchReportSummary,
 } from "@job-boardwalk/contracts";
 
@@ -35,35 +33,6 @@ function ReportStateBadge(props: { state: ResearchReportState }): JSX.Element {
   );
 }
 
-function ReportProgress(props: { progress: ResearchReportPlatformProgress[] }): JSX.Element {
-  return (
-    <Show when={props.progress.length > emptyCollectionLength}>
-      <ul class={styles["progress"]} aria-label="推荐目标进度">
-        <For each={props.progress}>
-          {(item) => (
-            <li>
-              <strong>{platformCatalog[item.platformId].label}</strong>
-              {" · "}推荐 {item.recommended} / {item.count}，还差 {item.remaining}
-              {" · "}待确认 {item.pending}，排除 {item.excluded}
-              <Show when={item.nextStep}>{(nextStep) => <p>下一步：{nextStep()}</p>}</Show>
-            </li>
-          )}
-        </For>
-      </ul>
-    </Show>
-  );
-}
-
-function ReportJudgments(props: { entryCount: number }): JSX.Element {
-  return (
-    <p>
-      {props.entryCount === emptyCollectionLength
-        ? "尚未记录逐项岗位结论；请查阅正文中的推荐与依据。"
-        : `已记录 ${props.entryCount} 条岗位结论。`}
-    </p>
-  );
-}
-
 function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
   return (
     <article class={styles["listItem"]}>
@@ -72,8 +41,6 @@ function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
         <h2>
           <a href={`/reports/${String(props.report.id)}`}>{props.report.title}</a>
         </h2>
-        <ReportJudgments entryCount={props.report.entryCount} />
-        <ReportProgress progress={props.report.progress} />
       </div>
       <div class={styles["listMeta"]}>
         <span>更新于 {formatTimestamp(props.report.updatedAt)}</span>
@@ -89,21 +56,17 @@ export function ResearchReportListPage(): JSX.Element {
   const reportList = createPolledRead(listResearchReports, refreshIntervalMilliseconds);
 
   return (
-    <AppShell
-      active="reports"
-      title="研究报告"
-      lede="集中阅读研究过程中形成的阶段性判断、依据与后续建议。"
-    >
+    <AppShell active="reports" title="研究报告" lede="集中阅读已保存的研究文档。">
       <section class={styles["list"]} aria-label="研究报告列表">
         <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取研究报告…</p>}>
           <Show
             when={reportList.data()}
-            fallback={<p class={styles["empty"]}>当前没有可阅读的研究报告。</p>}
+            fallback={<p class={styles["empty"]}>当前没有未过期的研究报告。</p>}
           >
             {(result) => (
               <Show
                 when={result().reports.length > emptyCollectionLength}
-                fallback={<p class={styles["empty"]}>当前没有可阅读的研究报告。</p>}
+                fallback={<p class={styles["empty"]}>当前没有未过期的研究报告。</p>}
               >
                 <For each={result().reports}>{(report) => <ReportListItem report={report} />}</For>
               </Show>
@@ -128,8 +91,6 @@ function ResearchReportDocument(props: { report: ResearchReport }): JSX.Element 
           </Show>
         </p>
       </header>
-      <ReportJudgments entryCount={props.report.entryCount} />
-      <ReportProgress progress={props.report.progress} />
       <ResearchReportMarkdownView markdown={props.report.markdown} />
     </article>
   );
@@ -142,11 +103,7 @@ export function ResearchReportDetailPage(props: { reportId: number }): JSX.Eleme
   );
 
   return (
-    <AppShell
-      active="reports"
-      title="研究报告"
-      lede="报告呈现阶段性判断；后续决定应结合工作区记录与原始来源核验。"
-    >
+    <AppShell active="reports" title="研究报告" lede="阅读已保存的研究内容。">
       <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取研究报告…</p>}>
         <Show when={report.data()}>{(result) => <ResearchReportDocument report={result()} />}</Show>
       </WorkspaceDataBoundary>

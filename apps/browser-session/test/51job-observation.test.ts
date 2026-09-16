@@ -156,6 +156,7 @@ test.each([true, false])(
   "keeps 51job facts inside the posting when facts are present: %s",
   (hasFacts) => {
     const fields: Record<string, { innerText?: string; textContent: string }> = {
+      ".area": { textContent: "推荐职位所在地" },
       ".com_name a": { textContent: "合成雇主甲" },
       ".jTitle": {
         innerText: hasFacts ? "合成系统工程师 8千-1.2万·13薪 3-5年 本科" : "合成系统工程师",
@@ -163,6 +164,10 @@ test.each([true, false])(
       },
       ".jTitle h1": { textContent: "合成系统工程师" },
       ".jname": { textContent: "合成推荐岗位" },
+      ".job-detail": {
+        innerText: hasFacts ? "工作地址\n合成市测试区虚构路零号\n公司信息" : "合成职责正文",
+        textContent: "合成职责正文",
+      },
       ".job-detail .job_msg": {
         innerText: "岗位职责\n维护合成系统。",
         textContent: "岗位职责 维护合成系统。",
@@ -193,6 +198,7 @@ test.each([true, false])(
       details: ["合成福利"],
       educationRequirement: hasFacts ? "本科" : null,
       experienceRequirement: hasFacts ? "3-5年" : null,
+      location: hasFacts ? "合成市测试区虚构路零号" : null,
       salaryText: hasFacts ? "8千-1.2万·13薪" : null,
       title: "合成系统工程师",
       truncated: false,
@@ -220,3 +226,29 @@ test.each(["8千-1.2万·13薪", "16-22万/年", "1.5-2.5万元/年"])(
     expect(metadata.salaryText).toBe(salary);
   },
 );
+
+test.each([
+  { expected: "合成市虚构路零号", text: "工作地址：合成市虚构路零号" },
+  { expected: "合成市测试区", text: "上班地址:\n合成市测试区" },
+  { expected: null, text: "工作地址\n公司信息" },
+  { expected: null, text: "工作地址\n查看地图" },
+  { expected: null, text: "工作地址管理系统的开发" },
+  { expected: null, text: "工作地址" },
+  { expected: null, text: "公司地址：合成市虚构路零号" },
+])("reads only explicitly labeled posting location: $text", ({ text, expected }) => {
+  vi.stubGlobal("document", {
+    body: { innerText: `${text}\n相关推荐\n工作地址：合成推荐城` },
+    querySelector: () => null,
+    querySelectorAll: (selector: string) =>
+      selector === ".job-detail" ? [{ innerText: text }] : [],
+  });
+  vi.stubGlobal("location", { href: detailUrl });
+  const metadata = captureJobDescriptionMetadata({
+    ...requireJobDetailExtractionConfigs(detailUrl),
+    accessTextCharacters: 5000,
+    maximumAccessElements: 300,
+    maximumDescriptionCharacters: 20_000,
+    maximumFieldCharacters: 300,
+  });
+  expect(metadata.location).toBe(expected);
+});

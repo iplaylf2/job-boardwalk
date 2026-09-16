@@ -31,7 +31,7 @@ integration to separate applications:
   Dashboard's packaged Caddy process, and Browser Session. It selects the desktop browser,
   presents aggregate product status, and never takes over Browser Session's page-control boundary.
 
-Browser Session adapters derive structured authentication observations from qualifying top-level
+Browser Session adapters derive authentication and access-interruption observations from top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
 evidence outside those rules and coordinates user handoff. Workspace Service deduplicates durable
 observations for Dashboard and MCP readers. See
@@ -53,16 +53,15 @@ Available now:
   for capture semantics, platform capabilities, and scan limits.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
-  sources, source-specific descriptions, and Markdown research reports. It merges confident
-  cross-platform matches while preserving each platform source and its collected evidence.
+  sources, source-specific descriptions, and Markdown research reports. It normalizes job facts
+  and retains each platform source and its collected evidence.
 - Dashboard displays that durable workspace data and lets the user maintain and select job-search
   intents. Its paginated job library supports search,
   platform filtering, a combined view of all tracked jobs, and category views for interested,
   contacted, applied, and interviewed records while preserving the original recruiting-platform
   sources. It reports description coverage and can show jobs with a description, all jobs without
   one, or only missing-description jobs that also lack a platform job ID and detail-page link. Its
-  report reader keeps saved conclusions available without the agent conversation that produced
-  them.
+  report reader keeps saved research documents available independently of the agent conversation.
 - Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
   address and service log path and directly supervising the product's isolated service processes.
   Browser discovery or launch failure, or a later Browser Session process exit, puts the

@@ -42,9 +42,10 @@ const engagementCapabilities = platformIds
   .join("\n");
 const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
-  "访问观察：平台适配器可从顶层导航响应和有界 browser_snapshot 判定其明确支持的证据。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
+  "访问观察：平台适配器从顶层导航响应、快照和采集时已有的页面读取中识别认证或访问中断。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
   "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
-  "用户交接：需要登录时，使用 browser_prepare_login 检查现有会话并按需准备登录界面。只有 outcome=handoff-ready 才开始交接；此后立即停止浏览器输入，被动页面读取也会保持暂停。登录、验证、投递、消息或账号变更由用户完成。用户明确交还控制权后，在第一次 browser_snapshot 中设置 userReturnedControl=true；普通快照省略该字段。",
+  "用户交接：需要登录时使用 browser_prepare_login。登录界面就绪返回 outcome=handoff-ready 并暂停会话；适配器识别到验证或拒绝访问时也会暂停。暂停期间，除 browser_status 和交还控制后的首次快照外，新工具调用均返回 user-control-active；已知的中断页面 URL 在 error.details 中。",
+  "恢复研究：用户明确交还控制权后，对相关 tabId 调用 browser_snapshot 并设置 userReturnedControl=true。快照仍识别到中断时会再次暂停；根据 controlState 和页面证据决定下一步。普通快照省略该标志。",
   "可见结果：判断以用户看到的当前窗口和重新观察结果为准；工具返回冲突时先重新观察。",
   "工具响应：成功时读取 structuredContent.result；isError=true 时读取 structuredContent.error 的 code、details 和展示用 message。",
   "故障分类：browser_status 的 available=false 表示浏览器运行时整体不可用。navigation.outcome=timed-out 只表示目标页未在时限内达到 DOMContentLoaded；pageInspection 分别报告页面关闭、检查超时或观察到的文档生命周期。验证和拒绝访问仍须由可见控件或页面语义确定。",
@@ -69,15 +70,15 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "列出或激活受支持招聘平台的标签页，也可按 platformId 准备标签页。action 为 ensure 时优先复用该平台已有标签页。list 返回每页有界的 pageInspection，每页检查均有独立等待上限。",
+      "管理受支持招聘平台标签页。action=list 返回标签及各自有界的 pageInspection；activate 激活标签；ensure 按 platformId 复用或准备标签；close 必须指定 tabId，关闭后返回剩余标签及 active 选中状态。关闭选中页时会选择剩余的平台标签；最后一个关闭后返回空列表。激活、准备或关闭标签会使全会话旧 ref 失效。",
     name: "browser_tabs",
   }),
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description: [
-      "当用户要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，无需导航或用户交接。",
+      "当用户要求登录，或可见证据表明当前流程需要认证且会话未登录时，暂停被动页面读取并检查该平台现有标签页。已观察到认证证据时返回 outcome=already-authenticated，选中该页并恢复采集，无需导航或用户交接。",
       "对可复用登录页逐一进行有界检查，激活已出现可用登录控件的候选。无法读取或尚未分类的其他平台页保持不变；没有可复用登录页时，使用空白页或新标签页打开登录入口。",
-      "登录界面就绪时返回 outcome=handoff-ready，开始用户交接。无法确认认证或登录界面就绪时，准备失败并恢复被动读取；候选检查结果记录在 error.details.candidates。",
+      "登录界面就绪时返回 outcome=handoff-ready，开始用户交接。login-not-ready 错误提供可用的候选检查结果 error.details.candidates。准备失败后恢复被动读取；若适配器识别到访问中断，则保持暂停。",
     ].join("\n\n"),
     name: "browser_prepare_login",
   }),
@@ -90,9 +91,9 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description: [
-      "在有界等待内读取可见文本、通用交互元素及适配器补充的详情入口，返回 documentReadyState 和短期有效的 ref。入口可附带 context，提供所属卡片的可见文字，帮助区分同名岗位；将 ref 传给 browser_click 可操作该入口。引用在全会话范围内失效：任意标签页的新快照、导航或页面控件操作，以及登录准备和跟进同步，都会使旧引用失效。失效后对引用所属的 tabId 重新取快照；动作前会重新核对节点及有界内容。",
+      "在有界等待内读取可见文本、通用交互元素及适配器补充的详情入口，返回 documentReadyState 和短期有效的 ref。入口可附带 context，提供所属卡片的可见文字，帮助区分同名岗位；将 ref 传给 browser_click 可操作该入口。引用在全会话范围内失效：任意标签页的新快照、导航或页面控件操作，以及标签激活、准备、关闭、登录准备和跟进同步，都会使旧引用失效。失效后对引用所属的 tabId 重新取快照；动作前会重新核对节点及有界内容。",
       "快照不包含表单当前值和密码框。truncated 表示正文或元素集合被裁剪，或超长链接被省略；名称和 context 另有长度上限，其缩短不设置该标志。读取超时会报告标签页关闭、页面检查超时或已观察到的文档生命周期。platformAccessObservation 非 null 时，结论已加入状态上报；null 表示访问证据尚未分类。",
-      "仅在用户明确交还控制权后的第一次快照中设置 userReturnedControl=true，以恢复后台读取并允许后续同步复用该平台标签页。该字段不表示认证成功；普通快照省略它。",
+      "仅在用户明确交还控制权后的第一次快照中设置 userReturnedControl=true，以恢复后台读取并允许后续同步复用该平台标签页。成功读取后会根据新证据更新交接状态：controlState=active 可继续研究，user-handoff 表示仍需用户处理。该字段不表示认证成功；普通快照省略它。",
     ].join("\n\n"),
     name: "browser_snapshot",
   }),

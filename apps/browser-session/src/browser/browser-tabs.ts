@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- Tab identity, selection, and lifecycle share one owner.
 import { OperationError } from "@job-boardwalk/contracts";
 import type { BrowserContext, Page } from "patchright";
 import { until } from "@shajara/host";
@@ -134,6 +135,9 @@ export class BrowserTabs {
     if (action === "ensure") {
       return yield* this.#ensure(input);
     }
+    if (action === "close") {
+      return yield* this.#close(input);
+    }
     const [tabId, page] = this.resolveNavigationPage(parseOptionalTabId(input));
     if (action === "activate") {
       this.markSelected(tabId);
@@ -141,6 +145,25 @@ export class BrowserTabs {
       return { id: tabId, ...(yield* readNavigationPageSummary(page)) };
     }
     throw new OperationError("invalid-input", `不支持的标签页动作：${action}`, { field: "action" });
+  }
+
+  *#close(input: Record<string, unknown>): RiteCoroutine<unknown> {
+    const tabId = parseOptionalTabId(input);
+    if (tabId === null) {
+      throw new OperationError("invalid-input", "关闭标签页必须指定 tabId。", { field: "tabId" });
+    }
+    const page = this.requireNavigationPage(tabId);
+    const wasSelected = this.#selectedPageId === tabId;
+    yield* until(() => page.close());
+    if (wasSelected) {
+      const remaining = [...this.#pages.values()].find(
+        (candidate) => !candidate.isClosed() && findRecruitingPlatformAdapter(candidate.url()),
+      );
+      if (remaining) {
+        yield* this.selectPage(remaining);
+      }
+    }
+    return yield* this.#list();
   }
 
   public *prepareLogin(

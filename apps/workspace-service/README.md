@@ -11,7 +11,7 @@ browser-collaboration model. The current service preserves platform-access obser
 facts, job-search intents, normalized jobs and their platform sources, and research reports. Each
 intent owns a target position, city, selection state, and per-platform recommendation-page
 references. The service does not store recruiting pages or historical page snapshots. It stores
-research reports as Markdown with source judgments, platform targets, and lifecycle metadata.
+research reports as Markdown with titles and lifecycle metadata.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent browser. The agent coordinates that live browser work with the
@@ -62,7 +62,7 @@ The MCP surface provides:
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
   `platformId`, `engagement`, and `descriptionStatus` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
-  research reports;
+  research reports by default;
 - `read_research_report`, which reads a report by ID, excluding expired reports by default;
 - `save_research_report`, which creates a report or replaces one identified by ID.
 
@@ -114,7 +114,7 @@ HTTP statuses are 400 for `invalid-input`, 404 for `not-found`, 409 for `conflic
 
 ### Platform-access observations
 
-Browser Session submits adapter-derived authentication evidence to
+Browser Session submits adapter-derived authentication and interruption observations to
 `PUT /api/platform-access/observations`. Reconciliation compares the input with the latest
 observation for the same `platformId` and source `url`:
 
@@ -313,56 +313,32 @@ engagement and snapshot semantics.
 
 ### Research reports
 
-A report contains a title, Markdown body, `draft` or `complete` state, timestamps, optional
-expiration, and explicit `entries` and `targets` arrays. Use empty arrays for reports without
-source judgments or platform targets. Creating, fully replacing, and deleting a report records a
-workspace change with its user, agent, or system attribution. Replacement changes the Markdown,
-entries, and targets in one transaction; this is a retained-report model, not an immutable history
-of earlier revisions.
+A report contains a title, Markdown body, `draft` or `complete` authoring state, creation and update
+timestamps, and optional expiration. The author determines the subject and document structure.
 
-HTTP and MCP validate and normalize report commands before passing them to the typed repository.
-The [report repository](src/persistence/research-report-repository.ts) owns persistence, source
-existence and uniqueness checks, query semantics, and derived progress. Markdown is stored as
-authored; [Dashboard](../dashboard/README.md#report-rendering) owns rendering.
-[Product design](../../docs/product-design.md#research-reports) defines the cross-application
-report lifecycle.
+`POST /api/reports` creates a report; `PUT /api/reports/:id` replaces it. MCP
+`save_research_report` creates when `id` is omitted and replaces when it is supplied. Creating or
+replacing a report requires `title`, `markdown`, `state`, and change attribution (`initiatedBy` and
+`reason`), with optional `expiresAt`. Replacement overwrites those authored fields, preserves the ID and creation
+time, and updates the modification time. Omitting `expiresAt` clears any previous expiration.
+Earlier revisions are not retained.
 
-#### Source judgments
+Creating, replacing, and deleting a report records a workspace change with its user, agent, or
+system attribution in the same transaction as the report change.
 
-Each entry associates one workspace `sourceId` with a `recommended`, `pending`, or `excluded`
-judgment, a nonempty `basis`, and the judgment time `assessedAt`. The caller owns the judgment and the
-evidence behind it. The service rejects missing sources and repeated source IDs within a report.
-A mention or link in Markdown creates no entry. Same-platform alternate links use the workspace's
-existing source-identity rules; no additional company-name or text-similarity exclusion is inferred.
+HTTP and MCP validate report commands before passing them to the typed repository. The
+[report repository](src/persistence/research-report-repository.ts) owns persistence, expiration
+filtering, and change attribution. Markdown is stored as authored;
+[Dashboard](../dashboard/README.md#report-rendering) owns rendering.
 
-#### Platform targets and progress
+`GET /api/reports` and MCP `list_research_reports` return summaries ordered by most recent update.
+`GET /api/reports/:id` and MCP `read_research_report` return a report's body and metadata. List and
+detail reads exclude expired reports by default; `includeExpired=true` includes them explicitly.
+The MCP reports resource always lists unexpired reports. Expiration affects visibility without
+deleting the stored document.
 
-Each target supplies a `platformId`, positive integer `count`, and optional `nextStep`. A platform
-can have only one target per report.
-
-Report summaries and details return `progress` for those targets, with `recommended`, `pending`,
-and `excluded` source counts. The `remaining` shortfall is the target minus recommended entries,
-with a minimum of zero. Cross-platform sources count independently even when they belong to one
-normalized job. Pending and excluded entries do not satisfy a target.
-`complete` describes the report's authoring state and may coexist with a remaining shortfall.
-
-#### Historical recommendation checks
-
-`GET /api/reports` and MCP `list_research_reports` filter structured entries by `sourceId` and
-`disposition`. When both are supplied, they must match the same entry. To find a source's retained
-recommendations, use `sourceId`, `disposition=recommended`, and `includeExpired=true`. Report reads
-otherwise exclude expired reports. To inspect an expired report's body and basis, also pass
-`includeExpired=true` to `GET /api/reports/:id` or MCP `read_research_report`.
-
-These filters do not search Markdown. Report summaries and details expose `entryCount`, the number
-of retained source judgments. Zero means that recommendations, if present in the body, have no
-structured entries. A positive count does not establish that every body judgment has been recorded.
-For a historical check, also list reports with `includeExpired=true` and no source or disposition
-filter, then read relevant bodies.
-
-After confirming a body's judgments and their workspace sources, use the existing report command
-to replace the report with explicit entries. Replacement supplies the complete body, entries, and
-targets together. It replaces earlier judgments; deletion removes them.
+[Product design](../../docs/product-design.md#research-reports) defines the cross-application report
+lifecycle.
 
 ## Persistence
 
