@@ -84,6 +84,8 @@ const yupaoJobLink = {
   jobLinkPathPattern: String.raw`^/zhaogong/(?<externalJobId>\d+)(?:/[^/]+)?\.html$`,
 } as const;
 
+const yupaoSalaryTextPattern = String.raw`\d+(?:\.\d+)?(?:[-–—]\d+(?:\.\d+)?)?(?:万(?:元)?|[kK]|元)/(?:月|天|小时)|薪资面议|面议`;
+
 const yupaoJobCardExtraction = {
   ...yupaoJobLink,
   companySelectors: [
@@ -113,8 +115,8 @@ const yupaoJobCardExtraction = {
     "[class*='location']",
   ],
   salarySelectors: [".salary"],
-  salaryTextPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:月|天|小时)|薪资面议|面议`,
-  titleBoundaryPattern: String.raw`\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?万元/月|\d+(?:-\d+)?元/(?:月|天|小时)|薪资面议|面议|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
+  salaryTextPattern: yupaoSalaryTextPattern,
+  titleBoundaryPattern: `${yupaoSalaryTextPattern}|经验不限|在校/应届|1年以内|1-3年|3-5年|5-10年|10年以上|学历不限|初中及以下|中专(?:/中技)?|高中|大专|本科|硕士|博士`,
   titleFromFirstLine: true,
   titleSelectors: [".job-name", ".job-title", "[class*='job-name']", "[class*='job-title']"],
 } as const satisfies JobCardExtractionConfig;
@@ -125,18 +127,24 @@ export const yupaoPageDefinition = {
   jobCardExtractionConfig: yupaoJobCardExtraction,
   jobDescriptionExtractionConfig: {
     companySelectors: ["a[href*='/qiye/'][href*='.html']", ".company-info a[href*='/qiye/']"],
-    descriptionSelectors: [
-      ".job-detail-content",
-      "[class*='job-detail-content']",
-      "[class*='job-content']",
-    ],
+    descriptionSelectors: [],
     descriptionTextRanges: [
-      { endMarker: "职位总结", startMarker: "职位说明：" },
-      { endMarker: "职位总结", startMarker: "职位描述：" },
-      { endMarker: "职位总结", includeStartMarker: true, startMarker: "岗位要求：" },
-      { endMarker: "职位总结", includeStartMarker: true, startMarker: "岗位职责：" },
+      { endMarker: "职位总结", startMarker: "职位详情" },
+      { endMarker: "工作地址", startMarker: "职位详情" },
     ],
+    detailsSelectors: [],
+    locationSelectors: [],
+    locationText: {
+      pattern: String.raw`(?:^|\n)工作地址(?:[：:][ \t]*\n?|[ \t]*\n)(?!(?:查看地图|相关推荐|推荐岗位)(?:\n|$))(?<location>[^\n]+)`,
+      selectors: ["body"],
+    },
+    pageTextEndMarkers: ["相关推荐", "推荐岗位", "推荐职位", "热门职位"],
+    // A collection-card salary selector can belong to a surrounding recommendation.
+    salarySelectors: [],
+    salaryTextEndMarker: "职位详情",
+    salaryTextPattern: yupaoSalaryTextPattern,
     titleLineBeforeMarker: "岗位职责：",
+    titleSelectors: [],
     titleTextPattern: String.raw`^(?:(?!职位详情)[\s\S])*?(?:^|\n)(?<title>[^\n]+)\n(?:${yupaoJobCardExtraction.salaryTextPattern})\n(?:(?!职位详情)[\s\S])*?职位详情`,
   },
   jobLink: yupaoJobLink,

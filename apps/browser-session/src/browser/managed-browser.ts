@@ -110,6 +110,7 @@ export class ManagedBrowser implements BrowserControl {
     return {
       ...(browserVersion ? { browserVersion } : {}),
       available: true,
+      control: this.#toolExecutor.controlStatus,
       tabCount: this.#toolExecutor.tabCount,
     };
   }

@@ -51,6 +51,12 @@ export class BrowserTabs {
   public get tabCount(): number {
     return this.#pages.size;
   }
+  public matchingTabIds(url: string): number[] {
+    return [...this.#pages]
+      .filter(([, page]) => !page.isClosed() && page.url() === url)
+      .map(([id]) => id);
+  }
+
   public markSelected(tabId: number): void {
     this.#selectedPageId = tabId;
   }

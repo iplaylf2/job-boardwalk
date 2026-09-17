@@ -35,9 +35,9 @@ const researchReportsUri = "job-boardwalk://reports";
 const workspaceOverviewDescription =
   "读取本机工作区概览：各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人条件，以及带平台推荐页关联和当前选择状态的求职方向。";
 const jobLibraryResourceDescription =
-  "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
+  "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录、已采集职位描述及可选的 recruitment 观察。";
 const jobLibraryToolDescription =
-  "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，也可读取全部跟进岗位。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 进一步限定为缺少平台岗位 ID 和详情页链接的暂无描述岗位。结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
+  "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，也可读取全部跟进岗位。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 进一步限定为缺少平台岗位 ID 和详情页链接的暂无描述岗位。结果保留各平台来源、原始链接、跟进记录、已采集职位描述及可选的 recruitment 观察。空跟进列表表示未记录；recruitment 缺失或 state=unknown 均不表示招聘中。";
 const researchReportsResourceDescription =
   "读取未过期研究报告目录，包含标题、撰写状态和时间。查阅过期报告时，使用 list_research_reports。";
 const researchReportListDescription =

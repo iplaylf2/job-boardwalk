@@ -210,6 +210,11 @@ because a platform may limit or age out personal-center history. Partial snapsho
 refresh observed relations. Event time and the resume artifact remain unknown because platform
 categories provide neither datum.
 
+An empty engagement list means no engagement has been recorded. It does not establish that the
+account has never contacted or applied: even complete scans cover only the platform-visible history.
+Detail-page controls such as “继续沟通” are separate page evidence; they do not establish membership
+in a personal-center category.
+
 Engagements share the normalized job collection. Removing an `interested` relation leaves the job,
 its other sources, and its historical engagement evidence in the library.
 
@@ -229,7 +234,8 @@ interface. If it observes authentication, research can continue without a handof
 a ready login interface starts the pause. An adapter-recognized verification request or access
 denial also pauses the session, including during login preparation or passive collection.
 The agent handles interruptions that adapters do not recognize and coordinates other
-user-controlled actions through the conversation.
+user-controlled actions through the conversation. When the service retains an interruption, its
+platform and source URL identify the evidence behind the handoff.
 
 After the user returns control, the agent re-observes the relevant page before resuming research.
 Returned control establishes permission to observe; the new evidence determines whether the page
@@ -260,9 +266,9 @@ recognized pages and evidence for each adapter.
 Workspace Service retains observations by platform and source URL, reconciling repeated evidence
 by observation time. It owns the
 [observation API and overview projection](../apps/workspace-service/README.md#platform-access-observations).
-Browser Session owns [submission](../apps/browser-session/README.md#evidence-submission), and
-Dashboard presents the resulting summaries with their source URLs and observation times.
-Live browser inspection remains with Browser Session.
+Browser Session owns [submission](../apps/browser-session/README.md#evidence-submission). Dashboard
+presents the resulting summaries; its [data display](../apps/dashboard/README.md#data-ownership-and-freshness)
+is separate from live browser inspection, which remains with Browser Session.
 
 ## Reliable browser research
 
@@ -271,8 +277,10 @@ visible browser and reuse of the selected tab and session while they remain heal
 concurrency, and ordinary navigation flow.
 
 The agent observes the page at workflow boundaries and after meaningful page or handoff changes.
-Navigation, paging, refreshes, and retries use bounded pacing. Each retry requires new evidence and a
-finite limit.
+It checks operation results for control state and access evidence before continuing; an earlier active
+snapshot does not establish that the next operation is permitted. Summarizing page text preserves
+those independent signals. Navigation, paging, refreshes, and retries use bounded pacing. Each retry
+requires new evidence and a finite limit.
 
 The visible browser outcome and the user's observation govern whether an action visibly succeeded.
 When a backend URL, page title, or tool response conflicts with the user's report, the agent

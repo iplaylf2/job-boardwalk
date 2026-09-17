@@ -327,6 +327,17 @@ test("verification pauses all tools and re-pauses an unsuccessful returned-contr
     controlState: "user-handoff",
     platformAccessObservation: { interruption: "verification-required" },
   });
+  expect(executor.controlStatus).toMatchObject({
+    interruption: {
+      evidence: "verification-page",
+      interruption: "verification-required",
+      observedAt: expect.any(String),
+      platformId: "51job",
+      url: fake.page.url(),
+    },
+    matchingTabIds: [oneCollection],
+    state: "user-handoff",
+  });
   for (const [tool, input] of [
     ["browser_navigate", { url: "https://www.yupao.com/" }],
     ["browser_tabs", { action: "close", tabId: 1 }],
@@ -346,7 +357,12 @@ test("verification pauses all tools and re-pauses an unsuccessful returned-contr
       }
       return null;
     });
-    expect(failure).toMatchObject({ failure: { code: "user-control-active" } });
+    expect(failure).toMatchObject({
+      failure: {
+        code: "user-control-active",
+        details: { platformAccessObservation: executor.controlStatus.interruption },
+      },
+    });
   }
   expect(
     await scope.run(() =>
@@ -362,6 +378,11 @@ test("verification pauses all tools and re-pauses an unsuccessful returned-contr
   ).toMatchObject({ controlState: "active", platformAccessObservation: null });
   await scope.run(() => executor.execute("browser_navigate", { url: "https://www.51job.com/" }));
   expect(fake.navigationCount).toBe(oneCollection);
+  expect(executor.controlStatus).toEqual({
+    interruption: null,
+    matchingTabIds: [],
+    state: "active",
+  });
 });
 
 test("a passive verification read stops the batch before the next tab", async () => {

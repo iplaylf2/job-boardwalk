@@ -13,18 +13,9 @@ The interface has three primary reader paths:
   default and can all be expanded in place; a separate management surface owns creating, revising,
   selecting, and removing intents and facts. Platform-access evidence remains a compact
   secondary rail unless it needs attention.
-- `/jobs` is the single normalized job library. Its in-page engagement navigation filters that
-  library by the union of all tracked jobs or by `interested`, `contacted`, `applied`, or
-  `interviewed`; these are views of one collection, not peer pages. The library also provides
-  search, platform and description-availability filters, original source links, and server-backed
-  pagination. Its heading reports how many jobs have a retained main description, how many do not,
-  and how many of those lack both a platform job ID and detail-page link. The description filter can
-  show jobs with a description, all jobs without one, or only that unresolved subset. Cards focus
-  on comparable job facts and available actions. Their source rows show every observed engagement
-  and link to the platform when a detail-page URL is available; the card footer reports when its
-  latest engagement record was observed. A card offers the description dialog only when a collected
-  description is available. The dialog reports when Browser Session reached its local text limit
-  and the displayed description may be incomplete.
+- `/jobs` presents the normalized job library with search, platform, engagement, and description
+  filters. Cards show collected facts, platform sources, and retained descriptions. See
+  [Job library](#job-library) for source status and evidence displays.
 - `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
   Both show the report's authoring state, update time, and expiration when present.
 
@@ -43,23 +34,49 @@ navigation visible. The affected data region reports the failure instead of pres
 empty result; retryable failures offer a retry action.
 
 The platform-access panel presents Workspace Service's summaries with the latest observation time;
-source page URLs are omitted from this compact view. Authentication labels use the past tense. An unresolved interruption
-takes precedence in the panel; Dashboard does not open or inspect recruiting pages.
+source page URLs are omitted from this compact view. Authentication labels use the past tense. An
+unresolved interruption takes precedence in the panel; Dashboard does not open or inspect recruiting
+pages.
 
 Dashboard rereads the workspace overview every five seconds and refreshes it after a user change.
 The job-library page requests at most 24 jobs at a time and refreshes the selected view every 30
 seconds. Research-report pages refresh every five seconds. These reads use Workspace Service's
 local API and do not refresh recruiting pages.
 
+## Job library
+
+The library's engagement navigation selects all tracked jobs or one platform-observed category:
+`interested`, `contacted`, `applied`, or `interviewed`. These are filters on the same collection.
+Description coverage counts jobs with a retained description, jobs without one, and the subset
+that also lacks a platform job ID and detail-page link. The description filter selects those groups;
+Workspace Service owns the [query semantics](../workspace-service/README.md#library-queries-and-description-coverage).
+
+Cards focus on comparable job facts and source evidence. Each source row shows recorded engagements,
+recruitment status, and a link when a detail URL is available. Conclusive recruitment states include
+their observation date. Missing and unknown recruitment assessments display “招聘状态未判定”;
+empty engagements display “未记录跟进”. The footer shows the latest engagement observation date,
+or the job's update date when no engagement is recorded.
+
+A card offers a description dialog when a retained description is available. The dialog reports
+local length clipping when present. Source status and description availability are independent:
+a closed posting can still have a readable description.
+
 ## Optional Browser Session health checks
 
-The overview has an independent browser-service status panel. Dashboard checks the configured
-Browser Session's `/health` directly. Each `BrowserSessionCheckResult` describes one check: its
-`outcome` is `unconfigured`, `configuration-error`, `failed`, or `observed`. An observed health
-response separately reports whether the managed browser is ready. A failed read establishes neither
-that the service is stopped nor why the check failed. Each check has a three-second deadline and runs
-every five seconds while the overview is mounted; leaving the page cancels pending requests.
-Workspace content and this health check have separate loading and failure boundaries.
+The overview's browser-service panel reads the configured Browser Session's `/health` directly.
+Each `BrowserSessionCheckResult` records a check time and an `outcome`: `unconfigured`,
+`configuration-error`, `failed`, or `observed`. A failed read establishes neither that the service
+is stopped nor why the check failed.
+
+An observed response supplies runtime availability. For an available runtime, the panel uses its
+control state to distinguish an active session, handoff preparation, and user control. When an access interruption is retained,
+it shows that observation's platform, date and time, and source URL. The URL identifies the recorded
+interruption; the page may since have closed or navigated. This current-session read is independent
+of the platform-access history displayed from Workspace Service.
+
+Each check has a three-second deadline and runs every five seconds while the overview is mounted;
+leaving the page cancels pending requests. Workspace content and this health check have separate
+loading and failure boundaries.
 
 ### Service origin configuration
 

@@ -17,7 +17,11 @@ async function readCheckResult() {
 }
 
 test.each([
-  { available: true, tabCount: 0 },
+  {
+    available: true,
+    control: { interruption: null, matchingTabIds: [], state: "active" },
+    tabCount: 0,
+  },
   {
     available: false,
     lifecycle: { phase: "starting", phaseStartedAt: "2026-01-01T00:00:00.000Z" },
@@ -69,7 +73,11 @@ test.each(["configuration-body", "health-request"])(
     } else {
       fetchMock.mockRejectedValueOnce(error);
     }
-    const browser = { available: true, tabCount: 0 };
+    const browser = {
+      available: true,
+      control: { interruption: null, matchingTabIds: [], state: "active" },
+      tabCount: 0,
+    };
     fetchMock
       .mockResolvedValueOnce(new Response(serviceOrigin))
       .mockResolvedValueOnce(Response.json({ browser, status: "ok" }));

@@ -108,6 +108,26 @@ platform-access assessments come from the page evidence described below. Lifecyc
 detailed local errors carry UTC timestamps. A long-running phase can identify where investigation
 should begin without asserting its cause.
 
+An available runtime reports `available=true`, `tabCount`, an optional `browserVersion`, and
+`control`. The control state describes which actor may use the session:
+
+| `control.state`     | Meaning                                                          |
+| ------------------- | ---------------------------------------------------------------- |
+| `active`            | Agent operations may proceed within the delegated scope.         |
+| `quiescing`         | Login preparation is waiting for in-flight collection to finish. |
+| `preparing-handoff` | Browser Session is preparing the login interface.                |
+| `user-handoff`      | The session is paused for user control.                          |
+
+`control.interruption` retains the latest access observation that triggered a pause, including its
+platform, URL, observation time, and evidence category. It is null when no such observation is
+retained, including a login handoff without an access interruption. `control.matchingTabIds` lists
+open tabs currently at that URL, using tab metadata without reading their documents. Several tabs
+can match, and the list can become empty after navigation or closure; it does not identify the
+original triggering tab.
+
+Both status endpoints remain readable during handoff. The [handoff protocol](#browser-handoff)
+defines how control returns and when the retained interruption is cleared.
+
 The process writes operational output to standard streams. Shutdown requests record the signal and
 UTC time; fatal service errors include nested failures and available stacks, including errors wrapped
 during resource cleanup. The launcher owns log retention and process exit status. See
@@ -178,6 +198,9 @@ Navigation waits up to 30 seconds for `DOMContentLoaded`. A timeout returns
 independent `pageInspection`. If the final URL leaves supported platform scope, the result still
 includes that URL and the navigation outcome; `platformId=null` and `pageInspection=null` indicate
 that the destination document was not inspected. Further page controls require a supported target.
+
+Navigation and click results also include `control` as observed when the operation returns. A later
+access observation can pause the session before the next request; callers must check each result.
 
 Snapshot DOM evaluation waits up to five seconds. On timeout, `error.details.pageInspection`
 reports a closed tab, an inspection timeout, or the observed document lifecycle state.
@@ -301,10 +324,13 @@ login preparation or a detail read that cannot extract a job description. The ob
 eligible for submission to Workspace Service.
 
 New browser tool calls fail with `user-control-active`, including tab listing and ordinary
-snapshots. The error identifies the interruption's platform and URL when known. Background
-collections do not start, and a passive collection already in progress stops before the next tab.
-Already-started work is not canceled by this gate; writes from captured evidence may finish.
-`browser_status` and `/health` remain available and report runtime availability.
+snapshots. The error includes the retained access observation in
+`error.details.platformAccessObservation` when known. Background collections do not start, and a
+passive collection already in progress stops before the next tab. Already-started work is not
+canceled by this gate; writes from captured evidence may finish.
+
+To inspect control state and current URL-matching tabs during the pause, use
+`browser_status` or `/health` as described under [Health and runtime diagnostics](#health-and-runtime-diagnostics).
 
 The agent must still interpret unclassified pages and stop research for user-controlled actions
 that the service cannot identify.
@@ -314,8 +340,9 @@ that the service cannot identify.
 After the user explicitly returns control, call `browser_snapshot` with
 `userReturnedControl=true` for the first observation of the relevant `tabId`. This snapshot is
 allowed during the handoff pause; ordinary snapshots omit the flag. After a successful read, it
-releases the pause and lets a later engagement sync reuse the observed platform tab. If the new
-snapshot identifies another interruption, the session pauses again.
+releases the pause, clears the retained interruption, and lets a later engagement sync reuse the
+observed platform tab. If the new snapshot identifies another interruption, the session pauses again
+and retains that observation.
 
 The snapshot returns `controlState` alongside `platformAccessObservation`: `active` permits
 research, while `user-handoff` means the session is paused. Returned control does not establish
@@ -354,9 +381,22 @@ the references returned by `browser_snapshot`, as described in
 
 `browser_job_description_snapshot` reads the main posting description and recognizable job facts
 from a supported detail page, excluding surrounding recommendations. It submits the observation
-to Workspace Service with agent attribution and returns only after the service accepts and
-retains it. A rejected write or a `stale` outcome fails the call. `description.capturedAt` records
-the capture time, and `description.truncated` reports clipping at the local description-text limit.
+to Workspace Service with agent attribution and returns only after the service accepts and retains
+it. A rejected write or a `stale` outcome fails the call.
+
+`description.capturedAt` records the capture time. `description.truncated` reports clipping at the
+local description-text limit; it does not measure whether the extractor covered every part of the
+posting. An `evidence-unavailable` error identifies `missingFields`, `pageTextAvailable`, and the
+URL in `error.details`. Readable page text alone cannot distinguish absent content from an
+unsupported section layout.
+
+Each successful read also includes a `recruitment` assessment with its observation time and source
+URL. Conclusive assessments include the page evidence; unmatched evidence returns `unknown`.
+[Platform coverage](#platform-coverage) owns the recognition rules. Workspace Service owns
+[retention and read semantics](../workspace-service/README.md#recruitment-observations).
+
+Account engagement requires separate [platform evidence](../../docs/product-design.md#engagement-tracking);
+a generic apply control alone does not establish whether the current account has applied.
 
 To bind a previously tracked source without a detail identity, first confirm that the current
 page belongs to that source. Pass its workspace `sourceId` only when the source has no retained
@@ -370,10 +410,6 @@ define the required matches.
 - `sourceBinding.outcome=bound` includes the explicitly bound `sourceId`.
 - `sourceBinding.outcome=not-requested` means no `sourceId` was supplied; the call does not
   establish an association with a previously tracked linkless card.
-
-Description capture establishes posting content. Account engagement requires separate
-[platform evidence](../../docs/product-design.md#engagement-tracking); a generic apply control
-alone does not establish whether the current account has applied.
 
 ### Passive collection and persistence
 

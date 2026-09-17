@@ -30,6 +30,7 @@ function fakeBrowserControl(): BrowserControl & {
     status: {
       available: true,
       browserVersion: "150.0.0.0",
+      control: { interruption: null, matchingTabIds: [], state: "active" },
       tabCount: 1,
     },
   };
@@ -59,7 +60,11 @@ function browserToolExecutorControl(): BrowserControl {
   );
   return {
     executeTool: (toolName, input) => executor.execute(toolName, input),
-    status: { available: true, tabCount: 0 },
+    status: {
+      available: true,
+      control: { interruption: null, matchingTabIds: [], state: "active" },
+      tabCount: 0,
+    },
   };
 }
 

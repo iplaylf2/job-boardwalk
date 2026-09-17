@@ -1,3 +1,4 @@
+import { PlatformAccessObservation } from "./platform-access.ts";
 import { contract } from "./internal/contract.ts";
 
 export const OperationErrorCode = contract.enumerated(
@@ -41,11 +42,14 @@ export const OperationFailure = contract({
     "invalidatedBy?": "string",
     "invalidatedByTabId?": "number",
     "issues?": contract({ code: "string", message: "string", path: "(string | number)[]" }).array(),
+    "missingFields?": "string[]",
     "pageInspection?": contract({
       "documentReadyState?": "string",
       outcome: "'page-closed' | 'timed-out' | 'observed'",
       "title?": "string",
     }),
+    "pageTextAvailable?": "boolean",
+    "platformAccessObservation?": PlatformAccessObservation,
     "platformId?": "string",
     "reason?": "string",
     "ref?": "string",

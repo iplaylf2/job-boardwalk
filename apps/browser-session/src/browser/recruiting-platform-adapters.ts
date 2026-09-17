@@ -111,9 +111,13 @@ export function requireJobDetailExtractionConfigs(url: string): {
 } {
   const adapter = requireRecruitingPlatformAdapter(url);
   if (!adapter.isJobDetailPage(url)) {
-    throw new OperationError("unsupported-page", "当前页面不是受支持招聘平台的岗位详情页。", {
-      url,
-    });
+    throw new OperationError(
+      "unsupported-page",
+      "当前页面不是受支持的岗位详情页；请打开该岗位的详情链接后采集。",
+      {
+        url,
+      },
+    );
   }
   return {
     cardConfig: adapter.jobCardExtractionConfig,

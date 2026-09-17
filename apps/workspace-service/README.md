@@ -233,6 +233,25 @@ Session's local truncation state remain part of the stored observation. See
 [Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
 evidence lifecycle.
 
+#### Recruitment observations
+
+A detail submission may include `recruitment`. Job-library reads expose that assessment on its
+platform source, with `observedAt` and `url` identifying the observation's time and page:
+
+- `open` and `closed` record a conclusive assessment and require supporting `evidence` text.
+- `unknown` records an assessment without a conclusion.
+- An absent `recruitment` field means the retained detail has no recruitment assessment.
+
+Workspace Service retains this field with the latest accepted detail observation. A newer detail
+can replace it with `unknown` or omit it; earlier recruitment assessments are not kept as history.
+Later card observations leave it unchanged, so a source's `lastCheckedAt` may be newer than its
+recruitment evidence. A retained description, an unknown assessment, or a missing assessment does
+not establish that a posting is open.
+
+[Browser Session platform coverage](../browser-session/README.md#platform-coverage) defines the
+automatic recognition rules. Workspace Service stores the submitted assessment without inspecting
+the source page.
+
 #### Source identity
 
 Within one platform, Workspace Service identifies a source by its external job ID when available,

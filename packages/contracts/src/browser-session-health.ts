@@ -1,3 +1,4 @@
+import { PlatformAccessObservation } from "./platform-access.ts";
 import { contract } from "./internal/contract.ts";
 import {
   nonNegativeInteger,
@@ -21,6 +22,11 @@ export const BrowserRuntimeStatus = contract.or(
   {
     available: "true",
     "browserVersion?": trimmedNonEmptyString,
+    control: {
+      interruption: PlatformAccessObservation.or("null"),
+      matchingTabIds: nonNegativeInteger.array(),
+      state: "'active' | 'preparing-handoff' | 'quiescing' | 'user-handoff'",
+    },
     tabCount: nonNegativeInteger,
   },
 );

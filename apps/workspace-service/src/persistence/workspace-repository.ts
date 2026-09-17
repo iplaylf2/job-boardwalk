@@ -171,6 +171,9 @@ function toJobPostingSource(
   return {
     ...evidence,
     descriptionCaptureStatus: jobDescriptionCaptureStatus(evidence),
+    ...(row.descriptionObservation?.recruitment
+      ? { recruitment: row.descriptionObservation.recruitment }
+      : {}),
     engagements: engagementRows
       .filter(({ sourceId }) => sourceId === row.id)
       .map(toJobSourceEngagement),

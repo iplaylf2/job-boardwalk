@@ -2,6 +2,7 @@ import { OperationError } from "@job-boardwalk/contracts";
 // oxlint-disable max-lines -- The executor is the cohesive dispatch boundary for the public browser tool surface.
 import type { Locator } from "patchright";
 import type {
+  BrowserRuntimeStatus,
   JobDescriptionObservation,
   PlatformAccessObservation,
   SaveJobObservationResult,
@@ -88,6 +89,15 @@ export class BrowserToolExecutor {
     this.#synchronizeJobEngagement = coordination.synchronizeJobEngagement;
     this.#tabs = tabs;
     this.#writeJobDescriptionObservation = coordination.writeJobDescriptionObservation;
+  }
+
+  public get controlStatus(): Extract<BrowserRuntimeStatus, { available: true }>["control"] {
+    const { state, interruption } = this.#collectionControl;
+    return {
+      interruption,
+      matchingTabIds: interruption ? this.#tabs.matchingTabIds(interruption.url) : [],
+      state,
+    };
   }
 
   public get tabCount(): number {
@@ -181,7 +191,10 @@ export class BrowserToolExecutor {
       if (popupPage) {
         yield* this.#tabs.selectPage(popupPage);
       }
-      return yield* readNavigationPageSummary(popupPage ?? sourcePage);
+      return {
+        ...(yield* readNavigationPageSummary(popupPage ?? sourcePage)),
+        control: this.controlStatus,
+      };
     } finally {
       this.#clearElementReferences("browser_click", reference.tabId);
     }
@@ -228,7 +241,7 @@ export class BrowserToolExecutor {
     this.#tabs.markSelected(tabId);
     yield* until(() => page.bringToFront());
     this.#clearElementReferences("browser_navigate", tabId);
-    return yield* navigatePage(page, url);
+    return { ...(yield* navigatePage(page, url)), control: this.controlStatus };
   }
 
   #reference(params: Record<string, unknown>): ElementReference {

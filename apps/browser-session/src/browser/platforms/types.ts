@@ -70,6 +70,10 @@ export interface PlatformPageDefinition {
 }
 
 export interface JobDescriptionExtractionConfig {
+  readonly recruitmentClosedTextPattern?: string;
+  readonly pageTextEndMarkers?: readonly string[];
+  readonly salaryTextEndMarker?: string;
+  readonly salaryTextPattern?: string;
   readonly locationText?: {
     readonly selectors: readonly string[];
     readonly pattern: string;

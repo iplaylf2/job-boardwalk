@@ -23,6 +23,8 @@ its text in the description observation alongside the detail URL and capture tim
 use search-city parameters or URL path segments. Text outside that region and unrecognized
 address layouts do not supply a location.
 
+Recruitment assessment returns `unknown`; this adapter has no conclusive recruitment-state rule.
+
 ## Engagement interpretation and evidence
 
 | Engagement    | Platform category |

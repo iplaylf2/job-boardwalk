@@ -101,6 +101,7 @@ export const bossPageDefinition = {
       ".company-info a[href*='/gongsi/']",
     ],
     descriptionSelectors: [".job-sec-text"],
+    recruitmentClosedTextPattern: String.raw`^(?:(?!职位描述)[\s\S])*?(?:^|\n)(?<evidence>职位已关闭)\n(?=[\s\S]*职位描述(?:\n|$))`,
   },
   jobLink: bossJobLink,
   textReplacements: bossTextReplacements,

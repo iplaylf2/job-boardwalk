@@ -18,6 +18,10 @@ export class BackgroundCollectionControl {
 
   #interruption: PlatformAccessObservation | null = null;
 
+  public get interruption(): PlatformAccessObservation | null {
+    return this.#interruption;
+  }
+
   public get state(): CollectionControlState {
     return this.#state;
   }
@@ -37,7 +41,11 @@ export class BackgroundCollectionControl {
         {
           reason: this.#state,
           ...(this.#interruption
-            ? { platformId: this.#interruption.platformId, url: this.#interruption.url }
+            ? {
+                platformAccessObservation: this.#interruption,
+                platformId: this.#interruption.platformId,
+                url: this.#interruption.url,
+              }
             : {}),
         },
       );

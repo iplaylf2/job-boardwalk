@@ -44,7 +44,7 @@ const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
   "访问观察：平台适配器从顶层导航响应、快照和采集时已有的页面读取中识别认证或访问中断。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
   "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
-  "用户交接：需要登录时使用 browser_prepare_login。登录界面就绪返回 outcome=handoff-ready 并暂停会话；适配器识别到验证或拒绝访问时也会暂停。暂停期间，除 browser_status 和交还控制后的首次快照外，新工具调用均返回 user-control-active；已知的中断页面 URL 在 error.details 中。",
+  "用户交接：需要登录时使用 browser_prepare_login。登录界面就绪返回 outcome=handoff-ready 并暂停会话；适配器识别到验证或拒绝访问时也会暂停。暂停期间，除 browser_status 和交还控制后的首次快照外，新工具调用均返回 user-control-active；error.details.platformAccessObservation 保留已知的中断证据；browser_status 可查看当前控制状态和来源 URL。",
   "恢复研究：用户明确交还控制权后，对相关 tabId 调用 browser_snapshot 并设置 userReturnedControl=true。快照仍识别到中断时会再次暂停；根据 controlState 和页面证据决定下一步。普通快照省略该标志。",
   "可见结果：判断以用户看到的当前窗口和重新观察结果为准；工具返回冲突时先重新观察。",
   "工具响应：成功时读取 structuredContent.result；isError=true 时读取 structuredContent.error 的 code、details 和展示用 message。",
@@ -64,7 +64,8 @@ function defineBrowserTool(
 const browserTools = [
   defineBrowserTool({
     annotations: { idempotentHint: true, openWorldHint: false, readOnlyHint: true },
-    description: "查看 Browser Session 所管理的可见浏览器状态。",
+    description:
+      "读取运行状态及 control。available 表示运行时是否可用；control.state 区分 active、交接准备和 user-handoff。control.interruption 保留触发暂停的访问观察，matchingTabIds 列出当前仍匹配其 URL 的标签，不标识原始触发标签。交接期间仍可读取；成功交还控制后清除旧中断。",
     name: "browser_status",
   }),
   defineBrowserTool({
@@ -85,7 +86,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: false },
     description:
-      "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。返回 navigation 和 pageInspection；达到 DOMContentLoaded 时 outcome=completed，等待超时时 outcome=timed-out。最终 URL 离开受支持平台时仍返回行动结果与 URL，platformId 和 pageInspection 均为 null，表示未读取该文档。超时后根据页面检查和新的可见页面证据决定下一步。",
+      "将现有标签页导航到同一招聘平台内的指定 HTTPS URL。返回 navigation、pageInspection 及操作返回时的 control；达到 DOMContentLoaded 时 outcome=completed，等待超时时 outcome=timed-out。最终 URL 离开受支持平台时仍返回行动结果与 URL，platformId 和 pageInspection 均为 null，表示未读取该文档。超时后根据页面检查和新的可见页面证据决定下一步。",
     name: "browser_navigate",
   }),
   defineBrowserTool({
@@ -93,7 +94,7 @@ const browserTools = [
     description: [
       "在有界等待内读取可见文本、通用交互元素及适配器补充的详情入口，返回 documentReadyState 和短期有效的 ref。入口可附带 context，提供所属卡片的可见文字，帮助区分同名岗位；将 ref 传给 browser_click 可操作该入口。引用在全会话范围内失效：任意标签页的新快照、导航或页面控件操作，以及标签激活、准备、关闭、登录准备和跟进同步，都会使旧引用失效。失效后对引用所属的 tabId 重新取快照；动作前会重新核对节点及有界内容。",
       "快照不包含表单当前值和密码框。truncated 表示正文或元素集合被裁剪，或超长链接被省略；名称和 context 另有长度上限，其缩短不设置该标志。读取超时会报告标签页关闭、页面检查超时或已观察到的文档生命周期。platformAccessObservation 非 null 时，结论已加入状态上报；null 表示访问证据尚未分类。",
-      "仅在用户明确交还控制权后的第一次快照中设置 userReturnedControl=true，以恢复后台读取并允许后续同步复用该平台标签页。成功读取后会根据新证据更新交接状态：controlState=active 可继续研究，user-handoff 表示仍需用户处理。该字段不表示认证成功；普通快照省略它。",
+      "仅在用户明确交还控制权后的第一次快照中设置 userReturnedControl=true，以恢复后台读取并允许后续同步复用该平台标签页。成功读取后会根据新证据更新交接状态：controlState=active 可继续研究，user-handoff 表示仍需用户处理。交还控制权不表示认证成功；普通快照省略 userReturnedControl。",
     ].join("\n\n"),
     name: "browser_snapshot",
   }),
@@ -118,9 +119,10 @@ const browserTools = [
       readOnlyHint: false,
     },
     description: [
-      "读取当前详情页的主要职位描述和可识别的岗位字段，以 agent 归因写入 Workspace Service。成功响应的 persistence.outcome 表示观察已被接受并保留；写入失败或工作区返回 stale 时调用失败。description.capturedAt 是采集时间，description.truncated 表示描述被本地长度上限裁剪。本次读取不导航、滚动或点击，排除周边推荐岗位，并可能刷新平台访问观察。",
+      "读取当前详情页的主要职位描述和可识别的岗位字段，以 agent 归因写入 Workspace Service。成功响应的 persistence.outcome 表示观察已被接受并保留；写入失败或工作区返回 stale 时调用失败。description.capturedAt 是采集时间，description.truncated 只表示本地长度裁剪，不衡量提取范围是否完整。本次读取不导航、滚动或点击，排除周边推荐岗位，并可能刷新平台访问观察。",
       "若已独立确认当前页面属于某个工作区来源，且该来源尚无描述、外部岗位 ID 和详情链接，可传其 sourceId 请求显式绑定。sourceBinding.outcome=bound 时返回绑定的 sourceId；not-requested 表示未传 sourceId，本次未建立与指定无链接卡片的关联。",
-      "描述采集证明岗位内容；本账户是否已投递需另行核实跟进证据，通用投递按钮不能证明尚未投递。",
+      "recruitment 独立记录招聘状态、观察时间和来源 URL；明确状态附带证据，unknown 表示未能判定。已保存正文不代表仍在招聘。evidence-unavailable 错误通过 details.missingFields 和 pageTextAvailable 说明缺失字段及页面文字是否可读；可读文字不能区分内容缺失与布局不受支持。",
+      "本账户是否已投递需另行核实跟进证据，通用投递按钮不能证明尚未投递。",
     ].join("\n\n"),
     name: "browser_job_description_snapshot",
   }),
@@ -142,7 +144,7 @@ const browserTools = [
   defineBrowserTool({
     annotations: { destructiveHint: true, openWorldHint: true, readOnlyHint: false },
     description:
-      "点击最近一次 browser_snapshot 返回的有效 ref；显式链接必须属于当前招聘平台的 HTTPS 导航范围。点击期间及后续有界观察窗口内收到的弹窗会成为选中标签页，并返回该页摘要；否则返回原页摘要。此等待不保证页面数据就绪，更晚出现的标签页需通过 browser_tabs 检查。操作后全会话引用失效。",
+      "点击最近一次 browser_snapshot 返回的有效 ref；显式链接必须属于当前招聘平台的 HTTPS 导航范围。点击期间及后续有界观察窗口内收到的弹窗会成为选中标签页，并返回该页摘要；否则返回原页摘要。结果附带操作返回时的 control，后续访问观察仍可能触发暂停。此等待不保证页面数据就绪，更晚出现的标签页需通过 browser_tabs 检查。操作后全会话引用失效。",
     name: "browser_click",
   }),
   defineBrowserTool({

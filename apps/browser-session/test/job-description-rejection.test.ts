@@ -14,7 +14,7 @@ test.each([
     missing: "岗位标题",
   },
   { body: header, missing: "职位描述" },
-  { body: `${header}\n岗位要求：\n职位总结`, missing: "职位描述" },
+  { body: `${header}\n职位总结`, missing: "职位描述" },
   { body: `${header}\n职位描述：\n无结束边界的合成正文。`, missing: "职位描述" },
 ])(
   "rejects an unmatched $missing without claiming an unreadable page",

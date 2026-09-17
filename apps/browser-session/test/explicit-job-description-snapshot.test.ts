@@ -21,6 +21,7 @@ function fakeBossJobDetailContext(): BrowserContext {
         company: "示例科技甲",
         description: "工作职责\n建设合成测试平台。",
         details: ["TypeScript"],
+        recruitmentClosure: "职位已关闭",
         title: "平台工程师",
         truncated: false,
         url,
@@ -74,6 +75,14 @@ test("submits the explicit job-description observation before returning it", asy
     tabId: number;
   };
   const { persistence, sourceBinding, tabId: _tabId, ...returnedObservation } = result;
+  expect(result).toMatchObject({
+    recruitment: {
+      evidence: "职位已关闭",
+      observedAt: result.observedAt,
+      state: "closed",
+      url: result.jobUrl,
+    },
+  });
   expect(persistence).toEqual({ outcome: "source-updated" });
   expect(sourceBinding).toEqual({ outcome: "bound", sourceId: 71 });
 

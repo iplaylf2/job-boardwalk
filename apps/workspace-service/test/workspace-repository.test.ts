@@ -1397,3 +1397,59 @@ test("merges a provisional parent when an explicit bind reveals an existing norm
     await rm(directory, { recursive: true });
   }
 });
+
+test("retains recruitment evidence with its detail timestamp despite later cards", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-recruitment-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+  try {
+    const observation = jobDescriptionObservation();
+    const recruitment = {
+      evidence: "职位已关闭",
+      observedAt: observation.observedAt,
+      state: "closed" as const,
+      url: observation.jobUrl,
+    };
+    const saved = repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: { ...observation, recruitment },
+      reason: "合成关闭岗位证据",
+    });
+    expect(saved.job.sources[firstIndex]).toMatchObject({
+      description: { text: observation.description.text },
+      recruitment,
+    });
+    const refreshed = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        externalJobId: "progressive-123",
+        observedAt: "2026-07-24T10:00:00.000Z",
+      }),
+      reason: "合成卡片刷新",
+    });
+    expect(refreshed.job.sources[firstIndex]?.recruitment).toEqual(recruitment);
+    const reassessed = jobDescriptionObservation({ observedAt: "2026-07-25T10:00:00.000Z" });
+    const latest = repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: {
+        ...reassessed,
+        recruitment: {
+          observedAt: reassessed.observedAt,
+          state: "unknown",
+          url: reassessed.jobUrl,
+        },
+      },
+      reason: "合成未判定观察替换旧结论",
+    });
+    expect(latest.job.sources[firstIndex]?.recruitment).toEqual({
+      observedAt: reassessed.observedAt,
+      state: "unknown",
+      url: reassessed.jobUrl,
+    });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
