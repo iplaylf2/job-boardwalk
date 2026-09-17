@@ -25,7 +25,7 @@ function DirectionSummary(props: { intents: JobSearchIntent[] }): JSX.Element {
         when={selectedIntent()}
         fallback={
           <p class={styles["empty"]}>
-            尚未选择求职方向。已打开的招聘平台页面仍会整理；当前没有可供助手使用的平台研究起点。
+            尚未选择求职方向。可在“管理研究依据”中添加或选择方向，为助手提供平台研究起点。
           </p>
         }
       >

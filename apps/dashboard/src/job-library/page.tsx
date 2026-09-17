@@ -117,7 +117,6 @@ function DescriptionStatusSelect(props: {
   );
 }
 
-// eslint-disable-next-line max-lines-per-function -- One reactive owner keeps list filters, paging, and selection synchronized.
 function createJobLibraryPageState(view: JobLibraryView) {
   const engagement = view === "all" ? null : view;
   const [draftQuery, setDraftQuery] = createSignal("");

@@ -81,7 +81,7 @@ interface ScrollResult {
 }
 
 // Self-contained: select the scroll owner, measure its viewport, and perform one action.
-// eslint-disable-next-line max-statements, max-lines-per-function -- The serialized callback keeps target selection, geometry and the single action in one page-realm operation.
+// eslint-disable-next-line max-lines-per-function -- The serialized callback owns one action and must carry its scroll-target helper.
 export function scrollOneViewport(
   element: HTMLElement,
   input: ScrollInput,
@@ -94,30 +94,36 @@ export function scrollOneViewport(
   const zero = 0;
   const downwardSign = 1;
   const upwardSign = -1;
-  // HTML body overflow can be propagated to the viewport, leaving no body scroll box.
-  const rootStyle = view.getComputedStyle(document.documentElement);
-  const bodyUsesViewport =
-    rootStyle.overflowX === "visible" &&
-    rootStyle.overflowY === "visible" &&
-    rootStyle.contain === "none" &&
-    document.body !== null &&
-    view.getComputedStyle(document.body).contain === "none";
-  let target = document.scrollingElement;
-  if (input.target === "scrollable-ancestor") {
-    let ancestor = element.parentElement;
-    while (ancestor && ancestor !== document.scrollingElement) {
-      const style = view.getComputedStyle(ancestor);
-      if (
-        !(ancestor === document.body && bodyUsesViewport) &&
-        /^(?:auto|scroll|overlay)$/u.test(style.overflowY) &&
-        ancestor.scrollHeight > ancestor.clientHeight
-      ) {
-        target = ancestor;
-        break;
+  const helpers = {
+    findScrollTarget(): Element {
+      // HTML body overflow can be propagated to the viewport, leaving no body scroll box.
+      const rootStyle = view!.getComputedStyle(document.documentElement);
+      const bodyUsesViewport =
+        rootStyle.overflowX === "visible" &&
+        rootStyle.overflowY === "visible" &&
+        rootStyle.contain === "none" &&
+        document.body !== null &&
+        view!.getComputedStyle(document.body).contain === "none";
+      let target: Element = document.scrollingElement!;
+      if (input.target === "scrollable-ancestor") {
+        let ancestor = element.parentElement;
+        while (ancestor && ancestor !== document.scrollingElement) {
+          const style = view!.getComputedStyle(ancestor);
+          if (
+            !(ancestor === document.body && bodyUsesViewport) &&
+            /^(?:auto|scroll|overlay)$/u.test(style.overflowY) &&
+            ancestor.scrollHeight > ancestor.clientHeight
+          ) {
+            target = ancestor;
+            break;
+          }
+          ancestor = ancestor.parentElement;
+        }
       }
-      ancestor = ancestor.parentElement;
-    }
-  }
+      return target;
+    },
+  };
+  const target = helpers.findScrollTarget();
   const bounds = target.getBoundingClientRect();
   const viewportHeight =
     target === document.scrollingElement

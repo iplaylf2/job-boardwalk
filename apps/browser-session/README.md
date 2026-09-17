@@ -498,6 +498,13 @@ contract](src/browser/job-engagement/types.ts); callbacks remain self-contained 
 execute in the browser page realm. Shared job-link rules are passed as input rather than copied
 into a callback.
 
+The same execution boundary applies to card, description, snapshot, and scroll captures. Keep DOM
+helpers inside the serialized callback and pass configuration as input; imported Node-side helpers
+are unavailable in the page. Local object methods avoid the Node-side naming helpers that the source
+runner can inject into nested function declarations. When the complete callback exceeds the function
+length limit, explain serialization in a local disable; its nested helpers still receive size and
+complexity checks.
+
 Page definitions may expose collection-page interaction selectors with a role and an owning
 context selector. These only apply on recognized collection pages; the shared snapshot and
 action boundary owns visibility, references, validation, and popup handling.

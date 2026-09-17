@@ -2,7 +2,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// oxlint-disable max-lines -- This suite keeps the complete public HTTP boundary visible together.
 import {
   JobPostingPage,
   ResearchReport,

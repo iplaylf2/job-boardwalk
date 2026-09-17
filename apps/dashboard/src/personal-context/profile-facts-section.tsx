@@ -1,89 +1,52 @@
 import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { ProfileFact } from "@job-boardwalk/contracts";
-
-// oxlint-disable max-lines-per-function -- The editor state stays next to the section it controls.
-import { useDashboardRuntime } from "#/dashboard-runtime.js";
-import { deleteProfileFact, saveProfileFact } from "#/workspace-service-client.js";
-
+import { deleteProfileFact } from "#/workspace-service-client.js";
+import { createPersonalContextMutation } from "./personal-context-mutation.js";
+import { ProfileFactEditor } from "./profile-fact-editor.js";
+import { ProfileFactRow } from "./profile-fact-row.js";
 import styles from "./manager.module.css";
 
 const emptyCollectionLength = 0;
-
-function formatSource(fact: ProfileFact): string {
-  if (fact.source === "user") {
-    return "由你填写";
+function createSectionState(props: { facts: ProfileFact[]; onChanged: () => void }) {
+  const mutation = createPersonalContextMutation();
+  const [editing, setEditing] = createSignal<{ fact: ProfileFact | null } | null>(null);
+  const [removingId, setRemovingId] = createSignal<number | null>(null);
+  function edit(fact: ProfileFact | null): void {
+    mutation.clearError();
+    setRemovingId(null);
+    setEditing({ fact });
   }
-  if (fact.confirmed) {
-    return "已由你确认";
+  function beginRemove(fact: ProfileFact): void {
+    setEditing(null);
+    mutation.clearError();
+    setRemovingId(fact.id);
   }
-  return fact.source === "agent" ? "助手补充 · 待你确认" : "待你确认";
+  function completeChange(): void {
+    setEditing(null);
+    setRemovingId(null);
+    props.onChanged();
+  }
+  async function remove(fact: ProfileFact): Promise<void> {
+    await mutation.run(() => deleteProfileFact(fact.id), "无法移除这项个人条件。", completeChange);
+  }
+  return {
+    beginRemove,
+    completeChange,
+    edit,
+    editing,
+    mutation,
+    remove,
+    removingId,
+    setEditing,
+    setRemovingId,
+  };
 }
-
 export function ProfileFactsSection(props: {
   facts: ProfileFact[];
   onChanged: () => void;
 }): JSX.Element {
-  const runtime = useDashboardRuntime();
-  const [editingId, setEditingId] = createSignal<number | "new" | null>(null);
-  const [removingId, setRemovingId] = createSignal<number | null>(null);
-  const [key, setKey] = createSignal("");
-  const [value, setValue] = createSignal("");
-  const [error, setError] = createSignal("");
-  const [saving, setSaving] = createSignal(false);
-
-  function beginCreate(): void {
-    setKey("");
-    setValue("");
-    setError("");
-    setRemovingId(null);
-    setEditingId("new");
-  }
-
-  function beginEdit(fact: ProfileFact): void {
-    setKey(fact.key);
-    setValue(fact.value);
-    setError("");
-    setRemovingId(null);
-    setEditingId(fact.id);
-  }
-
-  async function submit(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      await runtime.run(
-        saveProfileFact({
-          ...(typeof editingId() === "number" ? { id: editingId() as number } : {}),
-          key: key(),
-          value: value(),
-        }),
-      );
-      setEditingId(null);
-      props.onChanged();
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "无法保存个人条件。");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function remove(fact: ProfileFact): Promise<void> {
-    setSaving(true);
-    setError("");
-    try {
-      await runtime.run(deleteProfileFact(fact.id));
-      setRemovingId(null);
-      setEditingId(null);
-      props.onChanged();
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "无法移除这项个人条件。");
-    } finally {
-      setSaving(false);
-    }
-  }
-
+  const state = createSectionState(props);
   return (
     <div class={styles["factsSection"]}>
       <div class={styles["sectionIntroduction"]}>
@@ -98,122 +61,46 @@ export function ProfileFactsSection(props: {
         <button
           class={`${styles["button"]} ${styles["primaryButton"]}`}
           type="button"
-          onClick={beginCreate}
+          onClick={() => state.edit(null)}
         >
           添加条件
         </button>
       </div>
-      <Show when={editingId() !== null}>
-        <form class={styles["editor"]} onSubmit={submit}>
-          <div class={styles["editorHeading"]}>
-            <strong>{editingId() === "new" ? "添加个人条件" : `编辑“${key()}”`}</strong>
-            <span>说明助手比较和解释岗位时应考虑的经验、偏好或限制。</span>
-          </div>
-          <label>
-            条件名称
-            <input
-              required
-              value={key()}
-              placeholder="例如：工作经验"
-              onInput={(event) => setKey(event.currentTarget.value)}
-            />
-          </label>
-          <label>
-            内容
-            <textarea
-              required
-              rows="3"
-              value={value()}
-              placeholder="例如：9 年以上软件开发经验"
-              onInput={(event) => setValue(event.currentTarget.value)}
-            />
-          </label>
-          <Show when={error()}>
-            <p class={styles["formError"]} role="alert">
-              {error()}
-            </p>
-          </Show>
-          <div class={styles["formActions"]}>
-            <button
-              class={`${styles["button"]} ${styles["primaryButton"]}`}
-              type="submit"
-              disabled={saving()}
-            >
-              {saving() ? "保存中…" : "保存"}
-            </button>
-            <button class={styles["button"]} type="button" onClick={() => setEditingId(null)}>
-              取消
-            </button>
-          </div>
-        </form>
+      <Show when={state.editing()} keyed>
+        {(selection) => (
+          <ProfileFactEditor
+            fact={selection.fact}
+            mutation={state.mutation}
+            onSaved={state.completeChange}
+            onCancel={() => state.setEditing(null)}
+          />
+        )}
       </Show>
-      <Show when={error() && editingId() === null}>
+      <Show when={state.mutation.error() && !state.editing()}>
         <p class={`${styles["formError"]} ${styles["sectionError"]}`} role="alert">
-          {error()}
+          {state.mutation.error()}
         </p>
       </Show>
       <Show
         when={props.facts.length !== emptyCollectionLength}
         fallback={
-          <Show when={editingId() !== "new"}>
-            <p class={styles["empty"]}>可添加希望助手在比较岗位时考虑的经验、偏好或限制。</p>
+          <Show when={!state.editing()}>
+            <p class={styles["empty"]}>可添加希望助手在比较和解释岗位时考虑的经验、偏好或限制。</p>
           </Show>
         }
       >
         <div class={styles["factList"]}>
           <For each={props.facts}>
             {(fact) => (
-              <article class={styles["factRow"]}>
-                <div class={styles["factHeading"]}>
-                  <span class={styles["itemLabel"]}>{fact.key}</span>
-                  <div class={styles["factActions"]}>
-                    <button
-                      aria-label={`编辑个人条件：${fact.key}`}
-                      class={styles["editLink"]}
-                      type="button"
-                      onClick={() => beginEdit(fact)}
-                    >
-                      修改
-                    </button>
-                    <button
-                      aria-label={`移除个人条件：${fact.key}`}
-                      class={`${styles["editLink"]} ${styles["dangerLink"]}`}
-                      type="button"
-                      onClick={() => {
-                        setEditingId(null);
-                        setError("");
-                        setRemovingId(fact.id);
-                      }}
-                    >
-                      移除
-                    </button>
-                  </div>
-                </div>
-                <div class={styles["factBody"]}>
-                  <p class={styles["factValue"]}>{fact.value}</p>
-                  <span class={styles["factMeta"]}>{formatSource(fact)}</span>
-                </div>
-                <Show when={removingId() === fact.id}>
-                  <div class={styles["removal"]}>
-                    <span>移除后，助手将不再在比较和解释岗位时考虑这项条件。</span>
-                    <button
-                      class={`${styles["button"]} ${styles["dangerButton"]}`}
-                      type="button"
-                      disabled={saving()}
-                      onClick={() => remove(fact)}
-                    >
-                      {saving() ? "移除中…" : "确认移除"}
-                    </button>
-                    <button
-                      class={styles["button"]}
-                      type="button"
-                      onClick={() => setRemovingId(null)}
-                    >
-                      取消
-                    </button>
-                  </div>
-                </Show>
-              </article>
+              <ProfileFactRow
+                fact={fact}
+                pending={state.mutation.pending()}
+                removing={state.removingId() === fact.id}
+                onEdit={() => state.edit(fact)}
+                onBeginRemove={() => state.beginRemove(fact)}
+                onRemove={() => state.remove(fact)}
+                onCancelRemove={() => state.setRemovingId(null)}
+              />
             )}
           </For>
         </div>

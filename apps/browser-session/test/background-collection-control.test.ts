@@ -1,4 +1,3 @@
-// oxlint-disable max-lines -- Validate automatic interruption and login handoff through the shared control owner.
 import type { BrowserContext, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope, run, until } from "@shajara/host";

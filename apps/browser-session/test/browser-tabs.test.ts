@@ -1,4 +1,3 @@
-// oxlint-disable max-lines -- Exercise tab lifecycle and navigation through the same synthetic context.
 import type { BrowserContext, Page } from "patchright";
 import { errors } from "patchright";
 import { createScope } from "@shajara/host";

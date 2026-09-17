@@ -7,7 +7,6 @@ import { createScope } from "@shajara/host";
 import type { BrowserContext } from "patchright";
 import { expect, test } from "vitest";
 
-// oxlint-disable max-lines -- The public MCP surface remains visible in one protocol-level suite.
 import type { BrowserControl } from "#/browser/browser-control.js";
 import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";

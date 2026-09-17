@@ -1,4 +1,3 @@
-// oxlint-disable max-lines -- Login preparation outcomes and diagnostic evidence share this boundary suite.
 import { errors } from "patchright";
 import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";

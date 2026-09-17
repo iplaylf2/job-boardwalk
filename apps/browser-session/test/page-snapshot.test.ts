@@ -27,7 +27,6 @@ function fakeElement({
   matchingSelectors = [],
   tagName,
   textContent = "",
-  // eslint-disable-next-line unicorn/prefer-dom-node-text-content
   innerText = textContent,
 }: FakeElementOptions): HTMLElement {
   return {

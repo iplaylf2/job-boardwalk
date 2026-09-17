@@ -33,7 +33,6 @@ export function captureJobDescriptionMetadata(input: {
   const firstIndex = 0;
   const lastIndex = -1;
   // InnerText preserves the posting's responsibility and requirement line boundaries.
-  // eslint-disable-next-line unicorn/prefer-dom-node-text-content
   const accessText = document.body?.innerText ?? "";
   const helpers = {
     bounded(value: string, maximumCharacters: number): string {
@@ -42,7 +41,6 @@ export function captureJobDescriptionMetadata(input: {
     descriptionText(): string {
       for (const selector of input.descriptionConfig.descriptionSelectors) {
         const element = document.querySelector<HTMLElement>(selector);
-        // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Preserve rendered posting line boundaries.
         const text = element?.innerText ?? "";
         if (text.trim()) {
           return text;
@@ -84,7 +82,6 @@ export function captureJobDescriptionMetadata(input: {
       }
       for (const selector of config.selectors) {
         for (const element of document.querySelectorAll<HTMLElement>(selector)) {
-          // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Address evidence must be rendered.
           const renderedText = element === document.body ? bodyText : element.innerText || "";
           const text = helpers.normalized(renderedText);
           const location = new RegExp(config.pattern, "u").exec(text)?.groups?.["location"]?.trim();
@@ -167,7 +164,6 @@ export function captureJobDescriptionMetadata(input: {
   const factText = input.descriptionConfig.factTextSelectors
     ? input.descriptionConfig.factTextSelectors
         .flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)])
-        // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Match facts only in rendered posting text.
         .map((element) => element.innerText || "")
         .join("\n")
     : bodyText;

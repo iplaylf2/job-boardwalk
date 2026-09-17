@@ -1,4 +1,3 @@
-// oxlint-disable max-lines -- Supported and unsupported synchronization behavior stays in the collector boundary suite.
 import type { BrowserContext, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope, run } from "@shajara/host";

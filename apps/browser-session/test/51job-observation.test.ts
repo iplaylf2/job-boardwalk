@@ -3,7 +3,7 @@ import { runInNewContext } from "node:vm";
 import { JobCardSnapshot } from "@job-boardwalk/contracts";
 import { parsePlatformWebUrl, resolvePlatformWebUrl } from "@job-boardwalk/platform-catalog";
 
-import { captureJobCardMetadata } from "#/browser/job-observation/card-snapshot.js";
+import { captureJobCardMetadata } from "#/browser/job-observation/card-page-capture.js";
 import { captureJobDescriptionMetadata } from "#/browser/job-observation/description-page-capture.js";
 import { observationsFromJobCardSnapshot } from "#/browser/job-observation/passive-collector.js";
 import { extractExternalJobId } from "#/browser/platform-job-links.js";

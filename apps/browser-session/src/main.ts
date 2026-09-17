@@ -30,13 +30,13 @@ function installTerminationSignalHandlers(controller: AbortController): () => vo
 const shutdownController = new AbortController();
 const removeTerminationSignalHandlers = installTerminationSignalHandlers(shutdownController);
 
-// oxlint-disable-next-line unicorn/prefer-top-level-await -- The entrypoint exposes the pending lifecycle promise.
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- The host must receive the pending lifecycle promise.
 export const serviceCompletion = runBrowserSessionProcess({
   ...parseBrowserSessionArguments(process.argv.slice(userArgumentStartIndex)),
   shutdownSignal: shutdownController.signal,
 }).finally(removeTerminationSignalHandlers);
 
-// oxlint-disable-next-line unicorn/prefer-top-level-await -- Preserve source-run error reporting without replacing the exported promise.
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- Report source-run failures without awaiting the exported lifecycle promise.
 serviceCompletion.catch((error: unknown) => {
   // Disposal may wrap the original failure in non-enumerable SuppressedError fields.
   const detail = inspect(error, { colors: false, depth: null, showHidden: true });

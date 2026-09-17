@@ -14,7 +14,6 @@ const maximumAccessElements = 300;
 const maximumDescriptionCharacters = 20_000;
 const maximumFieldCharacters = 300;
 
-// eslint-disable-next-line max-lines-per-function -- Validation and contract mapping stay beside the single page read.
 export function* captureJobDescriptionObservation(
   page: Page,
   observePageAccess?: (page: PageAccessFacts) => void,
@@ -44,6 +43,13 @@ export function* captureJobDescriptionObservation(
     text: metadata.accessText,
     url: metadata.url,
   });
+  requireDescriptionEvidence(metadata);
+  return descriptionObservation(metadata, platformId);
+}
+
+type DescriptionMetadata = ReturnType<typeof captureJobDescriptionMetadata>;
+
+function requireDescriptionEvidence(metadata: DescriptionMetadata): void {
   if (!metadata.title || !metadata.description) {
     const missing = [
       ...(metadata.title ? [] : ["岗位标题"]),
@@ -62,6 +68,12 @@ export function* captureJobDescriptionObservation(
       },
     );
   }
+}
+
+function descriptionObservation(
+  metadata: DescriptionMetadata,
+  platformId: JobDescriptionObservation["platformId"],
+): JobDescriptionObservation {
   const capturedAt = new Date().toISOString();
   const externalJobId = extractExternalJobId(platformId, metadata.url);
   return {

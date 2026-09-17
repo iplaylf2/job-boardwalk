@@ -203,3 +203,9 @@ export const workspaceChanges = sqliteTable(
     ),
   ],
 );
+
+export type JobPostingRow = typeof jobPostings.$inferSelect;
+
+export type JobPostingSourceRow = typeof jobPostingSources.$inferSelect;
+
+export type JobSourceEngagementRow = typeof jobSourceEngagements.$inferSelect;

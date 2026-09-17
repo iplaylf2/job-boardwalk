@@ -1,4 +1,3 @@
-// oxlint-disable max-lines -- Repository behavior remains visible in one boundary-level suite.
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -1451,5 +1450,69 @@ test("retains recruitment evidence with its detail timestamp despite later cards
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
+  }
+});
+
+test("replaces intent pages atomically and preserves selection when a save is rejected", () => {
+  const repository = new WorkspaceRepository({ databasePath: ":memory:", migrationsDirectory });
+  const command = {
+    city: "合成测试城",
+    initiatedBy: "user" as const,
+    name: "合成研究方向甲",
+    position: "合成测试岗位",
+    reason: "synthetic intent transaction check",
+    recommendationPages: [
+      {
+        label: "合成研究起点甲",
+        platformId: "boss" as const,
+        url: "https://www.zhipin.com/web/geek/jobs",
+      },
+    ],
+    selected: true,
+  };
+  try {
+    repository.saveJobSearchIntent(command);
+    const second = repository.saveJobSearchIntent({
+      ...command,
+      name: "合成研究方向乙",
+      selected: false,
+    });
+    const before = repository.listJobSearchIntents();
+    const missingIntentId = 999;
+    expect(() => repository.saveJobSearchIntent({ ...command, id: missingIntentId })).toThrow();
+    expect(repository.listJobSearchIntents()).toEqual(before);
+    expect(() =>
+      repository.saveJobSearchIntent({
+        ...command,
+        id: second.id,
+        name: "合成研究方向乙",
+        recommendationPages: [...command.recommendationPages, ...command.recommendationPages],
+      }),
+    ).toThrow();
+    expect(repository.listJobSearchIntents()).toEqual(before);
+
+    const replacementPages = [
+      {
+        label: "合成研究起点乙",
+        platformId: "yupao" as const,
+        url: "https://www.yupao.com/topic/a2c1488/",
+      },
+    ];
+    repository.saveJobSearchIntent({
+      ...command,
+      id: second.id,
+      name: "合成研究方向乙",
+      recommendationPages: replacementPages,
+    });
+    const saved = repository.listJobSearchIntents();
+    expect(saved.find((intent) => intent.id === second.id)).toMatchObject({
+      recommendationPages: replacementPages,
+      selected: true,
+    });
+    expect(saved.filter((intent) => intent.selected).map((intent) => intent.id)).toEqual([
+      second.id,
+    ]);
+  } finally {
+    repository.close();
   }
 });

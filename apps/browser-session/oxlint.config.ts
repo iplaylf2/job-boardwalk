@@ -13,5 +13,7 @@ export default defineConfig({
   ],
   rules: {
     "import/no-nodejs-modules": "off",
+    // Browser evidence chooses rendered or raw text deliberately; neither is a universal default.
+    "unicorn/prefer-dom-node-text-content": "off",
   },
 });

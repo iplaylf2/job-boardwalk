@@ -1,4 +1,3 @@
-// oxlint-disable max-lines -- Shared synthetic action setup keeps accepted and rejected tool behavior together.
 import type { BrowserContext, Locator, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope, run } from "@shajara/host";

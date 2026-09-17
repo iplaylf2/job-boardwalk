@@ -7,8 +7,16 @@ export default defineConfig({
   extends: [shared],
   overrides: [
     {
-      files: ["test/**/*.ts"],
+      files: ["test/**/*.ts", "test/**/*.tsx"],
       rules: testShared,
     },
   ],
+  rules: {
+    // This UI project's functions combine reactive state and declarative layout.
+    // Keep a finite size limit alongside the shared complexity and statement limits.
+    "eslint/max-lines-per-function": [
+      "error",
+      { max: 100, skipBlankLines: true, skipComments: true },
+    ],
+  },
 });

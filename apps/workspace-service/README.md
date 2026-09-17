@@ -361,6 +361,18 @@ lifecycle.
 
 ## Persistence
 
+[`WorkspaceRepository`](src/persistence/workspace-repository.ts) is the persistence entrypoint for
+HTTP handlers, MCP tools, and read models. It owns the database connection and delegates operations
+to repositories grouped by workspace responsibility. Database initialization and migration loading
+belong to [`database.ts`](src/persistence/database.ts).
+
+Job-library queries and observation writes have separate owners. Observation writes resolve source
+identity and evidence freshness before reconciling the canonical job; query code maps stored rows
+into the public job model. Multi-step changes keep their transaction at the operation that owns the
+write. Helpers receive that transaction so related writes, such as source updates and canonical
+reconciliation, commit together. Splitting a helper into another file does not create a new
+transaction boundary.
+
 The Compose deployment stores SQLite at `/var/lib/job-boardwalk/workspace.sqlite` in the
 `workspace-data` named volume. The database therefore survives container replacement and
 `docker compose down`; deleting the named volume explicitly deletes the workspace.

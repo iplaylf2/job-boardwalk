@@ -8,14 +8,13 @@ interface Job51EngagementCaptureInput extends JobEngagementPageCaptureLimits {
 }
 
 // The callback stays self-contained because Patchright serializes it into the page realm.
-// eslint-disable-next-line max-lines-per-function, complexity, max-statements -- One bounded pass owns linked 51job personal-center evidence.
+// eslint-disable-next-line max-lines-per-function -- The serialized page callback must contain its helpers; each helper remains subject to complexity and size checks.
 export function capture51jobEngagementMetadata(
   input: Job51EngagementCaptureInput,
 ): JobEngagementPageMetadata {
   const { document } = globalThis;
   const firstIndex = 0;
   const increment = 1;
-  const maximumAncestorDepth = 8;
   const maximumFieldCharacters = 300;
   const maximumAccessTextCharacters = 5000;
   const jobPath = new RegExp(input.jobLinkPathPattern, "u");
@@ -39,7 +38,8 @@ export function capture51jobEngagementMetadata(
       }
       return "";
     },
-    container(link: HTMLAnchorElement): Element | null {
+    findCardContainer(link: HTMLAnchorElement): Element | null {
+      const maximumAncestorDepth = 8;
       let ancestor = link.parentElement;
       let depth = firstIndex;
       while (ancestor && depth < maximumAncestorDepth) {
@@ -73,6 +73,38 @@ export function capture51jobEngagementMetadata(
     normalized(value: string, limit = maximumFieldCharacters): string {
       return value.replaceAll(/\s+/gu, " ").trim().slice(firstIndex, limit);
     },
+    readCard(link: HTMLAnchorElement): { identity: string; job: JobEngagementEvidence } | null {
+      const url = helpers.jobUrl(link);
+      const identity = url ? jobPath.exec(url.pathname)?.groups?.["externalJobId"] : null;
+      if (!url || !identity || seen.has(identity)) {
+        return null;
+      }
+      const container = helpers.findCardContainer(link);
+      const title = helpers.normalized(link.textContent ?? "");
+      if (!container || !title) {
+        return null;
+      }
+      const renderedSummary = (container as HTMLElement).innerText || "";
+      const summary = helpers.normalized(renderedSummary, input.maximumSummaryCharacters);
+      const company = helpers.company(container);
+      const salaryText = salaryPattern.exec(summary)?.at(firstIndex);
+      const location = helpers.normalized(container.querySelector(".dq")?.textContent ?? "");
+      if (!summary) {
+        return null;
+      }
+      return {
+        identity,
+        job: {
+          company,
+          details: [],
+          jobUrl: url.href,
+          ...(location ? { location } : {}),
+          ...(salaryText ? { salaryText } : {}),
+          summary,
+          title,
+        },
+      };
+    },
   };
   const jobs: JobEngagementEvidence[] = [];
   const seen = new Set<string>();
@@ -80,40 +112,15 @@ export function capture51jobEngagementMetadata(
     globalThis.location.pathname === "/userset/my_collection" ? ".m-collect" : ".apox",
   );
   for (const link of collection?.querySelectorAll<HTMLAnchorElement>("a[href]") ?? []) {
-    const url = helpers.jobUrl(link);
-    const identity = url ? jobPath.exec(url.pathname)?.groups?.["externalJobId"] : null;
-    if (!url || !identity || seen.has(identity)) {
+    const captured = helpers.readCard(link);
+    if (!captured) {
       continue;
     }
-    const container = helpers.container(link);
-    const title = helpers.normalized(link.textContent ?? "");
-    if (!container || !title) {
-      continue;
+    seen.add(captured.identity);
+    if (jobs.length < input.maximumCards) {
+      jobs.push(captured.job);
     }
-    // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Avoid hidden recruiter popovers in card summaries.
-    const renderedSummary = (container as HTMLElement).innerText || "";
-    const summary = helpers.normalized(renderedSummary, input.maximumSummaryCharacters);
-    const company = helpers.company(container);
-    const salaryText = salaryPattern.exec(summary)?.at(firstIndex);
-    const location = helpers.normalized(container.querySelector(".dq")?.textContent ?? "");
-    if (!summary) {
-      continue;
-    }
-    seen.add(identity);
-    if (jobs.length === input.maximumCards) {
-      continue;
-    }
-    jobs.push({
-      company,
-      details: [],
-      jobUrl: url.href,
-      ...(location ? { location } : {}),
-      ...(salaryText ? { salaryText } : {}),
-      summary,
-      title,
-    });
   }
-  // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- Visible heading and empty-state text establish category totals.
   const text = (document.body?.innerText ?? "").slice(firstIndex, maximumAccessTextCharacters);
   return { jobs, text, truncated: seen.size > input.maximumCards, url: globalThis.location.href };
 }

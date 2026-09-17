@@ -70,12 +70,55 @@ function createSnapshotTimeoutError(inspection: PageInspection): Error {
 }
 
 // The callback stays self-contained because Patchright serializes it into the page realm.
-// eslint-disable-next-line complexity, max-lines-per-function, max-statements
+// eslint-disable-next-line max-lines-per-function -- Serialization requires local helpers; their complexity and size remain checked.
 export function captureSnapshotMetadata(
   body: HTMLElement,
   input: SnapshotCaptureInput,
 ): SnapshotMetadata {
   const helpers = {
+    canCaptureElement(element: HTMLElement): boolean {
+      if (element.matches("input[type='password' i]")) {
+        return false;
+      }
+      const style = view!.getComputedStyle(element);
+      const bounds = element.getBoundingClientRect();
+      if (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.visibility === "collapse" ||
+        bounds.width === emptyDimension ||
+        bounds.height === emptyDimension
+      ) {
+        return false;
+      }
+      return true;
+    },
+    captureElements(): {
+      elements: ElementMetadata[];
+      elementsTruncated: boolean;
+      hrefTruncated: boolean;
+    } {
+      const candidates = [...document.querySelectorAll<HTMLElement>(input.selector)];
+      const elements: ElementMetadata[] = [];
+      let elementsTruncated = false;
+      let hrefTruncated = false;
+      for (const [sourceIndex, element] of candidates.entries()) {
+        if (!helpers.canCaptureElement(element)) {
+          continue;
+        }
+        const rawHref = element.matches("a[href]") ? (element as HTMLAnchorElement).href : "";
+        if (rawHref.length > input.maximumHrefCharacters) {
+          hrefTruncated = true;
+          continue;
+        }
+        if (elements.length === input.maximumElements) {
+          elementsTruncated = true;
+          break;
+        }
+        elements.push(helpers.metadata(element, sourceIndex, rawHref));
+      }
+      return { elements, elementsTruncated, hrefTruncated };
+    },
     decode(value: string): string {
       let decodedValue = value;
       for (const [encoded, decoded] of Object.entries(input.textReplacements ?? {})) {
@@ -83,94 +126,76 @@ export function captureSnapshotMetadata(
       }
       return decodedValue;
     },
-  };
-  const emptyDimension = 0;
-  const maximumContextCharacters = 1500;
-  const document = body.ownerDocument;
-  const view = document.defaultView;
-  if (!view) {
-    throw new Error("页面快照不可用：当前文档没有活动浏览上下文。");
-  }
-  // Keep node identity in the document realm, without adding attributes to the platform DOM.
-  const identityKey = Symbol.for("job-boardwalk.snapshot-node-identities");
-  const registry = document as Document & { [identityKey]?: WeakMap<Element, string> };
-  const identities = registry[identityKey] ?? new WeakMap<Element, string>();
-  registry[identityKey] = identities;
-  const candidates = [...document.querySelectorAll<HTMLElement>(input.selector)];
-  const elements: ElementMetadata[] = [];
-  let elementsTruncated = false;
-  let hrefTruncated = false;
-  for (const [sourceIndex, element] of candidates.entries()) {
-    if (element.matches("input[type='password' i]")) {
-      continue;
-    }
-    const style = view.getComputedStyle(element);
-    const bounds = element.getBoundingClientRect();
-    if (
-      style.display === "none" ||
-      style.visibility === "hidden" ||
-      style.visibility === "collapse" ||
-      bounds.width === emptyDimension ||
-      bounds.height === emptyDimension
-    ) {
-      continue;
-    }
-    let role = element.tagName.toLowerCase();
-    if (element.matches("a[href]")) {
-      role = "link";
-    } else if (element.matches("button")) {
-      role = "button";
-    } else if (element.matches("select")) {
-      role = "combobox";
-    } else if (element.matches("input[type='checkbox']")) {
-      role = "checkbox";
-    } else if (element.matches("input[type='radio']")) {
-      role = "radio";
-    } else if (element.matches("input, textarea, [contenteditable='true']")) {
-      role = "textbox";
-    }
-    const interaction = input.interactions?.find(({ selector }) => element.matches(selector));
-    // eslint-disable-next-line unicorn/prefer-dom-node-text-content
-    const renderedText = element.innerText ?? "";
-    const context = interaction
-      ? // eslint-disable-next-line unicorn/prefer-dom-node-text-content
-        (element.closest<HTMLElement>(interaction.contextSelector)?.innerText ?? "")
+    ensureNodeIdentities(): WeakMap<Element, string> {
+      // Keep node identity in the document realm, without adding attributes to the platform DOM.
+      const identityKey = Symbol.for("job-boardwalk.snapshot-node-identities");
+      const registry = document as Document & { [identityKey]?: WeakMap<Element, string> };
+      const identities = registry[identityKey] ?? new WeakMap<Element, string>();
+      registry[identityKey] = identities;
+      return identities;
+    },
+    implicitRole(element: HTMLElement): string {
+      let role = element.tagName.toLowerCase();
+      if (element.matches("a[href]")) {
+        role = "link";
+      } else if (element.matches("button")) {
+        role = "button";
+      } else if (element.matches("select")) {
+        role = "combobox";
+      } else if (element.matches("input[type='checkbox']")) {
+        role = "checkbox";
+      } else if (element.matches("input[type='radio']")) {
+        role = "radio";
+      } else if (element.matches("input, textarea, [contenteditable='true']")) {
+        role = "textbox";
+      }
+      return role;
+    },
+    metadata(element: HTMLElement, sourceIndex: number, rawHref: string): ElementMetadata {
+      const interaction = input.interactions?.find(({ selector }) => element.matches(selector));
+      const renderedText = element.innerText ?? "";
+      const context = interaction
+        ? (element.closest<HTMLElement>(interaction.contextSelector)?.innerText ?? "")
+            .replaceAll(/\s+/gu, " ")
+            .trim()
+            .slice(input.startIndex, maximumContextCharacters)
+        : null;
+      const rawName =
+        element.getAttribute("aria-label") ??
+        element.getAttribute("title") ??
+        element.getAttribute("placeholder") ??
+        element.getAttribute("alt") ??
+        renderedText;
+      let identity = identities.get(element);
+      if (!identity) {
+        identity = `${input.referenceScope}:${sourceIndex}`;
+        identities.set(element, identity);
+      }
+      const metadata: ElementMetadata = {
+        ...(context ? { context: helpers.decode(context) } : {}),
+        disabled: element.matches(
+          "button:disabled, input:disabled, textarea:disabled, select:disabled",
+        ),
+        name: helpers
+          .decode(rawName)
           .replaceAll(/\s+/gu, " ")
           .trim()
-          .slice(input.startIndex, maximumContextCharacters)
-      : null;
-    const rawName =
-      element.getAttribute("aria-label") ??
-      element.getAttribute("title") ??
-      element.getAttribute("placeholder") ??
-      element.getAttribute("alt") ??
-      renderedText;
-    const rawHref = element.matches("a[href]") ? (element as HTMLAnchorElement).href : "";
-    if (rawHref.length > input.maximumHrefCharacters) {
-      hrefTruncated = true;
-      continue;
-    }
-    if (elements.length === input.maximumElements) {
-      elementsTruncated = true;
-      break;
-    }
-    let identity = identities.get(element);
-    if (!identity) {
-      identity = `${input.referenceScope}:${sourceIndex}`;
-      identities.set(element, identity);
-    }
-    const metadata: ElementMetadata = {
-      ...(context ? { context: helpers.decode(context) } : {}),
-      disabled: element.matches(
-        "button:disabled, input:disabled, textarea:disabled, select:disabled",
-      ),
-      name: helpers
-        .decode(rawName)
-        .replaceAll(/\s+/gu, " ")
-        .trim()
-        .slice(input.startIndex, input.maximumNameCharacters),
-      role: element.getAttribute("role") ?? interaction?.role ?? role,
-      signature: [
+          .slice(input.startIndex, input.maximumNameCharacters),
+        role: element.getAttribute("role") ?? interaction?.role ?? helpers.implicitRole(element),
+        signature: helpers.signature(element, { context, identity, rawHref, renderedText }),
+        sourceIndex,
+      };
+      if (element.matches("a[href]")) {
+        metadata.href = rawHref;
+      }
+      return metadata;
+    },
+    signature(
+      element: HTMLElement,
+      values: { identity: string; context: string | null; rawHref: string; renderedText: string },
+    ): string {
+      const { identity, context, rawHref, renderedText } = values;
+      return [
         identity,
         document.location.href,
         context ?? "",
@@ -186,16 +211,19 @@ export function captureSnapshotMetadata(
           .replaceAll(/\s+/gu, " ")
           .trim()
           .slice(input.startIndex, input.maximumNameCharacters),
-      ].join("\u001F"),
-      sourceIndex,
-    };
-    if (element.matches("a[href]")) {
-      metadata.href = rawHref;
-    }
-    elements.push(metadata);
+      ].join("\u001F");
+    },
+  };
+  const emptyDimension = 0;
+  const maximumContextCharacters = 1500;
+  const document = body.ownerDocument;
+  const view = document.defaultView;
+  if (!view) {
+    throw new Error("页面快照不可用：当前文档没有活动浏览上下文。");
   }
+  const identities = helpers.ensureNodeIdentities();
+  const { elements, elementsTruncated, hrefTruncated } = helpers.captureElements();
   // InnerText intentionally reflects rendered text; textContent includes hidden page content.
-  // eslint-disable-next-line unicorn/prefer-dom-node-text-content
   const rawText = helpers.decode(body.innerText);
   return {
     documentReadyState: document.readyState,

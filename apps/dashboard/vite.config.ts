@@ -1,4 +1,4 @@
-// eslint-disable-next-line import/no-nodejs-modules -- Vite runs on Node and supplies runtime deployment metadata.
+// oxlint-disable-next-line import/no-nodejs-modules -- This build configuration runs in Node, outside the browser application.
 import process from "node:process";
 import type { ViteDevServer } from "vite";
 import solid from "vite-plugin-solid";
