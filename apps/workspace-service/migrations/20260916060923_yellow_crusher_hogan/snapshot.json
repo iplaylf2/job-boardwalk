@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "d370441b-50fe-4d28-bff1-c37ba623cfad",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "name": "job_posting_source_identities",
@@ -687,13 +685,9 @@
       "table": "workspace_changes"
     },
     {
-      "columns": [
-        "source_id"
-      ],
+      "columns": ["source_id"],
       "tableTo": "job_posting_sources",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -702,13 +696,9 @@
       "table": "job_posting_source_identities"
     },
     {
-      "columns": [
-        "job_id"
-      ],
+      "columns": ["job_id"],
       "tableTo": "job_postings",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -717,13 +707,9 @@
       "table": "job_posting_sources"
     },
     {
-      "columns": [
-        "intent_id"
-      ],
+      "columns": ["intent_id"],
       "tableTo": "job_search_intents",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -732,13 +718,9 @@
       "table": "job_search_intent_recommendation_pages"
     },
     {
-      "columns": [
-        "source_id"
-      ],
+      "columns": ["source_id"],
       "tableTo": "job_posting_sources",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
@@ -747,92 +729,70 @@
       "table": "job_source_engagements"
     },
     {
-      "columns": [
-        "platform_id",
-        "identity_key"
-      ],
+      "columns": ["platform_id", "identity_key"],
       "nameExplicit": false,
       "name": "job_posting_source_identities_pk",
       "entityType": "pks",
       "table": "job_posting_source_identities"
     },
     {
-      "columns": [
-        "source_id",
-        "kind"
-      ],
+      "columns": ["source_id", "kind"],
       "nameExplicit": false,
       "name": "job_source_engagements_pk",
       "entityType": "pks",
       "table": "job_source_engagements"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "job_posting_sources_pk",
       "table": "job_posting_sources",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "job_postings_pk",
       "table": "job_postings",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "job_search_intent_recommendation_pages_pk",
       "table": "job_search_intent_recommendation_pages",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "job_search_intents_pk",
       "table": "job_search_intents",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "platform_access_observations_pk",
       "table": "platform_access_observations",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "profile_facts_pk",
       "table": "profile_facts",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "research_reports_pk",
       "table": "research_reports",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "workspace_changes_pk",
       "table": "workspace_changes",
@@ -885,27 +845,21 @@
       "table": "job_search_intents"
     },
     {
-      "columns": [
-        "identity_key"
-      ],
+      "columns": ["identity_key"],
       "nameExplicit": false,
       "name": "job_postings_identity_key_unique",
       "entityType": "uniques",
       "table": "job_postings"
     },
     {
-      "columns": [
-        "name"
-      ],
+      "columns": ["name"],
       "nameExplicit": false,
       "name": "job_search_intents_name_unique",
       "entityType": "uniques",
       "table": "job_search_intents"
     },
     {
-      "columns": [
-        "key"
-      ],
+      "columns": ["key"],
       "nameExplicit": false,
       "name": "profile_facts_key_unique",
       "entityType": "uniques",
