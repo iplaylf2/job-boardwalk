@@ -63,6 +63,12 @@ function defineBrowserTool(
 
 const browserTools = [
   defineBrowserTool({
+    annotations: { destructiveHint: false, openWorldHint: true, readOnlyHint: true },
+    description:
+      "读取招聘平台页面可见的运行环境、WebGL 信息及外部脚本来源，结果位于 environment。可用 tabId 指定标签页；省略时优先使用已选招聘平台页，否则使用首个可用招聘平台页。environment.webgl=null 表示未能创建 WebGL 上下文；环境信息本身不能确定验证原因。screenshot=true 在 screenshot.data 中附带当前视口的 PNG base64，遮盖输入框和可编辑区域，其余可见内容保留。用户交接期间不可调用。",
+    name: "browser_page_diagnostics",
+  }),
+  defineBrowserTool({
     annotations: { idempotentHint: true, openWorldHint: false, readOnlyHint: true },
     description:
       "读取运行状态及 control。available 表示运行时是否可用；control.state 区分 active、交接准备和 user-handoff。control.interruption 保留触发暂停的访问观察，matchingTabIds 列出当前仍匹配其 URL 的标签，不标识原始触发标签。交接期间仍可读取；成功交还控制后清除旧中断。",

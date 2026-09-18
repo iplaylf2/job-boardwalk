@@ -94,6 +94,7 @@ test("always exposes the project-owned browser tools", async () => {
   expect(names).toEqual(
     new Set([
       "browser_status",
+      "browser_page_diagnostics",
       "browser_tabs",
       "browser_prepare_login",
       "browser_navigate",
@@ -238,6 +239,12 @@ test("contains an unavailable browser as a tool error", async () => {
 
 const invalidBrowserToolCalls = [
   {
+    arguments: { screenshot: "yes" },
+    expectedField: /screenshot/u,
+    name: "browser_page_diagnostics",
+    title: "a non-boolean screenshot request",
+  },
+  {
     arguments: { direction: "sideways" },
     expectedField: /direction/u,
     name: "browser_scroll",
@@ -344,11 +351,16 @@ test("forwards semantic reading intents without driver tuning parameters", async
       name: "browser_job_card_snapshot",
     });
     await client.callTool({ arguments: {}, name: "browser_snapshot" });
+    await client.callTool({
+      arguments: { screenshot: true, tabId: 1 },
+      name: "browser_page_diagnostics",
+    });
     expect(control.executions).toEqual([
       { input: { direction: "down", ref: "e1" }, toolName: "browser_scroll" },
       { input: { ref: "e2" }, toolName: "browser_reveal" },
       { input: { waitFor: "cards-present" }, toolName: "browser_job_card_snapshot" },
       { input: {}, toolName: "browser_snapshot" },
+      { input: { screenshot: true, tabId: 1 }, toolName: "browser_page_diagnostics" },
     ]);
   } finally {
     await close();

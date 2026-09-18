@@ -9,7 +9,10 @@ import type { RiteCoroutine, Scope } from "@shajara/host";
 import { race, wait } from "@shajara/host/primitives";
 
 import { ManagedBrowser } from "./browser/managed-browser.js";
-import type { BrowserChannel } from "./browser/persistent-context-launch.js";
+import type {
+  BrowserChannel,
+  BrowserGraphicsBackend,
+} from "./browser/persistent-context-launch.js";
 import { prepareBrowserProfilePath } from "./browser/profile-path.js";
 import { createBrowserSessionHttpApp } from "./http/app.js";
 import { PlatformAccessObservationReporter } from "./workspace-service/platform-access-observation-reporter.js";
@@ -28,6 +31,7 @@ interface HttpServerAddress {
 export interface BrowserSessionProcessOptions {
   readonly browserChannel?: BrowserChannel;
   readonly browserExecutablePath?: string;
+  readonly browserGraphicsBackend?: BrowserGraphicsBackend;
   readonly httpServerAddress?: HttpServerAddress;
   readonly profilePath?: string;
   readonly shutdownSignal?: AbortSignal;
@@ -89,6 +93,9 @@ function* runBrowserSession(
     jobEngagementWriter: new WorkspaceJobEngagementWriter(workspaceServiceUrl),
     jobObservationWriter: new WorkspaceJobObservationWriter(workspaceServiceUrl),
     ...(options.browserChannel ? { browserChannel: options.browserChannel } : {}),
+    ...(options.browserGraphicsBackend
+      ? { browserGraphicsBackend: options.browserGraphicsBackend }
+      : {}),
     ...(options.browserExecutablePath
       ? { browserExecutablePath: options.browserExecutablePath }
       : {}),

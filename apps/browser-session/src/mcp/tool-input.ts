@@ -9,6 +9,10 @@ const OptionalTabId = toolInput("number.integer >= 1");
 const ElementReference = toolInput("string > 0");
 
 const BrowserStatusInput = toolInput({});
+const BrowserPageDiagnosticsInput = toolInput({
+  "screenshot?": "boolean",
+  "tabId?": OptionalTabId,
+});
 
 const BrowserTabsInput = toolInput({
   action: "'list' | 'ensure' | 'activate' | 'close'",
@@ -76,6 +80,7 @@ export const browserToolInputContracts = {
   browser_job_card_snapshot: BrowserJobCardSnapshotInput,
   browser_job_description_snapshot: BrowserJobDescriptionSnapshotInput,
   browser_navigate: BrowserNavigateInput,
+  browser_page_diagnostics: BrowserPageDiagnosticsInput,
   browser_prepare_login: BrowserPrepareLoginInput,
   browser_reveal: BrowserRevealInput,
   browser_scroll: BrowserScrollInput,

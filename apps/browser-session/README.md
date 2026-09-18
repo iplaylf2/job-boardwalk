@@ -67,7 +67,8 @@ entrypoint.
 
 The finalized entry module exports `serviceCompletion` as its application-owned lifecycle promise.
 It accepts explicit process arguments for a `chrome` or `msedge` browser channel or a browser
-executable, plus the profile directory, listener hostname and port, and Workspace Service URL.
+executable, plus the graphics backend, profile directory, listener hostname and port, and
+Workspace Service URL.
 Source development uses the documented environment overrides and loopback defaults. Selecting an
 executable supplies a launch candidate, not a compatibility guarantee. Browser discovery, product
 layout, process hosting, and supervision remain outside Browser Session.
@@ -76,6 +77,29 @@ By default, the dedicated browser profile is stored under the operating system's
 directory. Set `JOB_BOARDWALK_BROWSER_PROFILE_PATH` to choose an exact path. Browser Session does
 not share this path or profile with another service. Project entrypoints do not load `.env`
 themselves.
+
+### Graphics backend
+
+All supported platforms share one browser environment. Graphics configuration belongs to the
+Browser Session process and applies to every platform and tab throughout the session.
+`--browser-graphics-backend=default|swiftshader` selects that backend at browser startup.
+Omitting the argument uses Chromium's default. For environments that need a software OpenGL ES
+driver, select `swiftshader` explicitly:
+
+```sh
+pnpm --filter @job-boardwalk/browser-session exec tsx src/main.ts --browser-graphics-backend=swiftshader
+```
+
+Packaged launchers can pass the same process argument. Use [page diagnostics](#page-diagnostics)
+to check WebGL context availability and the reported renderer. These checks do not test rendered
+output or establish why a platform requested verification.
+
+Software rendering consumes CPU and has security and performance tradeoffs. Chromium does not
+recommend SwiftShader for untrusted content; see its
+[SwiftShader documentation](https://chromium.googlesource.com/chromium/src/+/main/docs/gpu/swiftshader.md).
+Choose this backend for the deployment environment and validate it across supported platforms.
+The flag mapping and sandbox requirements belong to
+[Browser launch policy](#browser-launch-policy).
 
 ## Endpoints and reporting
 
@@ -134,6 +158,24 @@ during resource cleanup. The launcher owns log retention and process exit status
 [exit diagnosis](../../docs/deployment.md#browser-session-exit-diagnosis) for host-side checks when
 HTTP health is unavailable.
 
+### Page diagnostics
+
+`browser_page_diagnostics` reports the environment visible to a supported-platform page through
+the existing Patchright instance. Use `tabId` to choose the page; omission uses the selected
+supported-platform tab, or the first available supported-platform tab if the selection is unavailable.
+The tool is unavailable during user handoff.
+
+The result's `environment` includes language, timezone, screen and viewport dimensions,
+`webdriver`, and WebGL information. `environment.webgl=null` means the diagnostic could not create
+a WebGL context. When a context exists, its renderer and vendor can still be null if the debug
+renderer extension is unavailable. `environment.scriptUrls` lists external script origins and
+paths, with query strings and fragments omitted. These observations help diagnose the shared browser environment;
+they do not establish a platform's reason for requesting verification.
+
+With `screenshot=true`, `screenshot.data` contains a base64 viewport PNG and `screenshot.mimeType`
+is `image/png`. Input, textarea, and editable regions are masked; other visible page content
+remains in the image.
+
 ### Access assessment
 
 Adapters classify authentication and access interruptions using the rules documented under
@@ -147,6 +189,23 @@ sync. Assessment stays within those existing reads.
 `browser_snapshot` returns `platformAccessObservation`; when it is non-null, the same observation is
 already eligible for submission to Workspace Service. Pages open before monitoring begins are
 also assessed by passive collection when eligible.
+
+### Access interruption diagnostics
+
+When access assessment identifies an interruption, Browser Session writes a
+`browser-access-interruption` JSON event to standard error. The event includes the interruption
+and recent document, fetch, and XHR response metadata for the affected platform. HTTP 200 HTML
+responses are included because an asynchronous verification challenge can use that response
+shape; status and MIME type alone do not classify it as a challenge.
+
+The passive diagnostic buffer holds at most 128 responses across supported platforms. Each event
+selects responses from the affected platform observed within the last two minutes. Response
+metadata includes timestamps, URL origins and paths, resource types, status codes, MIME types,
+and the presence of a `Punish-Type` header. URL credentials, query strings, fragments, other
+header values, and response bodies are omitted. URL paths can still contain identifiers.
+
+These local diagnostics are separate from evidence submitted to Workspace Service. The launcher
+owns log retention, and response capture begins when browser monitoring starts.
 
 ### Evidence submission
 
@@ -551,6 +610,16 @@ interceptor; after removal, perform a frozen install, build the Browser Session 
 repeat the navigation check.
 
 ### Browser launch policy
+
+The [graphics backend option](#graphics-backend) is applied at the shared launch boundary.
+Platform adapters use this common environment; backend selection is independent of platform and URL.
+`default` leaves Chromium's graphics flags unchanged. `swiftshader` passes
+`--use-gl=angle --use-angle=swiftshader` to select ANGLE's software OpenGL ES driver. It preserves
+the process sandbox and leaves the software renderer visible to pages. This driver mode does not
+enable the separate `--enable-unsafe-swiftshader` WebGL fallback flag.
+
+Browser Session inherits the launching process's environment, including locale, timezone, display,
+and proxy configuration.
 
 Browser Session explicitly enables Chromium's process sandbox for every launch. Patchright
 otherwise passes `--no-sandbox` by default; do not restore that default to work around host setup or

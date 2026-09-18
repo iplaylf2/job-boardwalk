@@ -29,6 +29,17 @@ test("accepts a supported branded browser channel", () => {
   });
 });
 
+test("accepts explicit graphics backends and rejects unsupported selections", () => {
+  for (const browserGraphicsBackend of ["default", "swiftshader"]) {
+    expect(
+      parseBrowserSessionArguments([`--browser-graphics-backend=${browserGraphicsBackend}`]),
+    ).toEqual({ browserGraphicsBackend });
+  }
+  expect(() => parseBrowserSessionArguments(["--browser-graphics-backend=unknown"])).toThrow(
+    /default or swiftshader/u,
+  );
+});
+
 test("rejects relative paths, partial listener addresses, and unsupported upstream URLs", () => {
   const { root } = path.parse(process.cwd());
 

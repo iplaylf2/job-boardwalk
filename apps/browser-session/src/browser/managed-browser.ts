@@ -17,7 +17,7 @@ import { JobEngagementCollector } from "./job-engagement/collector.js";
 import { PassiveJobObservationCollector } from "./job-observation/passive-collector.js";
 import { PlatformAccessObserver } from "./platform-access-observer.js";
 import { launchPersistentContext } from "./persistent-context-launch.js";
-import type { BrowserChannel } from "./persistent-context-launch.js";
+import type { BrowserChannel, BrowserGraphicsBackend } from "./persistent-context-launch.js";
 import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { BrowserToolExecutor } from "./tool-executor.js";
 
@@ -78,6 +78,7 @@ export class ManagedBrowser implements BrowserControl {
     dependencies: {
       browserChannel?: BrowserChannel;
       browserExecutablePath?: string;
+      browserGraphicsBackend?: BrowserGraphicsBackend;
       jobEngagementWriter: JobEngagementWriter;
       jobObservationWriter: JobObservationWriter;
     },
@@ -86,6 +87,9 @@ export class ManagedBrowser implements BrowserControl {
         dependencies.browserExecutablePath ??
         process.env["JOB_BOARDWALK_BROWSER_EXECUTABLE_PATH"]?.trim();
       return launchPersistentContext(profilePath_, {
+        ...(dependencies.browserGraphicsBackend
+          ? { graphicsBackend: dependencies.browserGraphicsBackend }
+          : {}),
         ...(dependencies.browserChannel ? { channel: dependencies.browserChannel } : {}),
         ...(!dependencies.browserChannel && browserExecutablePath
           ? { executablePath: browserExecutablePath }

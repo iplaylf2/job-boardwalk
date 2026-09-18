@@ -25,7 +25,9 @@ import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
 import { captureElementScrollContext, scrollOneViewport } from "./page-scroll.js";
 import { capturePageSnapshot } from "./page-snapshot.js";
+import { capturePageDiagnostics } from "./page-diagnostics.js";
 import { readJobCards } from "./job-observation/card-read.js";
+// oxlint-disable-next-line import/max-dependencies -- The tool dispatcher integrates the owning capture modules.
 import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
 
 const zero = 0;
@@ -107,6 +109,9 @@ export class BrowserToolExecutor {
   public *execute(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
     this.#assertToolControl(toolName, input);
     switch (toolName) {
+      case "browser_page_diagnostics": {
+        return yield* this.#pageDiagnostics(input);
+      }
       case "browser_tabs": {
         return yield* this.#tabAction(input);
       }
@@ -150,6 +155,11 @@ export class BrowserToolExecutor {
         throw new Error(`不支持的浏览器工具：${toolName}`);
       }
     }
+  }
+
+  *#pageDiagnostics(input: Record<string, unknown>): RiteCoroutine<unknown> {
+    const [, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(input));
+    return yield* capturePageDiagnostics(page, input["screenshot"] === true);
   }
 
   #assertToolControl(toolName: string, input: Record<string, unknown>): void {

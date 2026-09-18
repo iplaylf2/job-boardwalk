@@ -58,14 +58,20 @@ authentication state. The interruption takes precedence over account-header evid
 the browser through the shared handoff control. A title or incidental mention of verification
 alone remains unclassified.
 
+For environment inspection and recent response metadata, use the shared
+[page diagnostics](../../README.md#page-diagnostics) and
+[access interruption diagnostics](../../README.md#access-interruption-diagnostics).
+
 ## Validation coverage
 
 Nonempty application extraction and empty favorites and invitation states have been checked
 live. Linked favorites and invitation cards are covered by synthetic extraction tests; their
-nonempty layouts have not been verified live. The detail-entry workflow has been validated on
-synthetic pages, including same-name cards, popup handling, and stale references. Labeled-address
-extraction and the English verification-page rules have synthetic accepted and rejected cases;
-their extraction and classification have not been validated against live pages.
+nonempty layouts have not been verified live.
+
+Search-card navigation to a detail popup and English verification-page classification have been
+exercised live. Synthetic tests also cover same-name cards, popup handling, stale references, and
+accepted and rejected verification-page evidence. Labeled-address extraction has synthetic
+accepted and rejected cases; its extraction has not been validated against live pages.
 
 ## Implementation
 

@@ -1,7 +1,10 @@
 import path from "node:path";
 
 import type { BrowserSessionProcessOptions } from "./runtime.js";
-import type { BrowserChannel } from "./browser/persistent-context-launch.js";
+import type {
+  BrowserChannel,
+  BrowserGraphicsBackend,
+} from "./browser/persistent-context-launch.js";
 
 const maximumPort = 65_535;
 const minimumPort = 1;
@@ -46,6 +49,17 @@ function readPort(arguments_: readonly string[]): number | null {
   return port;
 }
 
+function readGraphicsBackend(arguments_: readonly string[]): BrowserGraphicsBackend | null {
+  const value = readArgument(arguments_, "browser-graphics-backend");
+  if (value === null) {
+    return null;
+  }
+  if (value !== "default" && value !== "swiftshader") {
+    throw new Error("--browser-graphics-backend must be default or swiftshader.");
+  }
+  return value;
+}
+
 function readWorkspaceServiceUrl(arguments_: readonly string[]): URL | null {
   const value = readArgument(arguments_, "workspace-service-url");
   if (!value) {
@@ -62,6 +76,7 @@ export function parseBrowserSessionArguments(
   arguments_: readonly string[],
 ): BrowserSessionProcessOptions {
   const browserChannel = readBrowserChannel(arguments_);
+  const browserGraphicsBackend = readGraphicsBackend(arguments_);
   const browserExecutablePath = readAbsolutePath(arguments_, "browser-executable-path");
   const profilePath = readAbsolutePath(arguments_, "browser-profile-path");
   const hostname = readArgument(arguments_, "hostname");
@@ -75,6 +90,7 @@ export function parseBrowserSessionArguments(
   }
   return {
     ...(browserChannel ? { browserChannel } : {}),
+    ...(browserGraphicsBackend ? { browserGraphicsBackend } : {}),
     ...(browserExecutablePath ? { browserExecutablePath } : {}),
     ...(profilePath ? { profilePath } : {}),
     ...(hostname && port !== null ? { httpServerAddress: { hostname, port } } : {}),
