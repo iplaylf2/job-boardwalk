@@ -590,7 +590,6 @@ test("writes and lists research reports through MCP", async () => {
           initiatedBy: "agent",
           markdown: "## 行业观察\n\n合成行业甲的工具采用情况。",
           reason: "test",
-          state: "complete",
           title: "合成行业研究",
         },
         name: "save_research_report",
@@ -619,7 +618,7 @@ test("writes and lists research reports through MCP", async () => {
   }
 });
 
-test("rejects an invalid report expiration through MCP", async () => {
+test("rejects blank report Markdown through MCP", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
   await using serviceScope = createScope();
@@ -631,11 +630,9 @@ test("rejects an invalid report expiration through MCP", async () => {
       method: "tools/call",
       params: {
         arguments: {
-          expiresAt: "not-a-time",
           initiatedBy: "agent",
-          markdown: "## 合成研究",
+          markdown: " ",
           reason: "test",
-          state: "complete",
           title: "无效报告",
         },
         name: "save_research_report",
@@ -662,7 +659,6 @@ test("creates and reads research reports through HTTP", async () => {
         initiatedBy: "agent",
         markdown: "## 技术路线\n\nNode.js 合成学习方案。",
         reason: "test",
-        state: "complete",
         title: "合成学习研究",
       }),
       headers: { "content-type": "application/json" },
@@ -684,7 +680,6 @@ test("creates and reads research reports through HTTP", async () => {
         initiatedBy: "agent",
         markdown: " ",
         reason: "test",
-        state: "complete",
         title: "无效报告",
       }),
       headers: { "content-type": "application/json" },
@@ -733,10 +728,9 @@ test("advertises job-library filters by public tool name", async () => {
       inputSchema: {
         properties: {
           markdown: { type: "string" },
-          state: { enum: ["complete", "draft"] },
           title: { type: "string" },
         },
-        required: expect.arrayContaining(["markdown", "state", "title"]),
+        required: expect.arrayContaining(["markdown", "title"]),
       },
     });
   } finally {

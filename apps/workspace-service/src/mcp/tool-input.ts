@@ -1,6 +1,5 @@
 import { inputValidationError, SaveResearchReportCommand } from "@job-boardwalk/contracts";
 import { platformIds, platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
-import type { ResearchReportFilter } from "@job-boardwalk/contracts";
 
 import { defaultJobPageSize, firstJobPage, maximumJobPageSize } from "#/job-library/query.js";
 import type { JobLibraryQuery } from "#/job-library/query.js";
@@ -15,13 +14,10 @@ const JobDescriptionStatusFilter = toolInput.enumerated(
 );
 
 export const ReadWorkspaceOverviewInput = toolInput({});
-export const ListResearchReportsInput = toolInput({
-  "includeExpired?": "boolean",
-});
+export const ListResearchReportsInput = toolInput({});
 
 export const ReadResearchReportInput = toolInput({
   id: "number.integer >= 1",
-  "includeExpired?": "boolean",
 });
 
 export const ReadJobLibraryInput = toolInput({
@@ -34,12 +30,10 @@ export const ReadJobLibraryInput = toolInput({
 });
 
 export const SaveResearchReportInput = toolInput({
-  "expiresAt?": "string",
   "id?": "number.integer >= 1",
   initiatedBy: "'agent' | 'system' | 'user'",
   markdown: "string > 0",
   reason: "string.trim.preformatted > 0",
-  state: "'complete' | 'draft'",
   title: "string.trim.preformatted > 0",
 });
 
@@ -62,15 +56,12 @@ export function parseWorkspaceOverviewInput(input: Record<string, unknown>): voi
   assertToolInput(() => ReadWorkspaceOverviewInput.assert(input));
 }
 
-export function parseListResearchReportsInput(
-  input: Record<string, unknown>,
-): ResearchReportFilter {
-  return assertToolInput(() => ListResearchReportsInput.assert(input));
+export function parseListResearchReportsInput(input: Record<string, unknown>): void {
+  assertToolInput(() => ListResearchReportsInput.assert(input));
 }
 
 export function parseReadResearchReportInput(input: Record<string, unknown>): {
   id: number;
-  includeExpired?: boolean;
 } {
   return assertToolInput(() => ReadResearchReportInput.assert(input));
 }

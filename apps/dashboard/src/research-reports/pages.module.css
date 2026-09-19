@@ -15,7 +15,7 @@
 }
 
 .list-item h2 {
-  margin: 9px 0 0;
+  margin: 0;
   font-family: var(--font-serif);
   font-size: 1.375rem;
   line-height: 1.4;
@@ -41,24 +41,6 @@
   text-align: right;
 }
 
-.state {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: var(--text-meta);
-  font-weight: 700;
-}
-
-.complete {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.draft {
-  background: var(--attention-soft);
-  color: var(--attention);
-}
-
 .document {
   inline-size: min(58rem, 100%);
   margin: 0 auto;
@@ -76,7 +58,7 @@
 }
 
 .heading h2 {
-  margin: 12px 0 8px;
+  margin: 0 0 8px;
   font-family: var(--font-serif);
   font-size: clamp(1.875rem, 4vw, 2.625rem);
   line-height: 1.2;

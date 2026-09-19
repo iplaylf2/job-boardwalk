@@ -1,25 +1,19 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { drizzle } from "drizzle-orm/node-sqlite";
 import type {
   ResearchReport,
   SaveResearchReportCommand,
   ResearchReportSummary,
-  ResearchReportFilter,
 } from "@job-boardwalk/contracts";
 import { researchReports, workspaceChanges } from "./schema.js";
 
 type ReportRow = typeof researchReports.$inferSelect;
-function unexpiredResearchReportCondition(now: string) {
-  return sql`(${researchReports.expiresAt} is null or ${researchReports.expiresAt} > ${now})`;
-}
 
 function reportFromRow(row: ReportRow): ResearchReport {
   return {
     createdAt: row.createdAt,
-    ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
     id: row.id,
     markdown: row.markdown,
-    state: row.state,
     title: row.title,
     updatedAt: row.updatedAt,
   };
@@ -30,14 +24,10 @@ export class ResearchReportRepository {
   public constructor(database: ReturnType<typeof drizzle>) {
     this.#database = database;
   }
-  public listResearchReports(filter: ResearchReportFilter = {}): ResearchReportSummary[] {
-    const conditions = filter.includeExpired
-      ? []
-      : [unexpiredResearchReportCondition(new Date().toISOString())];
+  public listResearchReports(): ResearchReportSummary[] {
     return this.#database
       .select()
       .from(researchReports)
-      .where(and(...conditions))
       .orderBy(desc(researchReports.updatedAt), desc(researchReports.id))
       .all()
       .map((row) => {
@@ -46,15 +36,11 @@ export class ResearchReportRepository {
       });
   }
 
-  public readResearchReport(id: number, includeExpired = false): ResearchReport | null {
-    const conditions = [eq(researchReports.id, id)];
-    if (!includeExpired) {
-      conditions.push(unexpiredResearchReportCondition(new Date().toISOString()));
-    }
+  public readResearchReport(id: number): ResearchReport | null {
     const row = this.#database
       .select()
       .from(researchReports)
-      .where(and(...conditions))
+      .where(eq(researchReports.id, id))
       .get();
     return row ? reportFromRow(row) : null;
   }
@@ -68,9 +54,7 @@ export class ResearchReportRepository {
         ? transaction
             .update(researchReports)
             .set({
-              expiresAt: input.expiresAt ?? null,
               markdown: input.markdown,
-              state: input.state,
               title: input.title,
               updatedAt: now,
             })
@@ -81,9 +65,7 @@ export class ResearchReportRepository {
             .insert(researchReports)
             .values({
               createdAt: now,
-              expiresAt: input.expiresAt ?? null,
               markdown: input.markdown,
-              state: input.state,
               title: input.title,
               updatedAt: now,
             })

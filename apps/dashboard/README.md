@@ -16,8 +16,8 @@ The interface has three primary reader paths:
 - `/jobs` presents the normalized job library with search, platform, engagement, and description
   filters. Cards show collected facts, platform sources, and retained descriptions. See
   [Job library](#job-library) for source status and evidence displays.
-- `/reports` lists unexpired research reports, while `/reports/:id` renders one Markdown report.
-  Both show the report's authoring state, update time, and expiration when present.
+- `/reports` lists saved research reports, while `/reports/:id` renders one Markdown report.
+  See [Report rendering](#report-rendering) for presentation and link behavior.
 
 The header owns only cross-resource navigation. Engagement filters belong to the job library and do
 not appear as primary destinations.
@@ -98,10 +98,9 @@ future browser features share page coordination and user handoff.
 
 ## Report rendering
 
-The report list shows titles, authoring states, update times, and optional expiration times. The
-detail page presents that metadata with the saved Markdown body. `complete` appears as “撰写完成”.
-[Workspace Service](../workspace-service/README.md#research-reports) owns report storage and
-expiration filtering.
+The report list shows titles and update times, with the most recently updated reports first.
+Selecting a title opens the saved Markdown body with the same title and update time.
+[Workspace Service](../workspace-service/README.md#research-reports) owns report storage and queries.
 
 Dashboard renders each report as a document. It supports headings, prose, lists, tables, block
 quotes, and code. Raw HTML remains text, and Markdown images are not rendered.

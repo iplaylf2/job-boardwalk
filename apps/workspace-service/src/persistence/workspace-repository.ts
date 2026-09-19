@@ -10,7 +10,6 @@ import type {
   PlatformAccessObservation,
   ProfileFact,
   ResearchReport,
-  ResearchReportFilter,
   SaveResearchReportCommand,
   WorkspaceChangeAttribution,
   ResearchReportSummary,
@@ -159,11 +158,11 @@ export class WorkspaceRepository {
   }): SynchronizeJobEngagementResult {
     return this.#jobEngagements.synchronizeJobEngagement(input);
   }
-  public listResearchReports(filter: ResearchReportFilter = {}): ResearchReportSummary[] {
-    return this.#researchReports.listResearchReports(filter);
+  public listResearchReports(): ResearchReportSummary[] {
+    return this.#researchReports.listResearchReports();
   }
-  public readResearchReport(id: number, includeExpired = false): ResearchReport | null {
-    return this.#researchReports.readResearchReport(id, includeExpired);
+  public readResearchReport(id: number): ResearchReport | null {
+    return this.#researchReports.readResearchReport(id);
   }
   public saveResearchReport(
     input: SaveResearchReportCommand & { id?: number },

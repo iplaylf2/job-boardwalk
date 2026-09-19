@@ -8,23 +8,9 @@ import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
 
-import {
-  InvalidRequestError,
-  readPositiveInteger,
-  readRequestBody,
-  requestErrorResponse,
-} from "./request.js";
+import { readPositiveInteger, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
-
-function readIncludeExpired(value: string | undefined): boolean {
-  if (typeof value === "string" && value !== "true" && value !== "false") {
-    throw new InvalidRequestError("includeExpired 必须为 true 或 false", {
-      field: "includeExpired",
-    });
-  }
-  return value === "true";
-}
 
 function registerResearchReportReadRoutes(
   app: Hono,
@@ -35,8 +21,7 @@ function registerResearchReportReadRoutes(
     serviceScope.run(function* listResearchReports() {
       try {
         yield* [];
-        const filter = { includeExpired: readIncludeExpired(context.req.query("includeExpired")) };
-        return context.json({ reports: repository.listResearchReports(filter) });
+        return context.json({ reports: repository.listResearchReports() });
       } catch (error) {
         return requestErrorResponse(error, context);
       }
@@ -47,10 +32,7 @@ function registerResearchReportReadRoutes(
       try {
         yield* [];
         const id = readPositiveInteger(context.req.param("id"), "id");
-        const report = repository.readResearchReport(
-          id,
-          readIncludeExpired(context.req.query("includeExpired")),
-        );
+        const report = repository.readResearchReport(id);
         return report
           ? context.json(report)
           : requestErrorResponse(

@@ -24,9 +24,8 @@ Add 51job research support and improve job collection, browser handoff, and Dash
   Login and verification remain yours to complete. After you explicitly return control, the agent
   checks the page again before resuming research.
 - Research reports are now presented as saved documents whose topic and structure the author
-  chooses, including research beyond job recommendations. Dashboard labels their writing state
-  as draft or finished and makes expiration clearer. Expired reports are hidden from ordinary
-  reading but remain stored; you can ask the agent to retrieve them explicitly.
+  chooses, including research beyond job recommendations. Dashboard lists reports by most recent
+  update and opens each as a Markdown document.
 
 The desktop application's bundled runtime and dependencies are also updated.
 

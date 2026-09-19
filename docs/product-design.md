@@ -49,10 +49,10 @@ browser profiles, authentication cookies, or desktop windows.
 The **Dashboard** is an independent view of durable workspace data. It also lets the user maintain
 personal context and a collection of job-search intents. At most one intent is selected as the
 current research direction; it supplies platform recommendation pages that the agent may visit
-during user-requested research. Each intent associates a target position and city with those pages. Dashboard also presents
-unexpired research reports as workspace documents. It can consume Browser Session as an optional capability service;
-its current browser integration checks service health. Workspace reading does not require an
-active browser or agent conversation.
+during user-requested research. Each intent associates a target position and city with those pages.
+Dashboard also presents saved research reports as documents. It can consume Browser Session as an
+optional capability service; its current browser integration checks service health. Workspace
+reading does not require an active browser or agent conversation.
 
 The **Desktop Manager** owns the native local-runtime control surface and operating-system
 integration. It is not a WebView host: Dashboard remains a browser application, and recruiting
@@ -299,18 +299,19 @@ the agent stops browser input, records the interruption, and waits for the user.
 ## Research reports
 
 Research reports preserve authored findings for later reading, independently of the conversation
-that produced them. The author chooses the subject, conclusions, supporting material, and document
-structure. Workspace Service stores the title, Markdown body, authoring state, timestamps, and
-optional expiration; Dashboard presents the saved document.
+that produced them. The author chooses the subject and document structure, explaining conclusions,
+supporting evidence, uncertainties, and outstanding research in the body. Evidence dates establish
+the context of those findings. The report's creation and update times record when the document was
+saved and revised.
 
-The completion state describes authoring. Replacement overwrites the previous version, and
-deletion removes the report. Expiration hides a report from ordinary reading without deleting it;
-explicit reads can include expired reports.
+Saved reports remain available until explicitly deleted. Replacing a report overwrites its previous
+content; earlier revisions are not retained. Workspace Service owns the saved document, and
+Dashboard presents it for reading. Report content cannot embed pages or expose browser or agent
+controls.
 
-[Workspace Service](../apps/workspace-service/README.md#research-reports) owns report validation,
-persistence, replacement, and query semantics. [Dashboard](../apps/dashboard/README.md#report-rendering)
-owns document rendering and link behavior. Report content cannot embed pages or expose browser
-or agent controls.
+[Workspace Service](../apps/workspace-service/README.md#research-reports) documents report validation,
+storage, and read/write contracts. [Dashboard](../apps/dashboard/README.md#report-rendering) documents
+Markdown rendering and link behavior.
 
 ## Dashboard surface
 

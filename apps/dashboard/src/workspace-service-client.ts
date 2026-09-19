@@ -153,7 +153,7 @@ export function* listResearchReports(): RiteCoroutine<ResearchReportList> {
 export function* readResearchReport(id: number): RiteCoroutine<ResearchReport> {
   return yield* readWorkspaceData({
     failureMessage: "无法读取研究报告。请确认工作区服务正在运行。",
-    notFoundMessage: "这份研究报告不存在或已经过期。",
+    notFoundMessage: "这份研究报告不存在。",
     parse: ResearchReport.assert,
     path: `/api/reports/${String(id)}`,
   });

@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d370441b-50fe-4d28-bff1-c37ba623cfad",
+  "id": "777266fa-8333-45e2-bd57-0dcf0c052f35",
   "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
@@ -565,16 +565,6 @@
       "table": "research_reports"
     },
     {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "expires_at",
-      "entityType": "columns",
-      "table": "research_reports"
-    },
-    {
       "type": "integer",
       "notNull": false,
       "autoincrement": true,
@@ -591,16 +581,6 @@
       "default": null,
       "generated": null,
       "name": "markdown",
-      "entityType": "columns",
-      "table": "research_reports"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "state",
       "entityType": "columns",
       "table": "research_reports"
     },

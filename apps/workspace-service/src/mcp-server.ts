@@ -23,7 +23,7 @@ const researchReportsUri = "job-boardwalk://reports";
 const jobLibraryResourceDescription =
   "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录、已采集职位描述及可选的 recruitment 观察。";
 const researchReportsResourceDescription =
-  "读取未过期研究报告目录，包含标题、撰写状态和时间。查阅过期报告时，使用 list_research_reports。";
+  "列出所有已保存研究报告的 ID、标题、创建时间和更新时间，按更新时间从新到旧排列。正文通过 read_research_report 读取。";
 function structuredToolResult(value: object) {
   return {
     content: [{ text: JSON.stringify(value), type: "text" as const }],

@@ -690,7 +690,7 @@ test("keeps partial cross-platform cards separate", async () => {
   }
 });
 
-test("creates, updates, expires, and deletes research reports", async () => {
+test("creates, updates, and deletes research reports", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
     databasePath: path.join(directory, "workspace.sqlite"),
@@ -699,14 +699,12 @@ test("creates, updates, expires, and deletes research reports", async () => {
 
   try {
     const created = repository.saveResearchReport({
-      expiresAt: "2999-07-20T00:00:00.000Z",
       initiatedBy: "agent",
       markdown: "## 初步判断",
       reason: "test",
-      state: "draft",
       title: "岗位推荐",
     });
-    expect(created).toMatchObject({ id: expect.any(Number), state: "draft" });
+    expect(created).toMatchObject({ id: expect.any(Number) });
     if (!created) {
       throw new Error("test report was not created");
     }
@@ -720,30 +718,16 @@ test("creates, updates, expires, and deletes research reports", async () => {
         initiatedBy: "agent",
         markdown: "## 最终判断",
         reason: "test",
-        state: "complete",
         title: "岗位推荐",
       }),
-    ).toMatchObject({ markdown: "## 最终判断", state: "complete" });
-    expect(repository.readResearchReport(created.id)).toMatchObject({ state: "complete" });
+    ).toMatchObject({ markdown: "## 最终判断" });
+    expect(repository.readResearchReport(created.id)).toMatchObject({ markdown: "## 最终判断" });
     expect(
       repository.deleteResearchReport({ id: created.id, initiatedBy: "user", reason: "test" }),
     ).toBe(true);
     expect(repository.readResearchReport(created.id)).toBeNull();
 
-    const expired = repository.saveResearchReport({
-      expiresAt: "2000-07-18T00:00:00.000Z",
-      initiatedBy: "system",
-      markdown: "已过期",
-      reason: "test",
-      state: "complete",
-      title: "旧报告",
-    });
-    expect(expired).toMatchObject({ id: expect.any(Number) });
-    if (!expired) {
-      throw new Error("test expired report was not created");
-    }
     expect(repository.listResearchReports()).toEqual([]);
-    expect(repository.readResearchReport(expired.id)).toBeNull();
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

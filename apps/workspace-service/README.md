@@ -11,7 +11,7 @@ browser-collaboration model. The current service preserves platform-access obser
 facts, job-search intents, normalized jobs and their platform sources, and research reports. Each
 intent owns a target position, city, selection state, and per-platform recommendation-page
 references. The service does not store recruiting pages or historical page snapshots. It stores
-research reports as Markdown with titles and lifecycle metadata.
+research reports as Markdown documents.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent browser. The agent coordinates that live browser work with the
@@ -61,14 +61,15 @@ The MCP surface provides:
   description coverage, available collected descriptions, and platform sources;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
   `platformId`, `engagement`, and `descriptionStatus` filters;
-- `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
-  research reports by default;
-- `read_research_report`, which reads a report by ID, excluding expired reports by default;
+- `job-boardwalk://reports` and `list_research_reports`, which expose the directory of saved
+  research reports;
+- `read_research_report`, which reads a report by ID;
 - `save_research_report`, which creates a report or replaces one identified by ID.
 
+[Research reports](#research-reports) describes the report read and write contracts.
+
 Successful tools return their domain response in `structuredContent` and JSON text. Resources
-return JSON in `contents[].text`. `list_research_reports` and `read_research_report` accept
-`includeExpired=true` for historical reads; the reports resource lists unexpired reports.
+return JSON in `contents[].text`.
 
 Tool execution failures set `isError=true` and return
 [`OperationErrorResponse`](../../packages/contracts/src/operation-error.ts) in `structuredContent`
@@ -332,32 +333,31 @@ engagement and snapshot semantics.
 
 ### Research reports
 
-A report contains a title, Markdown body, `draft` or `complete` authoring state, creation and update
-timestamps, and optional expiration. The author determines the subject and document structure.
+A report contains an `id`, `title`, Markdown body (`markdown`), and creation and update timestamps
+(`createdAt` and `updatedAt`). [Product design](../../docs/product-design.md#research-reports)
+defines its role as a saved research document.
+
+`GET /api/reports`, MCP `list_research_reports`, and the `job-boardwalk://reports` resource return
+`{ reports: [...] }`, ordered by most recent update. Each entry contains the report's ID, title,
+and timestamps. `GET /api/reports/:id` and MCP `read_research_report` return the full report,
+including its Markdown body.
 
 `POST /api/reports` creates a report; `PUT /api/reports/:id` replaces it. MCP
-`save_research_report` creates when `id` is omitted and replaces when it is supplied. Creating or
-replacing a report requires `title`, `markdown`, `state`, and change attribution (`initiatedBy` and
-`reason`), with optional `expiresAt`. Replacement overwrites those authored fields, preserves the ID and creation
-time, and updates the modification time. Omitting `expiresAt` clears any previous expiration.
-Earlier revisions are not retained.
+`save_research_report` creates when `id` is omitted and replaces the existing report when it is
+supplied. Each write requires the full `title` and `markdown`, plus change attribution
+(`initiatedBy` and `reason`). Titles must be nonempty and have no leading or trailing whitespace;
+Markdown must contain non-whitespace text and is stored as authored. Replacement preserves the ID
+and creation time, overwrites the title and body, and updates the modification time. Earlier
+revisions are not retained.
 
-Creating, replacing, and deleting a report records a workspace change with its user, agent, or
-system attribution in the same transaction as the report change.
+`DELETE /api/reports/:id` removes a report and requires `initiatedBy` and `reason` in the request
+body. Reading, replacing, or deleting a nonexistent report returns `not-found`. Creating,
+replacing, and deleting a report records a workspace change with its user, agent, or system
+attribution in the same transaction as the report change.
 
-HTTP and MCP validate report commands before passing them to the typed repository. The
-[report repository](src/persistence/research-report-repository.ts) owns persistence, expiration
-filtering, and change attribution. Markdown is stored as authored;
-[Dashboard](../dashboard/README.md#report-rendering) owns rendering.
-
-`GET /api/reports` and MCP `list_research_reports` return summaries ordered by most recent update.
-`GET /api/reports/:id` and MCP `read_research_report` return a report's body and metadata. List and
-detail reads exclude expired reports by default; `includeExpired=true` includes them explicitly.
-The MCP reports resource always lists unexpired reports. Expiration affects visibility without
-deleting the stored document.
-
-[Product design](../../docs/product-design.md#research-reports) defines the cross-application report
-lifecycle.
+HTTP and MCP validate commands before passing them to the typed
+[report repository](src/persistence/research-report-repository.ts), which owns persistence,
+queries, and change attribution. [Dashboard](../dashboard/README.md#report-rendering) owns rendering.
 
 ## Persistence
 
