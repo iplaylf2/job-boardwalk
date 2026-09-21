@@ -3,8 +3,11 @@ import { afterEach, expect, test, vi } from "vitest";
 import { captureBossJobEngagementMetadata } from "#/browser/job-engagement/boss-page-capture.js";
 import { maximumJobsPerEngagementScan } from "#/browser/job-engagement/scan-limit.js";
 
+import { bossPageDefinition } from "#/browser/platforms/boss.js";
+
 const maximumSummaryCharacters = 1500;
 const pageCaptureLimits = {
+  ...bossPageDefinition.jobLink,
   maximumCards: maximumJobsPerEngagementScan,
   maximumSummaryCharacters,
 };

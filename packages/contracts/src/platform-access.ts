@@ -38,6 +38,7 @@ export type PlatformAccessAssessment = typeof PlatformAccessAssessment.infer;
 const observationContext = {
   observedAt: normalizedTimestamp,
   platformId,
+  url: contract("string.url").narrow((value) => new globalThis.URL(value).protocol === "https:"),
 } as const;
 
 const authenticatedFromProtectedResourceObservation =

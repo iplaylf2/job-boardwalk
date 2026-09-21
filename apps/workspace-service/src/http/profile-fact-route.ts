@@ -1,9 +1,10 @@
-import type { Hono } from "hono";
 import {
+  OperationError,
   CreateProfileFactCommand,
   UpdateProfileFactCommand,
   WorkspaceChangeAttribution,
 } from "@job-boardwalk/contracts";
+import type { Hono } from "hono";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
@@ -11,8 +12,8 @@ import type { WorkspaceRepository } from "#/persistence/workspace-repository.js"
 import { readPositiveInteger, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
-const notFoundStatus = 404;
 
+// eslint-disable-next-line max-lines-per-function -- This function declares the cohesive profile-fact HTTP resource surface.
 export function registerProfileFactRoute(
   app: Hono,
   repository: WorkspaceRepository,
@@ -32,13 +33,20 @@ export function registerProfileFactRoute(
     serviceScope.run(function* updateProfileFact() {
       try {
         const input = yield* readRequestBody(context, UpdateProfileFactCommand);
+        const id = readPositiveInteger(context.req.param("id"), "id");
         const updated = repository.updateProfileFact({
-          id: readPositiveInteger(context.req.param("id"), "id"),
+          id,
           ...input,
         });
         return updated
           ? context.json(updated)
-          : context.json({ error: "找不到个人条件" }, notFoundStatus);
+          : requestErrorResponse(
+              new OperationError("not-found", "找不到个人条件", {
+                id,
+                resource: "profile-fact",
+              }),
+              context,
+            );
       } catch (error) {
         return requestErrorResponse(error, context);
       }

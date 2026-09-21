@@ -65,6 +65,8 @@
 
 @media (max-width: 620px) {
   .heading {
+    flex-wrap: wrap;
+    gap: 16px;
     align-items: start;
   }
 }

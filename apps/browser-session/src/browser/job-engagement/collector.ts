@@ -1,3 +1,4 @@
+import { OperationError } from "@job-boardwalk/contracts";
 import type { BrowserContext, Page } from "patchright";
 import type {
   JobEngagementEvidence,
@@ -13,12 +14,12 @@ import type { JobEngagementWriter } from "#/workspace-service/job-engagement-wri
 
 import type { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
 import { ManagedPageTargets } from "#/browser/managed-page-targets.js";
-import type { PageAccessFacts } from "#/browser/recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 
 import { captureJobEngagementSnapshot } from "./snapshot.js";
 import type { CapturedJobEngagementSnapshot } from "./snapshot.js";
 import { isJobEngagementPage, jobEngagementPlatformAdapters } from "./platform-adapters.js";
-import type { JobEngagementPlatformAdapter, JobEngagementTarget } from "./platform-adapters.js";
+import type { JobEngagementPlatformAdapter, JobEngagementTarget } from "./types.js";
 import { maximumJobsPerEngagementScan } from "./scan-limit.js";
 
 const emptyCollectionLength = 0;
@@ -29,6 +30,10 @@ interface JobEngagementCollectionCoordination {
   readonly observePageAccess: (page: PageAccessFacts) => void;
   readonly selectPage: (page: Page) => RiteCoroutine<void>;
 }
+
+export type EngagementScanProgress =
+  | { state: "continuable" }
+  | { state: "ended"; reason: "complete" | "scan-limit" | "no-cards" | "no-continuation" };
 
 interface EngagementScan {
   readonly jobs: JobEngagementEvidence[];
@@ -74,6 +79,24 @@ function toSnapshot(
   };
 }
 
+function scanEndReason(
+  complete: boolean,
+  accumulatedCount: number,
+  batchCount: number,
+  nextTarget: JobEngagementTarget | null,
+): Extract<EngagementScanProgress, { state: "ended" }>["reason"] | null {
+  if (complete) {
+    return "complete";
+  }
+  if (accumulatedCount >= maximumJobsPerEngagementScan) {
+    return "scan-limit";
+  }
+  if (batchCount === emptyCollectionLength) {
+    return "no-cards";
+  }
+  return nextTarget === null ? "no-continuation" : null;
+}
+
 export class JobEngagementCollector {
   readonly #collectionControl: BackgroundCollectionControl;
   readonly #context: BrowserContext;
@@ -103,20 +126,27 @@ export class JobEngagementCollector {
   public *synchronize(
     platformId: PlatformId,
     engagement: PlatformJobEngagementKind,
-  ): RiteCoroutine<SynchronizeJobEngagementResult> {
+  ): RiteCoroutine<SynchronizeJobEngagementResult & { scan: EngagementScanProgress }> {
     const collection = yield* this.#collectionControl.runCollection(() =>
       this.#captureSnapshot(platformId, engagement),
     );
     if (!collection.started) {
-      throw new Error("用户正在控制浏览器；请等待用户明确交还控制权后再同步岗位跟进。");
+      throw new OperationError(
+        "user-control-active",
+        "用户正在控制浏览器；请等待用户明确交还控制权后再同步岗位跟进。",
+        { platformId },
+      );
     }
-    return yield* this.#writer.write(collection.value);
+    return {
+      ...(yield* this.#writer.write(collection.value.snapshot)),
+      scan: collection.value.scan,
+    };
   }
 
   *#captureSnapshot(
     platformId: PlatformId,
     engagement: PlatformJobEngagementKind,
-  ): RiteCoroutine<JobEngagementSnapshot> {
+  ): RiteCoroutine<{ snapshot: JobEngagementSnapshot; scan: EngagementScanProgress }> {
     const pages = this.#context.pages();
     const key = scanKey(platformId, engagement);
     const adapter = jobEngagementPlatformAdapters[platformId];
@@ -133,21 +163,24 @@ export class JobEngagementCollector {
     const boundedJobs = accumulatedJobs.slice(emptyCollectionLength, maximumJobsPerEngagementScan);
     const complete =
       hasCompleteScanEvidence && accumulatedJobs.length <= maximumJobsPerEngagementScan;
-    const hasReachedScanLimit = accumulatedJobs.length >= maximumJobsPerEngagementScan;
-    const shouldEndScan =
-      complete ||
-      captured.jobs.length === emptyCollectionLength ||
-      hasReachedScanLimit ||
-      nextTarget === null;
-    if (shouldEndScan) {
+    const endReason = scanEndReason(
+      complete,
+      accumulatedJobs.length,
+      captured.jobs.length,
+      nextTarget,
+    );
+    if (endReason) {
       this.#scans.delete(key);
       return {
-        ...toSnapshot(captured, boundedJobs, complete),
-        sourceUrl: adapter.initialTarget(engagement).url,
+        scan: { reason: endReason, state: "ended" },
+        snapshot: {
+          ...toSnapshot(captured, boundedJobs, complete),
+          sourceUrl: adapter.initialTarget(engagement).url,
+        },
       };
     }
-    this.#scans.set(key, { jobs: accumulatedJobs, target: nextTarget });
-    return toSnapshot(captured);
+    this.#scans.set(key, { jobs: accumulatedJobs, target: nextTarget! });
+    return { scan: { state: "continuable" }, snapshot: toSnapshot(captured) };
   }
 
   *#ensureEngagementPage(
@@ -157,7 +190,8 @@ export class JobEngagementCollector {
   ): RiteCoroutine<Page> {
     const resolution = this.#engagementPages.resolve(adapter.platformId, pages);
     if (resolution.state === "waiting") {
-      throw new Error(
+      throw new OperationError(
+        "unsupported-page",
         "此前用于岗位跟进同步的标签页已离开对应分类页；请检查可见页面，并在必要的用户交接完成后重试。",
       );
     }
@@ -179,7 +213,11 @@ export class JobEngagementCollector {
       );
       this.#engagementPages.observe(adapter.platformId, page);
       if (!adapter.matchesTarget(target, page.url())) {
-        throw new Error("导航后未到达请求的岗位跟进分类页；请检查可见页面和平台访问状态。");
+        throw new OperationError(
+          "unsupported-page",
+          "导航后未到达请求的岗位跟进分类页；请检查可见页面和平台访问状态。",
+          { platformId: adapter.platformId, url: page.url() },
+        );
       }
       yield* sleep(initialPageSettleMilliseconds);
     }

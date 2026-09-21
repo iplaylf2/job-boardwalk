@@ -1,3 +1,4 @@
+import { OperationError, OperationErrorResponse } from "@job-boardwalk/contracts";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -6,7 +7,6 @@ import { createScope } from "@shajara/host";
 import type { BrowserContext } from "patchright";
 import { expect, test } from "vitest";
 
-// oxlint-disable max-lines -- The public MCP surface remains visible in one protocol-level suite.
 import type { BrowserControl } from "#/browser/browser-control.js";
 import { BrowserTabs } from "#/browser/browser-tabs.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
@@ -14,7 +14,6 @@ import { BackgroundCollectionControl } from "#/browser/background-collection-con
 import { createBrowserSessionMcpServer } from "#/mcp-server.js";
 
 const firstContentIndex = 0;
-const outOfRangeWaitMilliseconds = 10_001;
 
 function fakeBrowserControl(): BrowserControl & {
   executions: { input: Record<string, unknown>; toolName: string }[];
@@ -30,6 +29,7 @@ function fakeBrowserControl(): BrowserControl & {
     status: {
       available: true,
       browserVersion: "150.0.0.0",
+      control: { interruption: null, matchingTabIds: [], state: "active" },
       tabCount: 1,
     },
   };
@@ -37,7 +37,12 @@ function fakeBrowserControl(): BrowserControl & {
 
 function* unavailableBrowserCall() {
   yield* [];
-  throw new Error("浏览器尚未就绪。");
+  throw new OperationError("browser-unavailable", "浏览器尚未就绪。");
+}
+
+function* unexpectedBrowserFailure() {
+  yield* [];
+  throw new TypeError("synthetic private driver detail");
 }
 
 function browserToolExecutorControl(): BrowserControl {
@@ -54,7 +59,11 @@ function browserToolExecutorControl(): BrowserControl {
   );
   return {
     executeTool: (toolName, input) => executor.execute(toolName, input),
-    status: { available: true, tabCount: 0 },
+    status: {
+      available: true,
+      control: { interruption: null, matchingTabIds: [], state: "active" },
+      tabCount: 0,
+    },
   };
 }
 
@@ -85,6 +94,7 @@ test("always exposes the project-owned browser tools", async () => {
   expect(names).toEqual(
     new Set([
       "browser_status",
+      "browser_page_diagnostics",
       "browser_tabs",
       "browser_prepare_login",
       "browser_navigate",
@@ -96,16 +106,16 @@ test("always exposes the project-owned browser tools", async () => {
       "browser_fill",
       "browser_select",
       "browser_scroll",
-      "browser_wait",
+      "browser_reveal",
     ]),
   );
   const tabsTool = listedTools.tools.find(({ name }) => name === "browser_tabs");
   const actionSchema = tabsTool?.inputSchema.properties?.["action"] as
     | { enum?: string[] }
     | undefined;
-  expect(new Set(actionSchema?.enum)).toEqual(new Set(["list", "ensure", "activate"]));
+  expect(new Set(actionSchema?.enum)).toEqual(new Set(["list", "ensure", "activate", "close"]));
   expect(tabsTool?.inputSchema.properties?.["platformId"]).toMatchObject({
-    enum: ["boss", "yupao"],
+    enum: ["51job", "boss", "yupao"],
   });
   const snapshotTool = listedTools.tools.find(({ name }) => name === "browser_snapshot");
   expect(snapshotTool?.annotations).toMatchObject({
@@ -217,30 +227,46 @@ test("contains an unavailable browser as a tool error", async () => {
     await client.callTool({ arguments: {}, name: "browser_snapshot" }),
   );
   expect(result.isError).toBe(true);
-  expect(result.content[firstContentIndex]).toMatchObject({
-    text: "浏览器尚未就绪。",
+  expect(OperationErrorResponse.assert(result.structuredContent)).toMatchObject({
+    error: { code: "browser-unavailable", details: {} },
+  });
+  expect(result.content[firstContentIndex]).toEqual({
+    text: JSON.stringify(result.structuredContent),
+    type: "text",
   });
   await close();
 });
 
 const invalidBrowserToolCalls = [
   {
-    arguments: { milliseconds: outOfRangeWaitMilliseconds },
-    expectedField: /milliseconds/u,
-    name: "browser_wait",
-    title: "a wait beyond the public limit",
+    arguments: { screenshot: "yes" },
+    expectedField: /screenshot/u,
+    name: "browser_page_diagnostics",
+    title: "a non-boolean screenshot request",
+  },
+  {
+    arguments: { direction: "sideways" },
+    expectedField: /direction/u,
+    name: "browser_scroll",
+    title: "an unknown reading direction",
+  },
+  {
+    arguments: {},
+    expectedField: /ref/u,
+    name: "browser_reveal",
+    title: "revealing without an observed element",
+  },
+  {
+    arguments: { waitFor: "loaded" },
+    expectedField: /waitFor/u,
+    name: "browser_job_card_snapshot",
+    title: "unsupported page readiness inference",
   },
   {
     arguments: {},
     expectedField: /platformId/u,
     name: "browser_prepare_login",
     title: "a missing required platform",
-  },
-  {
-    arguments: { maximumCards: 101 },
-    expectedField: /maximumCards/u,
-    name: "browser_job_card_snapshot",
-    title: "a job-card limit above the public maximum",
   },
   {
     arguments: { engagement: "contacted" },
@@ -271,6 +297,12 @@ test.each(invalidBrowserToolCalls)(
 
     const result = CallToolResultSchema.parse(await client.callTool({ arguments: input, name }));
     expect(result.isError).toBe(true);
+    const failure = OperationErrorResponse.assert(result.structuredContent);
+    expect(failure.error.code).toBe("invalid-input");
+    expect(failure.error.details.issues?.[firstContentIndex]).toMatchObject({
+      code: expect.any(String),
+      path: expect.any(Array),
+    });
     expect(result.content[firstContentIndex]).toMatchObject({
       text: expect.stringMatching(expectedField),
     });
@@ -295,9 +327,74 @@ test("contains contextual browser tool rejections", async () => {
     await client.callTool({ arguments: { ref: "e1" }, name: "browser_click" }),
   );
   expect(expiredReferenceResult.isError).toBe(true);
-  expect(expiredReferenceResult.content[firstContentIndex]).toMatchObject({
-    text: expect.stringMatching(/不存在或已过期/u),
+  expect(OperationErrorResponse.assert(expiredReferenceResult.structuredContent)).toMatchObject({
+    error: { code: "reference-expired", details: { ref: "e1" } },
   });
 
+  await close();
+});
+
+test("forwards semantic reading intents without driver tuning parameters", async () => {
+  await using serviceScope = createScope();
+  const control = fakeBrowserControl();
+  const { client, close } = await connectedClient(
+    createBrowserSessionMcpServer(control, serviceScope),
+  );
+  try {
+    await client.callTool({
+      arguments: { direction: "down", ref: "e1" },
+      name: "browser_scroll",
+    });
+    await client.callTool({ arguments: { ref: "e2" }, name: "browser_reveal" });
+    await client.callTool({
+      arguments: { waitFor: "cards-present" },
+      name: "browser_job_card_snapshot",
+    });
+    await client.callTool({ arguments: {}, name: "browser_snapshot" });
+    await client.callTool({
+      arguments: { screenshot: true, tabId: 1 },
+      name: "browser_page_diagnostics",
+    });
+    expect(control.executions).toEqual([
+      { input: { direction: "down", ref: "e1" }, toolName: "browser_scroll" },
+      { input: { ref: "e2" }, toolName: "browser_reveal" },
+      { input: { waitFor: "cards-present" }, toolName: "browser_job_card_snapshot" },
+      { input: {}, toolName: "browser_snapshot" },
+      { input: { screenshot: true, tabId: 1 }, toolName: "browser_page_diagnostics" },
+    ]);
+  } finally {
+    await close();
+  }
+});
+
+test("distinguishes unknown tools from tool execution failures", async () => {
+  await using serviceScope = createScope();
+  const browserControl = fakeBrowserControl();
+  const { client, close } = await connectedClient(
+    createBrowserSessionMcpServer(browserControl, serviceScope),
+  );
+  await expect(client.callTool({ name: "synthetic_unknown_tool" })).rejects.toMatchObject({
+    code: -32_602,
+    data: { tool: "synthetic_unknown_tool" },
+  });
+  const status = CallToolResultSchema.parse(await client.callTool({ name: "browser_status" }));
+  expect(status.structuredContent).toMatchObject({ result: { available: true } });
+  expect(browserControl.executions).toEqual([]);
+  await close();
+});
+
+test("does not classify an unexpected TypeError as invalid caller input", async () => {
+  await using serviceScope = createScope();
+  const browserControl = fakeBrowserControl();
+  browserControl.executeTool = unexpectedBrowserFailure;
+  const { client, close } = await connectedClient(
+    createBrowserSessionMcpServer(browserControl, serviceScope),
+  );
+  const result = CallToolResultSchema.parse(await client.callTool({ name: "browser_snapshot" }));
+  expect(result.isError).toBe(true);
+  expect(result.structuredContent).toMatchObject({
+    error: { code: "internal-error", details: {} },
+  });
+  expect(JSON.stringify(result)).not.toContain("synthetic private driver detail");
   await close();
 });

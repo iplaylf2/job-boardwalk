@@ -17,6 +17,7 @@ function readJobEngagement(value: string | undefined): JobEngagementFilter | nul
   if (value !== "tracked" && !isPlatformJobEngagementKind(value)) {
     throw new InvalidRequestError(
       "engagement 必须是 tracked、interested、contacted、applied 或 interviewed",
+      { field: "engagement" },
     );
   }
   return value;
@@ -31,6 +32,7 @@ function readDescriptionStatus(
   if (!JobDescriptionStatusFilter.allows(value)) {
     throw new InvalidRequestError(
       "descriptionStatus 必须是 captured、missing 或 identity-unresolved",
+      { field: "descriptionStatus" },
     );
   }
   return value;
@@ -44,7 +46,9 @@ function readJobLibraryQuery(context: Context) {
     "pageSize",
   );
   if (pageSize > maximumJobPageSize) {
-    throw new InvalidRequestError(`pageSize 不能超过 ${String(maximumJobPageSize)}`);
+    throw new InvalidRequestError(`pageSize 不能超过 ${String(maximumJobPageSize)}`, {
+      field: "pageSize",
+    });
   }
   const query = context.req.query("query")?.trim();
   const platform = context.req.query("platform");
@@ -56,7 +60,7 @@ function readJobLibraryQuery(context: Context) {
     : {};
   if (platform) {
     if (!isPlatformId(platform)) {
-      throw new InvalidRequestError("platform 不是受支持的招聘平台");
+      throw new InvalidRequestError("platform 不是受支持的招聘平台", { field: "platform" });
     }
     return {
       page,
@@ -86,7 +90,7 @@ function readPositiveQueryInteger(
   }
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < firstJobPage) {
-    throw new InvalidRequestError(`${name} 必须是正整数`);
+    throw new InvalidRequestError(`${name} 必须是正整数`, { field: name });
   }
   return parsed;
 }

@@ -1,3 +1,4 @@
+import { requireWorkspaceSuccess } from "./response.js";
 import type {
   JobCardObservation,
   JobDescriptionObservation,
@@ -65,9 +66,7 @@ export class WorkspaceJobObservationWriter implements JobObservationWriter {
         method: "POST",
       }),
     );
-    if (!response.ok) {
-      throw new Error(`Workspace Service 拒绝岗位观察：HTTP ${String(response.status)}`);
-    }
+    yield* requireWorkspaceSuccess(response);
     return SaveJobObservationResultContract.assert(yield* until(() => response.json()));
   }
 }

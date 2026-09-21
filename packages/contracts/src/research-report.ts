@@ -7,18 +7,13 @@ import {
 
 const minimumReportMarkdownLength = 1;
 
-export const ResearchReportState = contract("'draft' | 'complete'");
-export type ResearchReportState = typeof ResearchReportState.infer;
-
 export const ResearchReportMarkdown = contract("string > 0").narrow(
   (value) => value.trim().length >= minimumReportMarkdownLength,
 );
 
 export const ResearchReportSummary = contract({
   createdAt: normalizedTimestamp,
-  "expiresAt?": normalizedTimestamp,
   id: positiveInteger,
-  state: ResearchReportState,
   title: trimmedNonEmptyString,
   updatedAt: normalizedTimestamp,
 });

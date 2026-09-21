@@ -5,7 +5,7 @@ import { expect, test } from "vitest";
 import { resolvePlatformWebUrl } from "@job-boardwalk/platform-catalog";
 
 import {
-  assertPlatformNavigationLink,
+  assertPlatformClickTarget,
   assertPlatformNavigationUrl,
   findRecruitingPlatformAdapter,
 } from "#/browser/recruiting-platform-adapters.js";
@@ -33,9 +33,16 @@ function fakePage(initialUrl: string, title = "Jobs"): FakePage {
     page: null as unknown as Page,
     url: initialUrl,
   };
+  let closed = false;
+  let onClose: (() => void) | null = null;
   state.page = {
     bringToFront: () => {
       state.activationCount += 1;
+      return Promise.resolve();
+    },
+    close: () => {
+      closed = true;
+      onClose?.();
       return Promise.resolve();
     },
     goto: (url: string) => {
@@ -43,12 +50,15 @@ function fakePage(initialUrl: string, title = "Jobs"): FakePage {
       state.url = url;
       return Promise.resolve(null);
     },
-    isClosed: () => false,
+    isClosed: () => closed,
     locator: () => ({
       evaluate: () =>
         Promise.resolve({ documentReadyState: "complete", outcome: "observed", title }),
     }),
-    once: () => state.page,
+    once: (_event: string, callback: () => void) => {
+      onClose = callback;
+      return state.page;
+    },
     title: () => Promise.resolve(title),
     url: () => state.url,
   } as unknown as Page;
@@ -115,15 +125,15 @@ test("does not accept broad hostname similarity or insecure platform URLs", () =
   expect(findRecruitingPlatformAdapter("https://www.zhipin.com:8443/")).toBeNull();
 });
 
-test("allows only explicit same-platform HTTPS links", () => {
+test("allows same-platform HTTPS links and no-op page controls", () => {
   expect(() =>
-    assertPlatformNavigationLink("boss", "https://www.zhipin.com/web/geek/jobs"),
+    assertPlatformClickTarget("boss", "https://www.zhipin.com/web/geek/jobs"),
   ).not.toThrow();
-  expect(() => assertPlatformNavigationLink("boss", scriptControlHref)).toThrow(/HTTPS/u);
-  expect(() => assertPlatformNavigationLink("boss", "https://www.yupao.com/job/123.html")).toThrow(
+  expect(() => assertPlatformClickTarget("boss", scriptControlHref)).not.toThrow();
+  expect(() => assertPlatformClickTarget("boss", "https://www.yupao.com/job/123.html")).toThrow(
     /BOSS直聘/u,
   );
-  expect(() => assertPlatformNavigationLink("yupao", "mailto:example@example.com")).toThrow(
+  expect(() => assertPlatformClickTarget("yupao", "mailto:example@example.com")).toThrow(
     /鱼泡直聘/u,
   );
 });
@@ -262,8 +272,80 @@ test("selects an externally managed page through the shared tab owner", async ()
   });
 });
 
-test("surfaces a page that has left scope instead of reporting navigation success", () => {
+test("returns observed URL without reading a document outside platform scope", async () => {
   const fake = fakePage("https://example.invalid/");
 
-  expect(() => readNavigationPageSummary(fake.page).next()).toThrow(/招聘平台/u);
+  await using scope = createScope();
+  expect(await scope.run(() => readNavigationPageSummary(fake.page))).toEqual({
+    pageInspection: null,
+    platformId: null,
+    url: "https://example.invalid/",
+  });
+});
+
+test.each([false, true])(
+  "preserves navigation outcome when the page leaves scope (timeout=%s)",
+  async (timeout) => {
+    const fake = fakePage("about:blank");
+    fake.page.goto = () => {
+      fake.navigationCount += firstNavigationCount;
+      fake.url = "about:blank";
+      return timeout
+        ? Promise.reject(new errors.TimeoutError("synthetic timeout"))
+        : Promise.resolve(null);
+    };
+    const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+    await using scope = createScope();
+    const result = await scope.run(() =>
+      tabs.executeAction({ action: "ensure", platformId: "boss" }),
+    );
+    expect(result).toMatchObject({
+      navigation: { outcome: timeout ? "timed-out" : "completed" },
+      pageInspection: null,
+      platformId: null,
+      url: "about:blank",
+    });
+    expect(fake.navigationCount).toBe(firstNavigationCount);
+  },
+);
+
+test("closes the explicit platform tab and selects a remaining supported tab", async () => {
+  const first = fakePage("https://www.51job.com/");
+  const second = fakePage("https://www.yupao.com/");
+  const outside = fakePage("https://example.invalid/");
+  const context = {
+    on: () => null,
+    pages: () => [first.page, second.page, outside.page],
+  } as unknown as BrowserContext;
+  const tabs = new BrowserTabs(context);
+  await using scope = createScope();
+  const result = await scope.run(() => tabs.executeAction({ action: "close", tabId: 2 }));
+  expect(second.page.isClosed()).toBe(true);
+  expect(first.activationCount).toBe(firstActivationCount);
+  expect(outside.page.isClosed()).toBe(false);
+  expect(result).toMatchObject({ tabs: [{ active: true, id: 1 }] });
+  expect(await scope.run(() => tabs.executeAction({ action: "close", tabId: 1 }))).toEqual({
+    tabs: [],
+  });
+  expect(tabs.tabCount).toBe(firstNavigationCount);
+});
+
+test.each([
+  { code: "invalid-input", input: { action: "close" } },
+  { code: "tab-unavailable", input: { action: "close", tabId: 2 } },
+  { code: "outside-platform-scope", input: { action: "close", tabId: 1 } },
+])("rejects unsafe close targets: $code", async ({ input, code }) => {
+  const fake = fakePage("https://example.invalid/");
+  const tabs = new BrowserTabs(fakeBrowserContext(fake.page));
+  await using scope = createScope();
+  const failure = await scope.run(function* rejectedClose() {
+    try {
+      yield* tabs.executeAction(input);
+    } catch (error) {
+      return error;
+    }
+    return null;
+  });
+  expect(failure).toMatchObject({ failure: { code } });
+  expect(fake.page.isClosed()).toBe(false);
 });

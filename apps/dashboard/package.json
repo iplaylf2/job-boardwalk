@@ -1,7 +1,7 @@
 {
   "name": "@job-boardwalk/dashboard",
   "private": true,
-  "description": "Local view and user editor for Job Boardwalk workspace data and Browser Session presence.",
+  "description": "Local view and user editor for Job Boardwalk workspace data and research evidence.",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
@@ -17,9 +17,9 @@
     "@job-boardwalk/contracts": "workspace:*",
     "@job-boardwalk/platform-catalog": "workspace:*",
     "@shajara/host": "catalog:",
-    "@solidjs/web": "^2.0.0-rc.6",
-    "markdown-it": "^15.0.1",
-    "solid-js": "^2.0.0-rc.6"
+    "@solidjs/web": "^2.0.0-rc.8",
+    "markdown-it": "^15.0.2",
+    "solid-js": "^2.0.0-rc.8"
   },
   "devDependencies": {
     "@job-boardwalk/presets": "workspace:*",

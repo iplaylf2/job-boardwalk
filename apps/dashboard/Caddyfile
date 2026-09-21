@@ -8,7 +8,7 @@
 	encode zstd gzip
 
 	header {
-		Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'"
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'self' {$JOB_BOARDWALK_BROWSER_SESSION_ORIGIN}; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'"
 		Permissions-Policy "camera=(), geolocation=(), microphone=()"
 		Referrer-Policy "no-referrer"
 		X-Content-Type-Options "nosniff"
@@ -16,6 +16,12 @@
 
 	handle /api/* {
 		reverse_proxy {$JOB_BOARDWALK_WORKSPACE_SERVICE_ADDRESS:workspace-service:54310}
+	}
+
+	handle /browser-session/origin {
+		header Content-Type text/plain
+		header Cache-Control no-store
+		respond "{env.JOB_BOARDWALK_BROWSER_SESSION_ORIGIN}" 200
 	}
 
 	handle /health {

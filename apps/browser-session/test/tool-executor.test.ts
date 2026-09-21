@@ -1,6 +1,6 @@
 import type { BrowserContext, Locator, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
-import { createScope } from "@shajara/host";
+import { createScope, run } from "@shajara/host";
 import { expect, test } from "vitest";
 
 import { BackgroundCollectionControl } from "#/browser/background-collection-control.js";
@@ -109,6 +109,7 @@ function fakeActionPage(element: { href?: string; name: string; role: string }) 
     clickCount: 0,
     filledValues: [] as string[],
     selectedValues: [] as string[],
+    signature,
     url: "https://www.zhipin.com/",
   };
   const locator = {
@@ -134,7 +135,7 @@ function fakeActionPage(element: { href?: string; name: string; role: string }) 
         {
           ...element,
           disabled: false,
-          signature,
+          signature: state.signature,
           sourceIndex: firstLocatorIndex,
         },
       ],
@@ -244,7 +245,7 @@ test("forwards explicit job-engagement synchronization and expires page referenc
     }),
   );
   expect(requests).toEqual([{ engagement: "interested", platformId: "boss" }]);
-  expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(/不存在/u);
+  expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(/已过期/u);
 });
 
 test("clicks a same-platform link through its captured element", async () => {
@@ -296,4 +297,142 @@ test("selects an option in a captured selection control", async () => {
   await scope.run(() => executor.execute("browser_snapshot", {}));
   await scope.run(() => executor.execute("browser_select", { ref: "e1", value: "3-5年" }));
   expect(select.state.selectedValues).toEqual(["3-5年"]);
+});
+
+// eslint-disable-next-line no-script-url -- Synthetic observed page-control hrefs exercise URL validation.
+test.each(["javascript:;", "javascript:void(0);", "https://www.zhipin.com/#filters"])(
+  "clicks an observed page control at %s and expires its reference",
+  async (href) => {
+    const fake = fakeActionPage({ href, name: "合成岗位分类", role: "link" });
+    const executor = browserToolExecutor(fakeContext(fake.page));
+    await using scope = createScope();
+    await scope.run(() => executor.execute("browser_snapshot", {}));
+    await scope.run(() => executor.execute("browser_click", { ref: "e1" }));
+    expect(fake.state.clickCount).toBe(expectedActionCount);
+    expect(() => executor.execute("browser_click", { ref: "e1" }).next()).toThrow(/过期/u);
+  },
+);
+
+test.each([
+  // eslint-disable-next-line no-script-url -- Synthetic arbitrary script destination must be rejected.
+  "javascript:sendMessage()",
+  // eslint-disable-next-line no-script-url -- A no-op prefix must not allow executable suffixes.
+  "javascript:void(0);submitApplication()",
+  "https://outside.example/jobs",
+  "http://www.zhipin.com/",
+  "data:text/html,synthetic",
+])("rejects a captured destination at %s before clicking", async (href) => {
+  const fake = fakeActionPage({ href, name: "合成控件", role: "link" });
+  const executor = browserToolExecutor(fakeContext(fake.page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  await expect(run(() => executor.execute("browser_click", { ref: "e1" }))).rejects.toThrow();
+  expect(fake.state.clickCount).toBe(firstLocatorIndex);
+});
+
+test("reveals an observed element and expires the reference after the action", async () => {
+  const { page } = fakeActionPage({ name: "合成岗位末尾卡片", role: "link" });
+  const locator = page.locator("a").nth(firstLocatorIndex);
+  let position = 0;
+  const afterPosition = 600;
+  Object.assign(locator, {
+    evaluate: () =>
+      Promise.resolve({ scrollableAncestors: [{ scrollTop: position }], viewport: { scrollY: 0 } }),
+    scrollIntoViewIfNeeded: () => {
+      position = afterPosition;
+      return Promise.resolve();
+    },
+  });
+  const executor = browserToolExecutor(fakeContext(page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  const result = await scope.run(() => executor.execute("browser_reveal", { ref: "e1" }));
+  expect(result).toMatchObject({
+    scroll: {
+      after: { scrollableAncestors: [{ scrollTop: afterPosition }], viewport: { scrollY: 0 } },
+      before: { scrollableAncestors: [{ scrollTop: 0 }], viewport: { scrollY: 0 } },
+      mode: "reveal",
+    },
+  });
+  await expect(run(() => executor.execute("browser_reveal", { ref: "e1" }))).rejects.toThrow();
+});
+
+test("scrolls the observed element's region and expires its reference", async () => {
+  const { page } = fakeActionPage({ name: "合成岗位卡片", role: "link" });
+  const locator = page.locator("a").nth(firstLocatorIndex);
+  const actions: unknown[] = [];
+  Object.assign(locator, {
+    evaluate: (_callback: unknown, input: unknown) => {
+      actions.push(input);
+      return Promise.resolve({ outcome: "moved", target: "container" });
+    },
+  });
+  const executor = browserToolExecutor(fakeContext(page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  const differentTabId = 2;
+  await expect(
+    run(() =>
+      executor.execute("browser_scroll", {
+        direction: "down",
+        ref: "e1",
+        tabId: differentTabId,
+      }),
+    ),
+  ).rejects.toThrow();
+  expect(actions).toEqual([]);
+  const result = await scope.run(() =>
+    executor.execute("browser_scroll", { direction: "down", ref: "e1", tabId: 1 }),
+  );
+  expect(result).toMatchObject({ scroll: { outcome: "moved", target: "container" } });
+  expect(actions).toEqual([{ direction: "down", target: "scrollable-ancestor" }]);
+  await expect(
+    run(() => executor.execute("browser_scroll", { direction: "up", ref: "e1" })),
+  ).rejects.toThrow();
+});
+
+test("identifies the owning tab and a snapshot in another tab that expired its refs", async () => {
+  const original = fakeActionPage({ name: "合成岗位甲", role: "link" });
+  const other = fakeActionPage({ name: "合成岗位乙", role: "link" });
+  other.state.url = "https://www.yupao.com/zhaogong/";
+  const context = fakeContext(original.page);
+  Object.assign(context, { pages: () => [original.page, other.page] });
+  const executor = browserToolExecutor(context);
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", { tabId: 1 }));
+  await scope.run(() => executor.execute("browser_snapshot", { tabId: 2 }));
+  const failure = await scope.run(function* expiredReference() {
+    try {
+      return yield* executor.execute("browser_click", { ref: "e1" });
+    } catch (error) {
+      return error;
+    }
+  });
+  expect(failure).toMatchObject({
+    failure: {
+      code: "reference-expired",
+      details: { invalidatedBy: "browser_snapshot", invalidatedByTabId: 2, ref: "e1", tabId: 1 },
+    },
+  });
+  expect(original.state.clickCount).toBe(firstLocatorIndex);
+});
+
+test("reports changed page evidence with the reference's tab instead of a generic expiry", async () => {
+  const original = fakeActionPage({ name: "合成岗位甲", role: "link" });
+  const executor = browserToolExecutor(fakeContext(original.page));
+  await using scope = createScope();
+  await scope.run(() => executor.execute("browser_snapshot", {}));
+  original.state.signature = "replacement-node:合成岗位甲";
+  const failure = await scope.run(function* captureActionFailure() {
+    try {
+      return yield* executor.execute("browser_click", { ref: "e1" });
+    } catch (error) {
+      return error;
+    }
+  });
+  expect(failure).toBeInstanceOf(Error);
+  expect(failure).toMatchObject({
+    failure: { code: "reference-changed", details: { ref: "e1", tabId: 1 } },
+  });
+  expect(original.state.clickCount).toBe(firstLocatorIndex);
 });

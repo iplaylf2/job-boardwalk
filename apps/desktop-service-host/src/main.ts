@@ -32,7 +32,7 @@ function main(): Promise<void> {
 }
 
 try {
-  // oxlint-disable-next-line unicorn/prefer-top-level-await -- SEA executes this bundled CommonJS entrypoint.
+  // oxlint-disable-next-line unicorn/prefer-top-level-await -- SEA executes this entrypoint as CommonJS.
   main().catch(() => {
     process.exitCode = 1;
   });

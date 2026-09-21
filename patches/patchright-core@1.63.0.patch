@@ -1,0 +1,13 @@
+diff --git a/lib/coreBundle.js b/lib/coreBundle.js
+index a8815ac09d0e0ad9d0b291e9ed6ae98b9bba2130..9f6c88955f1d70783e0dcdc78244d827a64a057a 100644
+--- a/lib/coreBundle.js
++++ b/lib/coreBundle.js
+@@ -39366,7 +39366,7 @@
+         this.updateOffline();
+         this.updateExtraHTTPHeaders();
+         this.updateHttpCredentials();
+-        this._networkManager.setRequestInterception(true);
++        this.updateRequestInterception();
+         this.initScriptTag = import_crypto16.default.randomBytes(20).toString("hex");
+         this._mainFrameSession = new FrameSession(this, client, targetId, null);
+         this._sessions.set(targetId, this._mainFrameSession);

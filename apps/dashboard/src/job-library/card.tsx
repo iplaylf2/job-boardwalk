@@ -54,9 +54,13 @@ function JobSources(props: { sources: JobPosting["sources"] }): JSX.Element {
           const engagementText = source.engagements
             .map(({ kind }) => jobEngagementLabels[kind])
             .join(" · ");
-          const label = `${platformCatalog[source.platformId].label}${
-            engagementText ? ` · ${engagementText}` : ""
-          }`;
+          const { recruitment } = source;
+          let recruitmentText = "招聘状态未判定";
+          if (recruitment && recruitment.state !== "unknown") {
+            const state = recruitment.state === "closed" ? "已关闭" : "招聘中";
+            recruitmentText = `${state}（记录于 ${formattedDate(recruitment.observedAt)}）`;
+          }
+          const label = `${platformCatalog[source.platformId].label} · ${recruitmentText} · ${engagementText || "未记录跟进"}`;
           return source.jobUrl ? (
             <a href={source.jobUrl} target="_blank" rel="noreferrer">
               {label}

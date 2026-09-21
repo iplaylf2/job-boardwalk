@@ -7,7 +7,6 @@ import { expect, test } from "vitest";
 
 import { createWorkspaceServiceHttpApp } from "#/http/app.js";
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
@@ -28,7 +27,6 @@ function createTestHttpApp(
   serviceScope: ReturnType<typeof createScope>,
 ) {
   return createWorkspaceServiceHttpApp({
-    browserSessionPresenceTracker: new BrowserSessionPresenceTracker(),
     repository,
     serviceScope,
   });
@@ -42,6 +40,7 @@ function postObservation(
     body: JSON.stringify({
       observedAt: "2026-07-13T01:00:00+00:00",
       platformId: "boss",
+      url: "https://www.zhipin.com/web/geek/jobs",
       ...input,
     }),
     headers: { "content-type": "application/json" },
@@ -178,25 +177,24 @@ test("keeps state-change history while advancing the latest observation time", a
     authenticationState: "authenticated" | "unauthenticated",
     observedAt: string,
   ) {
-    return httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true, tabCount: 1 },
-        platformAccessObservations: [
-          authenticationState === "authenticated"
-            ? {
-                authenticationState,
-                evidence: "protected-resource",
-                observedAt,
-                platformId: "boss",
-              }
-            : {
-                authenticationState,
-                evidence: "login-redirect",
-                observedAt,
-                platformId: "boss",
-              },
-        ],
-      }),
+    return httpApp.request("/api/platform-access/observations", {
+      body: JSON.stringify(
+        authenticationState === "authenticated"
+          ? {
+              authenticationState,
+              evidence: "protected-resource",
+              observedAt,
+              platformId: "boss",
+              url: "https://www.zhipin.com/web/geek/jobs",
+            }
+          : {
+              authenticationState,
+              evidence: "login-redirect",
+              observedAt,
+              platformId: "boss",
+              url: "https://www.zhipin.com/web/geek/jobs",
+            },
+      ),
       headers: { "content-type": "application/json" },
       method: "PUT",
     });

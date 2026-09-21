@@ -53,6 +53,25 @@ version when the task first needs it; no separate local installation is required
 Package scripts and Cargo commands remain valid leaf operations when Moon is unavailable or
 inappropriate, including inside application Dockerfiles.
 
+### Lint configuration
+
+The [shared Oxlint preset](../internal/presets/exports/oxlint.shared.ts) owns repository-wide
+rules. Each project's `oxlint.config.ts` adds its runtime environment and project-wide rule
+adjustments. Test-directory overrides use the
+[test preset](../internal/presets/exports/test.oxlint.shared.ts), which relaxes file length,
+function length, and statement counts so a behavioral scenario can keep its setup, action, and
+assertions together. Other checks, including complexity, still apply.
+
+Choose an exception's scope from the reason the rule does not fit. A project-wide convention
+belongs in project configuration; a testing convention belongs in the test-directory override.
+An isolated runtime or serialization requirement belongs in a file or line disable with a comment
+explaining that requirement. Avoid configuration lists of individual source files: they conceal
+local exceptions and require updates whenever files move. Unused disable directives fail lint.
+
+Before relaxing a size rule, check whether the function mixes responsibilities. Extract code along
+ownership boundaries while preserving transaction, lifecycle, and browser-page execution boundaries.
+A smaller function is useful only when its caller and helpers remain understandable together.
+
 ## Desktop distribution staging
 
 With Aqua installed, prepare the repository-pinned native inputs, then build the current

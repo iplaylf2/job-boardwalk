@@ -1,3 +1,4 @@
+import { inputValidationError } from "@job-boardwalk/contracts";
 import { platformIds, platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
 
 import { toolInput } from "#/mcp/contract.js";
@@ -8,9 +9,13 @@ const OptionalTabId = toolInput("number.integer >= 1");
 const ElementReference = toolInput("string > 0");
 
 const BrowserStatusInput = toolInput({});
+const BrowserPageDiagnosticsInput = toolInput({
+  "screenshot?": "boolean",
+  "tabId?": OptionalTabId,
+});
 
 const BrowserTabsInput = toolInput({
-  action: "'list' | 'ensure' | 'activate'",
+  action: "'list' | 'ensure' | 'activate' | 'close'",
   "platformId?": PlatformId,
   "tabId?": OptionalTabId,
   "url?": "string",
@@ -26,14 +31,13 @@ const BrowserNavigateInput = toolInput({
 });
 
 const BrowserSnapshotInput = toolInput({
-  maxTextCharacters: "1000 <= number <= 40000 = 40000",
   "tabId?": OptionalTabId,
   "userReturnedControl?": "boolean",
 });
 
 const BrowserJobCardSnapshotInput = toolInput({
-  maximumCards: "1 <= number.integer <= 100 = 50",
   "tabId?": OptionalTabId,
+  waitFor: "'none' | 'cards-present' = 'none'",
 });
 
 const BrowserJobDescriptionSnapshotInput = toolInput({
@@ -60,14 +64,14 @@ const BrowserSelectInput = toolInput({
   value: "string > 0",
 });
 
-const BrowserScrollInput = toolInput({
-  deltaY: "-5000 <= number <= 5000 = 600",
-  "ref?": "string",
-  "tabId?": OptionalTabId,
+const BrowserRevealInput = toolInput({
+  ref: ElementReference,
 });
 
-const BrowserWaitInput = toolInput({
-  milliseconds: "0 <= number <= 10000",
+const BrowserScrollInput = toolInput({
+  direction: "'down' | 'up'",
+  "ref?": ElementReference,
+  "tabId?": OptionalTabId,
 });
 
 export const browserToolInputContracts = {
@@ -76,14 +80,15 @@ export const browserToolInputContracts = {
   browser_job_card_snapshot: BrowserJobCardSnapshotInput,
   browser_job_description_snapshot: BrowserJobDescriptionSnapshotInput,
   browser_navigate: BrowserNavigateInput,
+  browser_page_diagnostics: BrowserPageDiagnosticsInput,
   browser_prepare_login: BrowserPrepareLoginInput,
+  browser_reveal: BrowserRevealInput,
   browser_scroll: BrowserScrollInput,
   browser_select: BrowserSelectInput,
   browser_snapshot: BrowserSnapshotInput,
   browser_status: BrowserStatusInput,
   browser_sync_job_engagement: BrowserSyncJobEngagementInput,
   browser_tabs: BrowserTabsInput,
-  browser_wait: BrowserWaitInput,
 } as const;
 
 export type BrowserToolName = keyof typeof browserToolInputContracts;
@@ -98,7 +103,7 @@ export function parseBrowserToolInput(
 ): Record<string, unknown> {
   const parsed = browserToolInputContracts[toolName](input);
   if (parsed instanceof toolInput.errors) {
-    throw new TypeError(parsed.summary);
+    throw inputValidationError(parsed);
   }
   return parsed as Record<string, unknown>;
 }

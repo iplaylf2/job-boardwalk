@@ -6,6 +6,17 @@ import {
   trimmedNonEmptyString,
 } from "./internal/contract-fields.ts";
 
+export const JobRecruitmentObservation = contract.or(
+  { observedAt: normalizedTimestamp, state: "'unknown'", url: trimmedNonEmptyString },
+  {
+    evidence: trimmedNonEmptyString,
+    observedAt: normalizedTimestamp,
+    state: "'open' | 'closed'",
+    url: trimmedNonEmptyString,
+  },
+);
+export type JobRecruitmentObservation = typeof JobRecruitmentObservation.infer;
+
 export const JobPostingDescription = contract({
   capturedAt: normalizedTimestamp,
   text: normalizedNonEmptyText,
@@ -41,6 +52,7 @@ export const JobDescriptionObservation = contract({
   "location?": trimmedNonEmptyString,
   observedAt: normalizedTimestamp,
   platformId,
+  "recruitment?": JobRecruitmentObservation,
   "salaryText?": trimmedNonEmptyString,
   title: trimmedNonEmptyString,
 });

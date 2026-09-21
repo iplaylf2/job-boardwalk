@@ -121,7 +121,7 @@ test("applies the shared engagement quantity policy to a single-page platform", 
   const yupaoUrl = "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1";
   const visibleTotal = maximumJobsPerEngagementScan + jobsBeyondLimit;
   const { context } = pageFixture(yupaoUrl, (url) => ({
-    cards: Array.from({ length: visibleTotal }, (_, index) => ({
+    jobs: Array.from({ length: visibleTotal }, (_, index) => ({
       details: [],
       jobUrl: `https://www.yupao.com/zhaogong/${String(index + firstPage)}.html`,
       summary: `示例岗位 ${String(index)}`,

@@ -1,4 +1,4 @@
-export const platformIds = ["boss", "yupao"] as const;
+export const platformIds = ["boss", "yupao", "51job"] as const;
 export const platformJobEngagementKinds = [
   "contacted",
   "applied",
@@ -10,7 +10,7 @@ export type PlatformId = (typeof platformIds)[number];
 export type PlatformJobEngagementKind = (typeof platformJobEngagementKinds)[number];
 export type PlatformWebDestination = "entry" | "login";
 type PlatformWebOrigin = `https://${string}`;
-type PlatformWebPath = `/${string}`;
+type PlatformWebUrl = `https://${string}`;
 const firstPage = 1;
 
 interface PlatformJobEngagementPagination {
@@ -21,10 +21,10 @@ interface PlatformJobEngagementPagination {
 interface PlatformCatalogEntry {
   label: string;
   web: {
-    destinations: Record<PlatformWebDestination, PlatformWebPath>;
+    destinations: Record<PlatformWebDestination, PlatformWebUrl>;
     jobEngagement: {
       pagination: PlatformJobEngagementPagination | null;
-      paths: Record<PlatformJobEngagementKind, PlatformWebPath>;
+      destinations: Record<PlatformJobEngagementKind, PlatformWebUrl | null>;
     };
     navigationDomain: string;
     origin: PlatformWebOrigin;
@@ -32,21 +32,41 @@ interface PlatformCatalogEntry {
 }
 
 export const platformCatalog = {
+  "51job": {
+    label: "前程无忧51job",
+    web: {
+      destinations: {
+        entry: "https://www.51job.com/",
+        login: "https://login.51job.com/login.php",
+      },
+      jobEngagement: {
+        destinations: {
+          applied: "https://i.51job.com/userset/my_apply.php?type=sh&tagType=&lang=c",
+          contacted: null,
+          interested: "https://www.51job.com/userset/my_collection",
+          interviewed: "https://i.51job.com/userset/my_apply.php?type=sh&tagType=ms&lang=c",
+        },
+        pagination: null,
+      },
+      navigationDomain: "51job.com",
+      origin: "https://www.51job.com",
+    },
+  },
   boss: {
     label: "BOSS直聘",
     web: {
       destinations: {
-        entry: "/",
-        login: "/web/user/",
+        entry: "https://www.zhipin.com/",
+        login: "https://www.zhipin.com/web/user/",
       },
       jobEngagement: {
-        pagination: { firstPage, parameter: "page" },
-        paths: {
-          applied: "/web/geek/recommend?tab=2&page=1&tag=5",
-          contacted: "/web/geek/recommend?tab=1&page=1&tag=5",
-          interested: "/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
-          interviewed: "/web/geek/recommend?tab=3&page=1&tag=5",
+        destinations: {
+          applied: "https://www.zhipin.com/web/geek/recommend?tab=2&page=1&tag=5",
+          contacted: "https://www.zhipin.com/web/geek/recommend?tab=1&page=1&tag=5",
+          interested: "https://www.zhipin.com/web/geek/recommend?tab=4&sub=1&page=1&tag=4",
+          interviewed: "https://www.zhipin.com/web/geek/recommend?tab=3&page=1&tag=5",
         },
+        pagination: { firstPage, parameter: "page" },
       },
       navigationDomain: "zhipin.com",
       origin: "https://www.zhipin.com",
@@ -56,17 +76,17 @@ export const platformCatalog = {
     label: "鱼泡直聘",
     web: {
       destinations: {
-        entry: "/",
-        login: "/web/login/",
+        entry: "https://www.yupao.com/",
+        login: "https://www.yupao.com/web/login/",
       },
       jobEngagement: {
-        pagination: null,
-        paths: {
-          applied: "/user/resume-info/?tab=2&subTab=1&mode=1",
-          contacted: "/user/resume-info/?tab=1&subTab=1&mode=1",
-          interested: "/user/resume-info/?tab=4&subTab=1&mode=1",
-          interviewed: "/user/resume-info/?tab=3&subTab=1&mode=1",
+        destinations: {
+          applied: "https://www.yupao.com/user/resume-info/?tab=2&subTab=1&mode=1",
+          contacted: "https://www.yupao.com/user/resume-info/?tab=1&subTab=1&mode=1",
+          interested: "https://www.yupao.com/user/resume-info/?tab=4&subTab=1&mode=1",
+          interviewed: "https://www.yupao.com/user/resume-info/?tab=3&subTab=1&mode=1",
         },
+        pagination: null,
       },
       navigationDomain: "yupao.com",
       origin: "https://www.yupao.com",
@@ -78,16 +98,18 @@ export function resolvePlatformWebUrl(
   platformId: PlatformId,
   destination: PlatformWebDestination,
 ): string {
-  const { destinations, origin } = platformCatalog[platformId].web;
-  return `${origin}${destinations[destination]}`;
+  return platformCatalog[platformId].web.destinations[destination];
 }
 
 export function resolvePlatformJobEngagementUrl(
   platformId: PlatformId,
   engagement: PlatformJobEngagementKind,
 ): string {
-  const { jobEngagement, origin } = platformCatalog[platformId].web;
-  return `${origin}${jobEngagement.paths[engagement]}`;
+  const destination = platformCatalog[platformId].web.jobEngagement.destinations[engagement];
+  if (!destination) {
+    throw new Error(`${platformCatalog[platformId].label}不支持此岗位跟进类别。`);
+  }
+  return destination;
 }
 
 export function parsePlatformWebUrl(platformId: PlatformId, value: string): URL | null {
@@ -114,10 +136,15 @@ export function parsePlatformJobEngagementUrl(
   if (!url) {
     return null;
   }
-  const { pagination } = platformCatalog[platformId].web.jobEngagement;
+  const { jobEngagement } = platformCatalog[platformId].web;
+  const { pagination } = jobEngagement;
   for (const engagement of platformJobEngagementKinds) {
-    const expected = new URL(resolvePlatformJobEngagementUrl(platformId, engagement));
-    if (url.pathname !== expected.pathname) {
+    const destination = jobEngagement.destinations[engagement];
+    if (!destination) {
+      continue;
+    }
+    const expected = new URL(destination);
+    if (url.origin !== expected.origin || url.pathname !== expected.pathname) {
       continue;
     }
     const matchesParameters = [...expected.searchParams].every(([name, expectedValue]) => {

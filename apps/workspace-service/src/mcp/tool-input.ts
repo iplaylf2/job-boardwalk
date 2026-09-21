@@ -1,5 +1,5 @@
+import { inputValidationError, SaveResearchReportCommand } from "@job-boardwalk/contracts";
 import { platformIds, platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
-import { SaveResearchReportCommand } from "@job-boardwalk/contracts";
 
 import { defaultJobPageSize, firstJobPage, maximumJobPageSize } from "#/job-library/query.js";
 import type { JobLibraryQuery } from "#/job-library/query.js";
@@ -30,12 +30,10 @@ export const ReadJobLibraryInput = toolInput({
 });
 
 export const SaveResearchReportInput = toolInput({
-  "expiresAt?": "string",
   "id?": "number.integer >= 1",
   initiatedBy: "'agent' | 'system' | 'user'",
   markdown: "string > 0",
   reason: "string.trim.preformatted > 0",
-  state: "'complete' | 'draft'",
   title: "string.trim.preformatted > 0",
 });
 
@@ -43,7 +41,14 @@ function assertToolInput<Value>(validate: () => Value): Value {
   try {
     return validate();
   } catch (error) {
-    throw new TypeError(error instanceof Error ? error.message : String(error), { cause: error });
+    if (
+      error instanceof Error &&
+      "arkErrors" in error &&
+      error.arkErrors instanceof toolInput.errors
+    ) {
+      throw inputValidationError(error.arkErrors);
+    }
+    throw error;
   }
 }
 

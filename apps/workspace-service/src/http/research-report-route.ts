@@ -1,5 +1,9 @@
+import {
+  OperationError,
+  SaveResearchReportCommand,
+  WorkspaceChangeAttribution,
+} from "@job-boardwalk/contracts";
 import type { Hono } from "hono";
-import { SaveResearchReportCommand, WorkspaceChangeAttribution } from "@job-boardwalk/contracts";
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
@@ -7,7 +11,6 @@ import type { WorkspaceRepository } from "#/persistence/workspace-repository.js"
 import { readPositiveInteger, readRequestBody, requestErrorResponse } from "./request.js";
 
 const createdStatus = 201;
-const notFoundStatus = 404;
 
 function registerResearchReportReadRoutes(
   app: Hono,
@@ -28,12 +31,17 @@ function registerResearchReportReadRoutes(
     serviceScope.run(function* readResearchReport() {
       try {
         yield* [];
-        const report = repository.readResearchReport(
-          readPositiveInteger(context.req.param("id"), "id"),
-        );
+        const id = readPositiveInteger(context.req.param("id"), "id");
+        const report = repository.readResearchReport(id);
         return report
           ? context.json(report)
-          : context.json({ error: "找不到研究报告" }, notFoundStatus);
+          : requestErrorResponse(
+              new OperationError("not-found", "找不到研究报告", {
+                id,
+                resource: "research-report",
+              }),
+              context,
+            );
       } catch (error) {
         return requestErrorResponse(error, context);
       }
@@ -64,13 +72,20 @@ function registerResearchReportWriteRoutes(
     serviceScope.run(function* updateResearchReport() {
       try {
         const input = yield* readRequestBody(context, SaveResearchReportCommand);
+        const id = readPositiveInteger(context.req.param("id"), "id");
         const report = repository.saveResearchReport({
           ...input,
-          id: readPositiveInteger(context.req.param("id"), "id"),
+          id,
         });
         return report
           ? context.json(report)
-          : context.json({ error: "找不到研究报告" }, notFoundStatus);
+          : requestErrorResponse(
+              new OperationError("not-found", "找不到研究报告", {
+                id,
+                resource: "research-report",
+              }),
+              context,
+            );
       } catch (error) {
         return requestErrorResponse(error, context);
       }
@@ -87,13 +102,20 @@ function registerResearchReportDeleteRoute(
     serviceScope.run(function* deleteResearchReport() {
       try {
         const input = yield* readRequestBody(context, WorkspaceChangeAttribution);
+        const id = readPositiveInteger(context.req.param("id"), "id");
         const deleted = repository.deleteResearchReport({
           ...input,
-          id: readPositiveInteger(context.req.param("id"), "id"),
+          id,
         });
         return deleted
           ? context.json({ ok: true })
-          : context.json({ error: "找不到研究报告" }, notFoundStatus);
+          : requestErrorResponse(
+              new OperationError("not-found", "找不到研究报告", {
+                id,
+                resource: "research-report",
+              }),
+              context,
+            );
       } catch (error) {
         return requestErrorResponse(error, context);
       }

@@ -1,7 +1,7 @@
 .layout {
   display: grid;
   min-inline-size: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.32fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr);
   align-items: start;
   gap: 22px;
 }

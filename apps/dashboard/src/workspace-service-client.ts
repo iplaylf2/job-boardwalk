@@ -1,4 +1,6 @@
 import {
+  OperationErrorResponse,
+  OperationError,
   JobPostingPage,
   ResearchReport,
   ResearchReportList,
@@ -103,7 +105,10 @@ function* requestWorkspaceChange(path: string, init: RequestInit): RiteCoroutine
       () => null,
     ),
   )) as { error?: unknown } | null;
-  throw new Error(typeof result?.error === "string" ? result.error : "无法提交更改，请稍后再试。");
+  if (OperationErrorResponse.allows(result)) {
+    throw new OperationError(result.error.code, result.error.message, result.error.details);
+  }
+  throw new Error("无法提交更改，请稍后再试。");
 }
 
 export function* readWorkspaceOverview(): RiteCoroutine<WorkspaceOverview> {
@@ -148,7 +153,7 @@ export function* listResearchReports(): RiteCoroutine<ResearchReportList> {
 export function* readResearchReport(id: number): RiteCoroutine<ResearchReport> {
   return yield* readWorkspaceData({
     failureMessage: "无法读取研究报告。请确认工作区服务正在运行。",
-    notFoundMessage: "这份研究报告不存在或已经过期。",
+    notFoundMessage: "这份研究报告不存在。",
     parse: ResearchReport.assert,
     path: `/api/reports/${String(id)}`,
   });

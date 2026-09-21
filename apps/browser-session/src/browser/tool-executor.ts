@@ -1,6 +1,8 @@
+import { OperationError } from "@job-boardwalk/contracts";
 // oxlint-disable max-lines -- The executor is the cohesive dispatch boundary for the public browser tool surface.
 import type { Locator } from "patchright";
 import type {
+  BrowserRuntimeStatus,
   JobDescriptionObservation,
   PlatformAccessObservation,
   SaveJobObservationResult,
@@ -15,21 +17,23 @@ import { parseOptionalTabId } from "./browser-tabs.js";
 import type { BrowserTabs } from "./browser-tabs.js";
 import { clickAndCapturePopup } from "./click-popup.js";
 import {
-  assertPlatformNavigationLink,
+  assertPlatformClickTarget,
   findRecruitingPlatformAdapter,
   requireRecruitingPlatformAdapter,
 } from "./recruiting-platform-adapters.js";
-import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { navigatePage, readNavigationPageSummary } from "./page-navigation.js";
-import {
-  capturePageSnapshot,
-  maximumElementHrefCharacters,
-  maximumElementNameCharacters,
-} from "./page-snapshot.js";
-import { captureJobCardSnapshot } from "./job-observation/card-snapshot.js";
+import { captureElementScrollContext, scrollOneViewport } from "./page-scroll.js";
+import { capturePageSnapshot } from "./page-snapshot.js";
+import { capturePageDiagnostics } from "./page-diagnostics.js";
+import { readJobCards } from "./job-observation/card-read.js";
+// oxlint-disable-next-line import/max-dependencies -- The tool dispatcher integrates the owning capture modules.
 import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
 
 const zero = 0;
+const snapshotTextLimit = 40_000;
+const scrollTimeoutMs = 5000;
+const firstElementReference = 1;
 const explicitDescriptionAttribution = {
   initiatedBy: "agent",
   reason: "Agent 显式采集当前页面的岗位详情观察",
@@ -37,7 +41,6 @@ const explicitDescriptionAttribution = {
 
 interface ElementReference {
   href?: string;
-  locator: Locator;
   signature: string;
   tabId: number;
 }
@@ -56,7 +59,12 @@ export interface BrowserToolExecutorCoordination {
 }
 
 export class BrowserToolExecutor {
+  #nextElementReference = firstElementReference;
   readonly #elementReferences = new Map<string, ElementReference>();
+  readonly #expiredReferenceDiagnostics = new Map<
+    string,
+    { tabId: number; invalidatedBy: string; invalidatedByTabId?: number }
+  >();
   readonly #collectionControl: BackgroundCollectionControl;
   readonly #observePageAccess: (page: PageAccessFacts) => PlatformAccessObservation | null;
   readonly #recordReturnedControl: (platformId: PlatformId) => void;
@@ -85,19 +93,27 @@ export class BrowserToolExecutor {
     this.#writeJobDescriptionObservation = coordination.writeJobDescriptionObservation;
   }
 
+  public get controlStatus(): Extract<BrowserRuntimeStatus, { available: true }>["control"] {
+    const { state, interruption } = this.#collectionControl;
+    return {
+      interruption,
+      matchingTabIds: interruption ? this.#tabs.matchingTabIds(interruption.url) : [],
+      state,
+    };
+  }
+
   public get tabCount(): number {
     return this.#tabs.tabCount;
   }
 
   public *execute(toolName: string, input: Record<string, unknown>): RiteCoroutine<unknown> {
+    this.#assertToolControl(toolName, input);
     switch (toolName) {
-      case "browser_wait": {
-        const milliseconds = input["milliseconds"] as number;
-        yield* sleep(milliseconds);
-        return { waitedMilliseconds: milliseconds };
+      case "browser_page_diagnostics": {
+        return yield* this.#pageDiagnostics(input);
       }
       case "browser_tabs": {
-        return yield* this.#tabs.executeAction(input);
+        return yield* this.#tabAction(input);
       }
       case "browser_prepare_login": {
         return yield* this.#prepareLogin(input);
@@ -115,7 +131,7 @@ export class BrowserToolExecutor {
         return yield* this.#jobDescriptionSnapshot(input);
       }
       case "browser_sync_job_engagement": {
-        this.#clearElementReferences();
+        this.#clearElementReferences("browser_sync_job_engagement");
         const platformId = input["platformId"] as PlatformId;
         const engagement = input["engagement"] as PlatformJobEngagementKind;
         return yield* this.#synchronizeJobEngagement(platformId, engagement);
@@ -129,6 +145,9 @@ export class BrowserToolExecutor {
       case "browser_select": {
         return yield* this.#select(input);
       }
+      case "browser_reveal": {
+        return yield* this.#reveal(input);
+      }
       case "browser_scroll": {
         return yield* this.#scroll(input);
       }
@@ -138,6 +157,30 @@ export class BrowserToolExecutor {
     }
   }
 
+  *#pageDiagnostics(input: Record<string, unknown>): RiteCoroutine<unknown> {
+    const [, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(input));
+    return yield* capturePageDiagnostics(page, input["screenshot"] === true);
+  }
+
+  #assertToolControl(toolName: string, input: Record<string, unknown>): void {
+    if (
+      !(
+        toolName === "browser_snapshot" &&
+        input["userReturnedControl"] === true &&
+        this.#collectionControl.state === "user-handoff"
+      )
+    ) {
+      this.#collectionControl.assertAgentControl();
+    }
+  }
+
+  *#tabAction(input: Record<string, unknown>): RiteCoroutine<unknown> {
+    if (input["action"] !== "list") {
+      this.#clearElementReferences("browser_tabs");
+    }
+    return yield* this.#tabs.executeAction(input);
+  }
+
   *#click(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     const sourcePage = this.#tabs.requireNavigationPage(reference.tabId);
@@ -145,22 +188,38 @@ export class BrowserToolExecutor {
       if (reference.href) {
         const adapter = findRecruitingPlatformAdapter(sourcePage.url());
         if (!adapter) {
-          throw new Error("当前页面不属于受支持招聘平台的 HTTPS 导航范围。");
+          throw new OperationError(
+            "outside-platform-scope",
+            "当前页面不属于受支持招聘平台的 HTTPS 导航范围。",
+            { tabId: reference.tabId },
+          );
         }
-        assertPlatformNavigationLink(adapter.platformId, reference.href);
+        assertPlatformClickTarget(adapter.platformId, reference.href);
       }
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
       const popupPage = yield* clickAndCapturePopup(sourcePage, reference.locator);
-      return yield* readNavigationPageSummary(popupPage ?? sourcePage);
+      if (popupPage) {
+        yield* this.#tabs.selectPage(popupPage);
+      }
+      return {
+        ...(yield* readNavigationPageSummary(popupPage ?? sourcePage)),
+        control: this.controlStatus,
+      };
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences("browser_click", reference.tabId);
     }
   }
 
   *#prepareLogin(params: Record<string, unknown>): RiteCoroutine<unknown> {
     yield* this.#collectionControl.pauseForUserHandoff();
     try {
-      const result = yield* this.#tabs.prepareLogin(params, this.#observePageAccess);
+      const result = yield* this.#tabs.prepareLogin(params, (facts) => {
+        const observation = this.#observePageAccess(facts);
+        if (observation && "interruption" in observation) {
+          this.#collectionControl.assertAgentControl();
+        }
+        return observation;
+      });
       if (result.outcome === "handoff-ready") {
         this.#collectionControl.completeUserHandoff();
       } else {
@@ -171,7 +230,7 @@ export class BrowserToolExecutor {
       this.#collectionControl.cancelUserHandoff();
       throw error;
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences("browser_prepare_login");
     }
   }
 
@@ -181,7 +240,7 @@ export class BrowserToolExecutor {
       yield* until(() => reference.locator.fill(params["value"] as string));
       return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences("browser_fill", reference.tabId);
     }
   }
 
@@ -191,103 +250,133 @@ export class BrowserToolExecutor {
     const [tabId, page] = this.#tabs.resolvePlatformPage(platformId, parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
     yield* until(() => page.bringToFront());
-    this.#clearElementReferences();
-    return yield* navigatePage(page, url);
+    this.#clearElementReferences("browser_navigate", tabId);
+    return { ...(yield* navigatePage(page, url)), control: this.controlStatus };
   }
 
   #reference(params: Record<string, unknown>): ElementReference {
     const ref = params["ref"] as string;
     const reference = this.#elementReferences.get(ref);
     if (!reference) {
-      throw new Error("元素引用不存在或已过期；请重新调用 browser_snapshot。");
+      const expired = this.#expiredReferenceDiagnostics.get(ref);
+      throw new OperationError(
+        "reference-expired",
+        "元素引用不存在或已过期；请对所属 tabId 重新调用 browser_snapshot。",
+        { ref, ...expired },
+      );
     }
     return reference;
   }
 
-  *#verifiedReference(params: Record<string, unknown>): RiteCoroutine<ElementReference> {
+  *#verifiedReference(
+    params: Record<string, unknown>,
+  ): RiteCoroutine<ElementReference & { locator: Locator }> {
     const reference = this.#reference(params);
-    this.#tabs.requireNavigationPage(reference.tabId);
-    const signature = yield* until(() =>
-      reference.locator.evaluate(
-        (element, limits) => {
-          const startIndex = 0;
-          const href = element.matches("a[href]") ? (element as HTMLAnchorElement).href : "";
-          if (href.length > limits.maximumHrefCharacters) {
-            return "oversized-link";
-          }
-          return [
-            element.tagName,
-            element.getAttribute("type") ?? "",
-            href,
-            element.getAttribute("role") ?? "",
-            element.getAttribute("aria-label") ?? "",
-            element.getAttribute("title") ?? "",
-            element.getAttribute("placeholder") ?? "",
-            element.getAttribute("alt") ?? "",
-            (element.textContent ?? "")
-              .replaceAll(/\s+/gu, " ")
-              .trim()
-              .slice(startIndex, limits.maximumNameCharacters),
-          ].join("\u001F");
-        },
-        {
-          maximumHrefCharacters: maximumElementHrefCharacters,
-          maximumNameCharacters: maximumElementNameCharacters,
-        },
-      ),
+    const page = this.#tabs.requireNavigationPage(reference.tabId);
+    // Compare the bounded signature with a fresh capture of visible elements.
+    const current = yield* capturePageSnapshot(page, zero);
+    const element = current.elements.find(
+      (candidate) => candidate.signature === reference.signature,
     );
-    if (signature !== reference.signature) {
-      throw new Error("元素引用对应的页面内容已经变化；请重新调用 browser_snapshot 后再操作。");
+    if (!element) {
+      this.#clearElementReferences("reference-changed", reference.tabId);
+      throw new OperationError(
+        "reference-changed",
+        `元素引用对应的节点、URL 或有界内容已经变化（tabId=${reference.tabId}）；请对该 tabId 重新调用 browser_snapshot 后再操作。`,
+        { ref: params["ref"] as string, tabId: reference.tabId },
+      );
     }
-    return reference;
+    return { ...reference, locator: element.locator };
   }
 
   *#scroll(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    if (typeof params["ref"] === "string") {
-      return yield* this.#scrollToReference(params);
+    const reference =
+      typeof params["ref"] === "string" ? yield* this.#verifiedReference(params) : null;
+    const requestedTabId = parseOptionalTabId(params);
+    if (reference && requestedTabId && reference.tabId !== requestedTabId) {
+      throw new OperationError("tab-mismatch", "ref 与 tabId 指向不同的标签页。", {
+        requestedTabId,
+        tabId: reference.tabId,
+      });
     }
-    const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
-    const deltaY = params["deltaY"] as number;
+    const [tabId, page] = this.#tabs.resolveNavigationPage(reference?.tabId ?? requestedTabId);
     this.#tabs.markSelected(tabId);
-    yield* until(() => page.mouse.wheel(zero, deltaY));
-    this.#clearElementReferences();
-    const summary = yield* readNavigationPageSummary(page);
-    const scrollY = yield* until(() => page.evaluate(() => globalThis.scrollY));
-    return { ...summary, scrollY };
+    const locator = reference?.locator ?? page.locator("body");
+    try {
+      const scroll = yield* until(() =>
+        locator.evaluate(
+          scrollOneViewport,
+          {
+            direction: params["direction"] as "down" | "up",
+            target: reference ? "scrollable-ancestor" : "document",
+          } as const,
+          { timeout: scrollTimeoutMs },
+        ),
+      );
+      if ("error" in scroll) {
+        throw new OperationError(scroll.error.code, scroll.error.message, {
+          tabId,
+          ...(typeof params["ref"] === "string" ? { ref: params["ref"] } : {}),
+        });
+      }
+      const summary = yield* readNavigationPageSummary(page);
+      return { ...summary, scroll };
+    } finally {
+      this.#clearElementReferences("browser_scroll", tabId);
+    }
   }
 
   *#jobCardSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
-    const maximumCards = params["maximumCards"] as number;
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const snapshot = yield* captureJobCardSnapshot(page, maximumCards, this.#observePageAccess);
+    const waitFor = params["waitFor"] === "cards-present" ? "cards-present" : "none";
+    const snapshot = yield* readJobCards(page, waitFor, (facts) => {
+      this.#observePageAccess(facts);
+      this.#collectionControl.assertAgentControl();
+    });
     return { ...snapshot, tabId };
   }
 
   *#jobDescriptionSnapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const observation = yield* captureJobDescriptionObservation(page, this.#observePageAccess);
+    const observation = yield* captureJobDescriptionObservation(page, (facts) => {
+      this.#observePageAccess(facts);
+      this.#collectionControl.assertAgentControl();
+    });
+    const sourceId = params["sourceId"] as number | undefined;
     const writeResult = yield* this.#writeJobDescriptionObservation(
       observation,
       explicitDescriptionAttribution,
-      params["sourceId"] as number | undefined,
+      sourceId,
     );
     if (writeResult.outcome === "stale") {
-      throw new Error(
+      throw new OperationError(
+        "stale-observation",
         "Workspace Service 未保留本次岗位详情观察：已有更新的同类观察，或同一时刻已保留不同观察。",
+        { tabId, ...(sourceId ? { sourceId } : {}) },
       );
     }
-    return { ...observation, tabId };
+    return {
+      ...observation,
+      persistence: writeResult,
+      sourceBinding: sourceId ? { outcome: "bound", sourceId } : { outcome: "not-requested" },
+      tabId,
+    };
   }
 
-  *#scrollToReference(params: Record<string, unknown>): RiteCoroutine<unknown> {
+  *#reveal(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const reference = yield* this.#verifiedReference(params);
     try {
+      const before = yield* until(() => reference.locator.evaluate(captureElementScrollContext));
       yield* until(() => reference.locator.scrollIntoViewIfNeeded());
-      return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
+      const after = yield* until(() => reference.locator.evaluate(captureElementScrollContext));
+      const summary = yield* readNavigationPageSummary(
+        this.#tabs.requireNavigationPage(reference.tabId),
+      );
+      return { ...summary, scroll: { after, before, mode: "reveal" } };
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences("browser_reveal", reference.tabId);
     }
   }
 
@@ -297,15 +386,15 @@ export class BrowserToolExecutor {
       yield* until(() => reference.locator.selectOption(params["value"] as string));
       return yield* readNavigationPageSummary(this.#tabs.requireNavigationPage(reference.tabId));
     } finally {
-      this.#clearElementReferences();
+      this.#clearElementReferences("browser_select", reference.tabId);
     }
   }
 
   *#snapshot(params: Record<string, unknown>): RiteCoroutine<unknown> {
     const [tabId, page] = this.#tabs.resolveNavigationPage(parseOptionalTabId(params));
     this.#tabs.markSelected(tabId);
-    const textLimit = params["maxTextCharacters"] as number;
-    this.#clearElementReferences();
+    const textLimit = snapshotTextLimit;
+    this.#clearElementReferences("browser_snapshot", tabId);
     const settleMilliseconds =
       findRecruitingPlatformAdapter(page.url())?.snapshotSettleMilliseconds ?? zero;
     if (settleMilliseconds > zero) {
@@ -321,16 +410,19 @@ export class BrowserToolExecutor {
       this.#recordReturnedControl(adapter.platformId);
     }
     const platformAccessObservation = this.#observePageAccess(snapshot);
-    for (const { href, locator, ref, signature } of snapshot.elements) {
+    for (const element of snapshot.elements) {
+      element.ref = `e${this.#nextElementReference}`;
+      this.#nextElementReference += 1;
+      const { href, ref, signature } = element;
       this.#elementReferences.set(ref, {
         ...(href ? { href } : {}),
-        locator,
         signature,
         tabId,
       });
     }
     return {
       ...snapshot,
+      controlState: this.#collectionControl.state,
       elements: snapshot.elements.map(
         ({ locator: _locator, signature: _signature, ...element }) => element,
       ),
@@ -339,7 +431,18 @@ export class BrowserToolExecutor {
     };
   }
 
-  #clearElementReferences(): void {
-    this.#elementReferences.clear();
+  #clearElementReferences(reason: string, invalidatedByTabId?: number): void {
+    if (this.#elementReferences.size > zero) {
+      // Keep diagnostics for only the last expired snapshot; never retain actionable signatures.
+      this.#expiredReferenceDiagnostics.clear();
+      for (const [ref, { tabId }] of this.#elementReferences) {
+        this.#expiredReferenceDiagnostics.set(ref, {
+          invalidatedBy: reason,
+          tabId,
+          ...(invalidatedByTabId ? { invalidatedByTabId } : {}),
+        });
+      }
+      this.#elementReferences.clear();
+    }
   }
 }

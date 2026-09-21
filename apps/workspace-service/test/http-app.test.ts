@@ -2,11 +2,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// oxlint-disable max-lines -- This suite keeps the complete public HTTP boundary visible together.
 import {
   JobPostingPage,
   ResearchReport,
   ResearchReportList,
+  SaveJobObservationResult,
   WorkspaceOverview,
 } from "@job-boardwalk/contracts";
 import { createScope } from "@shajara/host";
@@ -14,7 +14,6 @@ import { expect, test } from "vitest";
 
 import { createWorkspaceServiceHttpApp } from "#/http/app.js";
 import { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 const badRequestStatus = 400;
 const createdStatus = 201;
@@ -32,10 +31,8 @@ const mcpRequestHeaders = {
 function createTestHttpApp(
   repository: WorkspaceRepository,
   serviceScope: ReturnType<typeof createScope>,
-  presenceTracker: BrowserSessionPresenceTracker = new BrowserSessionPresenceTracker(),
 ) {
   return createWorkspaceServiceHttpApp({
-    browserSessionPresenceTracker: presenceTracker,
     repository,
     serviceScope,
   });
@@ -206,16 +203,6 @@ test("keeps request errors inside the long-lived service scope", async () => {
       method: "POST",
     });
     expect(credentialedIntentSourceResponse.status).toBe(badRequestStatus);
-
-    const unknownNestedFieldResponse = await httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true, tabCount: 1, unexpected: true },
-        platformAccessObservations: [],
-      }),
-      headers: { "content-type": "application/json" },
-      method: "PUT",
-    });
-    expect(unknownNestedFieldResponse.status).toBe(badRequestStatus);
 
     const followingResponse = await httpApp.request("/api/workspace/overview");
     expect(followingResponse.status).toBe(successfulStatus);
@@ -494,11 +481,12 @@ test("stores and reads collected page facts through the public HTTP boundary", a
     });
     expect(invalidSourceResponse.status).toBe(badRequestStatus);
 
-    const missingJobUrlResponse = await httpApp.request("/api/job-card-observations", {
+    const emptyJobUrlResponse = await httpApp.request("/api/job-card-observations", {
       body: JSON.stringify({
         details: [],
         discoveryUrl: "https://www.zhipin.com/web/geek/jobs",
         initiatedBy: "system",
+        jobUrl: "",
         observedAt: "2026-07-17T10:00:00.000Z",
         platformId: "boss",
         reason: "test",
@@ -508,7 +496,7 @@ test("stores and reads collected page facts through the public HTTP boundary", a
       headers: { "content-type": "application/json" },
       method: "POST",
     });
-    expect(missingJobUrlResponse.status).toBe(badRequestStatus);
+    expect(emptyJobUrlResponse.status).toBe(badRequestStatus);
 
     const libraryResponse = await httpApp.request("/api/jobs?page=1&pageSize=1&platform=boss");
     const library = JobPostingPage.assert(await libraryResponse.json());
@@ -529,54 +517,6 @@ test("stores and reads collected page facts through the public HTTP boundary", a
       `/api/jobs?pageSize=${String(maximumPageSizePlusOne)}`,
     );
     expect(invalidPageSize.status).toBe(badRequestStatus);
-  } finally {
-    repository.close();
-    await rm(directory, { recursive: true });
-  }
-});
-
-test("accepts leased Browser Session presence for dashboard reads", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
-  const repository = createTestRepository(directory);
-  await using serviceScope = createScope();
-  const presenceTracker = new BrowserSessionPresenceTracker(() =>
-    Date.parse("2026-07-15T01:00:00.000Z"),
-  );
-  const httpApp = createTestHttpApp(repository, serviceScope, presenceTracker);
-
-  try {
-    const reportResponse = await httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
-        platformAccessObservations: [],
-      }),
-      headers: { "content-type": "application/json" },
-      method: "PUT",
-    });
-    expect(reportResponse.status).toBe(successfulStatus);
-    expect(await reportResponse.json()).toMatchObject({
-      browserStatus: { available: true, tabCount: 1 },
-      state: "online",
-    });
-
-    const overviewResponse = await httpApp.request("/api/workspace/overview");
-    expect(await overviewResponse.json()).toMatchObject({
-      browserSessionPresence: {
-        browserStatus: { available: true, browserVersion: "149.0", tabCount: 1 },
-        receivedAt: "2026-07-15T01:00:00.000Z",
-        state: "online",
-      },
-    });
-
-    const invalidResponse = await httpApp.request("/api/browser-session/status", {
-      body: JSON.stringify({
-        browserStatus: { available: true },
-        platformAccessObservations: [],
-      }),
-      headers: { "content-type": "application/json" },
-      method: "PUT",
-    });
-    expect(invalidResponse.status).toBe(badRequestStatus);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -648,10 +588,9 @@ test("writes and lists research reports through MCP", async () => {
       params: {
         arguments: {
           initiatedBy: "agent",
-          markdown: "## 推荐\n\n优先核验示例科技甲。",
+          markdown: "## 行业观察\n\n合成行业甲的工具采用情况。",
           reason: "test",
-          state: "complete",
-          title: "岗位推荐",
+          title: "合成行业研究",
         },
         name: "save_research_report",
       },
@@ -660,8 +599,8 @@ test("writes and lists research reports through MCP", async () => {
       result: {
         structuredContent: {
           id: expect.any(Number),
-          markdown: expect.stringContaining("示例科技甲"),
-          title: "岗位推荐",
+          markdown: expect.stringContaining("合成行业甲"),
+          title: "合成行业研究",
         },
       },
     });
@@ -671,7 +610,7 @@ test("writes and lists research reports through MCP", async () => {
       params: { arguments: {}, name: "list_research_reports" },
     });
     expect(await listResponse.json()).toMatchObject({
-      result: { structuredContent: { reports: [{ title: "岗位推荐" }] } },
+      result: { structuredContent: { reports: [{ title: "合成行业研究" }] } },
     });
   } finally {
     repository.close();
@@ -679,7 +618,7 @@ test("writes and lists research reports through MCP", async () => {
   }
 });
 
-test("rejects an invalid report expiration through MCP", async () => {
+test("rejects blank report Markdown through MCP", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-routes-"));
   const repository = createTestRepository(directory);
   await using serviceScope = createScope();
@@ -691,11 +630,9 @@ test("rejects an invalid report expiration through MCP", async () => {
       method: "tools/call",
       params: {
         arguments: {
-          expiresAt: "not-a-time",
           initiatedBy: "agent",
-          markdown: "## 推荐",
+          markdown: " ",
           reason: "test",
-          state: "complete",
           title: "无效报告",
         },
         name: "save_research_report",
@@ -720,10 +657,9 @@ test("creates and reads research reports through HTTP", async () => {
     const createResponse = await httpApp.request("/api/reports", {
       body: JSON.stringify({
         initiatedBy: "agent",
-        markdown: "## 首选\n\n优先核验 Node.js 岗位。",
+        markdown: "## 技术路线\n\nNode.js 合成学习方案。",
         reason: "test",
-        state: "complete",
-        title: "阶段推荐",
+        title: "合成学习研究",
       }),
       headers: { "content-type": "application/json" },
       method: "POST",
@@ -733,7 +669,7 @@ test("creates and reads research reports through HTTP", async () => {
 
     const listResponse = await httpApp.request("/api/reports");
     expect(ResearchReportList.assert(await listResponse.json())).toMatchObject({
-      reports: [{ id: created.id, title: "阶段推荐" }],
+      reports: [{ id: created.id, title: "合成学习研究" }],
     });
     const detailResponse = await httpApp.request(`/api/reports/${String(created.id)}`);
     expect(ResearchReport.assert(await detailResponse.json())).toMatchObject({
@@ -744,7 +680,6 @@ test("creates and reads research reports through HTTP", async () => {
         initiatedBy: "agent",
         markdown: " ",
         reason: "test",
-        state: "complete",
         title: "无效报告",
       }),
       headers: { "content-type": "application/json" },
@@ -781,7 +716,7 @@ test("advertises job-library filters by public tool name", async () => {
             },
             page: { minimum: 1, type: "integer" },
             pageSize: { maximum: 48, minimum: 1, type: "integer" },
-            platformId: { enum: ["boss", "yupao"] },
+            platformId: { enum: ["51job", "boss", "yupao"] },
             query: { type: "string" },
           },
         },
@@ -793,10 +728,9 @@ test("advertises job-library filters by public tool name", async () => {
       inputSchema: {
         properties: {
           markdown: { type: "string" },
-          state: { enum: ["complete", "draft"] },
           title: { type: "string" },
         },
-        required: expect.arrayContaining(["markdown", "state", "title"]),
+        required: expect.arrayContaining(["markdown", "title"]),
       },
     });
   } finally {
@@ -957,8 +891,8 @@ test("contains unexpected MCP read failures without exposing repository details"
     });
     expect(await response.json()).toMatchObject({
       result: {
-        content: [{ text: "Workspace Service 无法完成工作区请求。", type: "text" }],
         isError: true,
+        structuredContent: { error: { code: "internal-error", details: {} } },
       },
     });
   } finally {
@@ -979,10 +913,105 @@ test("rejects an unknown MCP resource without failing the service scope", async 
       params: { uri: "job-boardwalk://unknown" },
     });
     expect(await response.json()).toMatchObject({
-      error: { message: expect.stringMatching(/未知的 Job Boardwalk 资源/u) },
+      error: { code: -32_002, data: { uri: "job-boardwalk://unknown" } },
     });
     const followingOverviewResponse = await httpApp.request("/api/workspace/overview");
     expect(followingOverviewResponse.status).toBe(successfulStatus);
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("retains 51job linkless cards, binds descriptions, and filters their sources", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-51job-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+  const observation = {
+    company: "合成雇主甲",
+    details: ["合成业务"],
+    discoveryUrl: "https://we.51job.com/pc/search?keyword=synthetic",
+    initiatedBy: "system",
+    location: "合成市",
+    observedAt: "2026-08-01T00:00:00.000Z",
+    platformId: "51job",
+    reason: "合成测试",
+    salaryText: "8千-1.2万·13薪",
+    summary: "维护合成业务系统。",
+    title: "合成系统工程师",
+  };
+  try {
+    const intentResponse = await httpApp.request("/api/search-intents", {
+      body: JSON.stringify({
+        city: "合成市",
+        initiatedBy: "user",
+        name: "合成求职方向",
+        position: "合成系统工程师",
+        reason: "合成测试",
+        recommendationPages: [
+          { label: "合成搜索", platformId: "51job", url: observation.discoveryUrl },
+        ],
+        selected: true,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(intentResponse.status).toBe(createdStatus);
+    const overviewResponse = await httpApp.request("/api/workspace/overview");
+    expect(await overviewResponse.json()).toMatchObject({
+      platformAccessSummaries: expect.arrayContaining([
+        expect.objectContaining({ label: "前程无忧51job", platformId: "51job" }),
+      ]),
+    });
+
+    const saved = await httpApp.request("/api/job-card-observations", {
+      body: JSON.stringify(observation),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(saved.status).toBe(createdStatus);
+    const result = SaveJobObservationResult.assert(await saved.json());
+    const source = result.job.sources[firstCollectionIndex];
+    expect(source).toMatchObject({
+      descriptionCaptureStatus: "identity-unresolved",
+      platformId: "51job",
+    });
+    expect(source).not.toHaveProperty("jobUrl");
+    const rejected = await httpApp.request("/api/job-card-observations", {
+      body: JSON.stringify({ ...observation, jobUrl: "https://evil.invalid/role" }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(rejected.status).toBe(badRequestStatus);
+    const description = await httpApp.request("/api/job-description-observations", {
+      body: JSON.stringify({
+        company: observation.company,
+        description: {
+          capturedAt: "2026-08-01T01:00:00.000Z",
+          text: "维护合成业务系统。",
+          truncated: false,
+        },
+        details: observation.details,
+        externalJobId: "900000001",
+        initiatedBy: "agent",
+        jobUrl: "https://jobs.51job.com/synthetic-city/900000001.html",
+        location: observation.location,
+        observedAt: "2026-08-01T01:00:00.000Z",
+        platformId: "51job",
+        reason: "合成详情绑定测试",
+        sourceId: source?.id,
+        title: observation.title,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    expect(description.status).toBe(createdStatus);
+    const pageResponse = await httpApp.request(
+      "/api/jobs?platform=51job&descriptionStatus=captured",
+    );
+    const page = JobPostingPage.assert(await pageResponse.json());
+    expect(page.jobs).toMatchObject([{ sources: [{ id: source?.id, platformId: "51job" }] }]);
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

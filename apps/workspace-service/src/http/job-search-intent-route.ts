@@ -23,6 +23,7 @@ function normalizeRecommendationPages(
     if (!url) {
       throw new InvalidRequestError(
         `recommendationPages[${String(index)}].url 必须属于${platformCatalog[page.platformId].label}`,
+        { field: `recommendationPages[${String(index)}].url`, platformId: page.platformId },
       );
     }
     url.hash = "";
@@ -33,7 +34,10 @@ function normalizeRecommendationPages(
     };
   });
   if (new Set(normalized.map(({ platformId }) => platformId)).size !== normalized.length) {
-    throw new InvalidRequestError("每个招聘平台只能关联一次");
+    throw new InvalidRequestError("每个招聘平台只能关联一次", {
+      field: "recommendationPages",
+      reason: "duplicate-platform",
+    });
   }
   return normalized;
 }

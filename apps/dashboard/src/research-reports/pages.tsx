@@ -1,14 +1,10 @@
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import type {
-  ResearchReport,
-  ResearchReportState,
-  ResearchReportSummary,
-} from "@job-boardwalk/contracts";
+import type { ResearchReport, ResearchReportSummary } from "@job-boardwalk/contracts";
 
 import { AppShell } from "#/app-shell.js";
 import { WorkspaceDataBoundary } from "#/workspace-data-boundary.js";
-import { createWorkspaceRead } from "#/workspace-read.js";
+import { createPolledRead } from "#/polled-read.js";
 import { listResearchReports, readResearchReport } from "#/workspace-service-client.js";
 
 import { ResearchReportMarkdownView } from "./markdown-view.js";
@@ -24,53 +20,36 @@ function formatTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
-function ReportStateBadge(props: { state: ResearchReportState }): JSX.Element {
-  const stateClass = props.state === "complete" ? styles["complete"] : styles["draft"];
-  return (
-    <span class={`${styles["state"]} ${stateClass}`}>
-      {props.state === "complete" ? "已完成" : "整理中"}
-    </span>
-  );
-}
-
 function ReportListItem(props: { report: ResearchReportSummary }): JSX.Element {
   return (
     <article class={styles["listItem"]}>
       <div>
-        <ReportStateBadge state={props.report.state} />
         <h2>
           <a href={`/reports/${String(props.report.id)}`}>{props.report.title}</a>
         </h2>
       </div>
       <div class={styles["listMeta"]}>
         <span>更新于 {formatTimestamp(props.report.updatedAt)}</span>
-        <Show when={props.report.expiresAt}>
-          {(expiresAt) => <span>可见至 {formatTimestamp(expiresAt())}</span>}
-        </Show>
       </div>
     </article>
   );
 }
 
 export function ResearchReportListPage(): JSX.Element {
-  const reportList = createWorkspaceRead(listResearchReports, refreshIntervalMilliseconds);
+  const reportList = createPolledRead(listResearchReports, refreshIntervalMilliseconds);
 
   return (
-    <AppShell
-      active="reports"
-      title="研究报告"
-      lede="集中阅读研究过程中形成的阶段性判断、依据与后续建议。"
-    >
+    <AppShell active="reports" title="研究报告" lede="按更新时间从新到旧查看已保存的研究报告。">
       <section class={styles["list"]} aria-label="研究报告列表">
         <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取研究报告…</p>}>
           <Show
             when={reportList.data()}
-            fallback={<p class={styles["empty"]}>当前没有可阅读的研究报告。</p>}
+            fallback={<p class={styles["empty"]}>当前没有研究报告。</p>}
           >
             {(result) => (
               <Show
                 when={result().reports.length > emptyCollectionLength}
-                fallback={<p class={styles["empty"]}>当前没有可阅读的研究报告。</p>}
+                fallback={<p class={styles["empty"]}>当前没有研究报告。</p>}
               >
                 <For each={result().reports}>{(report) => <ReportListItem report={report} />}</For>
               </Show>
@@ -86,14 +65,8 @@ function ResearchReportDocument(props: { report: ResearchReport }): JSX.Element 
   return (
     <article class={styles["document"]}>
       <header class={styles["heading"]}>
-        <ReportStateBadge state={props.report.state} />
         <h2>{props.report.title}</h2>
-        <p>
-          更新于 {formatTimestamp(props.report.updatedAt)}
-          <Show when={props.report.expiresAt}>
-            {(expiresAt) => <> · 可见至 {formatTimestamp(expiresAt())}</>}
-          </Show>
-        </p>
+        <p>更新于 {formatTimestamp(props.report.updatedAt)}</p>
       </header>
       <ResearchReportMarkdownView markdown={props.report.markdown} />
     </article>
@@ -101,17 +74,13 @@ function ResearchReportDocument(props: { report: ResearchReport }): JSX.Element 
 }
 
 export function ResearchReportDetailPage(props: { reportId: number }): JSX.Element {
-  const report = createWorkspaceRead(
+  const report = createPolledRead(
     () => readResearchReport(props.reportId),
     refreshIntervalMilliseconds,
   );
 
   return (
-    <AppShell
-      active="reports"
-      title="研究报告"
-      lede="报告呈现阶段性判断；后续决定应结合工作区记录与原始来源核验。"
-    >
+    <AppShell active="reports" title="研究报告" lede="阅读已保存的研究内容。">
       <WorkspaceDataBoundary loading={<p class={styles["empty"]}>正在读取研究报告…</p>}>
         <Show when={report.data()}>{(result) => <ResearchReportDocument report={result()} />}</Show>
       </WorkspaceDataBoundary>

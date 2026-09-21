@@ -54,7 +54,7 @@ export const serviceCompletion = main(shutdownController.signal).finally(
   removeTerminationSignalHandlers,
 );
 
-// oxlint-disable-next-line unicorn/prefer-top-level-await -- Preserve source-run error reporting without replacing the exported promise.
+// oxlint-disable-next-line unicorn/prefer-top-level-await -- Report source-run failures without awaiting the exported lifecycle promise.
 serviceCompletion.catch((error: unknown) => {
   process.stderr.write(`[Workspace Service] ${errorDetail(error)}\n`);
   process.exitCode = 1;

@@ -11,17 +11,15 @@ browser-collaboration model. The current service preserves platform-access obser
 facts, job-search intents, normalized jobs and their platform sources, and research reports. Each
 intent owns a target position, city, selection state, and per-platform recommendation-page
 references. The service does not store recruiting pages or historical page snapshots. It stores
-research reports as Markdown with structured lifecycle metadata and optional expiration.
+research reports as Markdown documents.
 
 Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
 which owns the visible persistent browser. The agent coordinates that live browser work with the
 durable workspace exposed by this service.
 
-Browser Session also sends status reports directly to Workspace Service. An in-memory presence
-tracker renews a short lease for each accepted status report and makes the result available to
-Dashboard and MCP readers. A status report may also carry authentication observations derived from
-real platform navigation responses or bounded page reads; the service validates, deduplicates, and
-persists them. An expired lease is shown as offline rather than current browser state.
+Browser Session submits platform-access observations through the domain API. Workspace Service
+validates and persists this historical research evidence independently of the producer's runtime.
+It neither calls Browser Session to fulfill workspace requests nor tracks its availability.
 
 ## Run Workspace Service
 
@@ -52,22 +50,31 @@ The development process listens on <http://127.0.0.1:54310> by default.
 ## Connect an MCP host
 
 Configure the MCP host to use the Streamable HTTP endpoint at
-<http://127.0.0.1:54310/mcp>. MCP requests share the service process, persistence layer, and
-top-level shajara scope with the HTTP API.
+<http://127.0.0.1:54310/mcp>. MCP and HTTP clients read and update the same workspace.
 
 The MCP surface provides:
 
-- `job-boardwalk://workspace/overview`, a resource containing Browser Session presence,
-  platform-access summaries, profile facts, and job-search intents;
+- `job-boardwalk://workspace/overview`, a resource containing platform-access summaries,
+  profile facts, and job-search intents;
 - `read_workspace_overview`, which reads the same workspace state;
 - `job-boardwalk://jobs`, which exposes the first page of the current job library, including
   description coverage, available collected descriptions, and platform sources;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
   `platformId`, `engagement`, and `descriptionStatus` filters;
-- `job-boardwalk://reports` and `list_research_reports`, which expose the directory of unexpired
+- `job-boardwalk://reports` and `list_research_reports`, which expose the directory of saved
   research reports;
-- `read_research_report`, which reads one unexpired research report by ID;
+- `read_research_report`, which reads a report by ID;
 - `save_research_report`, which creates a report or replaces one identified by ID.
+
+[Research reports](#research-reports) describes the report read and write contracts.
+
+Successful tools return their domain response in `structuredContent` and JSON text. Resources
+return JSON in `contents[].text`.
+
+Tool execution failures set `isError=true` and return
+[`OperationErrorResponse`](../../packages/contracts/src/operation-error.ts) in `structuredContent`
+and JSON text. Unknown tools use protocol error `-32602` with `data.tool`; unknown resources
+use `-32002` with `data.uri`. Resource read failures return their structured error in `data`.
 
 ## HTTP API
 
@@ -75,8 +82,8 @@ The HTTP surface currently exposes:
 
 - `GET /health`
 - `GET /api/workspace/overview`
-- `PUT /api/browser-session/status`
 - `POST /api/platform-access/observations`
+- `PUT /api/platform-access/observations`
 - `POST /api/profile/facts`
 - `PUT /api/profile/facts/:id`
 - `DELETE /api/profile/facts/:id`
@@ -98,51 +105,44 @@ The HTTP surface currently exposes:
 Shared request and response types live in
 [`@job-boardwalk/contracts`](../../packages/contracts/).
 
-### Browser Session status
-
-Browser Session renews its presence lease with a bounded status report:
-
-```json
-{
-  "browserStatus": {
-    "available": true,
-    "browserVersion": "150.0.0.0",
-    "tabCount": 1
-  },
-  "platformAccessObservations": []
-}
-```
-
-Workspace Service assigns `receivedAt` when it accepts the status report. A current lease appears
-as `online`; an expired lease appears as `offline`; before the first status report, presence is
-`unknown`. This presence state remains in memory and resets to `unknown` when Workspace Service
-restarts. Platform-access observations carried in the status report are durable. A changed
-assessment appends a transition; a repeated assessment advances that transition's latest
-observation time. A report no newer than the latest accepted observation for its platform is stale
-and does not alter the transition history.
+HTTP failures use [`OperationErrorResponse`](../../packages/contracts/src/operation-error.ts):
+`error.code` identifies the failure, `error.details` carries context, and `error.message` is for
+display. Schema validation errors include `details.issues` with field paths and rule codes;
+manually validated fields use `details.field` when available. Missing resources include their
+identity, and conflicts include a `reason`.
+HTTP statuses are 400 for `invalid-input`, 404 for `not-found`, 409 for `conflict`, 403 for
+`forbidden`, and 500 for unclassified internal failures.
 
 ### Platform-access observations
 
-Browser Session includes structured platform-access conclusions in its status reports when an
-adapter derives an authentication observation from a qualifying top-level navigation response or
-bounded page snapshot. An agent may instead post to `/api/platform-access/observations`, but only
-for evidence that no adapter classified:
+Browser Session submits adapter-derived authentication and interruption observations to
+`PUT /api/platform-access/observations`. Reconciliation compares the input with the latest
+observation for the same `platformId` and source `url`:
+
+| Input                                            | Stored result            | Response body       |
+| ------------------------------------------------ | ------------------------ | ------------------- |
+| First observation, or a newer changed assessment | Append a record          | The appended record |
+| Newer observation of the same assessment         | Advance `lastObservedAt` | `null`              |
+| Observation at or before `lastObservedAt`        | No change                | `null`              |
+
+An agent may post independently interpreted evidence to `POST /api/platform-access/observations`
+when no adapter classified it. This appends a separate record. Both operations accept the same
+observation contract; neither accepts browser runtime status:
 
 ```json
 {
   "platformId": "boss",
   "authenticationState": "authenticated",
   "evidence": "protected-resource",
-  "observedAt": "2026-07-13T01:00:00.000Z"
+  "observedAt": "2026-07-13T01:00:00.000Z",
+  "url": "https://www.zhipin.com/web/geek/jobs"
 }
 ```
 
-Every record retains when its assessment was first observed and when that same assessment was most
-recently observed. Browser Session status reconciliation extends the latest transition when an
-assessment repeats; an agent-submitted observation remains a separate record. Current conclusions
-are ordered by the latest observation time, so delayed historical evidence cannot supersede newer
-evidence. `platformId` accepts the catalog identifiers `boss` and `yupao`. Authentication evidence
-distinguishes how the conclusion was established:
+The observation contract requires a source HTTPS `url` and a `platformId` from the
+[platform catalog](../../packages/platform-catalog/src/index.ts). Each record retains its first
+capture time in `observedAt` and its latest capture time in `lastObservedAt`.
+Authentication evidence identifies how the conclusion was established:
 
 - `protected-resource` records `authenticated` from a successful navigation known to require
   authentication;
@@ -151,7 +151,10 @@ distinguishes how the conclusion was established:
 - `login-redirect` records `unauthenticated` when a protected navigation redirects to login.
 
 Verification and access denial use the separate `interruption` field. The workspace overview
-projects the latest definite authentication result and only an interruption newer than that result.
+projects the latest definite authentication result, ordered by `lastObservedAt`. It includes the
+latest interruption when that interruption is more recent, or when no authentication observation
+exists. Both retain their source URL. Dashboard owns
+[presentation of these summaries](../dashboard/README.md#data-ownership-and-freshness).
 
 ### Personal context and search intent
 
@@ -212,6 +215,8 @@ Browser Session to open them. Personal-center engagement pages do not contribute
 path; they arrive through the explicit
 [job engagement synchronization](#job-engagement-synchronization) boundary.
 
+#### Observation writes
+
 `POST /api/job-card-observations` and `POST /api/job-description-observations` are the
 service-to-service write boundaries. Their request contracts describe what was actually observed;
 the service does not infer a missing description from a card submission. Both endpoints return
@@ -219,9 +224,41 @@ the service does not infer a missing description from a card submission. Both en
 `source-updated` change; an accepted `unchanged` refresh; or a `stale` observation that the service
 left unapplied.
 
+Matching facts with a later `observedAt` refresh that kind's retained observation. The outcome
+remains `unchanged` unless advancing that source changes the normalized job's derived facts; such a
+change is recorded with attribution and returned as `source-updated`. Different facts replace
+retained evidence only when their `observedAt` is later. An older observation, or a conflicting
+observation at the same timestamp, is left unapplied with a `stale` outcome because it cannot be
+established as newer. `lastCheckedAt` never moves backward. Description capture time and Browser
+Session's local truncation state remain part of the stored observation. See
+[Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
+evidence lifecycle.
+
+#### Recruitment observations
+
+A detail submission may include `recruitment`. Job-library reads expose that assessment on its
+platform source, with `observedAt` and `url` identifying the observation's time and page:
+
+- `open` and `closed` record a conclusive assessment and require supporting `evidence` text.
+- `unknown` records an assessment without a conclusion.
+- An absent `recruitment` field means the retained detail has no recruitment assessment.
+
+Workspace Service retains this field with the latest accepted detail observation. A newer detail
+can replace it with `unknown` or omit it; earlier recruitment assessments are not kept as history.
+Later card observations leave it unchanged, so a source's `lastCheckedAt` may be newer than its
+recruitment evidence. A retained description, an unknown assessment, or a missing assessment does
+not establish that a posting is open.
+
+[Browser Session platform coverage](../browser-session/README.md#platform-coverage) defines the
+automatic recognition rules. Workspace Service stores the submitted assessment without inspecting
+the source page.
+
+#### Source identity
+
 Within one platform, Workspace Service identifies a source by its external job ID when available,
 then by the pathname of its job URL, and finally by normalized company, title, and location when no
-detail link is available. Browser Session supplies an external ID only when a recognized
+detail link is available. Card submissions may omit `jobUrl` and retain their discovery page as
+provenance. Browser Session supplies an external ID only when a recognized
 platform-specific job-detail path exposes one. When that path contains separate identifier and
 display-slug segments, the identifier becomes the preferred identity, so changing the slug does not
 split the source. Workspace Service merges a new cross-platform source only when normalized company,
@@ -231,6 +268,27 @@ or discard phrases from job titles. The database keeps the current normalized re
 source's latest card and description observations, not HTML, page snapshots, or match judgments.
 The two observation types are updated independently, so submitting a card never clears a stored
 description.
+
+#### Source binding
+
+An explicit description write may include `sourceId` after the caller confirms that the current
+detail page belongs to that tracked workspace source. The selected source must still lack both an
+external job ID and job URL, and it must not already have a retained description. Workspace Service
+requires the same platform and equal normalized titles, compares normalized companies when both
+observations provide one, and rejects an identity already owned by another source. A successful
+bind preserves the source ID, its engagement relations, and its provisional identity while adding
+the stable detail-page identity. Workspace Service then reconciles the owning normalized job from
+the retained source evidence. If complete normalized company, title, and location evidence matches
+another job, their sources are merged atomically instead of leaving duplicate normalized jobs.
+Later engagement cards may still omit the stable identity; their retained card evidence resolves
+them to the same source without clearing its description.
+
+#### Library queries and description coverage
+
+Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
+`engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and
+returns the current page, total result count, page count, and description coverage. `pageSize` is
+capped at 48.
 
 Job-library reads derive `descriptionCaptureStatus` for each source from that retained evidence.
 `captured` means a main description is stored. `uncaptured` means the source has an external job ID
@@ -246,37 +304,14 @@ scope before an optional `descriptionStatus` filter is applied. That filter sele
 description (`captured`), all jobs without one (`missing`), or the missing-description subset with
 unresolved source identity (`identity-unresolved`).
 
-An explicit description write may include `sourceId` after the caller confirms that the current
-detail page belongs to that tracked workspace source. The selected source must still lack both an
-external job ID and job URL, and it must not already have a retained description. Workspace Service
-requires the same platform and equal normalized titles, compares normalized companies when both
-observations provide one, and rejects an identity already owned by another source. A successful
-bind preserves the source ID, its engagement relations, and its provisional identity while adding
-the stable detail-page identity. Workspace Service then reconciles the owning normalized job from
-the retained source evidence. If complete normalized company, title, and location evidence matches
-another job, their sources are merged atomically instead of leaving duplicate normalized jobs.
-Later engagement cards may still omit the stable identity; their retained card evidence resolves
-them to the same source without clearing its description.
-
-Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
-`engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and
-returns the current page, total result count, page count, and description coverage. `pageSize` is
-capped at 48.
-
-Matching facts with a later `observedAt` refresh that kind's retained observation. The outcome
-remains `unchanged` unless advancing that source changes the normalized job's derived facts; such a
-change is recorded with attribution and returned as `source-updated`. Different facts replace
-retained evidence only when their `observedAt` is later. An older observation, or a conflicting
-observation at the same timestamp, is left unapplied with a `stale` outcome because it cannot be
-established as newer. `lastCheckedAt` never moves backward. Description capture time and Browser
-Session's local truncation state remain part of the stored observation. See
-[Product design](../../docs/product-design.md#job-discovery-and-evidence) for the cross-application
-evidence lifecycle.
+#### Salary normalization
 
 Salary normalization preserves the platform's original `salaryText` and adds a CNY amount in K
 with its source period. Monthly salary carries a month count only when the source explicitly says
 something such as `13薪`. No annual package is calculated from monthly, daily, or hourly rates;
-annual values are shown only when the source itself uses an annual salary period.
+annual values are shown only when the source itself uses an annual salary period. 51job-style
+`千` and `万` amounts support mixed units, such as `8千-1.2万·13薪`; amounts without a period
+use the platform's monthly salary notation, while `/年` remains annual.
 
 #### Job engagement synchronization
 
@@ -298,17 +333,45 @@ engagement and snapshot semantics.
 
 ### Research reports
 
-A report contains a title, Markdown body, `draft` or `complete` state, creation and update times,
-and an optional expiration time. List and detail reads omit expired reports. Creating, replacing,
-and deleting a report records a workspace change with its user, agent, or system attribution.
+A report contains an `id`, `title`, Markdown body (`markdown`), and creation and update timestamps
+(`createdAt` and `updatedAt`). [Product design](../../docs/product-design.md#research-reports)
+defines its role as a saved research document.
 
-Markdown is stored as authored. Workspace Service validates the report contract but does not turn
-the document into HTML; each presentation boundary owns its rendering policy. See
-[Research reports](../../docs/product-design.md#research-reports) for the cross-application
-boundary. Report authors should keep supporting evidence and uncertainty beside their conclusions
-and link back to durable workspace facts or original sources when available.
+`GET /api/reports`, MCP `list_research_reports`, and the `job-boardwalk://reports` resource return
+`{ reports: [...] }`, ordered by most recent update. Each entry contains the report's ID, title,
+and timestamps. `GET /api/reports/:id` and MCP `read_research_report` return the full report,
+including its Markdown body.
+
+`POST /api/reports` creates a report; `PUT /api/reports/:id` replaces it. MCP
+`save_research_report` creates when `id` is omitted and replaces the existing report when it is
+supplied. Each write requires the full `title` and `markdown`, plus change attribution
+(`initiatedBy` and `reason`). Titles must be nonempty and have no leading or trailing whitespace;
+Markdown must contain non-whitespace text and is stored as authored. Replacement preserves the ID
+and creation time, overwrites the title and body, and updates the modification time. Earlier
+revisions are not retained.
+
+`DELETE /api/reports/:id` removes a report and requires `initiatedBy` and `reason` in the request
+body. Reading, replacing, or deleting a nonexistent report returns `not-found`. Creating,
+replacing, and deleting a report records a workspace change with its user, agent, or system
+attribution in the same transaction as the report change.
+
+HTTP and MCP validate commands before passing them to the typed
+[report repository](src/persistence/research-report-repository.ts), which owns persistence,
+queries, and change attribution. [Dashboard](../dashboard/README.md#report-rendering) owns rendering.
 
 ## Persistence
+
+[`WorkspaceRepository`](src/persistence/workspace-repository.ts) is the persistence entrypoint for
+HTTP handlers, MCP tools, and read models. It owns the database connection and delegates operations
+to repositories grouped by workspace responsibility. Database initialization and migration loading
+belong to [`database.ts`](src/persistence/database.ts).
+
+Job-library queries and observation writes have separate owners. Observation writes resolve source
+identity and evidence freshness before reconciling the canonical job; query code maps stored rows
+into the public job model. Multi-step changes keep their transaction at the operation that owns the
+write. Helpers receive that transaction so related writes, such as source updates and canonical
+reconciliation, commit together. Splitting a helper into another file does not create a new
+transaction boundary.
 
 The Compose deployment stores SQLite at `/var/lib/job-boardwalk/workspace.sqlite` in the
 `workspace-data` named volume. The database therefore survives container replacement and

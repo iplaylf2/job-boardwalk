@@ -29,5 +29,6 @@ test("observes Yupao's authenticated recruiter controls", () => {
     evidence: "authenticated-page",
     observedAt,
     platformId: "yupao",
+    url: "https://www.yupao.com/web/job-manage/",
   });
 });

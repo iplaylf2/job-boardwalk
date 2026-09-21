@@ -34,6 +34,7 @@ export const platformAccessObservations = sqliteTable(
     lastObservedAt: text("last_observed_at").notNull(),
     observedAt: text("observed_at").notNull(),
     platformId: text("platform_id").notNull(),
+    url: text().notNull(),
   },
   (table) => [
     check(
@@ -66,10 +67,8 @@ export const profileFacts = sqliteTable("profile_facts", {
 
 export const researchReports = sqliteTable("research_reports", {
   createdAt: text("created_at").notNull(),
-  expiresAt: text("expires_at"),
   id: integer().primaryKey({ autoIncrement: true }),
   markdown: text().notNull(),
-  state: text({ enum: ["draft", "complete"] }).notNull(),
   title: text().notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -202,3 +201,9 @@ export const workspaceChanges = sqliteTable(
     ),
   ],
 );
+
+export type JobPostingRow = typeof jobPostings.$inferSelect;
+
+export type JobPostingSourceRow = typeof jobPostingSources.$inferSelect;
+
+export type JobSourceEngagementRow = typeof jobSourceEngagements.$inferSelect;

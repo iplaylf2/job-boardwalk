@@ -34,13 +34,6 @@ function normalizeMonthly(compact: string): NormalizedSalary | null {
   if (monthlyK) {
     return monthlySalary(monthlyK, unitScale);
   }
-  const monthlyWan =
-    /^(?<minimum>\d+(?:\.\d+)?)(?:-(?<maximum>\d+(?:\.\d+)?))?万元\/月(?:·(?<months>\d+)薪)?$/u.exec(
-      compact,
-    );
-  if (monthlyWan) {
-    return monthlySalary(monthlyWan, chineseTenThousandsToK);
-  }
   return null;
 }
 
@@ -66,16 +59,27 @@ function normalizeYuanPeriod(compact: string): NormalizedSalary | null {
   };
 }
 
-function normalizeAnnual(compact: string): NormalizedSalary | null {
-  const match = /^(?<minimum>\d+(?:\.\d+)?)(?:-(?<maximum>\d+(?:\.\d+)?))?万元\/年$/u.exec(compact);
-  if (match) {
-    return {
-      currency: "CNY",
-      ...range(match, chineseTenThousandsToK),
-      period: "year",
-    };
+function normalizeChineseRange(compact: string): NormalizedSalary | null {
+  const match =
+    /^(?<minimum>\d+(?:\.\d+)?)(?:(?:(?<minimumUnit>千|万)(?:元)?)?-(?<maximum>\d+(?:\.\d+)?))?(?<unit>千|万)(?:元)?(?:\/(?<period>月|年))?(?:·(?<months>\d+)薪)?$/u.exec(
+      compact,
+    );
+  if (!match?.groups) {
+    return null;
   }
-  return null;
+  const { minimum, maximum, minimumUnit, unit, period, months } = match.groups;
+  if (period === "年" && months) {
+    return null;
+  }
+  const minimumScale = (minimumUnit ?? unit) === "万" ? chineseTenThousandsToK : unitScale;
+  const maximumScale = unit === "万" ? chineseTenThousandsToK : unitScale;
+  return {
+    currency: "CNY",
+    ...(maximum ? { maximumK: Number(maximum) * maximumScale } : {}),
+    minimumK: Number(minimum) * minimumScale,
+    ...(months ? { monthsPerYear: Number(months) } : {}),
+    period: period === "年" ? "year" : "month",
+  };
 }
 
 export function parseJobPostingSalary(salaryText: string | undefined): NormalizedSalary | null {
@@ -83,5 +87,7 @@ export function parseJobPostingSalary(salaryText: string | undefined): Normalize
     return null;
   }
   const compact = salaryText.replaceAll(/\s+/gu, "");
-  return normalizeMonthly(compact) ?? normalizeYuanPeriod(compact) ?? normalizeAnnual(compact);
+  return (
+    normalizeMonthly(compact) ?? normalizeYuanPeriod(compact) ?? normalizeChineseRange(compact)
+  );
 }

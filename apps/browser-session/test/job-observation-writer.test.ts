@@ -107,3 +107,58 @@ test("preserves the caller's attribution when writing job observations", async (
   expect(cardResult).toEqual(savedObservation);
   expect(descriptionResult).toEqual(savedObservation);
 });
+
+test.each([
+  {
+    body: {
+      error: {
+        code: "conflict",
+        details: { reason: "title-mismatch", sourceId },
+        message: "合成来源不匹配",
+      },
+    },
+    code: "conflict",
+    status: 409,
+  },
+  { body: "synthetic invalid upstream body", code: "upstream-rejected", status: 502 },
+])(
+  "preserves upstream rejection $code without guessing from text",
+  async ({ body, code, status }) => {
+    const writer = new WorkspaceJobObservationWriter(new URL("http://workspace.test"), () =>
+      Promise.resolve(Response.json(body, { status })),
+    );
+    await using scope = createScope();
+    const failure = await scope.run(function* writeRejectedDescription() {
+      try {
+        yield* writer.writeDescriptionObservation(
+          {
+            description: {
+              capturedAt: "2026-07-17T10:05:00.000Z",
+              text: "合成岗位描述",
+              truncated: false,
+            },
+            details: [],
+            jobUrl: "https://www.zhipin.com/job_detail/synthetic.html",
+            observedAt: "2026-07-17T10:05:00.000Z",
+            platformId: "boss",
+            title: "合成岗位",
+          },
+          { initiatedBy: "agent", reason: "合成验证" },
+          sourceId,
+        );
+        return null;
+      } catch (error) {
+        return error;
+      }
+    });
+    expect(failure).toMatchObject({
+      failure: {
+        code,
+        details: {
+          httpStatus: status,
+          ...(code === "conflict" ? { reason: "title-mismatch", sourceId } : {}),
+        },
+      },
+    });
+  },
+);

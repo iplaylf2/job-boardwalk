@@ -1,4 +1,3 @@
-// oxlint-disable max-lines -- Repository behavior remains visible in one boundary-level suite.
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -86,18 +85,21 @@ test("keeps authentication and interruption observations as separate history", a
       evidence: "protected-resource",
       observedAt: "2026-07-13T01:01:00.000Z",
       platformId: "boss",
+      url: "https://www.yupao.com/synthetic-access/",
     });
     repository.recordPlatformAccessObservation({
       authenticationState: "unauthenticated",
       evidence: "login-redirect",
       observedAt: "2026-07-13T01:02:00.000Z",
       platformId: "yupao",
+      url: "https://www.yupao.com/synthetic-access/",
     });
     repository.recordPlatformAccessObservation({
       evidence: "verification-page",
       interruption: "verification-required",
       observedAt: "2026-07-13T01:03:00.000Z",
       platformId: "yupao",
+      url: "https://www.yupao.com/synthetic-access/",
     });
     expect(repository.listPlatformAccessObservations()).toEqual([
       expect.objectContaining({
@@ -688,7 +690,7 @@ test("keeps partial cross-platform cards separate", async () => {
   }
 });
 
-test("creates, updates, expires, and deletes research reports", async () => {
+test("creates, updates, and deletes research reports", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-workspace-service-"));
   const repository = new WorkspaceRepository({
     databasePath: path.join(directory, "workspace.sqlite"),
@@ -697,14 +699,12 @@ test("creates, updates, expires, and deletes research reports", async () => {
 
   try {
     const created = repository.saveResearchReport({
-      expiresAt: "2999-07-20T00:00:00.000Z",
       initiatedBy: "agent",
       markdown: "## 初步判断",
       reason: "test",
-      state: "draft",
       title: "岗位推荐",
     });
-    expect(created).toMatchObject({ id: expect.any(Number), state: "draft" });
+    expect(created).toMatchObject({ id: expect.any(Number) });
     if (!created) {
       throw new Error("test report was not created");
     }
@@ -718,30 +718,16 @@ test("creates, updates, expires, and deletes research reports", async () => {
         initiatedBy: "agent",
         markdown: "## 最终判断",
         reason: "test",
-        state: "complete",
         title: "岗位推荐",
       }),
-    ).toMatchObject({ markdown: "## 最终判断", state: "complete" });
-    expect(repository.readResearchReport(created.id)).toMatchObject({ state: "complete" });
+    ).toMatchObject({ markdown: "## 最终判断" });
+    expect(repository.readResearchReport(created.id)).toMatchObject({ markdown: "## 最终判断" });
     expect(
       repository.deleteResearchReport({ id: created.id, initiatedBy: "user", reason: "test" }),
     ).toBe(true);
     expect(repository.readResearchReport(created.id)).toBeNull();
 
-    const expired = repository.saveResearchReport({
-      expiresAt: "2000-07-18T00:00:00.000Z",
-      initiatedBy: "system",
-      markdown: "已过期",
-      reason: "test",
-      state: "complete",
-      title: "旧报告",
-    });
-    expect(expired).toMatchObject({ id: expect.any(Number) });
-    if (!expired) {
-      throw new Error("test expired report was not created");
-    }
     expect(repository.listResearchReports()).toEqual([]);
-    expect(repository.readResearchReport(expired.id)).toBeNull();
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
@@ -1392,5 +1378,125 @@ test("merges a provisional parent when an explicit bind reveals an existing norm
   } finally {
     repository.close();
     await rm(directory, { recursive: true });
+  }
+});
+
+test("retains recruitment evidence with its detail timestamp despite later cards", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-recruitment-"));
+  const repository = new WorkspaceRepository({
+    databasePath: path.join(directory, "workspace.sqlite"),
+    migrationsDirectory,
+  });
+  try {
+    const observation = jobDescriptionObservation();
+    const recruitment = {
+      evidence: "职位已关闭",
+      observedAt: observation.observedAt,
+      state: "closed" as const,
+      url: observation.jobUrl,
+    };
+    const saved = repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: { ...observation, recruitment },
+      reason: "合成关闭岗位证据",
+    });
+    expect(saved.job.sources[firstIndex]).toMatchObject({
+      description: { text: observation.description.text },
+      recruitment,
+    });
+    const refreshed = repository.saveJobCardObservation({
+      initiatedBy: "system",
+      observation: jobCardObservation("boss", {
+        externalJobId: "progressive-123",
+        observedAt: "2026-07-24T10:00:00.000Z",
+      }),
+      reason: "合成卡片刷新",
+    });
+    expect(refreshed.job.sources[firstIndex]?.recruitment).toEqual(recruitment);
+    const reassessed = jobDescriptionObservation({ observedAt: "2026-07-25T10:00:00.000Z" });
+    const latest = repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: {
+        ...reassessed,
+        recruitment: {
+          observedAt: reassessed.observedAt,
+          state: "unknown",
+          url: reassessed.jobUrl,
+        },
+      },
+      reason: "合成未判定观察替换旧结论",
+    });
+    expect(latest.job.sources[firstIndex]?.recruitment).toEqual({
+      observedAt: reassessed.observedAt,
+      state: "unknown",
+      url: reassessed.jobUrl,
+    });
+  } finally {
+    repository.close();
+    await rm(directory, { recursive: true });
+  }
+});
+
+test("replaces intent pages atomically and preserves selection when a save is rejected", () => {
+  const repository = new WorkspaceRepository({ databasePath: ":memory:", migrationsDirectory });
+  const command = {
+    city: "合成测试城",
+    initiatedBy: "user" as const,
+    name: "合成研究方向甲",
+    position: "合成测试岗位",
+    reason: "synthetic intent transaction check",
+    recommendationPages: [
+      {
+        label: "合成研究起点甲",
+        platformId: "boss" as const,
+        url: "https://www.zhipin.com/web/geek/jobs",
+      },
+    ],
+    selected: true,
+  };
+  try {
+    repository.saveJobSearchIntent(command);
+    const second = repository.saveJobSearchIntent({
+      ...command,
+      name: "合成研究方向乙",
+      selected: false,
+    });
+    const before = repository.listJobSearchIntents();
+    const missingIntentId = 999;
+    expect(() => repository.saveJobSearchIntent({ ...command, id: missingIntentId })).toThrow();
+    expect(repository.listJobSearchIntents()).toEqual(before);
+    expect(() =>
+      repository.saveJobSearchIntent({
+        ...command,
+        id: second.id,
+        name: "合成研究方向乙",
+        recommendationPages: [...command.recommendationPages, ...command.recommendationPages],
+      }),
+    ).toThrow();
+    expect(repository.listJobSearchIntents()).toEqual(before);
+
+    const replacementPages = [
+      {
+        label: "合成研究起点乙",
+        platformId: "yupao" as const,
+        url: "https://www.yupao.com/topic/a2c1488/",
+      },
+    ];
+    repository.saveJobSearchIntent({
+      ...command,
+      id: second.id,
+      name: "合成研究方向乙",
+      recommendationPages: replacementPages,
+    });
+    const saved = repository.listJobSearchIntents();
+    expect(saved.find((intent) => intent.id === second.id)).toMatchObject({
+      recommendationPages: replacementPages,
+      selected: true,
+    });
+    expect(saved.filter((intent) => intent.selected).map((intent) => intent.id)).toEqual([
+      second.id,
+    ]);
+  } finally {
+    repository.close();
   }
 });

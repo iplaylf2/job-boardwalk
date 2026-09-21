@@ -10,6 +10,7 @@ import { PlatformAccessObserver } from "#/browser/platform-access-observer.js";
 import { PassiveJobObservationCollector } from "#/browser/job-observation/passive-collector.js";
 import { BrowserToolExecutor } from "#/browser/tool-executor.js";
 import type { JobObservationWriter } from "#/workspace-service/job-observation-writer.js";
+import { syntheticLoginPage, syntheticBrowserContext } from "./synthetic-login-handoff.js";
 import { createSyntheticPageLocator } from "./synthetic-page-locator.js";
 
 const noCollections = 0;
@@ -297,4 +298,132 @@ test("does not make workspace persistence delay browser handoff", async () => {
   await collection;
 
   expect(control.returnControl()).toBe(true);
+});
+
+test("verification pauses all tools and re-pauses an unsuccessful returned-control snapshot", async () => {
+  const control = new BackgroundCollectionControl();
+  let text = "Access Verification\nPlease slide to verify";
+  const fake = syntheticLoginPage("https://jobs.51job.com/synthetic-city/900000001.html", {
+    snapshotText: () => text,
+  });
+  const context = syntheticBrowserContext(fake.page);
+  const observer = new PlatformAccessObserver(context, (observation) =>
+    control.observeAccess(observation),
+  );
+  const executor = new BrowserToolExecutor(
+    new BrowserTabs(context),
+    (page) => observer.observePage(page),
+    control,
+    {
+      recordReturnedControl: () => null,
+      synchronizeJobEngagement: () => expect.unreachable("must not synchronize"),
+      writeJobDescriptionObservation: () => expect.unreachable("must not persist"),
+    },
+  );
+  await using scope = createScope();
+  const snapshot = await scope.run(() => executor.execute("browser_snapshot", {}));
+  expect(snapshot).toMatchObject({
+    controlState: "user-handoff",
+    platformAccessObservation: { interruption: "verification-required" },
+  });
+  expect(executor.controlStatus).toMatchObject({
+    interruption: {
+      evidence: "verification-page",
+      interruption: "verification-required",
+      observedAt: expect.any(String),
+      platformId: "51job",
+      url: fake.page.url(),
+    },
+    matchingTabIds: [oneCollection],
+    state: "user-handoff",
+  });
+  for (const [tool, input] of [
+    ["browser_navigate", { url: "https://www.yupao.com/" }],
+    ["browser_tabs", { action: "close", tabId: 1 }],
+    ["browser_tabs", { action: "list" }],
+    ["browser_snapshot", {}],
+    ["browser_click", { ref: "e1" }],
+    ["browser_job_card_snapshot", {}],
+    ["browser_job_description_snapshot", {}],
+    ["browser_sync_job_engagement", { engagement: "applied", platformId: "51job" }],
+  ] as const) {
+    // eslint-disable-next-line no-await-in-loop -- Each attempt observes the same paused session in sequence.
+    const failure = await scope.run(function* rejectedTool() {
+      try {
+        yield* executor.execute(tool, input);
+      } catch (error) {
+        return error;
+      }
+      return null;
+    });
+    expect(failure).toMatchObject({
+      failure: {
+        code: "user-control-active",
+        details: { platformAccessObservation: executor.controlStatus.interruption },
+      },
+    });
+  }
+  expect(
+    await scope.run(() =>
+      control.runCollection(() => recordedCollection(() => expect.unreachable())),
+    ),
+  ).toEqual({ started: false });
+  expect(
+    await scope.run(() => executor.execute("browser_snapshot", { userReturnedControl: true })),
+  ).toMatchObject({ controlState: "user-handoff" });
+  text = "合成岗位正文";
+  expect(
+    await scope.run(() => executor.execute("browser_snapshot", { userReturnedControl: true })),
+  ).toMatchObject({ controlState: "active", platformAccessObservation: null });
+  await scope.run(() => executor.execute("browser_navigate", { url: "https://www.51job.com/" }));
+  expect(fake.navigationCount).toBe(oneCollection);
+  expect(executor.controlStatus).toEqual({
+    interruption: null,
+    matchingTabIds: [],
+    state: "active",
+  });
+});
+
+test("a passive verification read stops the batch before the next tab", async () => {
+  const control = new BackgroundCollectionControl();
+  const url = "https://jobs.51job.com/synthetic-city/900000001.html";
+  const challenge = {
+    evaluate: () =>
+      Promise.resolve({
+        accessElements: [],
+        accessText: "Access Verification\nPlease slide to verify",
+        description: "",
+        title: "",
+        url,
+      }),
+    url: () => url,
+  } as unknown as Page;
+  const nextPage = {
+    evaluate: () => expect.unreachable("must not read the next tab after verification"),
+    url: () => "https://www.yupao.com/zhaogong/900000002.html",
+  } as unknown as Page;
+  const context = syntheticBrowserContext(challenge, nextPage);
+  const observer = new PlatformAccessObserver(context, (observation) =>
+    control.observeAccess(observation),
+  );
+  const collector = new PassiveJobObservationCollector(
+    context,
+    {
+      writeCardObservation: () => expect.unreachable("must not save a challenge"),
+      writeDescriptionObservation: () => expect.unreachable("must not save a challenge"),
+    },
+    {
+      collectionControl: control,
+      observePageAccess: (facts) => {
+        observer.observePage(facts);
+        control.assertAgentControl();
+      },
+    },
+  );
+  await using scope = createScope();
+  await scope.run(() => collector.collect(() => null));
+  expect(control.state).toBe("user-handoff");
+  expect(observer.observations).toEqual([
+    expect.objectContaining({ interruption: "verification-required", url }),
+  ]);
 });

@@ -1,3 +1,9 @@
+import {
+  OperationError,
+  operationErrorResponse,
+  inputValidationError,
+} from "@job-boardwalk/contracts";
+import { type } from "arktype";
 import type { Context } from "hono";
 import { CanceledError, InterruptedError, ScopeError, until } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
@@ -10,13 +16,9 @@ interface RequestBodyContract<Output> {
   assert: (input: unknown) => Output;
 }
 
-function isContractValidationError(error: unknown): error is Error {
-  return error instanceof Error && error.name === "TraversalError";
-}
-
-export class InvalidRequestError extends Error {
-  public constructor(message: string) {
-    super(message);
+export class InvalidRequestError extends OperationError {
+  public constructor(message: string, details: OperationError["failure"]["details"] = {}) {
+    super("invalid-input", message, details);
     this.name = "InvalidRequestError";
   }
 }
@@ -24,7 +26,7 @@ export class InvalidRequestError extends Error {
 export function readPositiveInteger(value: string, name: string): number {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < minimumPositiveInteger) {
-    throw new InvalidRequestError(`${name} 必须是正整数`);
+    throw new InvalidRequestError(`${name} 必须是正整数`, { field: name });
   }
   return parsed;
 }
@@ -45,16 +47,26 @@ export function* readRequestBody<Output>(
   try {
     return contract.assert(parsed.value);
   } catch (error) {
-    if (isContractValidationError(error)) {
-      throw new InvalidRequestError(`请求正文无效：${error.message}`);
+    if (error instanceof Error && "arkErrors" in error && error.arkErrors instanceof type.errors) {
+      throw inputValidationError(error.arkErrors);
     }
     throw error;
   }
 }
 
 export function requestErrorResponse(error: unknown, context: Context): Response {
-  if (error instanceof InvalidRequestError) {
-    return context.json({ error: error.message }, badRequestStatus);
+  if (error instanceof OperationError) {
+    const statuses = {
+      conflict: 409,
+      forbidden: 403,
+      "invalid-input": badRequestStatus,
+      "not-found": 404,
+    } as const;
+    const { code } = error.failure;
+    const status = Object.hasOwn(statuses, code)
+      ? statuses[code as keyof typeof statuses]
+      : internalServerErrorStatus;
+    return context.json(operationErrorResponse(error), status);
   }
   if (
     error instanceof CanceledError ||
@@ -63,5 +75,5 @@ export function requestErrorResponse(error: unknown, context: Context): Response
   ) {
     throw error;
   }
-  return context.json({ error: "Workspace Service 内部错误" }, internalServerErrorStatus);
+  return context.json(operationErrorResponse(error), internalServerErrorStatus);
 }

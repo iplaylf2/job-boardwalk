@@ -19,11 +19,10 @@ integration to separate applications:
   and exposes project-owned browser tools to the agent. It is a host companion, not a container
   workload.
 - [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
-  operations over HTTP and MCP from an isolated container. It also tracks leased Browser Session
-  presence for readers.
+  operations over HTTP and MCP.
 - [Dashboard](apps/dashboard/) presents workspace data and research reports, and lets the user
   maintain personal context and select the job-search intent that guides recruiting research. It
-  never controls the browser.
+  independently checks Browser Session health when configured, without managing its process.
 - [Desktop Service Host](apps/desktop-service-host/) is the private, application-specific Node.js
   executable bundled with the desktop product. Each invocation loads one finalized service
   payload and exits when that service ends; it does not coordinate the product topology.
@@ -32,10 +31,10 @@ integration to separate applications:
   Dashboard's packaged Caddy process, and Browser Session. It selects the desktop browser,
   presents aggregate product status, and never takes over Browser Session's page-control boundary.
 
-Browser Session adapters derive structured authentication observations from qualifying top-level
+Browser Session adapters derive authentication and access-interruption observations from top-level
 navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
-evidence outside those rules and coordinates user handoff. Workspace Service derives leased
-presence and deduplicates durable observations for Dashboard and MCP readers. See
+evidence outside those rules and coordinates user handoff. Workspace Service deduplicates durable
+observations for Dashboard and MCP readers. See
 [Product design](docs/product-design.md) for the authoritative collaboration model and ownership
 boundaries.
 
@@ -43,28 +42,26 @@ boundaries.
 
 Available now:
 
-- Browser Session supports BOSS直聘 and 鱼泡直聘 through one shared recruiting-platform workflow,
-  with platform-specific navigation and access-assessment rules behind adapters. It can also take a
-  bounded, structured snapshot of job cards or the main description on an already-open detail page.
-  Explicit description snapshots return only after Workspace Service preserves their observations;
-  passive collection submits evidence from eligible tabs that are already open. Neither workflow
-  opens or navigates research pages. The selected job-search intent guides explicit agent
-  navigation, not background browsing. Platform lists of interested, contacted, applied, and
-  interviewed jobs are synchronized for one platform and category at a time, only within a
-  user-requested agent task; supported continuations require another explicit call and remain
-  bounded to 60 distinct jobs.
+- Browser Session supports BOSS直聘, 鱼泡直聘, and 前程无忧51job through shared browser and
+  collection workflows. It reads job cards and main descriptions from eligible open pages;
+  explicit description reads and passive collection preserve observations in Workspace Service.
+  Research navigation remains an explicit agent action guided by the selected job-search intent.
+  Within a user-requested task, the agent can also synchronize a platform's supported engagement
+  categories, one platform and category at a time. See
+  [evidence collection](apps/browser-session/README.md#job-evidence-reads-and-passive-collection)
+  and [synchronization support](apps/browser-session/README.md#supported-categories-and-continuation)
+  for capture semantics, platform capabilities, and scan limits.
 - Workspace Service stores platform-access observations and interruptions, along with personal
   context, job-search intents, normalized job facts, platform-observed engagement records for job
-  sources, source-specific descriptions, and Markdown research reports. It merges confident
-  cross-platform matches while preserving each platform source and its collected evidence.
-- Dashboard displays that durable workspace data alongside leased Browser Session presence and
-  lets the user maintain and select job-search intents. Its paginated job library supports search,
+  sources, source-specific descriptions, and Markdown research reports. It normalizes job facts
+  and retains each platform source and its collected evidence.
+- Dashboard displays that durable workspace data and lets the user maintain and select job-search
+  intents. Its paginated job library supports search,
   platform filtering, a combined view of all tracked jobs, and category views for interested,
   contacted, applied, and interviewed records while preserving the original recruiting-platform
   sources. It reports description coverage and can show jobs with a description, all jobs without
   one, or only missing-description jobs that also lack a platform job ID and detail-page link. Its
-  report reader keeps saved conclusions available without the agent conversation that produced
-  them.
+  report reader keeps saved research documents available independently of the agent conversation.
 - Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
   address and service log path and directly supervising the product's isolated service processes.
   Browser discovery or launch failure, or a later Browser Session process exit, puts the
@@ -99,13 +96,13 @@ Open <http://127.0.0.1:54311>. Workspace Service remains reachable from the host
 Install dependencies and Patchright's Chromium on the graphical host, then start Browser Session:
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
 pnpm exec moon run browser-session:dev
 ```
 
 Browser Session launches a visible browser with a dedicated profile in the operating system's user
-data directory and owns it for the service lifetime. It reports runtime status to Workspace Service
+data directory and owns it for the service lifetime. Dashboard can check its health directly,
 while the agent host connects to <http://127.0.0.1:54312/mcp>.
 
 ### Portable desktop prerelease

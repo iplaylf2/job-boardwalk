@@ -56,3 +56,35 @@ test("offers the description action only when a retained description exists", ()
 
   expect(html).toContain('aria-haspopup="dialog"');
 });
+
+test("shows a closed source alongside its retained description", () => {
+  const job: JobPosting = {
+    ...baseJob,
+    description: {
+      capturedAt: baseSource.observedAt,
+      text: "合成岗位的保留正文。",
+      truncated: false,
+    },
+    sources: [
+      {
+        ...baseSource,
+        recruitment: {
+          evidence: "职位已关闭",
+          observedAt: baseSource.observedAt,
+          state: "closed",
+          url: "https://www.zhipin.com/job_detail/synthetic-closed.html",
+        },
+      },
+    ],
+  };
+  const html = renderToString(() => <JobCard job={job} onShowDescription={() => null} />);
+  expect(html).toContain("已关闭");
+  expect(html).toContain("未记录跟进");
+  expect(html).toContain('aria-haspopup="dialog"');
+});
+
+test("leaves absent recruitment evidence unknown", () => {
+  const html = renderToString(() => <JobCard job={baseJob} onShowDescription={() => null} />);
+  expect(html).toContain("招聘状态未判定");
+  expect(html).not.toContain("招聘中");
+});

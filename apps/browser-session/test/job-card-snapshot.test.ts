@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { runInNewContext } from "node:vm";
 
-import { captureJobCardMetadata } from "#/browser/job-observation/card-snapshot.js";
+import { captureJobCardMetadata } from "#/browser/job-observation/card-page-capture.js";
 import { requireJobCardExtractionConfig } from "#/browser/recruiting-platform-adapters.js";
 
 const singleCard = 1;

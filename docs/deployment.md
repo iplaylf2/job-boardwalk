@@ -26,19 +26,9 @@ docker compose ps
 ```
 
 The build overlay is needed only when producing images from this repository. Subsequent lifecycle
-commands use the root Compose model.
-
-The Dockerfiles start from pnpm's standalone image, which bootstraps the pnpm version requirement
-declared by `devEngines.packageManager`. Each builder uses pnpm's public `runtime set` command to
-prepare the Node.js version selected by `devEngines.runtime`, then performs a filtered frozen install
-for its application dependency closure. Build scripts run with that Node.js version; Workspace
-Service also exports the same executable into its runtime image. The exact toolchain resolutions and
-checksums remain in `pnpm-lock.yaml`, so a Node.js or pnpm update changes the root toolchain
-declaration and lockfile rather than either Dockerfile.
-
-The filtered frozen install is each image's dependency-validation boundary. When invoking the
-application-owned build script, the builder disables pnpm's full-workspace pre-run status check so
-that pnpm does not replace the filtered closure with a complete workspace install.
+commands use the root Compose model. Continue with [Start Browser Session](#start-browser-session)
+to complete startup. [Build toolchain](#build-toolchain) explains dependency and runtime selection
+for image maintainers.
 
 ## Deploy existing images
 
@@ -62,11 +52,11 @@ Dashboard. Both published ports bind only to host loopback:
 - Workspace Service and MCP: <http://127.0.0.1:54310>
 - Dashboard: <http://127.0.0.1:54311>
 
-Browser Session runs from the repository checkout in the graphical host session. Install its
-dependencies and Chromium once:
+Browser Session runs from the repository checkout in the graphical host session. From the
+repository root, install its locked dependencies and Chromium:
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 pnpm --filter @job-boardwalk/browser-session exec patchright install chromium
 ```
 
@@ -77,8 +67,16 @@ pnpm exec moon run browser-session:dev
 ```
 
 The agent host connects to <http://127.0.0.1:54312/mcp>. Browser Session uses
-<http://127.0.0.1:54310> for status reports, selected-intent reads, and job writes. It may start
-before the containers: those operations retry without transferring browser ownership to Compose.
+<http://127.0.0.1:54310> to submit job and platform-access observations. It may start
+before the containers: platform-access submissions retry, and passive job collection can submit
+fresh evidence on a later pass. Browser Session remains outside the Compose lifecycle.
+
+Compose configures Dashboard's optional health checks with
+`JOB_BOARDWALK_BROWSER_SESSION_ORIGIN`, defaulting to `http://127.0.0.1:54312`. Set it to an empty
+value to disable requests to Browser Session. The origin addresses the user's graphical machine;
+it is not a container upstream or a Compose dependency. Dashboard's
+[application README](../apps/dashboard/README.md#service-origin-configuration) defines the accepted
+origin and direct-request behavior.
 
 ## Observe and update
 
@@ -89,6 +87,39 @@ docker compose ps
 docker compose logs --follow workspace-service dashboard
 ```
 
+Check each service from the graphical host:
+
+```sh
+curl --fail http://127.0.0.1:54310/health
+curl --fail http://127.0.0.1:54311/health
+curl --fail http://127.0.0.1:54312/health
+```
+
+Dashboard's `/health` checks its web server. Open the Dashboard to verify that workspace data loads
+and the browser-service panel reports a ready browser. Browser Session's HTTP response can succeed
+while its browser is unavailable; its [health documentation](../apps/browser-session/README.md#health-and-runtime-diagnostics)
+explains runtime status.
+
+### Browser Session exit diagnosis
+
+If Browser Session's health endpoint is unreachable, inspect the host launcher and its logs.
+`browser-session:dev` runs a file watcher; the watcher can survive after its service child exits.
+For a run without the watcher, use `pnpm exec moon run browser-session:start` and redirect standard
+output and standard error to a chosen local log file. Browser Session's
+[diagnostics contract](../apps/browser-session/README.md#health-and-runtime-diagnostics) describes
+its output. Forced termination also requires the launcher's exit status and operating-system logs.
+
+For desktop runs, [Desktop Manager](../apps/desktop-manager/README.md#product-behavior) displays
+service availability and the service log path. Dashboard's independent health check remains
+separate from its access to saved reports. A failed health request establishes neither an exit
+nor its cause.
+
+Resolve the host failure and restore Browser Session through its launcher. Follow the
+[browser handoff](product-design.md#browser-handoff) and
+[research recovery](product-design.md#reliable-browser-research) rules before resuming page input.
+
+### Update and stop
+
 Rebuild after a source or dependency change:
 
 ```sh
@@ -96,7 +127,7 @@ docker compose -f compose.yaml -f deploy/compose.build.yaml up --build --detach
 ```
 
 Compose replaces the affected containers without replacing the named volume. Browser Session keeps
-running and renews its status lease when Workspace Service becomes available again.
+running and can resume evidence submission when Workspace Service becomes available again.
 
 Stop containers while retaining the workspace:
 
@@ -134,7 +165,7 @@ database and the single Drizzle baseline together.
 ## Source development
 
 Compose deployment is the supported runtime topology. For fast source iteration, developers may run
-Workspace Service and Dashboard directly:
+Workspace Service and Dashboard directly in separate terminals:
 
 ```sh
 pnpm exec moon run workspace-service:dev
@@ -177,8 +208,7 @@ process-and-HTTP boundary would require a language-neutral schema.
 
 ## Deployment file ownership
 
-The deployment files follow their runtime ownership rather than sharing one generic infrastructure
-directory:
+Each deployment file belongs to the boundary it configures:
 
 - `compose.yaml` stays at the repository root because it is the public entry point for the one
   application-wide topology. It consumes configurable image references and therefore does not
@@ -199,6 +229,18 @@ directory:
 The `x-container-runtime-policy` Compose fragment names the security, lifecycle, and logging policy
 shared by both containers. Each service declaration then describes only its own image reference,
 port, storage, dependencies, and readiness behavior.
+
+### Build toolchain
+
+Root `package.json` declares the Node.js and pnpm requirements; `pnpm-lock.yaml` records their exact
+versions and checksums. This follows the repository's [workspace authorities](development.md#workspace-authorities).
+The standalone pnpm image bootstraps the declared package manager. Each builder then installs its
+application's dependency closure and the project-local Node.js runtime with `--frozen-lockfile`.
+Build scripts use that installed runtime; Workspace Service also copies it into its final image.
+
+The filtered frozen install validates the application's dependency closure. Subsequent `pnpm exec`
+and build commands disable the full-workspace pre-run dependency check so it does not expand that
+installation to the entire workspace. The Dockerfiles own these command details.
 
 ## Artifact boundaries
 
@@ -231,6 +273,3 @@ The resulting OCI images are the deployment artifacts. `compose.yaml` defaults t
 names `job-boardwalk/workspace-service:local` and `job-boardwalk/dashboard:local`; the
 `JOB_BOARDWALK_WORKSPACE_SERVICE_IMAGE` and `JOB_BOARDWALK_DASHBOARD_IMAGE` variables can
 replace them with registry tags or immutable digests.
-
-[Desktop distribution](desktop-distribution.md) defines the separate directory-contained desktop
-prerelease. That work does not alter the Compose artifact contract owned by this document.

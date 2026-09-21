@@ -1,10 +1,10 @@
+import { OperationError, operationErrorResponse } from "@job-boardwalk/contracts";
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
 
 import type { Scope } from "@shajara/host";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 
 import { registerApiRoutes } from "./api-routes.js";
 import { registerMcpEndpoint } from "./mcp-endpoint.js";
@@ -25,10 +25,16 @@ function localOriginGuard(context: Context, next: Next) {
   if (context.req.method !== "GET" && origin) {
     const originUrl = parseOrigin(origin);
     if (!originUrl) {
-      return Promise.resolve(context.json({ error: "Origin 必须是有效 URL" }, badRequestStatus));
+      const failure = operationErrorResponse(
+        new OperationError("invalid-input", "Origin 必须是有效 URL", { field: "origin" }),
+      );
+      return Promise.resolve(context.json(failure, badRequestStatus));
     }
     if (originUrl.hostname !== "127.0.0.1" && originUrl.hostname !== "localhost") {
-      return Promise.resolve(context.json({ error: "拒绝来自非本地页面的请求" }, forbiddenStatus));
+      const failure = operationErrorResponse(
+        new OperationError("forbidden", "拒绝来自非本地页面的请求", { field: "origin" }),
+      );
+      return Promise.resolve(context.json(failure, forbiddenStatus));
     }
   }
   return next();
@@ -40,7 +46,6 @@ function registerLocalOriginGuard(app: Hono): void {
 }
 
 export interface WorkspaceServiceHttpDependencies {
-  browserSessionPresenceTracker: BrowserSessionPresenceTracker;
   repository: WorkspaceRepository;
   serviceScope: Scope;
 }
@@ -52,18 +57,8 @@ export function createWorkspaceServiceHttpApp(
 
   app.get("/health", (context) => context.json({ status: "ok" }));
   registerLocalOriginGuard(app);
-  registerApiRoutes(
-    app,
-    dependencies.repository,
-    dependencies.browserSessionPresenceTracker,
-    dependencies.serviceScope,
-  );
-  registerMcpEndpoint(
-    app,
-    dependencies.repository,
-    dependencies.browserSessionPresenceTracker,
-    dependencies.serviceScope,
-  );
+  registerApiRoutes(app, dependencies.repository, dependencies.serviceScope);
+  registerMcpEndpoint(app, dependencies.repository, dependencies.serviceScope);
 
   return app;
 }

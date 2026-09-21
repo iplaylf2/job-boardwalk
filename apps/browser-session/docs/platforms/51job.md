@@ -1,0 +1,82 @@
+# 前程无忧51job
+
+[Browser Session platform coverage](../../README.md#platform-coverage)
+
+## Page coverage
+
+Search-card collection covers `https://we.51job.com/pc/search`, including search parameters.
+Detail pages use `https://jobs.51job.com/<location>/<numeric-job-id>.html`; the numeric segment
+supplies the external job ID. Company pages are outside structured card and description
+collection. Cross-subdomain job links are accepted only for the configured HTTPS detail origin.
+
+Search results render `.joblist-item` containers whose `.jname` titles may have no anchor. The
+adapter exposes visible titles as detail-opening controls in `browser_snapshot`. Use the shared
+reference and card-context workflow described in [Tabs and page
+evidence](../../README.md#tabs-and-page-evidence).
+
+Detail reads select the main posting description, title, and benefits independently of
+surrounding recommendations. Salary, experience, and education patterns read only the posting
+header, description, and tags; absent facts remain absent.
+
+Location extraction reads a line labeled “工作地址” or “上班地址” within `.job-detail` and retains
+its text in the description observation alongside the detail URL and capture time. It does not
+use search-city parameters or URL path segments. Text outside that region and unrecognized
+address layouts do not supply a location.
+
+Recruitment assessment returns `unknown`; this adapter has no conclusive recruitment-state rule.
+
+## Engagement interpretation and evidence
+
+| Engagement    | Platform category |
+| ------------- | ----------------- |
+| `interested`  | 职位收藏          |
+| `applied`     | 社会申请 / 全部   |
+| `interviewed` | 邀面试            |
+
+The application-page “感兴趣” filter is employer feedback, not the seeker's favorites. The adapter
+reads recognizable linked jobs in the loaded category document. A category total larger than the
+captured set yields partial evidence. Interview invitations with jobs remain partial because the
+application header counts all applications, not invitations. An empty favorites or invitation
+list requires explicit empty-state evidence; loading or unrecognized cards never establish an
+empty category.
+
+Observed history windows are 60 days for applications and 180 days for favorites. Completeness
+covers that platform-visible window. Application and interview relations retain their existing
+historical semantics.
+
+## Access assessment
+
+The adapter recognizes either a visible personal-name profile link with the matching
+online-resume control, or the application site's complete logout, account-settings, and
+resume-center control set. Either yields `authenticated`. A URL alone or unnamed links from
+passive collection remain unclassified. Login and account controls remain subject to the shared
+user-handoff workflow.
+
+A standalone “Access Verification” heading together with “Please slide to verify” or “please
+slide to complete the verification process” records `verification-required`, without changing
+authentication state. The interruption takes precedence over account-header evidence and pauses
+the browser through the shared handoff control. A title or incidental mention of verification
+alone remains unclassified.
+
+For environment inspection and recent response metadata, use the shared
+[page diagnostics](../../README.md#page-diagnostics) and
+[access interruption diagnostics](../../README.md#access-interruption-diagnostics).
+
+## Validation coverage
+
+Nonempty application extraction and empty favorites and invitation states have been checked
+live. Linked favorites and invitation cards are covered by synthetic extraction tests; their
+nonempty layouts have not been verified live.
+
+Search-card navigation to a detail popup and English verification-page classification have been
+exercised live. Synthetic tests also cover same-name cards, popup handling, stale references, and
+accepted and rejected verification-page evidence. Labeled-address extraction has synthetic
+accepted and rejected cases; its extraction has not been validated against live pages.
+
+## Implementation
+
+The [page definition](../../src/browser/platforms/51job.ts) owns collection boundaries, job-link
+rules, extraction selectors, and access assessment. Engagement evidence comes from the [category
+capture](../../src/browser/job-engagement/51job-page-capture.ts) and [category-total
+parser](../../src/browser/job-engagement/page-totals.ts). Shared contracts and catalog ownership
+are described in [Maintenance constraints](../../README.md#maintenance-constraints).

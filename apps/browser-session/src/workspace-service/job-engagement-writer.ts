@@ -1,3 +1,4 @@
+import { requireWorkspaceSuccess } from "./response.js";
 import type {
   JobEngagementSnapshot,
   SynchronizeJobEngagementResult,
@@ -31,9 +32,7 @@ export class WorkspaceJobEngagementWriter implements JobEngagementWriter {
         method: "PUT",
       }),
     );
-    if (!response.ok) {
-      throw new Error(`Workspace Service 拒绝岗位跟进快照：HTTP ${String(response.status)}`);
-    }
+    yield* requireWorkspaceSuccess(response);
     return SynchronizeJobEngagementResultContract.assert(yield* until(() => response.json()));
   }
 }

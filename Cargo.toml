@@ -6,14 +6,14 @@ resolver = "3"
 edition = "2024"
 
 [workspace.dependencies]
-slint = { version = "1.17.1", default-features = false, features = [
+slint = { version = "1.18.0", default-features = false, features = [
   "accessibility",
   "backend-winit",
   "compat-1-2",
   "std",
 ] }
-slint-build = "1.17.1"
-ureq = { version = "3.4.1", default-features = false }
+slint-build = "1.18.0"
+ureq = { version = "3.4.2", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

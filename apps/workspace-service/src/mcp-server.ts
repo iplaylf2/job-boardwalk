@@ -1,55 +1,29 @@
-// oxlint-disable max-lines -- This module keeps the complete public MCP surface visible together.
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  McpError,
+  ErrorCode,
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { operationErrorResponse } from "@job-boardwalk/contracts";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 import { CanceledError, InterruptedError, ScopeError } from "@shajara/host";
 import type { Scope } from "@shajara/host";
 import { defaultJobPageSize, firstJobPage } from "#/job-library/query.js";
-import {
-  ListResearchReportsInput,
-  parseListResearchReportsInput,
-  parseJobLibraryInput,
-  parseReadResearchReportInput,
-  parseSaveResearchReportInput,
-  parseWorkspaceOverviewInput,
-  ReadResearchReportInput,
-  ReadJobLibraryInput,
-  ReadWorkspaceOverviewInput,
-  SaveResearchReportInput,
-} from "#/mcp/tool-input.js";
+import { workspaceToolRegistry, workspaceOverviewDescription } from "#/mcp/workspace-tools.js";
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-import type { BrowserSessionPresenceTracker } from "#/runtime/browser-session-presence.js";
 import { readWorkspaceOverview } from "#/read-model/workspace-overview.js";
 
 const workspaceOverviewUri = "job-boardwalk://workspace/overview";
 const jobLibraryUri = "job-boardwalk://jobs";
 const researchReportsUri = "job-boardwalk://reports";
-const workspaceOverviewDescription =
-  "读取本机工作区概览：由租约判定的 Browser Session 在线状态、各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人条件，以及带平台推荐页关联和当前选择状态的求职方向。";
 const jobLibraryResourceDescription =
-  "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
-const jobLibraryToolDescription =
-  "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，也可读取全部跟进岗位。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 进一步限定为缺少平台岗位 ID 和详情页链接的暂无描述岗位。结果保留各平台来源、原始链接、跟进记录和已采集职位描述。";
-const researchReportListDescription =
-  "读取未过期的研究报告目录。报告可由用户、agent 或系统写入，以 Markdown 保存，并包含草稿或完成状态与更新时间。";
-const researchReportDetailDescription =
-  "按 ID 读取一份未过期的研究报告，包括标题、Markdown 正文、状态、创建和更新时间，以及可选的过期时间。";
-const saveResearchReportDescription =
-  "保存一份 Markdown 研究报告。省略 id 时创建；提供 id 时完整更新对应报告。可设置过期时间。";
-const toolNames = {
-  listResearchReports: "list_research_reports",
-  readJobLibrary: "read_job_library",
-  readResearchReport: "read_research_report",
-  readWorkspaceOverview: "read_workspace_overview",
-  saveResearchReport: "save_research_report",
-} as const;
-
+  "读取岗位库第一页、职位描述覆盖统计和分页信息。岗位经规范化并在证据充分时跨平台合并；结果保留各平台来源、原始链接、跟进记录、已采集职位描述及可选的 recruitment 观察。";
+const researchReportsResourceDescription =
+  "列出所有已保存研究报告的 ID、标题、创建时间和更新时间，按更新时间从新到旧排列。正文通过 read_research_report 读取。";
 function structuredToolResult(value: object) {
   return {
     content: [{ text: JSON.stringify(value), type: "text" as const }],
@@ -65,21 +39,17 @@ function toolErrorResult(error: unknown): CallToolResult {
   ) {
     throw error;
   }
-  const message =
-    error instanceof TypeError ? error.message : "Workspace Service 无法完成工作区请求。";
+  const failure = operationErrorResponse(error);
   return {
-    content: [{ text: message, type: "text" }],
+    content: [{ text: JSON.stringify(failure), type: "text" }],
     isError: true,
+    structuredContent: { ...failure },
   };
 }
 
-function readResourceValue(
-  uri: string,
-  repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
-): object | null {
+function readResourceValue(uri: string, repository: WorkspaceRepository): object | null {
   if (uri === workspaceOverviewUri) {
-    return readWorkspaceOverview(repository, presenceTracker);
+    return readWorkspaceOverview(repository);
   }
   if (uri === jobLibraryUri) {
     return repository.listJobPostingPage({
@@ -93,55 +63,55 @@ function readResourceValue(
   return null;
 }
 
-function readWorkspaceResource(
-  uri: string,
-  repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
-  serviceScope: Scope,
-) {
-  return serviceScope
-    .run(function* readWorkspaceResourceInScope() {
-      try {
-        yield* [];
-        const value = readResourceValue(uri, repository, presenceTracker);
-        if (!value) {
+function readWorkspaceResource(uri: string, repository: WorkspaceRepository, serviceScope: Scope) {
+  return (
+    serviceScope
+      // eslint-disable-next-line require-yield -- Synchronous resource reads participate in service-scope admission and error containment.
+      .run(function* readWorkspaceResourceInScope() {
+        try {
+          const value = readResourceValue(uri, repository);
+          if (!value) {
+            return {
+              code: -32_002,
+              data: { uri },
+              kind: "error" as const,
+              message: `未知的 Job Boardwalk 资源：${uri}`,
+            };
+          }
           return {
+            kind: "value" as const,
+            value: {
+              contents: [{ mimeType: "application/json", text: JSON.stringify(value), uri }],
+            },
+          };
+        } catch (error) {
+          if (
+            error instanceof CanceledError ||
+            error instanceof InterruptedError ||
+            error instanceof ScopeError
+          ) {
+            throw error;
+          }
+          return {
+            code: ErrorCode.InternalError,
+            data: operationErrorResponse(error),
             kind: "error" as const,
-            message: `未知的 Job Boardwalk 资源：${uri}`,
+            message: "Workspace Service 无法完成资源读取。",
           };
         }
-        return {
-          kind: "value" as const,
-          value: {
-            contents: [{ mimeType: "application/json", text: JSON.stringify(value), uri }],
-          },
-        };
-      } catch (error) {
-        if (
-          error instanceof CanceledError ||
-          error instanceof InterruptedError ||
-          error instanceof ScopeError
-        ) {
-          throw error;
+      })
+      .then((result) => {
+        if (result.kind === "error") {
+          throw new McpError(result.code, result.message, result.data);
         }
-        return {
-          kind: "error" as const,
-          message: "Workspace Service 无法完成资源读取。",
-        };
-      }
-    })
-    .then((result) => {
-      if (result.kind === "error") {
-        throw new Error(result.message);
-      }
-      return result.value;
-    });
+        return result.value;
+      })
+  );
 }
 
 function registerResourceHandlers(
   mcpServer: McpServer,
   repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): void {
   mcpServer.server.setRequestHandler(ListResourcesRequestSchema, () =>
@@ -162,7 +132,7 @@ function registerResourceHandlers(
           uri: jobLibraryUri,
         },
         {
-          description: researchReportListDescription,
+          description: researchReportsResourceDescription,
           mimeType: "application/json",
           name: "research-reports",
           title: "Job Boardwalk 研究报告",
@@ -172,143 +142,47 @@ function registerResourceHandlers(
     }),
   );
   mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request) =>
-    readWorkspaceResource(request.params.uri, repository, presenceTracker, serviceScope),
+    readWorkspaceResource(request.params.uri, repository, serviceScope),
   );
 }
 
-function createToolListResult() {
-  return {
-    tools: [
-      {
-        annotations: { readOnlyHint: true },
-        description: workspaceOverviewDescription,
-        inputSchema: ReadWorkspaceOverviewInput.toJsonSchema(),
-        name: toolNames.readWorkspaceOverview,
-        title: "读取 Job Boardwalk 工作区概览",
-      },
-      {
-        annotations: { readOnlyHint: true },
-        description: jobLibraryToolDescription,
-        inputSchema: ReadJobLibraryInput.toJsonSchema(),
-        name: toolNames.readJobLibrary,
-        title: "读取 Job Boardwalk 岗位库",
-      },
-      {
-        annotations: { readOnlyHint: true },
-        description: researchReportListDescription,
-        inputSchema: ListResearchReportsInput.toJsonSchema(),
-        name: toolNames.listResearchReports,
-        title: "列出 Job Boardwalk 研究报告",
-      },
-      {
-        annotations: { readOnlyHint: true },
-        description: researchReportDetailDescription,
-        inputSchema: ReadResearchReportInput.toJsonSchema(),
-        name: toolNames.readResearchReport,
-        title: "读取 Job Boardwalk 研究报告",
-      },
-      {
-        annotations: { destructiveHint: true, readOnlyHint: false },
-        description: saveResearchReportDescription,
-        inputSchema: SaveResearchReportInput.toJsonSchema(),
-        name: toolNames.saveResearchReport,
-        title: "保存 Job Boardwalk 研究报告",
-      },
-    ],
-  };
-}
-
-// eslint-disable-next-line max-lines-per-function -- The handler keeps dispatch for the small public tool set together.
 function registerToolHandlers(
   mcpServer: McpServer,
   repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): void {
   mcpServer.server.setRequestHandler(ListToolsRequestSchema, () =>
-    Promise.resolve(createToolListResult()),
+    Promise.resolve({
+      tools: [...workspaceToolRegistry.values()].map(({ execute: _execute, ...tool }) => tool),
+    }),
   );
-  // eslint-disable-next-line max-lines-per-function -- One dispatcher contains errors consistently for every tool.
   mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => {
-    if (request.params.name === toolNames.readWorkspaceOverview) {
-      return serviceScope.run(function* readWorkspaceTool() {
-        try {
-          yield* [];
-          parseWorkspaceOverviewInput(request.params.arguments ?? {});
-          const overview = readWorkspaceOverview(repository, presenceTracker);
-          return structuredToolResult(overview);
-        } catch (error) {
-          return toolErrorResult(error);
-        }
-      });
+    const tool = workspaceToolRegistry.get(request.params.name);
+    if (!tool) {
+      return Promise.reject(
+        new McpError(ErrorCode.InvalidParams, "未知 MCP 工具", { tool: request.params.name }),
+      );
     }
-    if (request.params.name === toolNames.readJobLibrary) {
-      return serviceScope.run(function* readJobLibrary() {
-        try {
-          yield* [];
-          return structuredToolResult(
-            repository.listJobPostingPage(parseJobLibraryInput(request.params.arguments ?? {})),
-          );
-        } catch (error) {
-          return toolErrorResult(error);
-        }
-      });
-    }
-    if (request.params.name === toolNames.listResearchReports) {
-      return serviceScope.run(function* listResearchReports() {
-        try {
-          yield* [];
-          parseListResearchReportsInput(request.params.arguments ?? {});
-          return structuredToolResult({ reports: repository.listResearchReports() });
-        } catch (error) {
-          return toolErrorResult(error);
-        }
-      });
-    }
-    if (request.params.name === toolNames.readResearchReport) {
-      return serviceScope.run(function* readResearchReport() {
-        try {
-          yield* [];
-          const { id } = parseReadResearchReportInput(request.params.arguments ?? {});
-          const report = repository.readResearchReport(id);
-          if (!report) {
-            throw new TypeError(`找不到研究报告：${String(id)}`);
-          }
-          return structuredToolResult(report);
-        } catch (error) {
-          return toolErrorResult(error);
-        }
-      });
-    }
-    if (request.params.name === toolNames.saveResearchReport) {
-      return serviceScope.run(function* saveResearchReport() {
-        try {
-          yield* [];
-          const input = parseSaveResearchReportInput(request.params.arguments ?? {});
-          const report = repository.saveResearchReport(input);
-          if (!report) {
-            throw new TypeError(`找不到研究报告：${String(input.id)}`);
-          }
-          return structuredToolResult(report);
-        } catch (error) {
-          return toolErrorResult(error);
-        }
-      });
-    }
-    return Promise.reject(new Error(`未知 MCP 工具：${request.params.name}`));
+    // eslint-disable-next-line require-yield -- Synchronous repository work still enters the service scope; it has no asynchronous step to yield.
+    return serviceScope.run(function* executeWorkspaceTool() {
+      try {
+        return structuredToolResult(tool.execute(repository, request.params.arguments ?? {}));
+      } catch (error) {
+        return toolErrorResult(error);
+      }
+    });
   });
 }
 
 export function createWorkspaceMcpServer(
   repository: WorkspaceRepository,
-  presenceTracker: BrowserSessionPresenceTracker,
   serviceScope: Scope,
 ): McpServer {
   const mcpServer = new McpServer(
     { name: "job-boardwalk", version: "0.1.0" },
     { capabilities: { resources: {}, tools: {} } },
   );
-  registerResourceHandlers(mcpServer, repository, presenceTracker, serviceScope);
-  registerToolHandlers(mcpServer, repository, presenceTracker, serviceScope);
+  registerResourceHandlers(mcpServer, repository, serviceScope);
+  registerToolHandlers(mcpServer, repository, serviceScope);
   return mcpServer;
 }

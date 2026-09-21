@@ -4,8 +4,10 @@ import { completer } from "@shajara/host";
 import type { RiteCoroutine } from "@shajara/host";
 import { wait } from "@shajara/host/primitives";
 
-import type { PageAccessFacts } from "./recruiting-platform-adapters.js";
+import type { PageAccessFacts } from "#/browser/platforms/types.js";
 import { findRecruitingPlatformAdapter } from "./recruiting-platform-adapters.js";
+import type { AccessInterruptionReport } from "./access-interruption-diagnostics.js";
+import { AccessInterruptionDiagnostics } from "./access-interruption-diagnostics.js";
 
 function collectRedirectSourceUrls(request: Request): string[] {
   const urls: string[] = [];
@@ -47,6 +49,7 @@ export function deriveNavigationAccessObservation(
   return {
     observedAt: new Date(now()).toISOString(),
     platformId: adapter.platformId,
+    url: response.url(),
     ...assessment,
   };
 }
@@ -63,6 +66,7 @@ export function derivePageAccessObservation(
   return {
     observedAt: new Date(now()).toISOString(),
     platformId: adapter.platformId,
+    url: page.url,
     ...assessment,
   };
 }
@@ -70,13 +74,26 @@ export function derivePageAccessObservation(
 export class PlatformAccessObserver {
   readonly #context: BrowserContext;
   #observations: PlatformAccessObservation[] = [];
+  readonly #interruptionDiagnostics = new AccessInterruptionDiagnostics();
 
-  public constructor(context: BrowserContext) {
+  public constructor(
+    context: BrowserContext,
+    private readonly onObservation: (observation: PlatformAccessObservation) => void = () => null,
+    private readonly onInterruptionReport: (report: AccessInterruptionReport) => void = (
+      report,
+    ) => {
+      process.stderr.write(`${JSON.stringify(report)}\n`);
+    },
+  ) {
     this.#context = context;
   }
 
   public get observations(): PlatformAccessObservation[] {
     return [...this.#observations];
+  }
+
+  public acknowledge(observation: PlatformAccessObservation): void {
+    this.#observations = this.#observations.filter((pending) => pending !== observation);
   }
 
   public observePage(page: PageAccessFacts): PlatformAccessObservation | null {
@@ -90,6 +107,7 @@ export class PlatformAccessObserver {
   public *run(): RiteCoroutine<never> {
     const running = yield* completer<never>();
     this.#context.on("response", (response) => {
+      this.#interruptionDiagnostics.recordResponse(response);
       const observation = deriveNavigationAccessObservation(response);
       if (!observation) {
         return;
@@ -100,8 +118,14 @@ export class PlatformAccessObserver {
   }
 
   #record(observation: PlatformAccessObservation): void {
+    if ("interruption" in observation) {
+      this.onInterruptionReport(this.#interruptionDiagnostics.createReport(observation));
+    }
+    this.onObservation(observation);
     this.#observations = [
-      ...this.#observations.filter(({ platformId }) => platformId !== observation.platformId),
+      ...this.#observations.filter(
+        ({ platformId, url }) => platformId !== observation.platformId || url !== observation.url,
+      ),
       observation,
     ];
   }

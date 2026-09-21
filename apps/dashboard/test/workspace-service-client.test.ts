@@ -150,3 +150,22 @@ test("aborts the Workspace Service fetch when its UI routine is canceled", async
     await runtime.close();
   }
 });
+
+test("preserves structured mutation failures from Workspace Service", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: { code: "conflict", details: { field: "key" }, message: "合成条件键已存在" },
+        },
+        { status: 409 },
+      ),
+    ),
+  );
+  await expect(
+    execute(saveProfileFact({ key: "合成条件", value: "合成值" })),
+  ).rejects.toMatchObject({
+    failure: { code: "conflict", details: { field: "key" } },
+  });
+});

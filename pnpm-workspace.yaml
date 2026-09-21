@@ -3,13 +3,12 @@ packages:
   - packages/*
   - internal/*
 
-nodeVersion: 26.8.1
 engineStrict: true
 injectWorkspacePackages: true
 
 strictPeerDependencies: true
 
-# Temporary: dependency-cruiser 18.2 cannot analyze the workspace's TypeScript version.
+# Temporary: dependency-cruiser 18.3 cannot analyze the workspace's TypeScript version.
 # Remove this extension once the installed dependency-cruiser supports the catalog's
 # TypeScript version, then verify `pnpm exec moon run repository:boundaries` cruises TypeScript
 # modules rather than 0.
@@ -25,14 +24,14 @@ catalog:
   "@hono/node-server": ^2.1.1
   "@modelcontextprotocol/sdk": ^1.30.0
   "@shajara/host": ^0.11.0
-  "@types/node": ^26.5.0
+  "@types/node": ^26.6.1
   arktype: ^2.2.3
-  hono: ^4.13.7
-  oxlint: ^1.82.0
+  hono: ^4.13.8
+  oxlint: ^1.83.0
   tsx: ^4.23.13
   typescript: ^7.0.2
-  vite: ^8.2.2
-  vitest: ^5.0.0
+  vite: ^8.3.0
+  vitest: ^5.0.1
 
 catalogMode: prefer
 cleanupUnusedCatalogs: true
@@ -48,4 +47,4 @@ minimumReleaseAge: 0
 # Browser Session owns the rationale and removal criteria:
 # apps/browser-session/README.md#demand-driven-request-interception
 patchedDependencies:
-  patchright-core@1.62.3: patches/patchright-core@1.62.3.patch
+  patchright-core@1.63.0: patches/patchright-core@1.63.0.patch
