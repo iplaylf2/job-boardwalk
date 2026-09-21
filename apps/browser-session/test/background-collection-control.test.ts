@@ -1,3 +1,4 @@
+import { savedDescription } from "./synthetic-description-write.js";
 import type { BrowserContext, Page } from "patchright";
 import type { PlatformId } from "@job-boardwalk/platform-catalog";
 import { createScope, run, until } from "@shajara/host";
@@ -277,9 +278,9 @@ test("does not make workspace persistence delay browser handoff", async () => {
       yield* until(() => persistence.promise);
       return { outcome: "unchanged" };
     },
-    *writeDescriptionObservation() {
+    *writeDescriptionObservation(observation) {
       yield* [];
-      return { outcome: "unchanged" };
+      return savedDescription(observation);
     },
   } satisfies JobObservationWriter;
   const collector = new PassiveJobObservationCollector(fakeLoginContext(), writer, {

@@ -18,7 +18,7 @@ export interface JobObservationWriter {
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
     sourceId?: number,
-  ) => RiteCoroutine<JobObservationWriteResult>;
+  ) => RiteCoroutine<SaveJobObservationResult>;
 }
 
 type JobObservationWriteResult = Pick<SaveJobObservationResult, "outcome">;

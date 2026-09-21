@@ -1,3 +1,4 @@
+import { savedDescription } from "./synthetic-description-write.js";
 import type { BrowserContext, Page } from "patchright";
 import type {
   JobDescriptionObservation,
@@ -62,7 +63,7 @@ test("submits the explicit job-description observation before returning it", asy
     function* writeJobDescriptionObservation(observation, attribution, sourceId) {
       yield* [];
       submitted.push({ attribution, observation, ...(sourceId ? { sourceId } : {}) });
-      return { outcome: "source-updated" };
+      return savedDescription(observation, "source-updated", sourceId);
     },
   );
   await using scope = createScope();
@@ -83,7 +84,12 @@ test("submits the explicit job-description observation before returning it", asy
       url: result.jobUrl,
     },
   });
-  expect(persistence).toEqual({ outcome: "source-updated" });
+  expect(persistence).toMatchObject({
+    jobId: 1,
+    outcome: "source-updated",
+    sources: [{ current: true, engagements: [], sourceId: 71 }],
+  });
+  expect(persistence).not.toHaveProperty("job");
   expect(sourceBinding).toEqual({ outcome: "bound", sourceId: 71 });
 
   expect(submitted).toEqual([
@@ -114,9 +120,9 @@ test("fails when Workspace Service rejects the job-description observation", asy
 });
 
 test("fails when Workspace Service accepts but does not apply a stale observation", async () => {
-  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation() {
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation(observation) {
     yield* [];
-    return { outcome: "stale" };
+    return savedDescription(observation, "stale");
   });
 
   await expect(
@@ -125,10 +131,67 @@ test("fails when Workspace Service accepts but does not apply a stale observatio
 });
 
 test("makes an unrequested list-source binding explicit after a retained detail read", async () => {
-  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation() {
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation(observation) {
     yield* [];
-    return { outcome: "created" };
+    return savedDescription(observation, "created");
   });
   const result = await run(() => executor.execute("browser_job_description_snapshot", {}));
   expect(result).toMatchObject({ sourceBinding: { outcome: "not-requested" } });
+});
+
+test("preserves all source summaries and identifies the current source within its platform", async () => {
+  const historicalTime = "2026-08-01T00:00:00.000Z";
+  const executor = jobDescriptionExecutor(function* writeJobDescriptionObservation(observation) {
+    yield* [];
+    const result = savedDescription(observation, "source-updated");
+    const [current] = result.job.sources;
+    if (!current) {
+      throw new Error("missing synthetic source");
+    }
+    result.job.sources.push(
+      {
+        ...current,
+        engagements: [
+          { firstObservedAt: historicalTime, kind: "contacted", lastObservedAt: historicalTime },
+        ],
+        externalJobId: "synthetic-repost",
+        id: 72,
+        jobUrl: "https://www.zhipin.com/job_detail/synthetic-repost.html",
+      },
+      {
+        ...current,
+        engagements: [
+          { firstObservedAt: historicalTime, kind: "applied", lastObservedAt: historicalTime },
+        ],
+        id: 73,
+        jobUrl: "https://www.yupao.com/zhaogong/900000001.html",
+        platformId: "yupao",
+      },
+    );
+    return result;
+  });
+  const result = await run(() => executor.execute("browser_job_description_snapshot", {}));
+  expect(result).toMatchObject({
+    persistence: {
+      sources: [
+        { current: true, engagements: [], sourceId: 71 },
+        {
+          current: false,
+          engagements: [
+            { firstObservedAt: historicalTime, kind: "contacted", lastObservedAt: historicalTime },
+          ],
+          sourceId: 72,
+        },
+        {
+          current: false,
+          engagements: [
+            { firstObservedAt: historicalTime, kind: "applied", lastObservedAt: historicalTime },
+          ],
+          platformId: "yupao",
+          sourceId: 73,
+        },
+      ],
+    },
+  });
+  expect(result).not.toHaveProperty("persistence.job");
 });

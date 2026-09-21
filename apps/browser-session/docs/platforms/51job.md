@@ -79,4 +79,4 @@ The [page definition](../../src/browser/platforms/51job.ts) owns collection boun
 rules, extraction selectors, and access assessment. Engagement evidence comes from the [category
 capture](../../src/browser/job-engagement/51job-page-capture.ts) and [category-total
 parser](../../src/browser/job-engagement/page-totals.ts). Shared contracts and catalog ownership
-are described in [Maintenance constraints](../../README.md#maintenance-constraints).
+are described in [Maintenance constraints](../maintenance.md).

@@ -31,7 +31,7 @@ export function ProfileFactEditor(props: {
     <form class={styles["editor"]} onSubmit={submit}>
       <div class={styles["editorHeading"]}>
         <strong>{props.fact ? `编辑“${key()}”` : "添加个人条件"}</strong>
-        <span>说明助手比较和解释岗位时应考虑的经验、偏好或限制。</span>
+        <span>记录你的经验、偏好或限制。</span>
       </div>
       <label>
         条件名称

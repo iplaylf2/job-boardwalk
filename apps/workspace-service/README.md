@@ -60,7 +60,7 @@ The MCP surface provides:
 - `job-boardwalk://jobs`, which exposes the first page of the current job library, including
   description coverage, available collected descriptions, and platform sources;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
-  `platformId`, `engagement`, and `descriptionStatus` filters;
+  `platformId`, `externalJobId`, `engagement`, and `descriptionStatus` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of saved
   research reports;
 - `read_research_report`, which reads a report by ID;
@@ -285,8 +285,9 @@ them to the same source without clearing its description.
 
 #### Library queries and description coverage
 
-Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
-`engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and
+`GET /api/jobs` accepts `page`, `pageSize`, and optional `query`, `platform`, `externalJobId`,
+`engagement`, and `descriptionStatus` parameters. MCP `read_job_library` uses `platformId` for the
+platform filter. Workspace Service applies those constraints and
 returns the current page, total result count, page count, and description coverage. `pageSize` is
 capped at 48.
 
@@ -299,10 +300,19 @@ Browser Session attempted a detail read.
 Page-level `descriptionCoverage` classifies normalized jobs into three mutually exclusive groups.
 `captured` jobs have a retained main description. `identityUnresolved` jobs have no description and
 none of their sources has an external job ID or job URL. `uncaptured` contains the remaining jobs
-without descriptions. Coverage is calculated for the current search, platform, and engagement
+without descriptions. Coverage is calculated for the current search, platform, external ID, and engagement
 scope before an optional `descriptionStatus` filter is applied. That filter selects jobs with a
 description (`captured`), all jobs without one (`missing`), or the missing-description subset with
 unresolved source identity (`identity-unresolved`).
+
+For an exact source lookup, use `GET /api/jobs?platform=boss&externalJobId=synthetic-job-id`
+or MCP `read_job_library` with `platformId` and `externalJobId`. The external ID must be nonempty,
+without surrounding whitespace, and accompanied by its platform. It matches retained card or
+description evidence exactly; keyword search does not substitute for identity lookup. Platform,
+external ID, and engagement filters must match the same source. Returned jobs still include all
+their sources, so a relation on another source must not be attributed to the requested source.
+Description coverage follows this identity scope as well. No matching source means no stored
+match; it does not establish that the account has never interacted with the job.
 
 #### Salary normalization
 

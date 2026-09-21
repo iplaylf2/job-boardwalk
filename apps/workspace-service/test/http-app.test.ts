@@ -1017,3 +1017,119 @@ test("retains 51job linkless cards, binds descriptions, and filters their source
     await rm(directory, { recursive: true });
   }
 });
+
+const matchedJobCount = 1;
+const emptyJobCount = 0;
+
+test("HTTP and MCP scope exact external job IDs to one platform and source engagement", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-identity-query-"));
+  const repository = createTestRepository(directory);
+  await using serviceScope = createScope();
+  const httpApp = createTestHttpApp(repository, serviceScope);
+  try {
+    seedMcpWorkspace(repository);
+    repository.saveJobDescriptionObservation({
+      initiatedBy: "agent",
+      observation: {
+        description: {
+          capturedAt: "2026-08-01T00:00:00.000Z",
+          text: "维护合成分析系统。",
+          truncated: false,
+        },
+        details: [],
+        externalJobId: "synthetic-description-only",
+        jobUrl: "https://www.zhipin.com/job_detail/synthetic-description-only.html",
+        observedAt: "2026-08-01T00:00:00.000Z",
+        platformId: "boss",
+        title: "合成分析岗位",
+      },
+      reason: "synthetic description-only source",
+    });
+    repository.synchronizeJobEngagement({
+      initiatedBy: "agent",
+      reason: "synthetic source-scoped query",
+      snapshot: {
+        capturedAt: "2026-08-01T00:00:00.000Z",
+        complete: false,
+        engagement: "contacted",
+        jobs: [
+          {
+            company: "示例科技甲",
+            details: [],
+            externalJobId: "synthetic-other-source",
+            jobUrl: "https://www.zhipin.com/job_detail/synthetic-other-source.html",
+            location: "北京",
+            summary: "合成来源",
+            title: "后端开发",
+          },
+        ],
+        platformId: "boss",
+        sourceUrl: "https://www.zhipin.com/web/geek/jobs",
+        total: 1,
+      },
+    });
+    await Promise.all(
+      (
+        [
+          ["mcp-example", null, matchedJobCount],
+          ["mcp", null, emptyJobCount],
+          ["mcp%", null, emptyJobCount],
+          ["synthetic-description-only", null, matchedJobCount],
+          ["mcp-example", "contacted", emptyJobCount],
+          ["synthetic-other-source", "contacted", matchedJobCount],
+        ] as const
+      ).map(async ([externalJobId, engagement, expected]) => {
+        const query = new URLSearchParams({
+          externalJobId,
+          platform: "boss",
+          ...(engagement ? { engagement } : {}),
+        });
+        const response = await httpApp.request(`/api/jobs?${query}`);
+        expect(response.status).toBe(successfulStatus);
+        expect(JobPostingPage.assert(await response.json()).total).toBe(expected);
+        const mcp = await mcpRequest(httpApp, {
+          id: 1,
+          method: "tools/call",
+          params: {
+            arguments: { externalJobId, platformId: "boss", ...(engagement ? { engagement } : {}) },
+            name: "read_job_library",
+          },
+        });
+        expect(await mcp.json()).toMatchObject({
+          result: { structuredContent: { total: expected } },
+        });
+      }),
+    );
+    const wrongPlatform = await httpApp.request(
+      "/api/jobs?platform=yupao&externalJobId=mcp-example",
+    );
+    expect(JobPostingPage.assert(await wrongPlatform.json()).total).toBe(emptyJobCount);
+    await Promise.all(
+      [
+        "externalJobId=mcp-example",
+        "platform=boss&externalJobId=",
+        "platform=boss&externalJobId=%20mcp-example",
+      ].map(async (query) => {
+        const response = await httpApp.request(`/api/jobs?${query}`);
+        expect(response.status).toBe(badRequestStatus);
+      }),
+    );
+    await Promise.all(
+      [
+        { externalJobId: "mcp-example" },
+        { externalJobId: "", platformId: "boss" },
+        { externalJobId: " mcp-example", platformId: "boss" },
+      ].map(async (argumentsValue) => {
+        const response = await mcpRequest(httpApp, {
+          id: 2,
+          method: "tools/call",
+          params: { arguments: argumentsValue, name: "read_job_library" },
+        });
+        expect(await response.json()).toMatchObject({ result: { isError: true } });
+      }),
+    );
+  } finally {
+    repository.close();
+    await rm(directory, { force: true, recursive: true });
+  }
+});

@@ -103,6 +103,12 @@ test.each([
 
 test("captures linkless 51job cards without manufacturing source identity", () => {
   const metadata = capture([card("合成系统工程师"), card("合成系统工程师"), card("")]);
+  expect(metadata.coverage).toMatchObject({
+    candidateElements: 3,
+    recognizedCards: 2,
+    returnedCards: 2,
+    scope: "loaded-document",
+  });
   expect(metadata.cards).toHaveLength(twoCards);
   expect(metadata.cards[firstIndex]).toEqual({
     company: "合成雇主甲",
@@ -113,9 +119,11 @@ test("captures linkless 51job cards without manufacturing source identity", () =
     title: "合成系统工程师",
   });
   expect(metadata.cards[secondIndex]).toEqual(metadata.cards[firstIndex]);
+  expect(metadata.coverage).toMatchObject({ duplicateCandidates: 0, rejectedCandidates: 1 });
   const snapshot = JobCardSnapshot.assert({
     capturedAt,
     cards: structuredClone(metadata.cards),
+    coverage: structuredClone(metadata.coverage),
     platformId: "51job",
     sourceTitle: metadata.title,
     sourceUrl: searchUrl,
@@ -136,9 +144,17 @@ test("preserves cross-subdomain job links while excluding untrusted link identit
   expect(metadata.cards).toHaveLength(twoCards);
   expect(metadata.cards[firstIndex]).toHaveProperty("href", detailUrl);
   expect(metadata.cards[secondIndex]).not.toHaveProperty("href");
+  expect(metadata.coverage).toMatchObject({
+    candidateElements: 3,
+    duplicateCandidates: 1,
+    recognizedCards: 2,
+    rejectedCandidates: 0,
+    returnedCards: 2,
+  });
   const observations = observationsFromJobCardSnapshot({
     capturedAt,
     cards: metadata.cards,
+    coverage: metadata.coverage,
     platformId: "51job",
     sourceTitle: metadata.title,
     sourceUrl: searchUrl,
@@ -149,7 +165,22 @@ test("preserves cross-subdomain job links while excluding untrusted link identit
 
 test("bounds distinct cards and accepts a collection with no recognizable cards", () => {
   expect(capture([card("合成甲"), card("合成甲")], singleCard)).toMatchObject({ truncated: true });
-  expect(capture([])).toMatchObject({ cards: [], truncated: false });
+  expect(capture([card("合成甲"), card("合成甲")], singleCard).coverage).toMatchObject({
+    duplicateCandidates: 0,
+    recognizedCards: 2,
+    returnedCards: 1,
+  });
+  expect(capture([])).toMatchObject({
+    cards: [],
+    coverage: {
+      candidateElements: 0,
+      duplicateCandidates: 0,
+      recognizedCards: 0,
+      rejectedCandidates: 0,
+      returnedCards: 0,
+    },
+    truncated: false,
+  });
 });
 
 test.each([true, false])(

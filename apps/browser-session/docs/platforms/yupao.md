@@ -37,4 +37,4 @@ remains outstanding.
 
 The [page definition](../../src/browser/platforms/yupao.ts) owns collection boundaries, job-link
 rules, extraction selectors, and access assessment. Shared contracts and catalog ownership are
-described in [Maintenance constraints](../../README.md#maintenance-constraints).
+described in [Maintenance constraints](../maintenance.md).

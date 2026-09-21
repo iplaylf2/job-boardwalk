@@ -37,4 +37,4 @@ rule remains outstanding.
 The [page definition](../../src/browser/platforms/boss.ts) owns collection boundaries, job-link
 rules, extraction selectors, access assessment, and platform-specific login controls.
 Shared contracts and catalog ownership are described in
-[Maintenance constraints](../../README.md#maintenance-constraints).
+[Maintenance constraints](../maintenance.md).

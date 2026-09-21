@@ -13,6 +13,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
+import { OperationError } from "@job-boardwalk/contracts";
 import type { JobDescriptionCoverage, JobPosting, JobPostingPage } from "@job-boardwalk/contracts";
 import type { JobLibraryQuery } from "#/job-library/query.js";
 import { jobPostings, jobPostingSources, jobSourceEngagements } from "./schema.js";
@@ -47,6 +48,11 @@ export class JobLibraryRepository {
   }
 
   public listJobPostingPage(input: JobLibraryQuery): JobPostingPage {
+    if (input.externalJobId && !input.platformId) {
+      throw new OperationError("invalid-input", "externalJobId 必须与 platformId 一起使用", {
+        field: "platformId",
+      });
+    }
     const scopeCondition = this.#jobScopeCondition(input);
     const descriptionCondition = this.#jobDescriptionCondition(input.descriptionStatus);
     const filteredCondition = and(scopeCondition, descriptionCondition);
@@ -90,35 +96,40 @@ export class JobLibraryRepository {
         ),
       );
     }
-    if (input.engagement) {
-      const sourceIdsWithEngagement =
-        input.engagement === "tracked"
-          ? this.#database
-              .selectDistinct({ sourceId: jobSourceEngagements.sourceId })
-              .from(jobSourceEngagements)
-          : this.#database
-              .select({ sourceId: jobSourceEngagements.sourceId })
-              .from(jobSourceEngagements)
-              .where(eq(jobSourceEngagements.kind, input.engagement));
-      const sourceCondition = input.platformId
-        ? and(
-            inArray(jobPostingSources.id, sourceIdsWithEngagement),
-            eq(jobPostingSources.platformId, input.platformId),
-          )
-        : inArray(jobPostingSources.id, sourceIdsWithEngagement);
-      const jobIdsWithEngagement = this.#database
+    const sourceConditions = this.#sourceScopeConditions(input);
+    if (sourceConditions.length > emptyCount) {
+      const sourceJobs = this.#database
         .select({ jobId: jobPostingSources.jobId })
         .from(jobPostingSources)
-        .where(sourceCondition);
-      conditions.push(inArray(jobPostings.id, jobIdsWithEngagement));
-    } else if (input.platformId) {
-      const platformJobIds = this.#database
-        .select({ jobId: jobPostingSources.jobId })
-        .from(jobPostingSources)
-        .where(eq(jobPostingSources.platformId, input.platformId));
-      conditions.push(inArray(jobPostings.id, platformJobIds));
+        .where(and(...sourceConditions));
+      conditions.push(inArray(jobPostings.id, sourceJobs));
     }
     return and(...conditions);
+  }
+
+  #sourceScopeConditions(input: JobLibraryQuery) {
+    const sourceConditions = [];
+    if (input.platformId) {
+      sourceConditions.push(eq(jobPostingSources.platformId, input.platformId));
+    }
+    if (input.externalJobId) {
+      sourceConditions.push(
+        or(
+          sql`json_extract(${jobPostingSources.cardObservation}, '$.externalJobId') = ${input.externalJobId}`,
+          sql`json_extract(${jobPostingSources.descriptionObservation}, '$.externalJobId') = ${input.externalJobId}`,
+        ),
+      );
+    }
+    if (input.engagement) {
+      const sourceIdsWithEngagement = this.#database
+        .selectDistinct({ sourceId: jobSourceEngagements.sourceId })
+        .from(jobSourceEngagements)
+        .where(
+          input.engagement === "tracked" ? and() : eq(jobSourceEngagements.kind, input.engagement),
+        );
+      sourceConditions.push(inArray(jobPostingSources.id, sourceIdsWithEngagement));
+    }
+    return sourceConditions;
   }
 
   #jobDescriptionCondition(status: JobLibraryQuery["descriptionStatus"]) {

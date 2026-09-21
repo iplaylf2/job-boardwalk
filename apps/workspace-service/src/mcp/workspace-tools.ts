@@ -17,8 +17,11 @@ import {
 
 export const workspaceOverviewDescription =
   "读取本机工作区概览：各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人条件，以及各求职方向关联的平台研究起点及当前选择状态。";
-const jobLibraryToolDescription =
-  "分页读取岗位库和职位描述覆盖统计；可按关键词、平台或跟进记录筛选，engagement=tracked 读取有任意跟进记录的岗位。覆盖统计遵循关键词、平台和跟进筛选，不受 descriptionStatus 影响。descriptionStatus=captured 读取已有描述的岗位，missing 读取全部暂无描述的岗位，identity-unresolved 读取暂无描述、且所有来源均缺少平台岗位 ID 和详情页链接的岗位。结果保留各平台来源、原始链接、跟进记录、已采集职位描述及可选的 recruitment 观察。空跟进列表表示未记录；recruitment 缺失或 state=unknown 均不表示招聘中。";
+const jobLibraryToolDescription = [
+  "分页读取岗位库。支持关键词、平台、跟进关系和描述状态筛选；externalJobId 必须与 platformId 一起使用，按平台岗位 ID 精确匹配。平台、ID 和跟进条件约束同一来源，返回的岗位仍保留其全部来源。engagement=tracked 表示有任意跟进关系。",
+  "descriptionCoverage 统计当前关键词、平台、ID 和跟进条件下的描述覆盖，不受 descriptionStatus 影响。descriptionStatus=captured 返回已有描述的岗位；missing 返回全部无描述岗位；identity-unresolved 返回无描述且所有来源均无平台岗位 ID 或详情链接的岗位。",
+  "来源包含身份、链接、跟进关系、已采集描述及可选的 recruitment 观察。空跟进列表表示未记录；recruitment 缺失或 state=unknown 表示没有确定的招聘状态。",
+].join("\n\n");
 const researchReportListDescription =
   "列出所有已保存研究报告的 ID、标题、创建时间和更新时间，按更新时间从新到旧排列。正文通过 read_research_report 读取。";
 const researchReportDetailDescription =

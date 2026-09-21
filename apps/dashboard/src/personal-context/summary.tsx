@@ -59,7 +59,7 @@ function FactsSummary(props: { facts: ProfileFact[] }): JSX.Element {
       <div class={styles["factsHeading"]}>
         <div>
           <p class={styles["label"]} id="facts-summary-heading">
-            解释岗位时会考虑
+            个人条件
           </p>
           <p class={styles["count"]}>共 {String(props.facts.length)} 项个人条件</p>
         </div>
@@ -77,7 +77,7 @@ function FactsSummary(props: { facts: ProfileFact[] }): JSX.Element {
       </div>
       <Show
         when={props.facts.length > emptyCollectionLength}
-        fallback={<p class={styles["empty"]}>尚未添加个人条件。这不会影响岗位整理。</p>}
+        fallback={<p class={styles["empty"]}>尚未添加个人条件。</p>}
       >
         <dl
           class={`${styles["factList"]} ${expanded() ? styles["factListExpanded"] : ""}`}

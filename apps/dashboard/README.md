@@ -58,7 +58,9 @@ empty engagements display “未记录跟进”. The footer shows the latest eng
 or the job's update date when no engagement is recorded.
 
 A card offers a description dialog when a retained description is available. The dialog reports
-local length clipping when present. Source status and description availability are independent:
+local length clipping when present. Only one description is open at a time; closing it preserves
+the list context. On narrow screens, the dialog fills the viewport and keeps its header visible
+while the description scrolls. Source status and description availability are independent:
 a closed posting can still have a readable description.
 
 ## Optional Browser Session health checks
@@ -93,8 +95,8 @@ Vite defaults to `http://127.0.0.1:54312` for source development.
 
 [Browser Session](../browser-session/README.md#health-and-runtime-diagnostics) owns health response
 semantics and CORS permissions. Dashboard's current browser integration reads health only.
-[Product design](../../docs/product-design.md#dashboard-as-a-browser-capability-client) defines how
-future browser features share page coordination and user handoff.
+[Product design](../../docs/product-design.md#dashboard-as-a-browser-capability-client) defines the
+application boundary and user-handoff requirements.
 
 ## Report rendering
 

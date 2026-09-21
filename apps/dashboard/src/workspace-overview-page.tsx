@@ -36,7 +36,7 @@ export function WorkspaceOverviewPage(): JSX.Element {
     <AppShell
       active="overview"
       title="Job Boardwalk"
-      lede="持续整理招聘平台中已发现且可回查的岗位，并保留当前研究依据。"
+      lede="查看和维护求职方向、个人条件与平台访问记录。"
     >
       <BrowserSessionStatusPanel />
       <WorkspaceDataBoundary loading={<p class={styles["loading"]}>正在读取本机工作区…</p>}>
