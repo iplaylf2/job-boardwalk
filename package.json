@@ -16,25 +16,25 @@
     "@job-boardwalk/presets": "workspace:*",
     "@moonrepo/cli": "^2.5.5",
     "@types/node": "catalog:",
-    "dependency-cruiser": "^18.3.1",
-    "knip": "^6.36.0",
-    "oxfmt": "^0.68.0",
+    "dependency-cruiser": "^18.4.0",
+    "knip": "^6.38.0",
+    "oxfmt": "^0.70.0",
     "oxlint": "catalog:",
     "typescript": "catalog:"
   },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.4.2",
+      "version": "^12.6.0",
       "onFail": "download"
     },
     "runtime": {
       "name": "node",
-      "version": "^26.9.0",
+      "version": "^26.10.0",
       "onFail": "download"
     }
   },
   "engines": {
-    "pnpm": ">=12.4.2"
+    "pnpm": ">=12.6.0"
   }
 }

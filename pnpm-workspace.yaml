@@ -8,7 +8,7 @@ injectWorkspacePackages: true
 
 strictPeerDependencies: true
 
-# Temporary: dependency-cruiser 18.3 cannot analyze the workspace's TypeScript version.
+# Temporary: dependency-cruiser 18.4 cannot analyze the workspace's TypeScript version.
 # Remove this extension once the installed dependency-cruiser supports the catalog's
 # TypeScript version, then verify `pnpm exec moon run repository:boundaries` cruises TypeScript
 # modules rather than 0.
@@ -22,16 +22,16 @@ packageExtensions:
 # `workspace:*`.
 catalog:
   "@hono/node-server": ^2.1.1
-  "@modelcontextprotocol/sdk": ^1.30.0
+  "@modelcontextprotocol/sdk": ^1.30.1
   "@shajara/host": ^0.11.0
-  "@types/node": ^26.6.1
-  arktype: ^2.2.3
-  hono: ^4.13.8
-  oxlint: ^1.83.0
-  tsx: ^4.23.13
+  "@types/node": ^26.6.3
+  arktype: ^2.2.5
+  hono: ^4.13.9
+  oxlint: ^1.85.0
+  tsx: ^4.23.15
   typescript: ^7.0.2
-  vite: ^8.3.0
-  vitest: ^5.0.1
+  vite: ^8.3.1
+  vitest: ^5.0.2
 
 catalogMode: prefer
 cleanupUnusedCatalogs: true
@@ -39,7 +39,6 @@ cleanupUnusedCatalogs: true
 allowBuilds:
   "@pnpm/exe": true
   esbuild: true
-  oxfmt: true
   oxlint: true
 
 minimumReleaseAge: 0
