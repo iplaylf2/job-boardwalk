@@ -97,22 +97,25 @@ test.each([
   { allowed: false, origin: "https://external.invalid" },
   { allowed: false, origin: "http://localhost.external.invalid" },
   { allowed: false, origin: "http://user:secret@localhost:54311" },
-])("permits health reads only for local page origins: $origin", async ({ allowed, origin }) => {
-  await using serviceScope = createScope();
-  const app = createBrowserSessionHttpApp({
-    browserControl: unavailableBrowserControl,
-    serviceScope,
-  });
-  const response = await app.request("/health", { headers: { origin } });
-  expect(response.status).toBe(allowed ? successfulStatus : forbiddenStatus);
-  expect(response.headers.get("Access-Control-Allow-Origin")).toBe(allowed ? origin : null);
-  if (allowed) {
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
-  }
-});
+])(
+  "validates health origins without enabling cross-origin page reads: $origin",
+  async ({ allowed, origin }) => {
+    await using serviceScope = createScope();
+    const app = createBrowserSessionHttpApp({
+      browserControl: unavailableBrowserControl,
+      serviceScope,
+    });
+    const response = await app.request("/health", { headers: { origin } });
+    expect(response.status).toBe(allowed ? successfulStatus : forbiddenStatus);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    if (allowed) {
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+    }
+  },
+);
 
-test("does not extend health CORS permissions to MCP", async () => {
+test("does not enable cross-origin page reads of MCP", async () => {
   await using serviceScope = createScope();
   const app = createBrowserSessionHttpApp({
     browserControl: unavailableBrowserControl,

@@ -135,37 +135,65 @@ test("accepts an authenticated session established from visible page evidence", 
   }
 });
 
-test("shows only interruptions newer than the latest authentication", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
-  const repository = createTestRepository(directory);
-  await using serviceScope = createScope();
-  const httpApp = createTestHttpApp(repository, serviceScope);
+test.each(["authenticated", "unauthenticated"] as const)(
+  "retains interruption history after a newer %s observation from another page",
+  async (authenticationState) => {
+    const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
+    const repository = createTestRepository(directory);
+    await using serviceScope = createScope();
+    const httpApp = createTestHttpApp(repository, serviceScope);
 
-  try {
-    await postObservation(httpApp, {
-      authenticationState: "authenticated",
-      evidence: "protected-resource",
-    });
-    await postObservation(httpApp, {
-      evidence: "verification-page",
-      interruption: "verification-required",
-      observedAt: "2026-07-13T01:01:00+00:00",
-    });
-    expect(await readBossSummary(httpApp)).toMatchObject({
-      unresolvedInterruption: { interruption: "verification-required" },
-    });
+    try {
+      await postObservation(httpApp, {
+        authenticationState: "authenticated",
+        evidence: "protected-resource",
+      });
+      await postObservation(httpApp, {
+        evidence: "verification-page",
+        interruption: "verification-required",
+        observedAt: "2026-07-13T01:01:00+00:00",
+      });
+      expect(await readBossSummary(httpApp)).toMatchObject({
+        latestInterruption: { interruption: "verification-required" },
+      });
 
-    await postObservation(httpApp, {
-      authenticationState: "authenticated",
-      evidence: "protected-resource",
-      observedAt: "2026-07-13T01:02:00+00:00",
-    });
-    expect(await readBossSummary(httpApp)).not.toHaveProperty("unresolvedInterruption");
-  } finally {
-    repository.close();
-    await rm(directory, { recursive: true });
-  }
-});
+      await postObservation(httpApp, {
+        authenticationState,
+        evidence: authenticationState === "authenticated" ? "protected-resource" : "login-redirect",
+        observedAt: "2026-07-13T01:02:00+00:00",
+        url: "https://www.zhipin.com/web/geek/recommend",
+      });
+      expect(await readBossSummary(httpApp)).toMatchObject({
+        latestAuthentication: { authenticationState, lastObservedAt: "2026-07-13T01:02:00.000Z" },
+        latestInterruption: {
+          interruption: "verification-required",
+          lastObservedAt: "2026-07-13T01:01:00.000Z",
+        },
+      });
+
+      await postObservation(httpApp, {
+        evidence: "access-denied-page",
+        interruption: "access-denied",
+        observedAt: "2026-07-13T01:03:00+00:00",
+      });
+      await postObservation(httpApp, {
+        evidence: "verification-page",
+        interruption: "verification-required",
+        observedAt: "2026-07-13T01:00:30+00:00",
+      });
+      expect(await readBossSummary(httpApp)).toMatchObject({
+        latestAuthentication: { authenticationState, lastObservedAt: "2026-07-13T01:02:00.000Z" },
+        latestInterruption: {
+          interruption: "access-denied",
+          lastObservedAt: "2026-07-13T01:03:00.000Z",
+        },
+      });
+    } finally {
+      repository.close();
+      await rm(directory, { recursive: true });
+    }
+  },
+);
 
 test("keeps state-change history while advancing the latest observation time", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "job-boardwalk-platform-access-"));
@@ -265,7 +293,10 @@ test("keeps state-change history while advancing the latest observation time", a
       authenticationState: "unauthenticated",
       lastObservedAt: "2026-07-15T02:06:00.000Z",
     });
-    expect(crossSourceSummary).not.toHaveProperty("unresolvedInterruption");
+    expect(crossSourceSummary.latestInterruption).toMatchObject({
+      interruption: "verification-required",
+      lastObservedAt: "2026-07-15T02:05:00.000Z",
+    });
   } finally {
     repository.close();
     await rm(directory, { recursive: true });

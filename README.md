@@ -11,9 +11,9 @@ account changes, applications, and communication always remain under user contro
 
 ## Current scope
 
-Job Boardwalk supports BOSS直聘, 鱼泡直聘, and 前程无忧51job. It provides browser tools,
-collects job and platform-access observations, stores personal context and Markdown reports, and
-presents the saved workspace in Dashboard. The agent interprets evidence and authors findings.
+The agent researches BOSS直聘, 鱼泡直聘, and 前程无忧51job through Browser Session and saves job
+evidence and research reports in Workspace Service. Dashboard lets the user maintain personal
+context and job-search goals, inspect saved jobs, and read the agent's findings.
 
 Browser adapters cover specific page layouts and evidence rules. See
 [platform coverage](apps/browser-session/README.md#platform-coverage) and
@@ -26,7 +26,7 @@ for supported reads and their limits.
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | [Browser Session](apps/browser-session/)           | Owns the visible persistent browser and exposes browser tools over local HTTP MCP. Runs in the user's graphical session. |
 | [Workspace Service](apps/workspace-service/)       | Owns SQLite persistence and the HTTP/MCP APIs for workspace data.                                                        |
-| [Dashboard](apps/dashboard/)                       | Displays and maintains workspace data; independently checks optional Browser Session health.                             |
+| [Dashboard](apps/dashboard/)                       | Maintains research criteria and presents saved jobs and research reports.                                                |
 | [Desktop Manager](apps/desktop-manager/)           | Starts, monitors, and stops the desktop product's service processes.                                                     |
 | [Desktop Service Host](apps/desktop-service-host/) | Loads one Node service payload per desktop child process.                                                                |
 
@@ -64,8 +64,8 @@ pnpm exec moon run browser-session:dev
 ```
 
 Browser Session launches a visible browser with a dedicated profile in the operating system's user
-data directory and owns it for the service lifetime. Dashboard can check its health directly,
-while the agent host connects to <http://127.0.0.1:54312/mcp>.
+data directory and owns it for the service lifetime. The agent host connects to
+<http://127.0.0.1:54312/mcp>; login and verification take place in the visible browser.
 
 ### Portable desktop prerelease
 

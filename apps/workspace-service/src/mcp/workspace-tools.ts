@@ -16,7 +16,7 @@ import {
 } from "#/mcp/tool-input.js";
 
 export const workspaceOverviewDescription =
-  "读取本机工作区概览：各招聘平台最近一次明确的登录状态记录、尚未解决的访问中断、用户的个人条件，以及各求职方向关联的平台研究起点及当前选择状态。";
+  "读取本机工作区概览：个人条件、求职方向及其平台研究起点和当前选择，以及各招聘平台分别保留的最近一次登录观察和访问中断记录。访问记录包含观察时间与来源，不代表当前登录状态或待处理事项。";
 const jobLibraryToolDescription = [
   "分页读取岗位库。支持关键词、平台、跟进关系和描述状态筛选；externalJobId 必须与 platformId 一起使用，按平台岗位 ID 精确匹配。平台、ID 和跟进条件约束同一来源，返回的岗位仍保留其全部来源。engagement=tracked 表示有任意跟进关系。",
   "descriptionCoverage 统计当前关键词、平台、ID 和跟进条件下的描述覆盖，不受 descriptionStatus 影响。descriptionStatus=captured 返回已有描述的岗位；missing 返回全部无描述岗位；identity-unresolved 返回无描述且所有来源均无平台岗位 ID 或详情链接的岗位。",

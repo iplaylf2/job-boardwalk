@@ -17,8 +17,7 @@ Shared domain resources have defined semantics and provenance. For example, a jo
 an observed platform category, while a research conclusion expresses an author's judgment in the
 context of the user's goals. Workspace Service preserves both kinds of information through their
 respective contracts. A method used to produce or interpret a document does not by itself define
-an additional product workflow. [Capability design](development.md#feedback-and-capability-design)
-establishes the scope and ownership of proposed additions.
+an additional product workflow.
 
 ## Delegation boundary
 
@@ -57,13 +56,10 @@ observations, research reports, and their persistence. It exposes domain resourc
 to the agent and a local API to the Dashboard. It is headless and does not own browser automation,
 browser profiles, authentication cookies, or desktop windows.
 
-The **Dashboard** is an independent view of durable workspace data. It also lets the user maintain
-personal context and a collection of job-search intents. At most one intent is selected as the
-current research direction; it supplies platform recommendation pages that the agent may visit
-during user-requested research. Each intent associates a target position and city with those pages.
-Dashboard also presents saved research reports as documents. It can consume Browser Session as an
-optional capability service; its current browser integration checks service health. Workspace
-reading does not require an active browser or agent conversation.
+The **Dashboard** lets the user maintain research criteria, inspect saved jobs, and read research
+reports. Workspace Service supplies its data and accepts its edits. Dashboard does not call Browser
+Session or initiate browser operations; it remains usable without a running browser or agent
+conversation.
 
 The **Desktop Manager** owns the native local-runtime control surface and operating-system
 integration. It is not a WebView host: Dashboard remains a browser application, and recruiting
@@ -96,35 +92,20 @@ user-observable graphical session cannot run Browser Session.
 
 ## Runtime ownership and research evidence
 
-Browser Session uses Workspace Service to retain job and platform-access observations. Dashboard
-uses Workspace Service to read and maintain that durable workspace. Browser unavailability can
-interrupt new live research; existing workspace operations depend on Workspace Service and do not
-require a running browser.
+The agent calls Browser Session for live browser work and Workspace Service for durable workspace
+operations. Browser Session submits captured evidence to Workspace Service. Dashboard reads and
+edits workspace data through Workspace Service. Workspace Service serves these clients without
+calling back into them or relaying browser operations.
 
-Browser Session owns browser startup, recovery, and runtime diagnostics. The product form owns
-service-process supervision: Desktop Manager checks the services it starts and presents their
-availability in its native UI. Dashboard can independently check Browser Session health when that
-optional integration is configured. It reports the outcome and time of its own check. Workspace
-Service neither relays health reads nor tracks browser presence.
+Browser Session owns browser startup, recovery, and runtime diagnostics. Desktop Manager supervises
+the service processes it starts and displays their availability. In the Compose deployment, Compose
+supervises the container services and the host launcher owns Browser Session. Browser unavailability
+interrupts live research while saved workspace data remains accessible through Workspace Service.
 
-Platform-access observations retain the time and basis of a research assessment. Workspace Service
-reconciles them into the history described under [Access observations](#access-observations).
-Dashboard presents that history separately from current browser readiness. Browser Session's
-[evidence submission](../apps/browser-session/README.md#evidence-submission) handles delivery
-failures without stopping browser control.
-
-### Dashboard as a browser-capability client
-
-Browser Session is an application service whose MCP interface is one client adapter. Dashboard's
-current integration reads health only; a healthy browser establishes neither platform
-authentication nor authority to act.
-
-Browser operations reuse Browser Session's in-process coordination and apply platform scope,
-reference validation, and user handoff where relevant. One actor drives the session at a time.
-Login, verification, messages, applications, and account changes retain their user-control boundary
-regardless of which client initiated the workflow. The
-[Dashboard README](../apps/dashboard/README.md#optional-browser-session-health-checks) documents the
-current health-check behavior and configuration.
+Access observations provide research provenance, as described under
+[Access observations](#access-observations). Current page evidence and browser control state govern
+execution. Browser Session's [evidence submission](../apps/browser-session/README.md#evidence-submission)
+handles delivery failures independently of browser control.
 
 ## Job discovery and evidence
 
@@ -245,9 +226,9 @@ recognized pages and evidence for each adapter.
 Workspace Service retains observations by platform and source URL, reconciling repeated evidence
 by observation time. It owns the
 [observation API and overview projection](../apps/workspace-service/README.md#platform-access-observations).
-Browser Session owns [submission](../apps/browser-session/README.md#evidence-submission). Dashboard
-presents the resulting summaries; its [data display](../apps/dashboard/README.md#data-ownership-and-freshness)
-is separate from live browser inspection, which remains with Browser Session.
+Browser Session owns [submission](../apps/browser-session/README.md#evidence-submission).
+The agent reads these summaries through the workspace overview. Historical authentication and
+interruption records do not establish a pending action or resolve a current browser interruption.
 
 ## Reliable browser research
 
@@ -285,7 +266,8 @@ Research reports preserve authored findings for later reading, independently of 
 that produced them. The author chooses the subject and document structure, explaining conclusions,
 supporting evidence, uncertainties, and outstanding research in the body. Evidence dates establish
 the context of those findings. The report's creation and update times record when the document was
-saved and revised.
+saved and revised. When an access limitation affects research coverage or a conclusion, the report
+explains that consequence alongside the relevant findings.
 
 Saved reports remain available until explicitly deleted. Replacing a report overwrites its previous
 content; earlier revisions are not retained. Workspace Service owns the saved document, and
@@ -298,10 +280,18 @@ Markdown rendering and link behavior.
 
 ## Dashboard surface
 
-Dashboard provides a workspace overview, a job library, and a report reader. The overview presents
-the selected job-search intent and personal context alongside platform-access observations and an
-independent browser-health check. The library presents stored jobs and their source evidence;
-reports remain authored documents.
+Dashboard provides three reading and maintenance paths: research criteria, saved jobs, and research
+reports. Each view helps the user set the research direction, assess an opportunity, or understand a
+finding. Browser health, login observations, and verification events are not standalone Dashboard
+views; live browser interaction belongs to the agent conversation and the visible browser.
+
+The overview presents personal context and a collection of job-search intents. Each intent records
+a target position, city, and platform recommendation pages. At most one intent is selected as the
+current research direction. The agent may use its saved pages during delegated research; selecting
+an intent does not start browser work.
+
+The job library supports filtering and inspecting retained job evidence. Research reports preserve
+authored comparisons, conclusions, and limitations for later reading.
 
 Personal context is editable research input. Removing a fact removes it from subsequent workspace
 reads; Workspace Service retains change attribution separately. Existing conversations or saved

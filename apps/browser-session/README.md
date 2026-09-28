@@ -6,10 +6,8 @@ browser process, coordinates tabs and page actions, and derives platform-access 
 top-level navigation responses and bounded snapshots when a platform adapter has a conclusive
 rule. Page meaning not covered by an adapter remains with the agent.
 
-Browser Session is a host companion by design. It runs in the graphical session the user can
-observe and take over. In the Compose deployment, Workspace Service and Dashboard run in containers
-while Browser Session runs on the host. Workspace Service's loopback-published port lets Browser
-Session submit evidence without giving either container access to the browser profile or desktop.
+Browser Session runs in a graphical session where the user can see and take over the recruiting
+browser. It submits captured evidence to Workspace Service over HTTP.
 
 The dedicated profile survives service restarts and is never shared with another application.
 Browser Session tools never read or return cookies, browser storage, or profile contents. Their
@@ -116,13 +114,8 @@ with `data.tool`.
 ### Health and runtime diagnostics
 
 Browser runtime status is exposed directly through `browser_status` and `/health`. Desktop Manager
-uses the health endpoint for its product-level availability display. Dashboard may read the same
-endpoint as an optional client. Workspace Service receives no browser runtime reports.
-
-Health responses are uncached. Local HTTP(S) page origins may read `GET /health` through CORS,
-without credentials; this permission does not extend to MCP or browser actions.
-[Dashboard configuration](../dashboard/README.md#service-origin-configuration) supplies the service
-origin and the client-side connection policy.
+uses `/health` to check browser availability. Health responses are uncached, and the HTTP API does
+not grant cross-origin page access. Browser runtime status is not submitted as workspace evidence.
 
 An unavailable runtime reports `lifecycle.phase` (`starting`, `closing`, `retry-wait`, or
 `stopped`) and the phase's `phaseStartedAt` timestamp. `retry-wait` includes `nextAttemptAt`, the

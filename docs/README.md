@@ -7,6 +7,7 @@ Start with the document for the work you need to do:
 | Run the supported Compose deployment              | [Deployment](deployment.md)                                                     |
 | Use a portable desktop prerelease                 | [Desktop distribution](desktop-distribution.md#use-a-desktop-prerelease)        |
 | Evaluate usage feedback or a proposed capability  | [Feedback and capability design](development.md#feedback-and-capability-design) |
+| Write or revise documentation                     | [Documentation ownership](development.md#documentation-ownership)               |
 | Build, check, or release the repository           | [Development](development.md)                                                   |
 | Understand product responsibilities and authority | [Product design](product-design.md)                                             |
 | Use or maintain an application's interfaces       | [Application READMEs](../apps/README.md)                                        |

@@ -36,6 +36,19 @@ and whether the implementation delivers the intended behavior. Check code, publi
 instructions, and documentation for consistent scope. Report adopted, deferred, and rejected
 suggestions with the reasons that determined their disposition.
 
+## Documentation ownership
+
+Define each rule in the document that owns it. Product design owns cross-application behavior;
+application READMEs own interfaces and implemented behavior; deployment documents own process
+composition and packaging. Update the owning rule and affected consumers together when a boundary
+changes. An application's current implementation does not define product policy in return.
+
+A consumer may reference a provider's public contract. The provider's contract must be understandable
+without consulting a consumer's implementation. Keep navigation links distinct from requirements:
+a link to related detail does not transfer authority or require reciprocal reading to understand
+the same rule. Documentation indexes route readers to these owners rather than duplicating their
+rules.
+
 ## Workspace authorities
 
 Each ecosystem retains its native dependency and workspace authority:

@@ -1,25 +1,16 @@
 # Workspace Service
 
-Workspace Service owns Job Boardwalk's durable local state and workspace read model. It is the sole
-owner of SQLite persistence. Its HTTP server exposes `/api` to Dashboard and `/mcp` to MCP clients;
-it does not serve Dashboard assets or own a browser process. The production container listens on
-its private network while Compose publishes the same service to host loopback for Browser Session
-and the agent.
+Workspace Service owns Job Boardwalk's durable local state and is the sole writer to its SQLite
+database. It exposes HTTP APIs at `/api` and MCP tools and resources at `/mcp` for reading and
+maintaining the same workspace.
 
-The repository's [product design](../../docs/product-design.md) defines the intended delegation and
-browser-collaboration model. The current service preserves platform-access observations, profile
-facts, job-search intents, normalized jobs and their platform sources, and research reports. Each
-intent owns a target position, city, selection state, and per-platform recommendation-page
-references. The service does not store recruiting pages or historical page snapshots. It stores
-research reports as Markdown documents.
+The service stores personal context, job-search intents, normalized jobs and their platform
+sources, platform-access observations, and Markdown research reports. Each intent records a target
+position, city, selection state, and per-platform recommendation pages. Page observations retain
+extracted facts and provenance rather than recruiting pages or historical page snapshots.
 
-Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
-which owns the visible persistent browser. The agent coordinates that live browser work with the
-durable workspace exposed by this service.
-
-Browser Session submits platform-access observations through the domain API. Workspace Service
-validates and persists this historical research evidence independently of the producer's runtime.
-It neither calls Browser Session to fulfill workspace requests nor tracks its availability.
+Workspace operations use stored data and do not contact Browser Session. Submitted access evidence
+is validated and retained independently of the producer's runtime availability.
 
 ## Run Workspace Service
 
@@ -153,10 +144,11 @@ Authentication evidence identifies how the conclusion was established:
 - `login-redirect` records `unauthenticated` when a protected navigation redirects to login.
 
 Verification and access denial use the separate `interruption` field. The workspace overview
-projects the latest definite authentication result, ordered by `lastObservedAt`. It includes the
-latest interruption when that interruption is more recent, or when no authentication observation
-exists. Both retain their source URL. Dashboard owns
-[presentation of these summaries](../dashboard/README.md#data-ownership-and-freshness).
+projects `latestAuthentication` and `latestInterruption` independently, each ordered by
+`lastObservedAt` with the record ID breaking ties. A newer authentication observation does not
+resolve or remove an interruption from this historical summary. Both retain their source URL;
+neither establishes current browser control or a pending user action. The agent can read these
+summaries through the workspace overview as research provenance.
 
 ### Personal context and search intent
 
@@ -369,7 +361,7 @@ attribution in the same transaction as the report change.
 
 HTTP and MCP validate commands before passing them to the typed
 [report repository](src/persistence/research-report-repository.ts), which owns persistence,
-queries, and change attribution. [Dashboard](../dashboard/README.md#report-rendering) owns rendering.
+queries, and change attribution.
 
 ## Persistence
 

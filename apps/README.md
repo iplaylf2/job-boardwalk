@@ -4,8 +4,8 @@
   contract.
 - [`workspace-service`](workspace-service/) owns durable recruiting state, research reports, and
   recruiting-domain APIs.
-- [`dashboard`](dashboard/) presents workspace state and lets the user maintain personal context
-  and job-search intents.
+- [`dashboard`](dashboard/) presents saved jobs and research reports and lets the user maintain
+  personal context and job-search intents.
 - [`desktop-service-host`](desktop-service-host/) loads one finalized service payload per desktop
   child process.
 - [`desktop-manager`](desktop-manager/) owns the native desktop control surface, process topology,

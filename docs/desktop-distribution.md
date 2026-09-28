@@ -127,8 +127,8 @@ order, readiness, failure handling, and bounded shutdown.
 Desktop Manager resolves the configured browser override or a common system Chrome, Edge, or
 Chromium installation and passes the resulting browser launch selection to Browser Session.
 Dashboard runs on the packaged Caddy executable.
-[Desktop Manager](../apps/desktop-manager/README.md#lifecycle-boundary) supplies its service origins
-and lifecycle configuration, including the optional Browser Session health-check origin.
+[Desktop Manager](../apps/desktop-manager/README.md#lifecycle-boundary) supplies its listener,
+Workspace Service upstream, static-file directory, and lifecycle configuration.
 
 On Windows, Manager starts all private service processes without console windows; the Manager GUI
 and `data/logs/services.log` remain their user-facing status and diagnostic surfaces.
