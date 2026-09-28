@@ -42,7 +42,7 @@ const engagementCapabilities = platformIds
   .join("\n");
 const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
-  "访问观察：平台适配器从顶层导航响应、快照和采集时已有的页面读取中识别认证或访问中断。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
+  "访问观察：平台适配器从顶层导航响应、快照和采集时已有的页面读取中识别认证或访问中断。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类，不表示已登录；active 仅表示控制权可用，历史认证记录不能代替当前页面检查。",
   "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
   "用户交接：需要登录时使用 browser_prepare_login。登录界面就绪返回 outcome=handoff-ready 并暂停会话；适配器识别到验证或拒绝访问时也会暂停。暂停期间，除 browser_status 和交还控制后的首次快照外，新工具调用均返回 user-control-active；error.details.platformAccessObservation 保留已知的中断证据；browser_status 可查看当前控制状态和来源 URL。",
   "恢复研究：用户明确交还控制权后，对相关 tabId 调用 browser_snapshot 并设置 userReturnedControl=true。快照仍识别到中断时会再次暂停；根据 controlState 和页面证据决定下一步。普通快照省略该标志。",

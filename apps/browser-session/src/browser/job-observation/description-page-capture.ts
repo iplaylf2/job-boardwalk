@@ -168,6 +168,20 @@ export function captureJobDescriptionMetadata(input: {
         .join("\n")
     : bodyText;
   const pageText = helpers.bounded(factText, Number.MAX_SAFE_INTEGER);
+  const qualificationText = input.descriptionConfig.qualificationTextSelectors
+    ? helpers.normalized(
+        input.descriptionConfig.qualificationTextSelectors
+          .flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)])
+          .map((element) => element.innerText || "")
+          .join("\n"),
+      )
+    : pageText.slice(
+        firstIndex,
+        Math.max(
+          firstIndex,
+          pageText.indexOf(input.descriptionConfig.qualificationTextEndMarker ?? ""),
+        ),
+      );
   const details = (
     input.descriptionConfig.detailsSelectors ?? input.cardConfig.detailsSelectors
   ).flatMap((selector) =>
@@ -183,8 +197,14 @@ export function captureJobDescriptionMetadata(input: {
     company: helpers.firstText(input.descriptionConfig.companySelectors),
     description,
     details,
-    educationRequirement: helpers.firstPattern(pageText, input.cardConfig.educationTextPattern),
-    experienceRequirement: helpers.firstPattern(pageText, input.cardConfig.experienceTextPattern),
+    educationRequirement: helpers.firstPattern(
+      qualificationText,
+      input.cardConfig.educationTextPattern,
+    ),
+    experienceRequirement: helpers.firstPattern(
+      qualificationText,
+      input.cardConfig.experienceTextPattern,
+    ),
     location:
       helpers.locationFromText() ??
       helpers.firstText(

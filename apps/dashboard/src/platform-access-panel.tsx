@@ -11,6 +11,7 @@ import styles from "./platform-access-panel.module.css";
 const authenticationCopy = {
   "authenticated-page": { label: "当时已登录", tone: "positive" },
   "login-redirect": { label: "当时未登录", tone: "attention" },
+  "login-required-page": { label: "当时内容需登录", tone: "attention" },
   "protected-resource": { label: "当时已登录", tone: "positive" },
 } as const;
 

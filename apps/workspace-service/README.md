@@ -148,6 +148,8 @@ Authentication evidence identifies how the conclusion was established:
   authentication;
 - `authenticated-page` records `authenticated` after bounded, account-specific page content
   establishes an active session;
+- `login-required-page` records `unauthenticated` when a recognized page explicitly gates content
+  behind login; it does not establish the status of every page on the platform.
 - `login-redirect` records `unauthenticated` when a protected navigation redirects to login.
 
 Verification and access denial use the separate `interruption` field. The workspace overview

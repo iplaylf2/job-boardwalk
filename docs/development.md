@@ -1,8 +1,40 @@
 # Development
 
-This document defines Job Boardwalk's cross-language development model. Application and tooling
-READMEs own component-specific commands and requirements; [Deployment](deployment.md) owns the
-runtime topology and deployable artifacts.
+This document defines how Job Boardwalk changes are evaluated, implemented, and checked. Application
+and tooling READMEs own component-specific commands and requirements; [Deployment](deployment.md)
+owns the runtime topology and deployable artifacts.
+
+## Feedback and capability design
+
+Usage feedback describes an experience and may suggest a remedy. Evaluate the observed problem
+against the [product boundaries](product-design.md#product-capabilities-and-research-methods) and
+relevant application contracts before choosing a solution. Distinguish a failure of an existing
+capability from difficulty with a particular research method and from a proposed new capability.
+An explicit product direction can establish new scope; a request to review feedback leaves its
+suggested remedies open to evaluation.
+
+For a material change, explain the observed problem, the responsibility the product should own,
+and the reason for the chosen response. Consider the alternatives that could change the decision:
+correcting existing behavior, improving access to existing evidence, supporting the method within
+the research task, or adding a product capability. A new capability needs a defined audience and
+scope, a place among existing resources, and an owner for its behavior and any state it introduces.
+Optional fields and generic metadata require the same justification as other public contracts.
+
+When a proposal repeats earlier feedback, review the prior decision and the evidence that could
+change it. Distinguish new observations from restatements of the same proposal. Repeated observations
+can establish a problem's persistence within that use; broader scope needs its own support. Record
+durable product decisions in their owning documents so later reviews can find the rationale without
+relying on local feedback files.
+
+Scale the design work to the unresolved question. A reproducible extraction error can be fixed
+within the existing evidence contract. A new domain model or workflow requires its scope and
+ownership to be established before implementation. If the available evidence leaves those questions
+open, state what is missing and continue with independently justified improvements.
+
+Validate the result at two levels: whether the change serves the established product responsibility,
+and whether the implementation delivers the intended behavior. Check code, public interfaces, tool
+instructions, and documentation for consistent scope. Report adopted, deferred, and rejected
+suggestions with the reasons that determined their disposition.
 
 ## Workspace authorities
 

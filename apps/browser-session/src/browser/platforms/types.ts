@@ -78,6 +78,8 @@ export interface JobDescriptionExtractionConfig {
     readonly selectors: readonly string[];
     readonly pattern: string;
   };
+  readonly qualificationTextSelectors?: readonly string[];
+  readonly qualificationTextEndMarker?: string;
   readonly factTextSelectors?: readonly string[];
   readonly salarySelectors?: readonly string[];
   readonly locationSelectors?: readonly string[];

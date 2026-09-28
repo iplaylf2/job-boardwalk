@@ -7,6 +7,19 @@ This document is the source of truth for cross-application product behavior and 
 describes the intended product. The root README summarizes current scope, while application READMEs
 document the software each application currently exposes and how to operate it.
 
+## Product capabilities and research methods
+
+Job Boardwalk provides browser execution, source evidence, and durable workspace resources.
+Users set research goals and delegate work; the agent selects methods and authors findings within
+that scope. Evaluation criteria and the organization of findings belong to the research task.
+
+Shared domain resources have defined semantics and provenance. For example, a job engagement records
+an observed platform category, while a research conclusion expresses an author's judgment in the
+context of the user's goals. Workspace Service preserves both kinds of information through their
+respective contracts. A method used to produce or interpret a document does not by itself define
+an additional product workflow. [Capability design](development.md#feedback-and-capability-design)
+establishes the scope and ownership of proposed additions.
+
 ## Delegation boundary
 
 The user may delegate read-only recruiting research to the agent, including:
@@ -223,7 +236,10 @@ is recorded separately from verification requests and access denial.
 Browser Session derives access observations from platform rules applied to top-level
 navigation responses and existing page reads. The agent can record independently interpreted
 evidence when no adapter classifies it. Unclassified evidence leaves existing observations
-unchanged. [Platform coverage](../apps/browser-session/README.md#platform-coverage) defines the
+unchanged. A null current observation does not renew historical authentication; an active control
+state describes who may operate the browser, not whether the platform has authenticated them.
+Compare dated history with current page restrictions before relying on account access.
+[Platform coverage](../apps/browser-session/README.md#platform-coverage) defines the
 recognized pages and evidence for each adapter.
 
 Workspace Service retains observations by platform and source URL, reconciling repeated evidence
@@ -253,6 +269,10 @@ A browser action whose response is lost has an unknown outcome. Browser Session 
 failure to the request rather than replaying the action. Navigation and inspection timeouts,
 including repeated timeouts, establish neither their cause nor the absence of a visible access
 decision and do not authorize a reload, replacement page, or browser restart.
+
+Transport failure without a tool result establishes no platform-access state. Preserve collected
+evidence, check service availability independently, and re-observe page and control state after
+recovery. Service unreachability alone does not imply a need to log in again.
 
 Before recovery changes the visible page, the agent re-observes when possible. If the driver still
 cannot inspect the page, the agent asks what the user sees in the visible window. Recovery preserves

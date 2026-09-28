@@ -54,7 +54,7 @@ function toRecordedPlatformAccessObservation(
   if (
     row.authenticationState === "unauthenticated" &&
     row.interruption === null &&
-    row.evidence === "login-redirect"
+    (row.evidence === "login-redirect" || row.evidence === "login-required-page")
   ) {
     return {
       ...observationMetadata,

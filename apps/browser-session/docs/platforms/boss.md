@@ -14,6 +14,11 @@ experience. Generic snapshots decode visible text, element names, and card conte
 raw element signatures for reference validation. Unknown characters remain unchanged; the mapping
 covers only the known platform digit encoding.
 
+## Detail extraction
+
+Detail experience and education fields read the text before “职位描述”. The full description retains
+its own requirements and preferences; they do not supply missing header fields.
+
 ## Recruitment assessment
 
 A successful detail read records `recruitment.state=closed` when a rendered standalone
@@ -23,14 +28,20 @@ Other evidence returns `unknown`; this adapter has no rule that establishes `ope
 
 ## Access assessment
 
-A successful protected navigation records `authenticated`. A redirect from protected navigation
-to login records `unauthenticated`. A bounded snapshot containing the complete set of
-account-only navigation links records `authenticated`. Other evidence remains unclassified.
+A successful navigation alone remains unclassified: an application shell can load while content
+still requires login. A redirect from `/web/geek/` to login records `unauthenticated`.
+On recognized collection pages, the standalone lines “登录账号，查看更多好职位” and
+“登录查看完整内容” together record `unauthenticated` with `login-required-page` evidence.
+This page-local content gate takes precedence over account navigation links; it does not pause
+browser control or authorize login input. A bounded snapshot containing the complete set of
+account-only navigation links otherwise records `authenticated`. An isolated login link remains
+unclassified.
 
 ## Validation coverage
 
-The closure rule has synthetic accepted and rejected tests. Live validation of the
-rule remains outstanding.
+Synthetic tests cover recruitment closure, login-gate classification, navigation-only authentication
+evidence, and qualification extraction boundaries. Live validation of these rules remains
+outstanding.
 
 ## Implementation
 

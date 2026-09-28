@@ -24,6 +24,8 @@ files. Read a linked source only when its trigger applies.
 
 ## Task-specific guidance
 
+- Before turning usage feedback into changes or introducing a product capability, follow
+  [Feedback and capability design](docs/development.md#feedback-and-capability-design).
 - Before changing application behavior or development workflows, read the relevant sections of that
   application's README.
 - Before changing dependencies, follow the version-placement policy in

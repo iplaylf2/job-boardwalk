@@ -13,9 +13,6 @@ function isBossProtectedPageUrl(url: string): boolean {
 }
 
 function assessBossNavigation(response: NavigationResponseFacts): PlatformAccessAssessment | null {
-  if (response.ok && isBossProtectedPageUrl(response.url)) {
-    return { authenticationState: "authenticated", evidence: "protected-resource" };
-  }
   const current = new URL(response.url);
   const login = new URL(resolvePlatformWebUrl("boss", "login"));
   if (
@@ -36,6 +33,14 @@ function isBossAccountLink(href: string | undefined, pathname: string): boolean 
 }
 
 function assessBossPage(page: PageAccessFacts): PlatformAccessAssessment | null {
+  const lines = new Set(page.text.split(/\r?\n/u).map((line) => line.trim()));
+  if (
+    isBossJobCardCollectionPage(page.url) &&
+    lines.has("登录账号，查看更多好职位") &&
+    lines.has("登录查看完整内容")
+  ) {
+    return { authenticationState: "unauthenticated", evidence: "login-required-page" };
+  }
   const requiredAccountPaths = [
     "/web/geek/chat",
     "/web/geek/resume",
@@ -101,6 +106,7 @@ export const bossPageDefinition = {
       ".company-info a[href*='/gongsi/']",
     ],
     descriptionSelectors: [".job-sec-text"],
+    qualificationTextEndMarker: "职位描述",
     recruitmentClosedTextPattern: String.raw`^(?:(?!职位描述)[\s\S])*?(?:^|\n)(?<evidence>职位已关闭)\n(?=[\s\S]*职位描述(?:\n|$))`,
   },
   jobLink: bossJobLink,

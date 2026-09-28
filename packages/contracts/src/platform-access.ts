@@ -16,6 +16,11 @@ const unauthenticatedFromRedirect = contract({
   evidence: "'login-redirect'",
 });
 
+const unauthenticatedFromPage = contract({
+  authenticationState: "'unauthenticated'",
+  evidence: "'login-required-page'",
+});
+
 const verificationRequired = contract({
   evidence: "'verification-page'",
   interruption: "'verification-required'",
@@ -30,6 +35,7 @@ export const PlatformAccessAssessment = contract.or(
   authenticatedFromProtectedResource,
   authenticatedFromPage,
   unauthenticatedFromRedirect,
+  unauthenticatedFromPage,
   verificationRequired,
   accessDenied,
 );
@@ -46,6 +52,7 @@ const authenticatedFromProtectedResourceObservation =
 const authenticatedFromPageObservation = authenticatedFromPage.merge(observationContext);
 const unauthenticatedFromRedirectObservation =
   unauthenticatedFromRedirect.merge(observationContext);
+const unauthenticatedFromPageObservation = unauthenticatedFromPage.merge(observationContext);
 const verificationRequiredObservation = verificationRequired.merge(observationContext);
 const accessDeniedObservation = accessDenied.merge(observationContext);
 
@@ -53,6 +60,7 @@ export const PlatformAccessObservation = contract.or(
   authenticatedFromProtectedResourceObservation,
   authenticatedFromPageObservation,
   unauthenticatedFromRedirectObservation,
+  unauthenticatedFromPageObservation,
   verificationRequiredObservation,
   accessDeniedObservation,
 );
@@ -68,6 +76,8 @@ const recordedAuthenticatedFromProtectedResource =
 const recordedAuthenticatedFromPage = authenticatedFromPageObservation.merge(recordedObservation);
 const recordedUnauthenticatedFromRedirect =
   unauthenticatedFromRedirectObservation.merge(recordedObservation);
+const recordedUnauthenticatedFromPage =
+  unauthenticatedFromPageObservation.merge(recordedObservation);
 const recordedVerificationRequired = verificationRequiredObservation.merge(recordedObservation);
 const recordedAccessDenied = accessDeniedObservation.merge(recordedObservation);
 
@@ -75,6 +85,7 @@ export const RecordedPlatformAccessObservation = contract.or(
   recordedAuthenticatedFromProtectedResource,
   recordedAuthenticatedFromPage,
   recordedUnauthenticatedFromRedirect,
+  recordedUnauthenticatedFromPage,
   recordedVerificationRequired,
   recordedAccessDenied,
 );
@@ -84,6 +95,7 @@ export const RecordedPlatformAuthenticationObservation = contract.or(
   recordedAuthenticatedFromProtectedResource,
   recordedAuthenticatedFromPage,
   recordedUnauthenticatedFromRedirect,
+  recordedUnauthenticatedFromPage,
 );
 export type RecordedPlatformAuthenticationObservation =
   typeof RecordedPlatformAuthenticationObservation.infer;

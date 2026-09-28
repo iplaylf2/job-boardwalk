@@ -73,8 +73,8 @@ CREATE TABLE `platform_access_observations` (
 	`url` text NOT NULL,
 	CONSTRAINT "platform_access_observations_authentication_state" CHECK("authentication_state" is null or "authentication_state" in ('authenticated', 'unauthenticated')),
 	CONSTRAINT "platform_access_observations_interruption" CHECK("interruption" is null or "interruption" in ('verification-required', 'access-denied')),
-	CONSTRAINT "platform_access_observations_evidence" CHECK("evidence" in ('protected-resource', 'authenticated-page', 'login-redirect', 'verification-page', 'access-denied-page')),
-	CONSTRAINT "platform_access_observations_assessment" CHECK(("authentication_state" = 'authenticated' and "interruption" is null and "evidence" in ('protected-resource', 'authenticated-page')) or ("authentication_state" = 'unauthenticated' and "interruption" is null and "evidence" = 'login-redirect') or ("authentication_state" is null and "interruption" = 'verification-required' and "evidence" = 'verification-page') or ("authentication_state" is null and "interruption" = 'access-denied' and "evidence" = 'access-denied-page'))
+	CONSTRAINT "platform_access_observations_evidence" CHECK("evidence" in ('protected-resource', 'authenticated-page', 'login-redirect', 'login-required-page', 'verification-page', 'access-denied-page')),
+	CONSTRAINT "platform_access_observations_assessment" CHECK(("authentication_state" = 'authenticated' and "interruption" is null and "evidence" in ('protected-resource', 'authenticated-page')) or ("authentication_state" = 'unauthenticated' and "interruption" is null and "evidence" in ('login-redirect', 'login-required-page')) or ("authentication_state" is null and "interruption" = 'verification-required' and "evidence" = 'verification-page') or ("authentication_state" is null and "interruption" = 'access-denied' and "evidence" = 'access-denied-page'))
 );
 --> statement-breakpoint
 CREATE TABLE `profile_facts` (

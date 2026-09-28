@@ -283,3 +283,32 @@ test.each([
   });
   expect(metadata.location).toBe(expected);
 });
+
+test.each(["3–4年", "5-7年", ""])(
+  "keeps the header experience separate from preferred experience: %s",
+  (header) => {
+    const description = "合成任职条件\n2年以上开发经验者优先，本科优先。";
+    const fields: Record<string, { innerText: string; textContent: string }> = {
+      ".jTitle": { innerText: header, textContent: header },
+      ".job-detail .job_msg": { innerText: description, textContent: description },
+    };
+    vi.stubGlobal("document", {
+      body: { innerText: `${header}\n${description}` },
+      querySelector: (selector: string) => fields[selector] ?? null,
+      querySelectorAll: (selector: string) => (fields[selector] ? [fields[selector]] : []),
+    });
+    vi.stubGlobal("location", { href: detailUrl });
+    const metadata = captureJobDescriptionMetadata({
+      ...requireJobDetailExtractionConfigs(detailUrl),
+      accessTextCharacters: 5000,
+      maximumAccessElements: 300,
+      maximumDescriptionCharacters: 20_000,
+      maximumFieldCharacters: 300,
+    });
+    expect(metadata).toMatchObject({
+      description,
+      educationRequirement: null,
+      experienceRequirement: header || null,
+    });
+  },
+);
