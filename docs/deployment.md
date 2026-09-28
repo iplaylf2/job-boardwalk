@@ -10,8 +10,8 @@ are the boundary for login, verification, and other user-controlled actions.
 ## Requirements
 
 - Container host: Docker Engine with Docker Compose, plus BuildKit when building images from source
-- Graphical host: a repository checkout, Chromium installed by Patchright, and the Node.js and pnpm toolchain
-  declared in the root [`package.json`](../package.json)
+- Graphical host: a repository checkout, Chromium installed by Patchright, and the
+  [source toolchain](../README.md#source-toolchain)
 
 Source image builds bootstrap their own toolchain. Host Node.js and pnpm are needed only for Browser
 Session and source development, not for building or deploying the images.
@@ -199,8 +199,8 @@ the Compose network and container lifecycle. Source-development defaults and env
 belong to its [application README](../apps/browser-session/README.md#run-browser-session-from-source).
 The directory-contained desktop adaptation belongs to
 [Desktop distribution](desktop-distribution.md#runtime-payload).
-[Development](development.md#generated-artifacts-and-language-boundaries) defines when this
-process-and-HTTP boundary would require a language-neutral schema.
+[Development](development.md#generated-artifacts-and-language-boundaries) describes the shared
+artifact and language boundaries.
 
 ## Deployment file ownership
 

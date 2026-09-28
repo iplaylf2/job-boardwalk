@@ -35,7 +35,8 @@ Browser Session requires a graphical desktop session and Patchright's Chromium b
 require a particular operating system, shell, VM, or editor, but it must not run in the headless
 service containers because the visible host window is the user-handoff boundary.
 
-From the repository root, install the locked dependencies and Patchright's browser:
+Prepare the [source toolchain](../../README.md#source-toolchain), then install the locked
+dependencies and Patchright's browser from the repository root:
 
 ```sh
 pnpm install --frozen-lockfile

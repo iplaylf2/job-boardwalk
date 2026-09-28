@@ -42,9 +42,7 @@ for prerelease evaluation.
 
 Workspace Service and Dashboard require Docker Engine with Docker Compose; building their images
 from source also requires BuildKit. Browser Session requires a graphical host session, Patchright
-Chromium, and the Node.js and pnpm toolchain declared in the root
-[`package.json`](package.json) and resolved in [`pnpm-lock.yaml`](pnpm-lock.yaml). The
-package-manager configuration selects those locked versions, downloading them when needed.
+Chromium, and the [source toolchain](#source-toolchain).
 
 Build and start the container-owned services:
 
@@ -87,10 +85,21 @@ restore. See [Development](docs/development.md) for the cross-language workspace
 root `.env.example` is the environment-variable reference; project entrypoints do not load `.env`
 automatically.
 
+## Source toolchain
+
+For source development and host-side Browser Session, make pnpm available in your shell. Root
+[`package.json`](package.json) declares the pnpm and Node.js version ranges;
+[`pnpm-lock.yaml`](pnpm-lock.yaml) records their exact resolutions. pnpm selects the locked
+package manager and downloads the project-local Node.js runtime when needed.
+
+If you launch pnpm through Corepack, use
+[Corepack 0.36.0 or newer](https://github.com/nodejs/corepack/releases/tag/v0.36.0), which supports
+the package-manager version range in `devEngines.packageManager.version`.
+
 ## Repository checks
 
 Non-draft pull requests targeting `master` run the repository checks automatically. To reproduce
-them locally, install the locked Node.js dependencies and the Rust toolchain declared in
+them locally, prepare the [source toolchain](#source-toolchain) and the Rust toolchain declared in
 [`rust-toolchain.toml`](rust-toolchain.toml). Linux also requires the native build dependencies
 listed by [Desktop Manager](apps/desktop-manager/README.md). Then run the root check:
 

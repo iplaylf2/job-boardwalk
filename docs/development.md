@@ -75,7 +75,7 @@ task cache. It invokes Cargo and pnpm commands without replacing either dependen
 
 ## Checks
 
-Install the locked Node.js dependencies and the Rust toolchain declared in
+Prepare the [source toolchain](../README.md#source-toolchain) and the Rust toolchain declared in
 [`rust-toolchain.toml`](../rust-toolchain.toml). Linux also requires the native build dependencies
 listed by [Desktop Manager](../apps/desktop-manager/README.md). Run the local plan with:
 
