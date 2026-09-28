@@ -10,8 +10,8 @@ import {
 export const PlatformAccessSummary = contract({
   label: trimmedNonEmptyString,
   "latestAuthentication?": RecordedPlatformAuthenticationObservation,
+  "latestInterruption?": RecordedPlatformAccessInterruptionObservation,
   platformId,
-  "unresolvedInterruption?": RecordedPlatformAccessInterruptionObservation,
 });
 export type PlatformAccessSummary = typeof PlatformAccessSummary.infer;
 

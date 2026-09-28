@@ -32,7 +32,7 @@ test("observes the BOSS main description without surrounding recruiter or recomm
     ".salary": { textContent: "-K" },
   };
   vi.stubGlobal("document", {
-    body: { innerText: "职位描述\n-年\n正文\n合成招聘者\nBOSS 安全提示\n推荐岗位" },
+    body: { innerText: "-年\n职位描述\n正文\n合成招聘者\nBOSS 安全提示\n推荐岗位" },
     querySelector: (selector: string) => fields[selector] ?? null,
     querySelectorAll(selector: string) {
       if (selector === companySelector) {
@@ -226,3 +226,22 @@ test.each([
   expect(result.description).toBe("维护合成服务。");
   expect(result.recruitmentClosure).toBe(evidence);
 });
+
+test.each([
+  { marker: "职位描述", url: "https://www.zhipin.com/job_detail/synthetic-qualification.html" },
+  { marker: "职位详情", url: "https://www.yupao.com/zhaogong/900000009.html" },
+])(
+  "does not fill missing header qualifications from description text: $marker",
+  ({ marker, url }) => {
+    vi.stubGlobal("document", {
+      body: { innerText: `${marker}\n合成岗位条件：3-5年，本科优先。\n职位总结` },
+      querySelector: () => null,
+      querySelectorAll: () => [],
+    });
+    vi.stubGlobal("location", { href: url });
+    expect(captureJobDescriptionMetadata(inputFor(url))).toMatchObject({
+      educationRequirement: null,
+      experienceRequirement: null,
+    });
+  },
+);

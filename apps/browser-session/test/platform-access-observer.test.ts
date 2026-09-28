@@ -34,19 +34,12 @@ function fakeResponse(options: {
 
 const observedAt = "2026-07-15T02:00:00.000Z";
 
-test("observes a successful BOSS protected-page navigation as authenticated", () => {
+test("does not infer authentication from a successful BOSS application shell", () => {
   expect(
     deriveNavigationAccessObservation(
       fakeResponse({ finalUrl: "https://www.zhipin.com/web/geek/jobs" }),
-      () => Date.parse(observedAt),
     ),
-  ).toEqual({
-    authenticationState: "authenticated",
-    evidence: "protected-resource",
-    observedAt,
-    platformId: "boss",
-    url: "https://www.zhipin.com/web/geek/jobs",
-  });
+  ).toBeNull();
 });
 
 test("observes a protected BOSS navigation redirected to login as unauthenticated", () => {
@@ -296,4 +289,38 @@ test("does not infer a Yupao account from a matching body-text sequence without 
       url: "https://www.yupao.com/topic/a2c1488/",
     }),
   ).toBeNull();
+});
+
+test("records a BOSS collection login gate before authenticated navigation evidence", () => {
+  expect(
+    derivePageAccessObservation(
+      {
+        elements: ["chat", "resume", "recommend"].map((path) => ({
+          href: `https://www.zhipin.com/web/geek/${path}`,
+        })),
+        text: "合成搜索结果\n登录账号，查看更多好职位\n登录查看完整内容",
+        url: "https://www.zhipin.com/web/geek/job-recommend",
+      },
+      () => Date.parse(observedAt),
+    ),
+  ).toMatchObject({
+    authenticationState: "unauthenticated",
+    evidence: "login-required-page",
+    observedAt,
+  });
+});
+
+test.each([
+  { text: "登录", url: "https://www.zhipin.com/web/geek/jobs" },
+  { text: "登录查看完整内容", url: "https://www.zhipin.com/web/geek/jobs" },
+  {
+    text: "合成说明提及登录账号，查看更多好职位和登录查看完整内容",
+    url: "https://www.zhipin.com/web/geek/jobs",
+  },
+  {
+    text: "登录账号，查看更多好职位\n登录查看完整内容",
+    url: "https://www.zhipin.com/job_detail/synthetic.html",
+  },
+])("leaves incidental or out-of-scope login text unclassified: $text", (page) => {
+  expect(derivePageAccessObservation({ ...page, elements: [] })).toBeNull();
 });

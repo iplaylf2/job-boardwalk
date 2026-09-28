@@ -1,10 +1,11 @@
-import type { JobCardEvidence } from "@job-boardwalk/contracts";
+import type { JobCardEvidence, JobCardSnapshot } from "@job-boardwalk/contracts";
 import type { JobCardExtractionConfig } from "#/browser/platforms/types.js";
 
 interface JobCardSnapshotMetadata {
   accessElements: { href?: string }[];
   accessText: string;
   cards: JobCardEvidence[];
+  coverage: JobCardSnapshot["coverage"];
   title: string;
   truncated: boolean;
   url: string;
@@ -24,35 +25,47 @@ export function captureJobCardMetadata(input: {
   const startIndex = 0;
   const increment = 1;
   const maximumContainerAncestorDepth = 6;
+  const candidateSelector = input.config.cardSelector ?? "a[href]";
   // Object methods retain their names without tsx injecting the Node-side `__name` helper.
   // Patchright serializes this entire callback, so every helper must exist in the page realm.
   const helpers = {
-    captureCards(): { cards: JobCardEvidence[]; matchedCardCount: number } {
+    captureCards(): { cards: JobCardEvidence[]; coverage: JobCardSnapshotMetadata["coverage"] } {
       const seenJobIdentities = new Set<string>();
       const cards: JobCardEvidence[] = [];
-      let matchedCardCount = 0;
-      const candidates = document.querySelectorAll<HTMLElement>(
-        input.config.cardSelector ?? "a[href]",
-      );
+      const candidates = document.querySelectorAll<HTMLElement>(candidateSelector);
+      const counts = { duplicateCandidates: 0, recognizedCards: 0, rejectedCandidates: 0 };
       for (const candidate of candidates) {
         const captured = helpers.readCandidate(candidate);
         if (!captured) {
+          counts.rejectedCandidates += increment;
           continue;
         }
         const { card, jobIdentity } = captured;
         if (jobIdentity && seenJobIdentities.has(jobIdentity)) {
+          counts.duplicateCandidates += increment;
           continue;
         }
         if (jobIdentity) {
           seenJobIdentities.add(jobIdentity);
         }
-        matchedCardCount += increment;
+        counts.recognizedCards += increment;
         if (cards.length === input.maximumCards) {
           continue;
         }
         cards.push(card);
       }
-      return { cards, matchedCardCount };
+      return {
+        cards,
+        coverage: {
+          candidateElements: candidates.length,
+          candidateSelector,
+          duplicateCandidates: counts.duplicateCandidates,
+          recognizedCards: counts.recognizedCards,
+          rejectedCandidates: counts.rejectedCandidates,
+          returnedCards: cards.length,
+          scope: "loaded-document",
+        },
+      };
     },
     closestContainer(link: HTMLAnchorElement): Element | null {
       let firstCandidate: Element | null = null;
@@ -243,7 +256,7 @@ export function captureJobCardMetadata(input: {
   const excludedTitlePattern = input.config.excludedTitlePattern
     ? new RegExp(input.config.excludedTitlePattern, "u")
     : null;
-  const { cards, matchedCardCount } = helpers.captureCards();
+  const { cards, coverage } = helpers.captureCards();
   // InnerText preserves the visible header lines used by platform access assessment.
   const accessText = document.body?.innerText ?? "";
   return {
@@ -252,8 +265,9 @@ export function captureJobCardMetadata(input: {
       .map(({ href }) => ({ href })),
     accessText: accessText.slice(startIndex, input.accessTextCharacters),
     cards,
+    coverage,
     title: document.title,
-    truncated: matchedCardCount > input.maximumCards,
+    truncated: coverage.recognizedCards > input.maximumCards,
     url: globalThis.location.href,
   };
 }

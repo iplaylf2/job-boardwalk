@@ -1,6 +1,5 @@
 import type {
   PlatformAccessSummary,
-  RecordedPlatformAccessObservation,
   RecordedPlatformAuthenticationObservation,
   RecordedPlatformAccessInterruptionObservation,
   WorkspaceOverview,
@@ -8,8 +7,6 @@ import type {
 import { platformCatalog, platformIds } from "@job-boardwalk/platform-catalog";
 
 import type { WorkspaceRepository } from "#/persistence/workspace-repository.js";
-
-const equalRecency = 0;
 
 export function readWorkspaceOverview(repository: WorkspaceRepository): WorkspaceOverview {
   const observations = repository.listPlatformAccessObservations();
@@ -34,23 +31,11 @@ export function readWorkspaceOverview(repository: WorkspaceRepository): Workspac
       if (latestAuthentication) {
         summary.latestAuthentication = latestAuthentication;
       }
-      if (
-        latestInterruption &&
-        (!latestAuthentication ||
-          compareObservationRecency(latestInterruption, latestAuthentication) > equalRecency)
-      ) {
-        summary.unresolvedInterruption = latestInterruption;
+      if (latestInterruption) {
+        summary.latestInterruption = latestInterruption;
       }
       return summary;
     }),
     profileFacts: repository.listProfileFacts(),
   };
-}
-
-function compareObservationRecency(
-  left: RecordedPlatformAccessObservation,
-  right: RecordedPlatformAccessObservation,
-): number {
-  const timestampComparison = left.lastObservedAt.localeCompare(right.lastObservedAt);
-  return timestampComparison === equalRecency ? left.id - right.id : timestampComparison;
 }

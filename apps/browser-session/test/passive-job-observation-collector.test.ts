@@ -1,3 +1,4 @@
+import { savedDescription } from "./synthetic-description-write.js";
 import type { BrowserContext, Page } from "patchright";
 import type { WorkspaceChangeAttribution } from "@job-boardwalk/contracts";
 import { createScope } from "@shajara/host";
@@ -78,6 +79,15 @@ test("converts job-card evidence from any supported discovery page into posting 
           title: "后端开发",
         },
       ],
+      coverage: {
+        candidateElements: 1,
+        candidateSelector: "a[href]",
+        duplicateCandidates: 0,
+        recognizedCards: 1,
+        rejectedCandidates: 0,
+        returnedCards: 1,
+        scope: "loaded-document",
+      },
       platformId: "boss",
       sourceTitle: "Java 职位搜索",
       sourceUrl: "https://www.zhipin.com/web/geek/jobs?query=Java",
@@ -115,6 +125,15 @@ test("uses Yupao's numeric path segment as the stable external job id", () => {
       text: "Java开发工程师",
       title: "Java开发工程师",
     })),
+    coverage: {
+      candidateElements: 3,
+      candidateSelector: "a[href]",
+      duplicateCandidates: 0,
+      recognizedCards: 3,
+      rejectedCandidates: 0,
+      returnedCards: 3,
+      scope: "loaded-document",
+    },
     platformId: "yupao",
     sourceTitle: "Java 职位搜索",
     sourceUrl: "https://www.yupao.com/topic/java/",
@@ -147,9 +166,9 @@ test("observes existing pages without opening or navigating recommendation seeds
       observations.push(observation);
       return { outcome: "unchanged" };
     },
-    *writeDescriptionObservation() {
+    *writeDescriptionObservation(observation) {
       yield* [];
-      return { outcome: "unchanged" };
+      return savedDescription(observation);
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -194,7 +213,7 @@ test("collects eligible platform tabs and leaves engagement pages to their owner
       yield* [];
       observations.push({ discoveryUrl: observation.jobUrl });
       attributions.push(attribution);
-      return { outcome: "unchanged" };
+      return savedDescription(observation);
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -238,9 +257,9 @@ test("continues collecting open platform tabs", async () => {
       writeCount += onePageRead;
       return { outcome: "unchanged" };
     },
-    *writeDescriptionObservation() {
+    *writeDescriptionObservation(observation) {
       yield* [];
-      return { outcome: "unchanged" };
+      return savedDescription(observation);
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);
@@ -269,9 +288,9 @@ test("reports one unstable page and preserves jobs from later healthy pages", as
       observations.push(observation);
       return { outcome: "unchanged" };
     },
-    *writeDescriptionObservation() {
+    *writeDescriptionObservation(observation) {
       yield* [];
-      return { outcome: "unchanged" };
+      return savedDescription(observation);
     },
   } satisfies JobObservationWriter;
   const collector = passiveJobCollector(context, writer);

@@ -9,67 +9,29 @@ revisiting sources, and comparing opportunities with the user's confirmed goals.
 Read-only research may continue unattended within the scope set by the user. Login, verification,
 account changes, applications, and communication always remain under user control.
 
-## System map
-
-Job Boardwalk assigns browser execution, durable state, web presentation, and native desktop
-integration to separate applications:
-
-- [Browser Session](apps/browser-session/) is a long-lived local HTTP MCP service that drives a
-  visible persistent Chromium-based browser through Patchright in the user's graphical session
-  and exposes project-owned browser tools to the agent. It is a host companion, not a container
-  workload.
-- [Workspace Service](apps/workspace-service/) owns local persistence and exposes recruiting-domain
-  operations over HTTP and MCP.
-- [Dashboard](apps/dashboard/) presents workspace data and research reports, and lets the user
-  maintain personal context and select the job-search intent that guides recruiting research. It
-  independently checks Browser Session health when configured, without managing its process.
-- [Desktop Service Host](apps/desktop-service-host/) is the private, application-specific Node.js
-  executable bundled with the desktop product. Each invocation loads one finalized service
-  payload and exits when that service ends; it does not coordinate the product topology.
-- [Desktop Manager](apps/desktop-manager/) is the native Slint operating-system integration
-  and desktop-supervision boundary. It starts, checks, observes, and stops Workspace Service,
-  Dashboard's packaged Caddy process, and Browser Session. It selects the desktop browser,
-  presents aggregate product status, and never takes over Browser Session's page-control boundary.
-
-Browser Session adapters derive authentication and access-interruption observations from top-level
-navigations and bounded snapshots when they have conclusive platform rules. The agent interprets
-evidence outside those rules and coordinates user handoff. Workspace Service deduplicates durable
-observations for Dashboard and MCP readers. See
-[Product design](docs/product-design.md) for the authoritative collaboration model and ownership
-boundaries.
-
 ## Current scope
 
-Available now:
+The agent researches BOSS直聘, 鱼泡直聘, and 前程无忧51job through Browser Session and saves job
+evidence and research reports in Workspace Service. Dashboard lets the user maintain personal
+context and job-search goals, inspect saved jobs, and read the agent's findings.
 
-- Browser Session supports BOSS直聘, 鱼泡直聘, and 前程无忧51job through shared browser and
-  collection workflows. It reads job cards and main descriptions from eligible open pages;
-  explicit description reads and passive collection preserve observations in Workspace Service.
-  Research navigation remains an explicit agent action guided by the selected job-search intent.
-  Within a user-requested task, the agent can also synchronize a platform's supported engagement
-  categories, one platform and category at a time. See
-  [evidence collection](apps/browser-session/README.md#job-evidence-reads-and-passive-collection)
-  and [synchronization support](apps/browser-session/README.md#supported-categories-and-continuation)
-  for capture semantics, platform capabilities, and scan limits.
-- Workspace Service stores platform-access observations and interruptions, along with personal
-  context, job-search intents, normalized job facts, platform-observed engagement records for job
-  sources, source-specific descriptions, and Markdown research reports. It normalizes job facts
-  and retains each platform source and its collected evidence.
-- Dashboard displays that durable workspace data and lets the user maintain and select job-search
-  intents. Its paginated job library supports search,
-  platform filtering, a combined view of all tracked jobs, and category views for interested,
-  contacted, applied, and interviewed records while preserving the original recruiting-platform
-  sources. It reports description coverage and can show jobs with a description, all jobs without
-  one, or only missing-description jobs that also lack a platform job ID and detail-page link. Its
-  report reader keeps saved research documents available independently of the agent conversation.
-- Desktop Manager provides working start, stop, and status controls while displaying the Dashboard
-  address and service log path and directly supervising the product's isolated service processes.
-  Browser discovery or launch failure, or a later Browser Session process exit, puts the
-  application in a limited state without taking Workspace Service or Dashboard offline.
-- Portable desktop prereleases package Job Boardwalk into one directory for Linux x64 and Windows
-  x64. They run without installing Docker or Node.js and without a source checkout, and they use an
-  installed Chrome, Edge, or Chromium browser. [Desktop distribution](docs/desktop-distribution.md)
-  explains how to use them and why Compose remains the supported deployment.
+Browser adapters cover specific page layouts and evidence rules. See
+[platform coverage](apps/browser-session/README.md#platform-coverage) and
+[engagement synchronization](apps/browser-session/README.md#explicit-job-engagement-synchronization)
+for supported reads and their limits.
+
+## System map
+
+| Application                                        | Responsibility                                                                                                           |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| [Browser Session](apps/browser-session/)           | Owns the visible persistent browser and exposes browser tools over local HTTP MCP. Runs in the user's graphical session. |
+| [Workspace Service](apps/workspace-service/)       | Owns SQLite persistence and the HTTP/MCP APIs for workspace data.                                                        |
+| [Dashboard](apps/dashboard/)                       | Maintains research criteria and presents saved jobs and research reports.                                                |
+| [Desktop Manager](apps/desktop-manager/)           | Starts, monitors, and stops the desktop product's service processes.                                                     |
+| [Desktop Service Host](apps/desktop-service-host/) | Loads one Node service payload per desktop child process.                                                                |
+
+[Product design](docs/product-design.md) defines cross-application behavior and authority.
+Application READMEs own their APIs, operation, and maintenance details.
 
 ## Run Job Boardwalk
 
@@ -80,9 +42,7 @@ for prerelease evaluation.
 
 Workspace Service and Dashboard require Docker Engine with Docker Compose; building their images
 from source also requires BuildKit. Browser Session requires a graphical host session, Patchright
-Chromium, and the Node.js and pnpm toolchain declared in the root
-[`package.json`](package.json) and resolved in [`pnpm-lock.yaml`](pnpm-lock.yaml). The
-package-manager configuration selects those locked versions, downloading them when needed.
+Chromium, and the [source toolchain](#source-toolchain).
 
 Build and start the container-owned services:
 
@@ -102,8 +62,8 @@ pnpm exec moon run browser-session:dev
 ```
 
 Browser Session launches a visible browser with a dedicated profile in the operating system's user
-data directory and owns it for the service lifetime. Dashboard can check its health directly,
-while the agent host connects to <http://127.0.0.1:54312/mcp>.
+data directory and owns it for the service lifetime. The agent host connects to
+<http://127.0.0.1:54312/mcp>; login and verification take place in the visible browser.
 
 ### Portable desktop prerelease
 
@@ -125,10 +85,21 @@ restore. See [Development](docs/development.md) for the cross-language workspace
 root `.env.example` is the environment-variable reference; project entrypoints do not load `.env`
 automatically.
 
+## Source toolchain
+
+For source development and host-side Browser Session, make pnpm available in your shell. Root
+[`package.json`](package.json) declares the pnpm and Node.js version ranges;
+[`pnpm-lock.yaml`](pnpm-lock.yaml) records their exact resolutions. pnpm selects the locked
+package manager and downloads the project-local Node.js runtime when needed.
+
+If you launch pnpm through Corepack, use
+[Corepack 0.36.0 or newer](https://github.com/nodejs/corepack/releases/tag/v0.36.0), which supports
+the package-manager version range in `devEngines.packageManager.version`.
+
 ## Repository checks
 
 Non-draft pull requests targeting `master` run the repository checks automatically. To reproduce
-them locally, install the locked Node.js dependencies and the Rust toolchain declared in
+them locally, prepare the [source toolchain](#source-toolchain) and the Rust toolchain declared in
 [`rust-toolchain.toml`](rust-toolchain.toml). Linux also requires the native build dependencies
 listed by [Desktop Manager](apps/desktop-manager/README.md). Then run the root check:
 

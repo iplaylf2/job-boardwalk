@@ -1,4 +1,8 @@
-import { inputValidationError, SaveResearchReportCommand } from "@job-boardwalk/contracts";
+import {
+  OperationError,
+  inputValidationError,
+  SaveResearchReportCommand,
+} from "@job-boardwalk/contracts";
 import { platformIds, platformJobEngagementKinds } from "@job-boardwalk/platform-catalog";
 
 import { defaultJobPageSize, firstJobPage, maximumJobPageSize } from "#/job-library/query.js";
@@ -23,6 +27,7 @@ export const ReadResearchReportInput = toolInput({
 export const ReadJobLibraryInput = toolInput({
   "descriptionStatus?": JobDescriptionStatusFilter,
   "engagement?": JobEngagementFilter,
+  "externalJobId?": "string.trim.preformatted > 0",
   page: `number.integer >= ${firstJobPage} = ${firstJobPage}`,
   pageSize: `${firstJobPage} <= number.integer <= ${maximumJobPageSize} = ${defaultJobPageSize}`,
   "platformId?": PlatformId,
@@ -77,6 +82,11 @@ export function parseSaveResearchReportInput(
 
 export function parseJobLibraryInput(input: Record<string, unknown>): JobLibraryQuery {
   const parsed = assertToolInput(() => ReadJobLibraryInput.assert(input));
+  if (parsed.externalJobId && !parsed.platformId) {
+    throw new OperationError("invalid-input", "externalJobId 必须与 platformId 一起使用", {
+      field: "platformId",
+    });
+  }
   const { query, ...filters } = parsed;
   const normalizedQuery = query?.trim();
   return {

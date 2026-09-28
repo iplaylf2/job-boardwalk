@@ -14,27 +14,27 @@ const pageStep = 1;
 
 const jobLibraryResultCopy = {
   all: {
-    empty: "岗位库里还没有岗位。完成招聘平台研究后，收录结果会显示在这里。",
+    empty: "岗位库中暂无已收录岗位。",
     kicker: "已整理岗位",
   },
   applied: {
-    empty: "尚未从招聘平台个人中心同步“已投递”岗位。",
+    empty: "暂无记录为“已投递”的岗位。",
     kicker: "岗位跟进",
   },
   contacted: {
-    empty: "尚未从招聘平台个人中心同步“沟通过”岗位。",
+    empty: "暂无记录为“沟通过”的岗位。",
     kicker: "岗位跟进",
   },
   interested: {
-    empty: "尚未从招聘平台个人中心同步“感兴趣”岗位。你可以先在平台标记感兴趣，再让助手同步。",
+    empty: "暂无记录为“感兴趣”的岗位。",
     kicker: "岗位跟进",
   },
   interviewed: {
-    empty: "尚未从招聘平台个人中心同步“面试”岗位。",
+    empty: "暂无记录为“面试”的岗位。",
     kicker: "岗位跟进",
   },
   tracked: {
-    empty: "尚未从招聘平台个人中心同步任何跟进岗位。",
+    empty: "暂无已记录跟进的岗位。",
     kicker: "岗位跟进",
   },
 } as const;
@@ -53,7 +53,7 @@ function JobDescriptionCoverageSummary(props: { result: JobPostingPage }): JSX.E
         {`（其中 ${String(props.result.descriptionCoverage.identityUnresolved)} 个还需补全详情来源）`}
       </Show>
       <Show when={props.result.total !== props.result.descriptionCoverage.total}>
-        {` · 当前显示 ${String(props.result.total)} 个`}
+        {` · 筛选后共 ${String(props.result.total)} 个`}
       </Show>
     </span>
   );

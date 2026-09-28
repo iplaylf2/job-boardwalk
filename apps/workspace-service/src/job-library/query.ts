@@ -8,6 +8,7 @@ export const maximumJobPageSize = 48;
 export interface JobLibraryQuery {
   descriptionStatus?: JobDescriptionStatusFilter;
   engagement?: JobEngagementFilter;
+  externalJobId?: string;
   page: number;
   pageSize: number;
   platformId?: PlatformId;

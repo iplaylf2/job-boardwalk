@@ -54,7 +54,7 @@ export function ProfileFactsSection(props: {
           <h3>个人条件</h3>
           <p>
             {props.facts.length === emptyCollectionLength
-              ? "尚未添加。这不会影响岗位整理。"
+              ? "尚未添加个人条件。"
               : `共 ${String(props.facts.length)} 项个人条件`}
           </p>
         </div>
@@ -85,7 +85,7 @@ export function ProfileFactsSection(props: {
         when={props.facts.length !== emptyCollectionLength}
         fallback={
           <Show when={!state.editing()}>
-            <p class={styles["empty"]}>可添加希望助手在比较和解释岗位时考虑的经验、偏好或限制。</p>
+            <p class={styles["empty"]}>可记录你的经验、偏好或限制。</p>
           </Show>
         }
       >

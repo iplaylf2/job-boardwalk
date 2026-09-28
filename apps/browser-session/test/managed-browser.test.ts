@@ -1,3 +1,4 @@
+import { savedDescription } from "./synthetic-description-write.js";
 import { EventEmitter } from "node:events";
 import type { Browser, BrowserContext } from "patchright";
 import { createScope } from "@shajara/host";
@@ -12,9 +13,9 @@ const jobObservationWriter = {
     yield* [];
     return { outcome: "unchanged" };
   },
-  *writeDescriptionObservation() {
+  *writeDescriptionObservation(observation) {
     yield* [];
-    return { outcome: "unchanged" };
+    return savedDescription(observation);
   },
 } satisfies JobObservationWriter;
 const jobEngagementWriter = {

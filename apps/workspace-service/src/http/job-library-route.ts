@@ -38,6 +38,22 @@ function readDescriptionStatus(
   return value;
 }
 
+function readExternalJobId(
+  externalJobId: string | undefined,
+  platform: string | undefined,
+): string | undefined {
+  if (
+    typeof externalJobId === "string" &&
+    (!externalJobId.trim() || externalJobId !== externalJobId.trim() || !platform)
+  ) {
+    throw new InvalidRequestError(
+      "externalJobId 必须是无首尾空白的非空 ID，并与 platform 一起使用",
+      { field: "externalJobId" },
+    );
+  }
+  return externalJobId;
+}
+
 function readJobLibraryQuery(context: Context) {
   const page = readPositiveQueryInteger(context.req.query("page"), firstJobPage, "page");
   const pageSize = readPositiveQueryInteger(
@@ -52,6 +68,7 @@ function readJobLibraryQuery(context: Context) {
   }
   const query = context.req.query("query")?.trim();
   const platform = context.req.query("platform");
+  const externalJobId = readExternalJobId(context.req.query("externalJobId"), platform);
   const engagement = readJobEngagement(context.req.query("engagement"));
   const descriptionStatus = readDescriptionStatus(context.req.query("descriptionStatus"));
   const engagementFilter: Pick<JobLibraryQuery, "engagement"> = engagement ? { engagement } : {};
@@ -66,6 +83,7 @@ function readJobLibraryQuery(context: Context) {
       page,
       pageSize,
       platformId: platform,
+      ...(externalJobId ? { externalJobId } : {}),
       ...descriptionFilter,
       ...engagementFilter,
       ...(query ? { query } : {}),

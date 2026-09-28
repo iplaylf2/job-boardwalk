@@ -139,6 +139,7 @@ export const yupaoPageDefinition = {
       selectors: ["body"],
     },
     pageTextEndMarkers: ["相关推荐", "推荐岗位", "推荐职位", "热门职位"],
+    qualificationTextEndMarker: "职位详情",
     // A collection-card salary selector can belong to a surrounding recommendation.
     salarySelectors: [],
     salaryTextEndMarker: "职位详情",

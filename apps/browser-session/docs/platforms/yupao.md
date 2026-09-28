@@ -15,10 +15,11 @@ are excluded as job titles.
 
 The description spans the rendered “职位详情” section up to the first “职位总结” or “工作地址”
 boundary, including requirements that precede duties. Salary comes from the rendered header before
-“职位详情”; collection-card salary nodes are not detail evidence. The work-address section supplies
-location separately. Recognized recommendation headings end the main text scope, so a missing main
-salary or address is not filled from later recommendations. Header matching accepts monthly 万, 万元,
-and K amounts as well as daily and hourly rates. A missing description boundary fails extraction.
+“职位详情”; experience and education also read only this header. Collection-card salary nodes are
+not detail evidence. The work-address section supplies location separately. Recognized recommendation
+headings end the main text scope, so a missing main salary or address is not filled from later
+recommendations. Header salary matching accepts monthly 万, 万元, and K amounts as well as daily
+and hourly rates. A missing description boundary fails extraction.
 Recruitment assessment returns `unknown`; this adapter has no conclusive recruitment-state rule.
 
 ## Access assessment
@@ -29,12 +30,12 @@ URL alone does not establish authentication. Other evidence remains unclassified
 
 ## Validation coverage
 
-Synthetic tests cover preceding requirements, work-address extraction, header salary variants, and
-exclusion of recommendation salaries and addresses. Live validation of these extraction rules
-remains outstanding.
+Synthetic tests cover preceding requirements, work-address extraction, header salary variants,
+qualification extraction boundaries, and exclusion of recommendation salaries and addresses. Live
+validation of these extraction rules remains outstanding.
 
 ## Implementation
 
 The [page definition](../../src/browser/platforms/yupao.ts) owns collection boundaries, job-link
 rules, extraction selectors, and access assessment. Shared contracts and catalog ownership are
-described in [Maintenance constraints](../../README.md#maintenance-constraints).
+described in [Maintenance constraints](../maintenance.md).

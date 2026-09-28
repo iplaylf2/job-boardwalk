@@ -73,14 +73,6 @@ pub(crate) fn service_plan(
             environment: vec![
                 caddy_lifecycle.environment(),
                 (
-                    "JOB_BOARDWALK_BROWSER_SESSION_ORIGIN".to_owned(),
-                    if browser.is_some() {
-                        browser_origin.clone()
-                    } else {
-                        String::new()
-                    },
-                ),
-                (
                     "JOB_BOARDWALK_DASHBOARD_ADDRESS".to_owned(),
                     dashboard_url.clone(),
                 ),
@@ -204,10 +196,6 @@ mod tests {
             );
         }
         assert_eq!(dashboard.health_url, "http://127.0.0.1:55311/health");
-        assert!(dashboard.environment.contains(&(
-            "JOB_BOARDWALK_BROWSER_SESSION_ORIGIN".to_owned(),
-            "http://127.0.0.1:55312".to_owned(),
-        )));
         assert!(matches!(dashboard.readiness, Readiness::HttpAvailable));
         assert!(matches!(dashboard.shutdown, ShutdownMethod::Caddy(_)));
         assert!(
@@ -293,13 +281,9 @@ mod tests {
         let plan = service_plan(&layout, &DesktopSettings::default(), caddy_lifecycle, None);
 
         assert_eq!(plan.len(), 2);
-        let dashboard = plan
-            .iter()
-            .find(|service| service.name == "Dashboard")
-            .expect("Dashboard should be planned");
-        assert!(dashboard.environment.contains(&(
-            "JOB_BOARDWALK_BROWSER_SESSION_ORIGIN".to_owned(),
-            String::new(),
-        )));
+        assert_eq!(
+            plan.iter().map(|service| service.name).collect::<Vec<_>>(),
+            ["Workspace Service", "Dashboard"]
+        );
     }
 }

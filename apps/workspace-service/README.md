@@ -1,25 +1,16 @@
 # Workspace Service
 
-Workspace Service owns Job Boardwalk's durable local state and workspace read model. It is the sole
-owner of SQLite persistence. Its HTTP server exposes `/api` to Dashboard and `/mcp` to MCP clients;
-it does not serve Dashboard assets or own a browser process. The production container listens on
-its private network while Compose publishes the same service to host loopback for Browser Session
-and the agent.
+Workspace Service owns Job Boardwalk's durable local state and is the sole writer to its SQLite
+database. It exposes HTTP APIs at `/api` and MCP tools and resources at `/mcp` for reading and
+maintaining the same workspace.
 
-The repository's [product design](../../docs/product-design.md) defines the intended delegation and
-browser-collaboration model. The current service preserves platform-access observations, profile
-facts, job-search intents, normalized jobs and their platform sources, and research reports. Each
-intent owns a target position, city, selection state, and per-platform recommendation-page
-references. The service does not store recruiting pages or historical page snapshots. It stores
-research reports as Markdown documents.
+The service stores personal context, job-search intents, normalized jobs and their platform
+sources, platform-access observations, and Markdown research reports. Each intent records a target
+position, city, selection state, and per-platform recommendation pages. Page observations retain
+extracted facts and provenance rather than recruiting pages or historical page snapshots.
 
-Live web interaction belongs to the separate [`browser-session`](../browser-session/) application,
-which owns the visible persistent browser. The agent coordinates that live browser work with the
-durable workspace exposed by this service.
-
-Browser Session submits platform-access observations through the domain API. Workspace Service
-validates and persists this historical research evidence independently of the producer's runtime.
-It neither calls Browser Session to fulfill workspace requests nor tracks its availability.
+Workspace operations use stored data and do not contact Browser Session. Submitted access evidence
+is validated and retained independently of the producer's runtime availability.
 
 ## Run Workspace Service
 
@@ -60,7 +51,7 @@ The MCP surface provides:
 - `job-boardwalk://jobs`, which exposes the first page of the current job library, including
   description coverage, available collected descriptions, and platform sources;
 - `read_job_library`, which reads that library with optional `page`, `pageSize`, `query`,
-  `platformId`, `engagement`, and `descriptionStatus` filters;
+  `platformId`, `externalJobId`, `engagement`, and `descriptionStatus` filters;
 - `job-boardwalk://reports` and `list_research_reports`, which expose the directory of saved
   research reports;
 - `read_research_report`, which reads a report by ID;
@@ -148,13 +139,16 @@ Authentication evidence identifies how the conclusion was established:
   authentication;
 - `authenticated-page` records `authenticated` after bounded, account-specific page content
   establishes an active session;
+- `login-required-page` records `unauthenticated` when a recognized page explicitly gates content
+  behind login; it does not establish the status of every page on the platform.
 - `login-redirect` records `unauthenticated` when a protected navigation redirects to login.
 
 Verification and access denial use the separate `interruption` field. The workspace overview
-projects the latest definite authentication result, ordered by `lastObservedAt`. It includes the
-latest interruption when that interruption is more recent, or when no authentication observation
-exists. Both retain their source URL. Dashboard owns
-[presentation of these summaries](../dashboard/README.md#data-ownership-and-freshness).
+projects `latestAuthentication` and `latestInterruption` independently, each ordered by
+`lastObservedAt` with the record ID breaking ties. A newer authentication observation does not
+resolve or remove an interruption from this historical summary. Both retain their source URL;
+neither establishes current browser control or a pending user action. The agent can read these
+summaries through the workspace overview as research provenance.
 
 ### Personal context and search intent
 
@@ -285,8 +279,9 @@ them to the same source without clearing its description.
 
 #### Library queries and description coverage
 
-Dashboard reads `GET /api/jobs` with `page`, `pageSize`, and optional `query`, `platform`,
-`engagement`, and `descriptionStatus` parameters. Workspace Service applies those constraints and
+`GET /api/jobs` accepts `page`, `pageSize`, and optional `query`, `platform`, `externalJobId`,
+`engagement`, and `descriptionStatus` parameters. MCP `read_job_library` uses `platformId` for the
+platform filter. Workspace Service applies those constraints and
 returns the current page, total result count, page count, and description coverage. `pageSize` is
 capped at 48.
 
@@ -299,10 +294,19 @@ Browser Session attempted a detail read.
 Page-level `descriptionCoverage` classifies normalized jobs into three mutually exclusive groups.
 `captured` jobs have a retained main description. `identityUnresolved` jobs have no description and
 none of their sources has an external job ID or job URL. `uncaptured` contains the remaining jobs
-without descriptions. Coverage is calculated for the current search, platform, and engagement
+without descriptions. Coverage is calculated for the current search, platform, external ID, and engagement
 scope before an optional `descriptionStatus` filter is applied. That filter selects jobs with a
 description (`captured`), all jobs without one (`missing`), or the missing-description subset with
 unresolved source identity (`identity-unresolved`).
+
+For an exact source lookup, use `GET /api/jobs?platform=boss&externalJobId=synthetic-job-id`
+or MCP `read_job_library` with `platformId` and `externalJobId`. The external ID must be nonempty,
+without surrounding whitespace, and accompanied by its platform. It matches retained card or
+description evidence exactly; keyword search does not substitute for identity lookup. Platform,
+external ID, and engagement filters must match the same source. Returned jobs still include all
+their sources, so a relation on another source must not be attributed to the requested source.
+Description coverage follows this identity scope as well. No matching source means no stored
+match; it does not establish that the account has never interacted with the job.
 
 #### Salary normalization
 
@@ -357,7 +361,7 @@ attribution in the same transaction as the report change.
 
 HTTP and MCP validate commands before passing them to the typed
 [report repository](src/persistence/research-report-repository.ts), which owns persistence,
-queries, and change attribution. [Dashboard](../dashboard/README.md#report-rendering) owns rendering.
+queries, and change attribution.
 
 ## Persistence
 

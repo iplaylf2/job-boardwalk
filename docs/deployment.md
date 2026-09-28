@@ -10,8 +10,8 @@ are the boundary for login, verification, and other user-controlled actions.
 ## Requirements
 
 - Container host: Docker Engine with Docker Compose, plus BuildKit when building images from source
-- Graphical host: a repository checkout, Chromium installed by Patchright, and the Node.js and pnpm toolchain
-  declared in the root [`package.json`](../package.json)
+- Graphical host: a repository checkout, Chromium installed by Patchright, and the
+  [source toolchain](../README.md#source-toolchain)
 
 Source image builds bootstrap their own toolchain. Host Node.js and pnpm are needed only for Browser
 Session and source development, not for building or deploying the images.
@@ -26,9 +26,9 @@ docker compose ps
 ```
 
 The build overlay is needed only when producing images from this repository. Subsequent lifecycle
-commands use the root Compose model. Continue with [Start Browser Session](#start-browser-session)
-to complete startup. [Build toolchain](#build-toolchain) explains dependency and runtime selection
-for image maintainers.
+commands use the root Compose model. [Open the workspace](#open-the-workspace) to read saved data;
+[start Browser Session](#start-browser-session) for live recruiting research.
+[Build toolchain](#build-toolchain) explains dependency and runtime selection for image maintainers.
 
 ## Deploy existing images
 
@@ -44,13 +44,18 @@ docker compose up --detach
 The deployment host needs `compose.yaml`, Docker Engine, and access to the images. It does not need
 Node.js, pnpm, the monorepo, or either Dockerfile.
 
-## Start Browser Session
+## Open the workspace
 
 After either container startup path, Compose waits for Workspace Service readiness before starting
 Dashboard. Both published ports bind only to host loopback:
 
 - Workspace Service and MCP: <http://127.0.0.1:54310>
 - Dashboard: <http://127.0.0.1:54311>
+
+Open Dashboard to maintain research criteria and read saved jobs and reports. These workspace
+operations are available without Browser Session.
+
+## Start Browser Session
 
 Browser Session runs from the repository checkout in the graphical host session. From the
 repository root, install its locked dependencies and Chromium:
@@ -71,13 +76,6 @@ The agent host connects to <http://127.0.0.1:54312/mcp>. Browser Session uses
 before the containers: platform-access submissions retry, and passive job collection can submit
 fresh evidence on a later pass. Browser Session remains outside the Compose lifecycle.
 
-Compose configures Dashboard's optional health checks with
-`JOB_BOARDWALK_BROWSER_SESSION_ORIGIN`, defaulting to `http://127.0.0.1:54312`. Set it to an empty
-value to disable requests to Browser Session. The origin addresses the user's graphical machine;
-it is not a container upstream or a Compose dependency. Dashboard's
-[application README](../apps/dashboard/README.md#service-origin-configuration) defines the accepted
-origin and direct-request behavior.
-
 ## Observe and update
 
 Inspect health and logs:
@@ -95,10 +93,9 @@ curl --fail http://127.0.0.1:54311/health
 curl --fail http://127.0.0.1:54312/health
 ```
 
-Dashboard's `/health` checks its web server. Open the Dashboard to verify that workspace data loads
-and the browser-service panel reports a ready browser. Browser Session's HTTP response can succeed
-while its browser is unavailable; its [health documentation](../apps/browser-session/README.md#health-and-runtime-diagnostics)
-explains runtime status.
+Dashboard's `/health` checks its web server. Open the Dashboard to verify that workspace data loads.
+Browser Session's HTTP endpoint can remain available while its browser is unavailable. Inspect the
+response's browser status using the [health contract](../apps/browser-session/README.md#health-and-runtime-diagnostics).
 
 ### Browser Session exit diagnosis
 
@@ -110,8 +107,7 @@ output and standard error to a chosen local log file. Browser Session's
 its output. Forced termination also requires the launcher's exit status and operating-system logs.
 
 For desktop runs, [Desktop Manager](../apps/desktop-manager/README.md#product-behavior) displays
-service availability and the service log path. Dashboard's independent health check remains
-separate from its access to saved reports. A failed health request establishes neither an exit
+service availability and the service log path. A failed health request establishes neither an exit
 nor its cause.
 
 Resolve the host failure and restore Browser Session through its launcher. Follow the
@@ -203,8 +199,8 @@ the Compose network and container lifecycle. Source-development defaults and env
 belong to its [application README](../apps/browser-session/README.md#run-browser-session-from-source).
 The directory-contained desktop adaptation belongs to
 [Desktop distribution](desktop-distribution.md#runtime-payload).
-[Development](development.md#generated-artifacts-and-language-boundaries) defines when this
-process-and-HTTP boundary would require a language-neutral schema.
+[Development](development.md#generated-artifacts-and-language-boundaries) describes the shared
+artifact and language boundaries.
 
 ## Deployment file ownership
 

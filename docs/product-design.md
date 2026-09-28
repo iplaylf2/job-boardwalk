@@ -1,12 +1,23 @@
 # Product design
 
-Job Boardwalk is a local AI job-search secretary. It turns a user's goals into durable, delegated
-research: finding opportunities, revisiting sources, organizing evidence, and explaining which
-roles merit attention.
+Job Boardwalk is a local AI job-search secretary. It provides a visible recruiting
+browser and a durable workspace for an agent working within the user's delegated scope.
 
 This document is the source of truth for cross-application product behavior and boundaries. It
 describes the intended product. The root README summarizes current scope, while application READMEs
 document the software each application currently exposes and how to operate it.
+
+## Product capabilities and research methods
+
+Job Boardwalk provides browser execution, source evidence, and durable workspace resources.
+Users set research goals and delegate work; the agent selects methods and authors findings within
+that scope. Evaluation criteria and the organization of findings belong to the research task.
+
+Shared domain resources have defined semantics and provenance. For example, a job engagement records
+an observed platform category, while a research conclusion expresses an author's judgment in the
+context of the user's goals. Workspace Service preserves both kinds of information through their
+respective contracts. A method used to produce or interpret a document does not by itself define
+an additional product workflow.
 
 ## Delegation boundary
 
@@ -29,8 +40,7 @@ changes account state, or represents the user to another person. This includes:
 - sending messages or interview responses;
 - editing a profile or resume, favoriting or following, or changing other account state.
 
-A future workflow may automate a precisely defined account action only after that action receives
-an explicit authorization model of its own. General research access does not grant that authority.
+General research access does not grant authority to perform account actions.
 
 ## Application boundaries
 
@@ -46,13 +56,10 @@ observations, research reports, and their persistence. It exposes domain resourc
 to the agent and a local API to the Dashboard. It is headless and does not own browser automation,
 browser profiles, authentication cookies, or desktop windows.
 
-The **Dashboard** is an independent view of durable workspace data. It also lets the user maintain
-personal context and a collection of job-search intents. At most one intent is selected as the
-current research direction; it supplies platform recommendation pages that the agent may visit
-during user-requested research. Each intent associates a target position and city with those pages.
-Dashboard also presents saved research reports as documents. It can consume Browser Session as an
-optional capability service; its current browser integration checks service health. Workspace
-reading does not require an active browser or agent conversation.
+The **Dashboard** lets the user maintain research criteria, inspect saved jobs, and read research
+reports. Workspace Service supplies its data and accepts its edits. Dashboard does not call Browser
+Session or initiate browser operations; it remains usable without a running browser or agent
+conversation.
 
 The **Desktop Manager** owns the native local-runtime control surface and operating-system
 integration. It is not a WebView host: Dashboard remains a browser application, and recruiting
@@ -85,101 +92,51 @@ user-observable graphical session cannot run Browser Session.
 
 ## Runtime ownership and research evidence
 
-Browser Session uses Workspace Service to retain job and platform-access observations. Dashboard
-uses Workspace Service to read and maintain that durable workspace. Browser unavailability can
-interrupt new live research; existing workspace operations depend on Workspace Service and do not
-require a running browser.
+The agent calls Browser Session for live browser work and Workspace Service for durable workspace
+operations. Browser Session submits captured evidence to Workspace Service. Dashboard reads and
+edits workspace data through Workspace Service. Workspace Service serves these clients without
+calling back into them or relaying browser operations.
 
-Browser Session owns browser startup, recovery, and runtime diagnostics. The product form owns
-service-process supervision: Desktop Manager checks the services it starts and presents their
-availability in its native UI. Dashboard can independently check Browser Session health when that
-optional integration is configured. It reports the outcome and time of its own check. Workspace
-Service neither relays health reads nor tracks browser presence.
+Browser Session owns browser startup, recovery, and runtime diagnostics. Desktop Manager supervises
+the service processes it starts and displays their availability. In the Compose deployment, Compose
+supervises the container services and the host launcher owns Browser Session. Browser unavailability
+interrupts live research while saved workspace data remains accessible through Workspace Service.
 
-Platform-access observations retain the time and basis of a research assessment. Workspace Service
-reconciles them into the history described under [Access observations](#access-observations).
-Dashboard presents that history separately from current browser readiness. Browser Session's
-[evidence submission](../apps/browser-session/README.md#evidence-submission) handles delivery
-failures without stopping browser control.
-
-### Dashboard as a browser-capability client
-
-Browser Session is an application service whose MCP interface is one client adapter. Dashboard's
-current integration reads health only; a healthy browser establishes neither platform
-authentication nor authority to act. Dashboard may acquire purpose-specific HTTP operations as
-product needs become concrete, with action contracts and authority checks defined for each feature.
-
-Browser operations reuse Browser Session's in-process coordination and apply platform scope,
-reference validation, and user handoff where relevant. One actor drives the session at a time.
-Login, verification, messages, applications, and account changes retain their user-control boundary
-regardless of which client initiated the workflow. The
-[Dashboard README](../apps/dashboard/README.md#optional-browser-session-health-checks) documents the
-current health-check behavior and configuration.
+Access observations provide research provenance, as described under
+[Access observations](#access-observations). Current page evidence and browser control state govern
+execution. Browser Session's [evidence submission](../apps/browser-session/README.md#evidence-submission)
+handles delivery failures independently of browser control.
 
 ## Job discovery and evidence
 
-Browser Session exposes a bounded, platform-specific job-card snapshot as live evidence. It reads
-eligible pages inside a supported recruiting platform's navigation boundary without navigating,
-scrolling, opening details, or persisting results. Personal-center engagement pages are rejected
-rather than reported as empty job-card pages. Browser Session owns this page read, but it
-does not own the selected intent, semantic relevance judgments, or durable job observations.
+Browser Session reads bounded job-card and main-description evidence from supported pages.
+Explicit card reads return live evidence without persisting it. Explicit description reads return
+only after Workspace Service retains the observation. Passive collection separately reads eligible
+open tabs and submits card or description observations. These collection paths never navigate,
+scroll, or open details. Personal-center engagement pages use the separate synchronization boundary.
 
-It separately reads the main posting description from a supported detail page. An explicit
-description snapshot returns its captured observation only after Workspace Service confirms that
-the evidence is preserved, so preservation does not depend on the detail page remaining open until
-a later passive collection pass. If Workspace Service rejects the submission or reports it as
-`stale` without applying it, the snapshot action fails instead of returning evidence that was not
-preserved. When an agent has independently confirmed that the open detail belongs to a tracked
-source with no retained description, external job ID, or job URL, the explicit snapshot may name
-that workspace source. Workspace Service validates this explicit binding and never infers it from
-similarity alone.
+A selected job-search intent provides context for the agent's navigation. It does not schedule
+collection or cause either service to open its saved pages. Browser Session owns page extraction;
+the agent owns relevance judgments. Unclassified page evidence remains available for agent
+interpretation. A recognized access interruption pauses browser reads under the
+[handoff protocol](#browser-handoff).
 
-Card collection pages and detail pages are disjoint: recommendations surrounding a detail page
-cannot be reinterpreted as the main posting. Passive collection observes recognizable cards and
-main descriptions from already-open supported-platform tabs, except for personal-center engagement
-pages. Explicit description writes carry agent attribution; passive observations carry system
-attribution. A selected job-search intent supplies recommendation pages as agent research context,
-but the collector never opens or navigates a tab for them. Browser navigation remains an explicit
-action in a user-requested research task.
+Workspace Service owns source identity, observation freshness, and normalized jobs. Each platform
+source retains its latest card and description observations independently, including their capture
+times. Card updates preserve retained descriptions. Older evidence does not overwrite newer
+observations. The workspace stores extracted facts rather than HTML or historical page snapshots.
 
-Every recognizable card on an eligible page contributes an observation regardless of which seed,
-search path, or other research action led to it. A page with no recognizable cards contributes no
-job observations. The ownership exclusion is structural and platform-specific; the collector does
-not otherwise make semantic relevance judgments. A failure to read one tab is reported for that
-tab without discarding evidence already captured. A recognized access interruption pauses further
-page reads under the [handoff protocol](#browser-handoff).
+Source identity and normalized job identity are distinct. A platform's stable job ID or detail link
+identifies a source when available; sources with incomplete identity may later be explicitly bound
+to a confirmed detail page. Workspace Service validates that association. A normalized job may
+group several sources, but each source keeps its own provenance, description, and engagement
+relations.
 
-Browser Session recognizes job-detail links through one platform-specific path contract and uses
-the same match to derive a stable external job ID when the platform exposes one. Identifier
-segments, rather than separate human-readable trailing slugs, define that ID. Job-card observations
-and engagement synchronization therefore retain the same source identity when a platform changes
-display text without changing the underlying job.
-
-Workspace Service turns submitted observations into a durable job library rather than a page
-archive. Each platform source stores its latest retained card and description observation
-independently; no HTML or historical page snapshot is stored. When the facts match, a later
-`observedAt` refreshes the retained observation and source check time. This produces an `unchanged`
-outcome unless advancing that source changes the normalized job's derived facts; that change is
-attributed and returned as `source-updated`. Different facts replace retained evidence only when
-their `observedAt` is later. An older observation, or a conflicting observation with the same
-`observedAt`, is left unapplied with a `stale` outcome; it neither replaces retained evidence nor
-moves the check time backward. A card observation does not imply that the description was inspected,
-so it never clears a stored description. The description's capture time and Browser Session's local
-truncation state remain explicit. The normalized job is derived from the observations currently
-stored for its sources.
-
-Within a platform, an external job ID is the preferred source identity, followed by the job URL
-pathname and then normalized company, title, and location when a detail link is unavailable. Across
-platforms, Workspace Service merges sources only when normalized company, title, and location
-identify the same job. Normalization standardizes Unicode, case, and separators; it does not infer
-company aliases or discard phrases from job titles. Partial cards without that identity remain
-separate.
-
-Job-library reads expose description coverage and distinguish missing descriptions with a known
-detail identity from those without one. Workspace Service owns the
-[coverage query](../apps/workspace-service/README.md#library-queries-and-description-coverage)
-and [source-binding validation](../apps/workspace-service/README.md#source-binding). Dashboard owns
-how the library presents those results.
+[Browser Session](../apps/browser-session/README.md#job-evidence-reads-and-passive-collection)
+owns read scope, extraction rules, and collection behavior.
+[Workspace Service](../apps/workspace-service/README.md#job-library) owns identity matching,
+source-binding validation, write outcomes, and library queries.
+[Dashboard](../apps/dashboard/README.md#job-library) owns their presentation.
 
 ## Engagement tracking
 
@@ -260,15 +217,18 @@ is recorded separately from verification requests and access denial.
 Browser Session derives access observations from platform rules applied to top-level
 navigation responses and existing page reads. The agent can record independently interpreted
 evidence when no adapter classifies it. Unclassified evidence leaves existing observations
-unchanged. [Platform coverage](../apps/browser-session/README.md#platform-coverage) defines the
+unchanged. A null current observation does not renew historical authentication; an active control
+state describes who may operate the browser, not whether the platform has authenticated them.
+Compare dated history with current page restrictions before relying on account access.
+[Platform coverage](../apps/browser-session/README.md#platform-coverage) defines the
 recognized pages and evidence for each adapter.
 
 Workspace Service retains observations by platform and source URL, reconciling repeated evidence
 by observation time. It owns the
 [observation API and overview projection](../apps/workspace-service/README.md#platform-access-observations).
-Browser Session owns [submission](../apps/browser-session/README.md#evidence-submission). Dashboard
-presents the resulting summaries; its [data display](../apps/dashboard/README.md#data-ownership-and-freshness)
-is separate from live browser inspection, which remains with Browser Session.
+Browser Session owns [submission](../apps/browser-session/README.md#evidence-submission).
+The agent reads these summaries through the workspace overview. Historical authentication and
+interruption records do not establish a pending action or resolve a current browser interruption.
 
 ## Reliable browser research
 
@@ -291,6 +251,10 @@ failure to the request rather than replaying the action. Navigation and inspecti
 including repeated timeouts, establish neither their cause nor the absence of a visible access
 decision and do not authorize a reload, replacement page, or browser restart.
 
+Transport failure without a tool result establishes no platform-access state. Preserve collected
+evidence, check service availability independently, and re-observe page and control state after
+recovery. Service unreachability alone does not imply a need to log in again.
+
 Before recovery changes the visible page, the agent re-observes when possible. If the driver still
 cannot inspect the page, the agent asks what the user sees in the visible window. Recovery preserves
 the platform's visible access decisions: if the platform presents verification or denies access,
@@ -302,7 +266,8 @@ Research reports preserve authored findings for later reading, independently of 
 that produced them. The author chooses the subject and document structure, explaining conclusions,
 supporting evidence, uncertainties, and outstanding research in the body. Evidence dates establish
 the context of those findings. The report's creation and update times record when the document was
-saved and revised.
+saved and revised. When an access limitation affects research coverage or a conclusion, the report
+explains that consequence alongside the relevant findings.
 
 Saved reports remain available until explicitly deleted. Replacing a report overwrites its previous
 content; earlier revisions are not retained. Workspace Service owns the saved document, and
@@ -315,48 +280,22 @@ Markdown rendering and link behavior.
 
 ## Dashboard surface
 
-Dashboard has three reader paths:
+Dashboard provides three reading and maintenance paths: research criteria, saved jobs, and research
+reports. Each view helps the user set the research direction, assess an opportunity, or understand a
+finding. Browser health, login observations, and verification events are not standalone Dashboard
+views; live browser interaction belongs to the agent conversation and the visible browser.
 
-- the workspace overview for the current job-search intent, personal context, and platform-access
-  observations;
-- a paginated job library for normalized job facts and merged platform sources, including a combined
-  tracked view, engagement-category filters, and filters for description availability;
-- a report library and Markdown reader for saved research documents.
+The overview presents personal context and a collection of job-search intents. Each intent records
+a target position, city, and platform recommendation pages. At most one intent is selected as the
+current research direction. The agent may use its saved pages during delegated research; selecting
+an intent does not start browser work.
 
-### Workspace overview
+The job library supports filtering and inspecting retained job evidence. Research reports preserve
+authored comparisons, conclusions, and limitations for later reading.
 
-The overview follows task relevance rather than the order in which capabilities were added. The
-selected job-search intent and current personal context form the primary research basis.
-Platform-access evidence appears in a compact secondary rail and gains visual emphasis only for an
-unresolved access interruption. Counts already present in global navigation are not repeated
-as overview sections. The independent browser-service panel reports optional health checks as
-described under [Runtime ownership and research evidence](#runtime-ownership-and-research-evidence).
+Personal context is editable research input. Removing a fact removes it from subsequent workspace
+reads; Workspace Service retains change attribution separately. Existing conversations or saved
+reports are not rewritten by that change.
 
-Personal context is current research input, not immutable history. The overview initially shows a
-bounded read-only summary, and the user can expand every current personal fact in place. A separate
-management surface owns creating, revising, selecting, and removing job-search intents and personal
-facts. Removing a fact stops it from influencing future interpretation; Workspace Service retains
-change attribution separately.
-
-### Job library
-
-Job cards remain compact and comparable regardless of description length. Description availability
-belongs to the library-level summary and filters; a card presents a description action only when
-there is content to read. A collected description opens in a dedicated dialog rather than expanding
-inside its card, so reading one job does not reflow the surrounding list. Only one description is
-open at a time, and closing it returns the user to the same list context. On a narrow screen, the
-dialog fills the viewport; its header remains visible while the description scrolls independently.
-The list heading reports description coverage for the current search, platform, and engagement
-scope before a description filter narrows the cards, so selecting jobs without descriptions does
-not hide the baseline needed to understand the result.
-
-### Product direction
-
-As the product grows, it should also include:
-
-- other research intents;
-- research runs, partial progress, and interruptions;
-- further report formats and exports when Markdown is no longer sufficient.
-
-Browser features follow the [browser-capability client boundary](#dashboard-as-a-browser-capability-client).
-Reports remain documents, including when other Dashboard features gain browser operations.
+The [Dashboard README](../apps/dashboard/README.md#reader-path) owns navigation, editing surfaces,
+filters, dialogs, and data-refresh behavior.

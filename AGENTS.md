@@ -24,6 +24,8 @@ files. Read a linked source only when its trigger applies.
 
 ## Task-specific guidance
 
+- Before turning usage feedback into changes or introducing a product capability, follow
+  [Feedback and capability design](docs/development.md#feedback-and-capability-design).
 - Before changing application behavior or development workflows, read the relevant sections of that
   application's README.
 - Before changing dependencies, follow the version-placement policy in
@@ -33,7 +35,7 @@ files. Read a linked source only when its trigger applies.
   single-baseline development model and database replacement workflow.
 - Before changing Browser Session lifecycle, page-control, adapter, or driver boundaries, read its
   [runtime behavior](apps/browser-session/README.md#runtime-behavior) and
-  [maintenance constraints](apps/browser-session/README.md#maintenance-constraints).
+  [maintenance constraints](apps/browser-session/docs/maintenance.md).
 - Before controlling a recruiting-platform browser, read
   [Browser handoff](docs/product-design.md#browser-handoff),
   [Access observations](docs/product-design.md#access-observations), and

@@ -37,3 +37,45 @@ test.each([
     repository.close();
   }
 });
+
+test("retains a dated page login restriction independently of historical authentication", async () => {
+  const repository = new WorkspaceRepository({ databasePath: ":memory:", migrationsDirectory });
+  await using serviceScope = createScope();
+  const app = createWorkspaceServiceHttpApp({ repository, serviceScope });
+  try {
+    repository.recordPlatformAccessObservation({
+      authenticationState: "authenticated",
+      evidence: "authenticated-page",
+      observedAt: "2026-01-01T00:00:00.000Z",
+      platformId: "boss",
+      url: "https://www.zhipin.com/web/geek/jobs",
+    });
+    const observation = {
+      authenticationState: "unauthenticated",
+      evidence: "login-required-page",
+      observedAt: "2026-01-02T00:00:00.000Z",
+      platformId: "boss",
+      url: "https://www.zhipin.com/web/geek/job-recommend",
+    };
+    const response = await app.request("/api/platform-access/observations", {
+      body: JSON.stringify(observation),
+      headers: { "content-type": "application/json" },
+      method: "PUT",
+    });
+    expect(response.ok).toBe(true);
+    const overview = await app.request("/api/workspace/overview");
+    const result = (await overview.json()) as { platformAccessSummaries: unknown[] };
+    const expected = expect.objectContaining({
+      latestAuthentication: expect.objectContaining(observation),
+    });
+    expect(result.platformAccessSummaries).toContainEqual(expected);
+    expect(repository.listPlatformAccessObservations()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ authenticationState: "authenticated" }),
+        expect.objectContaining(observation),
+      ]),
+    );
+  } finally {
+    repository.close();
+  }
+});

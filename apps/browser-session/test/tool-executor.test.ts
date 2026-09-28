@@ -43,31 +43,32 @@ function browserToolExecutor(
   );
 }
 
+function authenticatedBossSnapshot() {
+  return Promise.resolve({
+    documentReadyState: "complete",
+    elements: accountLinks.map(([name, href], sourceIndex) => ({
+      disabled: false,
+      href,
+      name,
+      role: "link",
+      signature: `${name}:${href}`,
+      sourceIndex,
+    })),
+    text: "消息 简历 个人中心",
+    title: "BOSS直聘",
+    truncated: false,
+    url: "https://www.zhipin.com/beijing/",
+    viewport: { height: 900, scrollY: 0, width: 1200 },
+  });
+}
+
 function fakeAuthenticatedBossPage(): Page {
-  function snapshot() {
-    return Promise.resolve({
-      documentReadyState: "complete",
-      elements: accountLinks.map(([name, href], sourceIndex) => ({
-        disabled: false,
-        href,
-        name,
-        role: "link",
-        signature: `${name}:${href}`,
-        sourceIndex,
-      })),
-      text: "消息 简历 个人中心",
-      title: "BOSS直聘",
-      truncated: false,
-      url: "https://www.zhipin.com/beijing/",
-      viewport: { height: 900, scrollY: 0, width: 1200 },
-    });
-  }
   const page = {
-    evaluate: snapshot,
+    evaluate: authenticatedBossSnapshot,
     isClosed: () => false,
     locator: createSyntheticPageLocator({
       nth: () => ({}) as Locator,
-      readSnapshot: snapshot,
+      readSnapshot: authenticatedBossSnapshot,
       title: "BOSS直聘",
     }),
     once: () => page,

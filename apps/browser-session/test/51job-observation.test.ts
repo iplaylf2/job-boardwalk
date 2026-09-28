@@ -103,6 +103,12 @@ test.each([
 
 test("captures linkless 51job cards without manufacturing source identity", () => {
   const metadata = capture([card("合成系统工程师"), card("合成系统工程师"), card("")]);
+  expect(metadata.coverage).toMatchObject({
+    candidateElements: 3,
+    recognizedCards: 2,
+    returnedCards: 2,
+    scope: "loaded-document",
+  });
   expect(metadata.cards).toHaveLength(twoCards);
   expect(metadata.cards[firstIndex]).toEqual({
     company: "合成雇主甲",
@@ -113,9 +119,11 @@ test("captures linkless 51job cards without manufacturing source identity", () =
     title: "合成系统工程师",
   });
   expect(metadata.cards[secondIndex]).toEqual(metadata.cards[firstIndex]);
+  expect(metadata.coverage).toMatchObject({ duplicateCandidates: 0, rejectedCandidates: 1 });
   const snapshot = JobCardSnapshot.assert({
     capturedAt,
     cards: structuredClone(metadata.cards),
+    coverage: structuredClone(metadata.coverage),
     platformId: "51job",
     sourceTitle: metadata.title,
     sourceUrl: searchUrl,
@@ -136,9 +144,17 @@ test("preserves cross-subdomain job links while excluding untrusted link identit
   expect(metadata.cards).toHaveLength(twoCards);
   expect(metadata.cards[firstIndex]).toHaveProperty("href", detailUrl);
   expect(metadata.cards[secondIndex]).not.toHaveProperty("href");
+  expect(metadata.coverage).toMatchObject({
+    candidateElements: 3,
+    duplicateCandidates: 1,
+    recognizedCards: 2,
+    rejectedCandidates: 0,
+    returnedCards: 2,
+  });
   const observations = observationsFromJobCardSnapshot({
     capturedAt,
     cards: metadata.cards,
+    coverage: metadata.coverage,
     platformId: "51job",
     sourceTitle: metadata.title,
     sourceUrl: searchUrl,
@@ -149,7 +165,22 @@ test("preserves cross-subdomain job links while excluding untrusted link identit
 
 test("bounds distinct cards and accepts a collection with no recognizable cards", () => {
   expect(capture([card("合成甲"), card("合成甲")], singleCard)).toMatchObject({ truncated: true });
-  expect(capture([])).toMatchObject({ cards: [], truncated: false });
+  expect(capture([card("合成甲"), card("合成甲")], singleCard).coverage).toMatchObject({
+    duplicateCandidates: 0,
+    recognizedCards: 2,
+    returnedCards: 1,
+  });
+  expect(capture([])).toMatchObject({
+    cards: [],
+    coverage: {
+      candidateElements: 0,
+      duplicateCandidates: 0,
+      recognizedCards: 0,
+      rejectedCandidates: 0,
+      returnedCards: 0,
+    },
+    truncated: false,
+  });
 });
 
 test.each([true, false])(
@@ -252,3 +283,32 @@ test.each([
   });
   expect(metadata.location).toBe(expected);
 });
+
+test.each(["3–4年", "5-7年", ""])(
+  "keeps the header experience separate from preferred experience: %s",
+  (header) => {
+    const description = "合成任职条件\n2年以上开发经验者优先，本科优先。";
+    const fields: Record<string, { innerText: string; textContent: string }> = {
+      ".jTitle": { innerText: header, textContent: header },
+      ".job-detail .job_msg": { innerText: description, textContent: description },
+    };
+    vi.stubGlobal("document", {
+      body: { innerText: `${header}\n${description}` },
+      querySelector: (selector: string) => fields[selector] ?? null,
+      querySelectorAll: (selector: string) => (fields[selector] ? [fields[selector]] : []),
+    });
+    vi.stubGlobal("location", { href: detailUrl });
+    const metadata = captureJobDescriptionMetadata({
+      ...requireJobDetailExtractionConfigs(detailUrl),
+      accessTextCharacters: 5000,
+      maximumAccessElements: 300,
+      maximumDescriptionCharacters: 20_000,
+      maximumFieldCharacters: 300,
+    });
+    expect(metadata).toMatchObject({
+      description,
+      educationRequirement: null,
+      experienceRequirement: header || null,
+    });
+  },
+);

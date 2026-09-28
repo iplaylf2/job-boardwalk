@@ -53,6 +53,7 @@ export function* captureJobCardSnapshot(
       ...card,
       ...(card.company ? { company: normalizedText(card.company, maximumFieldCharacters) } : {}),
     })),
+    coverage: metadata.coverage,
     platformId,
     sourceTitle: metadata.title,
     sourceUrl: metadata.url,

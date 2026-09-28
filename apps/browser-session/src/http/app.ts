@@ -46,26 +46,17 @@ function localOriginGuard(context: Context, next: Next) {
   return next();
 }
 
-function healthReadHeaders(context: Context, next: Next) {
-  const origin = context.req.header("origin");
-  context.header("Cache-Control", "no-store");
-  context.header("Vary", "Origin");
-  if (origin && context.req.method === "GET") {
-    context.header("Access-Control-Allow-Origin", origin);
-  }
-  return next();
-}
-
 export function createBrowserSessionHttpApp(dependencies: BrowserSessionHttpDependencies): Hono {
   const app = new Hono();
 
-  app.use("/health", localOriginGuard, healthReadHeaders);
-  app.get("/health", (requestContext) =>
-    requestContext.json({
+  app.use("/health", localOriginGuard);
+  app.get("/health", (requestContext) => {
+    requestContext.header("Cache-Control", "no-store");
+    return requestContext.json({
       browser: dependencies.browserControl.status,
       status: "ok",
-    }),
-  );
+    });
+  });
   app.use("/mcp", localOriginGuard);
   registerMcpEndpoint(app, dependencies.browserControl, dependencies.serviceScope);
 

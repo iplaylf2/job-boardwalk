@@ -51,12 +51,12 @@ function fakeContextWithPopup(deferred = false): BrowserContext {
   const sourceEvents = new EventEmitter();
   const popupPage = fakePage({ locator: {} as Locator, url: popupUrl });
   const signature = `link:查看职位:${popupUrl}`;
+  function openPopup() {
+    contextEvents.emit("page", popupPage);
+    sourceEvents.emit("popup", popupPage);
+  }
   const locator = {
     click: () => {
-      function openPopup() {
-        contextEvents.emit("page", popupPage);
-        sourceEvents.emit("popup", popupPage);
-      }
       if (deferred) {
         setImmediate(openPopup);
       } else {

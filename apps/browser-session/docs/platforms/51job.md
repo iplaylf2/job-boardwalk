@@ -14,9 +14,13 @@ adapter exposes visible titles as detail-opening controls in `browser_snapshot`.
 reference and card-context workflow described in [Tabs and page
 evidence](../../README.md#tabs-and-page-evidence).
 
-Detail reads select the main posting description, title, and benefits independently of
-surrounding recommendations. Salary, experience, and education patterns read only the posting
-header, description, and tags; absent facts remain absent.
+## Detail extraction
+
+Detail reads select the main posting description, title, and benefits independently of surrounding
+recommendations. Salary patterns read the posting header, description, and tags. Experience and
+education fields read only the posting header (`.jTitle`); missing header facts remain absent even
+when the description states a minimum or preferred qualification. Experience ranges accept hyphens
+and en/em dashes. The description retains its full qualification wording.
 
 Location extraction reads a line labeled “工作地址” or “上班地址” within `.job-detail` and retains
 its text in the description observation alongside the detail URL and capture time. It does not
@@ -70,8 +74,8 @@ nonempty layouts have not been verified live.
 
 Search-card navigation to a detail popup and English verification-page classification have been
 exercised live. Synthetic tests also cover same-name cards, popup handling, stale references, and
-accepted and rejected verification-page evidence. Labeled-address extraction has synthetic
-accepted and rejected cases; its extraction has not been validated against live pages.
+accepted and rejected verification-page evidence. Labeled-address and qualification extraction
+have synthetic accepted and rejected cases; these rules have not been validated against live pages.
 
 ## Implementation
 
@@ -79,4 +83,4 @@ The [page definition](../../src/browser/platforms/51job.ts) owns collection boun
 rules, extraction selectors, and access assessment. Engagement evidence comes from the [category
 capture](../../src/browser/job-engagement/51job-page-capture.ts) and [category-total
 parser](../../src/browser/job-engagement/page-totals.ts). Shared contracts and catalog ownership
-are described in [Maintenance constraints](../../README.md#maintenance-constraints).
+are described in [Maintenance constraints](../maintenance.md).

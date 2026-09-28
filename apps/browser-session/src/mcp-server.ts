@@ -42,7 +42,7 @@ const engagementCapabilities = platformIds
   .join("\n");
 const browserServerInstructions = [
   `Browser Session 管理可见浏览器，并通过统一适配器控制 ${supportedPlatformLabels} 标签页。`,
-  "访问观察：平台适配器从顶层导航响应、快照和采集时已有的页面读取中识别认证或访问中断。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类。",
+  "访问观察：平台适配器从顶层导航响应、快照和采集时已有的页面读取中识别认证或访问中断。browser_snapshot 返回非 null 的 platformAccessObservation 时，结论已加入自动状态上报，无需调用方再次提交；null 表示证据尚未分类，不表示已登录；active 仅表示控制权可用，历史认证记录不能代替当前页面检查。",
   "账号边界：招聘平台的 HTTPS 导航范围用于研究导航和登录交接准备；登录、验证、投递、消息和账号变更由用户控制。",
   "用户交接：需要登录时使用 browser_prepare_login。登录界面就绪返回 outcome=handoff-ready 并暂停会话；适配器识别到验证或拒绝访问时也会暂停。暂停期间，除 browser_status 和交还控制后的首次快照外，新工具调用均返回 user-control-active；error.details.platformAccessObservation 保留已知的中断证据；browser_status 可查看当前控制状态和来源 URL。",
   "恢复研究：用户明确交还控制权后，对相关 tabId 调用 browser_snapshot 并设置 userReturnedControl=true。快照仍识别到中断时会再次暂停；根据 controlState 和页面证据决定下一步。普通快照省略该标志。",
@@ -112,7 +112,7 @@ const browserTools = [
       readOnlyHint: false,
     },
     description: [
-      "读取当前招聘平台集合页中的岗位卡片，个人中心跟进页不在读取范围。waitFor=none 立即读取；waitFor=cards-present 在服务预算内等待可识别卡片，出现即返回。cards-observed 表示已读到卡片；no-cards-observed 表示本次未读到，加载中、空结果与未知布局仍需另行判断。读取失败或观察到 URL 改变时停止。truncated 只说明已加载卡片是否被响应上限裁剪，不表示搜索覆盖范围。",
+      "读取当前招聘平台集合页中的岗位卡片，个人中心跟进页不在读取范围。waitFor=none 立即读取；waitFor=cards-present 在服务预算内等待可识别卡片，出现即返回。cards-observed 表示已读到卡片；no-cards-observed 表示本次未读到，加载中、空结果与未知布局仍需另行判断。读取失败或观察到 URL 改变时停止。coverage 统计本次 loaded-document 中候选节点、未识别候选、重复身份、可识别卡片和返回卡片；未识别候选可能是非岗位链接，未知布局和未加载结果不在统计内。truncated 只说明已识别卡片是否被响应上限裁剪，不表示搜索覆盖范围。",
       "仅按可靠详情身份去重，无链接卡片分别保留。本次读取可能刷新访问观察，但不写入岗位库；被动采集另行观察并提交岗位，Workspace Service 负责来源归并。操作详情入口时使用 browser_snapshot 提供的 ref。",
     ].join("\n\n"),
     name: "browser_job_card_snapshot",
@@ -125,9 +125,10 @@ const browserTools = [
       readOnlyHint: false,
     },
     description: [
-      "读取当前详情页的主要职位描述和可识别的岗位字段，以 agent 归因写入 Workspace Service。成功响应的 persistence.outcome 表示观察已被接受并保留；写入失败或工作区返回 stale 时调用失败。description.capturedAt 是采集时间，description.truncated 只表示本地长度裁剪，不衡量提取范围是否完整。本次读取不导航、滚动或点击，排除周边推荐岗位，并可能刷新平台访问观察。",
+      "读取当前详情页的主要职位描述和可识别字段，以 agent 归因写入 Workspace Service；写入失败或工作区返回 stale 时调用失败。本次读取不导航、滚动或点击，排除周边推荐岗位，并可能刷新平台访问观察。",
+      "persistence 返回写入 outcome、jobId 和该岗位的全部来源摘要 sources，包含 sourceId、current、身份、观察时间及跟进关系。current 标记本次来源；空跟进列表表示没有已记录的关系。description.capturedAt 是采集时间；description.truncated 仅表示本地长度裁剪，不表示提取范围完整。",
       "若已独立确认当前页面属于某个工作区来源，且该来源尚无描述、外部岗位 ID 和详情链接，可传其 sourceId 请求显式绑定。sourceBinding.outcome=bound 时返回绑定的 sourceId；not-requested 表示未传 sourceId，本次未建立与指定无链接卡片的关联。",
-      "recruitment 独立记录招聘状态、观察时间和来源 URL；明确状态附带证据，unknown 表示未能判定。已保存正文不代表仍在招聘。evidence-unavailable 错误通过 details.missingFields 和 pageTextAvailable 说明缺失字段及页面文字是否可读；可读文字不能区分内容缺失与布局不受支持。",
+      "recruitment 独立记录招聘状态、观察时间和来源 URL；明确状态附带证据，unknown 表示适配器未形成自动结论。已保存正文不代表仍在招聘。evidence-unavailable 错误通过 details.missingFields 和 pageTextAvailable 说明缺失字段及页面文字是否可读；可读文字不能区分内容缺失与布局不受支持。",
       "本账户是否已投递需另行核实跟进证据，通用投递按钮不能证明尚未投递。",
     ].join("\n\n"),
     name: "browser_job_description_snapshot",

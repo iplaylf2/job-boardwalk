@@ -29,6 +29,7 @@ import { capturePageDiagnostics } from "./page-diagnostics.js";
 import { readJobCards } from "./job-observation/card-read.js";
 // oxlint-disable-next-line import/max-dependencies -- The tool dispatcher integrates the owning capture modules.
 import { captureJobDescriptionObservation } from "./job-observation/description-observation.js";
+import { summarizeDescriptionPersistence } from "./job-observation/description-persistence.js";
 
 const zero = 0;
 const snapshotTextLimit = 40_000;
@@ -55,7 +56,7 @@ export interface BrowserToolExecutorCoordination {
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
     sourceId?: number,
-  ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
+  ) => RiteCoroutine<SaveJobObservationResult>;
 }
 
 export class BrowserToolExecutor {
@@ -77,7 +78,7 @@ export class BrowserToolExecutor {
     observation: JobDescriptionObservation,
     attribution: WorkspaceChangeAttribution,
     sourceId?: number,
-  ) => RiteCoroutine<Pick<SaveJobObservationResult, "outcome">>;
+  ) => RiteCoroutine<SaveJobObservationResult>;
 
   public constructor(
     tabs: BrowserTabs,
@@ -358,9 +359,9 @@ export class BrowserToolExecutor {
       );
     }
     return {
-      ...observation,
-      persistence: writeResult,
+      persistence: summarizeDescriptionPersistence(writeResult, observation, sourceId),
       sourceBinding: sourceId ? { outcome: "bound", sourceId } : { outcome: "not-requested" },
+      ...observation,
       tabId,
     };
   }
